@@ -23,6 +23,12 @@ public enum PhysicsShapeKind
 	TriangleMesh
 }
 
+public enum PhysicsBodyMode
+{
+	Static,
+	Dynamic
+}
+
 public enum PhysicsJointKind
 {
 	Fixed,
@@ -31,12 +37,19 @@ public enum PhysicsJointKind
 	Configurable
 }
 
+public enum PhysicsCommandKind
+{
+	ApplyImpulse
+}
+
 public enum PhysicsEventKind
 {
 	ContactStarted,
 	ContactPersisted,
 	ContactEnded,
-	JointBroken
+	JointBroken,
+	BodyCreated,
+	BodyDestroyed
 }
 
 public readonly record struct PhysicsBodyId(uint Value)
@@ -52,11 +65,15 @@ public readonly record struct PhysicsJointId(uint Value)
 public readonly record struct PhysicsVector3(float X, float Y, float Z)
 {
 	public static PhysicsVector3 Zero => new(0, 0, 0);
+
+	public bool IsFinite => float.IsFinite(X) && float.IsFinite(Y) && float.IsFinite(Z);
 }
 
 public readonly record struct PhysicsQuaternion(float X, float Y, float Z, float W)
 {
 	public static PhysicsQuaternion Identity => new(0, 0, 0, 1);
+
+	public bool IsFinite => float.IsFinite(X) && float.IsFinite(Y) && float.IsFinite(Z) && float.IsFinite(W);
 }
 
 public readonly record struct FixedTimeStep(float Seconds)
@@ -74,10 +91,31 @@ public readonly record struct FixedTimeStep(float Seconds)
 
 public abstract record ShapeDefinition(PhysicsShapeKind Kind);
 
-public sealed record BoxShapeDefinition(
-	float HalfExtentX,
-	float HalfExtentY,
-	float HalfExtentZ) : ShapeDefinition(PhysicsShapeKind.Box);
+public sealed record BoxShapeDefinition : ShapeDefinition
+{
+	public BoxShapeDefinition(float halfExtentX, float halfExtentY, float halfExtentZ)
+		: base(PhysicsShapeKind.Box)
+	{
+		ValidateHalfExtent(halfExtentX, nameof(halfExtentX));
+		ValidateHalfExtent(halfExtentY, nameof(halfExtentY));
+		ValidateHalfExtent(halfExtentZ, nameof(halfExtentZ));
+		HalfExtentX = halfExtentX;
+		HalfExtentY = halfExtentY;
+		HalfExtentZ = halfExtentZ;
+	}
+
+	public float HalfExtentX { get; }
+	public float HalfExtentY { get; }
+	public float HalfExtentZ { get; }
+
+	private static void ValidateHalfExtent(float value, string parameterName)
+	{
+		if (!float.IsFinite(value) || value <= 0)
+		{
+			throw new ArgumentOutOfRangeException(parameterName, value, "A box half extent must be finite and positive.");
+		}
+	}
+}
 
 public sealed class BodyDefinition
 {
@@ -86,10 +124,38 @@ public sealed class BodyDefinition
 		PhysicsQuaternion rotation,
 		float mass,
 		IReadOnlyList<ShapeDefinition> shapes)
+		: this(PhysicsBodyMode.Dynamic, position, rotation, mass, shapes)
 	{
-		if (!float.IsFinite(mass) || mass <= 0)
+	}
+
+	public BodyDefinition(
+		PhysicsBodyMode mode,
+		PhysicsVector3 position,
+		PhysicsQuaternion rotation,
+		float mass,
+		IReadOnlyList<ShapeDefinition> shapes)
+	{
+		if (!Enum.IsDefined(mode))
 		{
-			throw new ArgumentOutOfRangeException(nameof(mass), mass, "A dynamic body mass must be finite and positive.");
+			throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown physics body mode.");
+		}
+
+		if (!position.IsFinite)
+		{
+			throw new ArgumentOutOfRangeException(nameof(position), "A body position must contain only finite values.");
+		}
+
+		if (!rotation.IsFinite)
+		{
+			throw new ArgumentOutOfRangeException(nameof(rotation), "A body rotation must contain only finite values.");
+		}
+
+		if (!float.IsFinite(mass) || (mode == PhysicsBodyMode.Dynamic ? mass <= 0 : mass != 0))
+		{
+			string requirement = mode == PhysicsBodyMode.Dynamic
+				? "A dynamic body mass must be finite and positive."
+				: "A static body mass must be zero.";
+			throw new ArgumentOutOfRangeException(nameof(mass), mass, requirement);
 		}
 
 		ArgumentNullException.ThrowIfNull(shapes);
@@ -98,25 +164,116 @@ public sealed class BodyDefinition
 			throw new ArgumentException("A body must contain at least one collision shape.", nameof(shapes));
 		}
 
+		for (int index = 0; index < shapes.Count; index++)
+		{
+			if (shapes[index] is null)
+			{
+				throw new ArgumentException("A body cannot contain a null collision shape.", nameof(shapes));
+			}
+		}
+
+		Mode = mode;
 		Position = position;
 		Rotation = rotation;
 		Mass = mass;
 		Shapes = shapes;
 	}
 
+	public PhysicsBodyMode Mode { get; }
 	public PhysicsVector3 Position { get; }
 	public PhysicsQuaternion Rotation { get; }
 	public float Mass { get; }
 	public IReadOnlyList<ShapeDefinition> Shapes { get; }
 }
 
-public sealed record JointDefinition(
-	PhysicsJointKind Kind,
-	PhysicsBodyId BodyA,
-	PhysicsBodyId BodyB,
-	PhysicsConstraintMask Constraints,
-	float BreakForce,
-	float BreakTorque);
+public sealed record JointDefinition
+{
+	public JointDefinition(
+		PhysicsJointKind kind,
+		PhysicsBodyId bodyA,
+		PhysicsBodyId bodyB,
+		PhysicsConstraintMask constraints,
+		float breakForce,
+		float breakTorque)
+	{
+		if (!Enum.IsDefined(kind))
+		{
+			throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown physics joint kind.");
+		}
+
+		if (!bodyA.IsValid || !bodyB.IsValid || bodyA == bodyB)
+		{
+			throw new ArgumentException("A joint must connect two different valid bodies.");
+		}
+
+		if (!float.IsFinite(breakForce) || breakForce < 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(breakForce), breakForce, "Break force must be finite and non-negative.");
+		}
+
+		if (!float.IsFinite(breakTorque) || breakTorque < 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(breakTorque), breakTorque, "Break torque must be finite and non-negative.");
+		}
+
+		Kind = kind;
+		BodyA = bodyA;
+		BodyB = bodyB;
+		Constraints = constraints;
+		BreakForce = breakForce;
+		BreakTorque = breakTorque;
+	}
+
+	public PhysicsJointKind Kind { get; }
+	public PhysicsBodyId BodyA { get; }
+	public PhysicsBodyId BodyB { get; }
+	public PhysicsConstraintMask Constraints { get; }
+	public float BreakForce { get; }
+	public float BreakTorque { get; }
+}
+
+public readonly record struct PhysicsCommand
+{
+	private PhysicsCommand(
+		PhysicsCommandKind kind,
+		PhysicsBodyId body,
+		PhysicsVector3 impulse,
+		PhysicsVector3 worldPoint)
+	{
+		Kind = kind;
+		Body = body;
+		Impulse = impulse;
+		WorldPoint = worldPoint;
+	}
+
+	public PhysicsCommandKind Kind { get; }
+	public PhysicsBodyId Body { get; }
+	public PhysicsVector3 Impulse { get; }
+	public PhysicsVector3 WorldPoint { get; }
+
+	public static PhysicsCommand ApplyImpulse(
+		PhysicsBodyId body,
+		PhysicsVector3 impulse,
+		PhysicsVector3 worldPoint)
+	{
+		if (!body.IsValid)
+		{
+			throw new ArgumentException("An impulse command must target a valid body.", nameof(body));
+		}
+
+		if (!impulse.IsFinite)
+		{
+			throw new ArgumentOutOfRangeException(nameof(impulse), "An impulse must contain only finite values.");
+		}
+
+		if (!worldPoint.IsFinite)
+		{
+			throw new ArgumentOutOfRangeException(nameof(worldPoint), "An impulse point must contain only finite values.");
+		}
+
+		return new(PhysicsCommandKind.ApplyImpulse, body, impulse, worldPoint);
+	}
+}
 
 public readonly record struct PhysicsBodySnapshot(
 	PhysicsBodyId Body,
@@ -125,11 +282,62 @@ public readonly record struct PhysicsBodySnapshot(
 	PhysicsVector3 LinearVelocity,
 	PhysicsVector3 AngularVelocity);
 
-public readonly record struct PhysicsEvent(
-	PhysicsEventKind Kind,
-	PhysicsBodyId BodyA,
-	PhysicsBodyId BodyB,
-	PhysicsJointId Joint);
+public readonly record struct PhysicsEvent
+{
+	private PhysicsEvent(
+		PhysicsEventKind kind,
+		PhysicsBodyId bodyA,
+		PhysicsBodyId bodyB,
+		PhysicsJointId joint)
+	{
+		Kind = kind;
+		BodyA = bodyA;
+		BodyB = bodyB;
+		Joint = joint;
+	}
+
+	public PhysicsEventKind Kind { get; }
+	public PhysicsBodyId BodyA { get; }
+	public PhysicsBodyId BodyB { get; }
+	public PhysicsJointId Joint { get; }
+
+	public static PhysicsEvent ContactStarted(PhysicsBodyId bodyA, PhysicsBodyId bodyB) => Contact(PhysicsEventKind.ContactStarted, bodyA, bodyB);
+	public static PhysicsEvent ContactPersisted(PhysicsBodyId bodyA, PhysicsBodyId bodyB) => Contact(PhysicsEventKind.ContactPersisted, bodyA, bodyB);
+	public static PhysicsEvent ContactEnded(PhysicsBodyId bodyA, PhysicsBodyId bodyB) => Contact(PhysicsEventKind.ContactEnded, bodyA, bodyB);
+
+	public static PhysicsEvent JointBroken(PhysicsJointId joint)
+	{
+		if (!joint.IsValid)
+		{
+			throw new ArgumentException("A joint break event must reference a valid joint.", nameof(joint));
+		}
+
+		return new(PhysicsEventKind.JointBroken, default, default, joint);
+	}
+
+	public static PhysicsEvent BodyCreated(PhysicsBodyId body) => Lifecycle(PhysicsEventKind.BodyCreated, body);
+	public static PhysicsEvent BodyDestroyed(PhysicsBodyId body) => Lifecycle(PhysicsEventKind.BodyDestroyed, body);
+
+	private static PhysicsEvent Contact(PhysicsEventKind kind, PhysicsBodyId bodyA, PhysicsBodyId bodyB)
+	{
+		if (!bodyA.IsValid || !bodyB.IsValid || bodyA == bodyB)
+		{
+			throw new ArgumentException("A contact event must reference two different valid bodies.");
+		}
+
+		return new(kind, bodyA, bodyB, default);
+	}
+
+	private static PhysicsEvent Lifecycle(PhysicsEventKind kind, PhysicsBodyId body)
+	{
+		if (!body.IsValid)
+		{
+			throw new ArgumentException("A body lifecycle event must reference a valid body.", nameof(body));
+		}
+
+		return new(kind, body, default, default);
+	}
+}
 
 public sealed record PhysicsCapabilities(
 	IReadOnlySet<PhysicsJointKind> SupportedJointKinds,
@@ -144,6 +352,7 @@ public interface IPhysicsWorld : IDisposable
 	void DestroyBody(PhysicsBodyId body);
 	PhysicsJointId CreateJoint(JointDefinition definition);
 	void DestroyJoint(PhysicsJointId joint);
+	void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands);
 	void Step(FixedTimeStep timeStep);
 	int CopySnapshots(Span<PhysicsBodySnapshot> destination);
 	int DrainEvents(Span<PhysicsEvent> destination);

@@ -168,8 +168,9 @@ public interface IPhysicsWorld : IDisposable
 - Foundation/Scene/Body/Joint 创建和释放
 - Box、Mesh、Material 定义转换
 - 固定 Tick
+- 批量命令在 Step 前应用
 - 快照读取
-- 接触、断裂和销毁事件
+- 接触、断裂和 Body 生命周期事件
 - 后端能力缺失时启动失败
 
 ### Replay

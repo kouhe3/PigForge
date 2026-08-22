@@ -49,6 +49,13 @@ Network transport and client
 - Verify: `3` Replay tests cover Tick ordering, exact frame count, invalid-input short circuit, and order-independent canonical state hashing.
 - Files: `src/PigForge.Replay/ReplayRunner.cs`, `src/PigForge.Protocol/ReplayContracts.cs`, `src/PigForge.Protocol/ReplayDocumentValidator.cs`, `tests/PigForge.Replay.Tests/ReplayRunnerTests.cs`.
 
+### Task 2.5: Define physics world command and lifecycle contract — Complete
+
+- Scope: static/dynamic body definitions, finite shape and transform validation, batched impulse commands, typed body lifecycle/contact/joint events, and explicit disposal behavior for implementations.
+- Acceptance: runtime boundary exposes `ApplyCommands(ReadOnlySpan<PhysicsCommand>)`; invalid IDs, non-finite values, invalid mass/shape/joint definitions fail explicitly; contract tests cover apply → step → snapshot → event ordering.
+- Verify: `7` `PigForge.Physics.Tests` tests pass; full solution test and build remain clean.
+- Files: `src/PigForge.Physics.Abstractions/PhysicsContracts.cs`, `tests/PigForge.Physics.Tests/PhysicsContractTests.cs`, `tests/PigForge.Physics.Tests/PigForge.Physics.Tests.csproj`.
+
 ## Phase 2: Physics Backends
 
 ### Task 3: Add Unity reference adapter

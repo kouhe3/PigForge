@@ -1,0 +1,222 @@
+using PigForge.Physics.Abstractions;
+
+namespace PigForge.Physics.Tests;
+
+public sealed class PhysicsContractTests
+{
+    [Fact]
+    public void StaticBodyAllowsZeroMassAndDynamicBodyRequiresPositiveMass()
+    {
+        BodyDefinition ground = new(
+            PhysicsBodyMode.Static,
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.Identity,
+            mass: 0,
+            new ShapeDefinition[] { new BoxShapeDefinition(10, 1, 10) });
+
+        BodyDefinition dynamicBody = new(
+            PhysicsBodyMode.Dynamic,
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.Identity,
+            mass: 1,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) });
+
+        Assert.Equal(PhysicsBodyMode.Static, ground.Mode);
+        Assert.Equal(0, ground.Mass);
+        Assert.Equal(PhysicsBodyMode.Dynamic, dynamicBody.Mode);
+    }
+
+    [Fact]
+    public void BodyDefinitionsRejectNonFiniteTransformsAndInvalidShapes()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(float.NaN, 0, 0),
+            PhysicsQuaternion.Identity,
+            1,
+            new ShapeDefinition[] { new BoxShapeDefinition(1, 1, 1) }));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BoxShapeDefinition(0, 1, 1));
+    }
+
+    [Fact]
+    public void ImpulseCommandRequiresValidBodyAndFiniteValues()
+    {
+        PhysicsCommand command = PhysicsCommand.ApplyImpulse(
+            new PhysicsBodyId(3),
+            new PhysicsVector3(1, 2, 3),
+            PhysicsVector3.Zero);
+
+        Assert.Equal(PhysicsCommandKind.ApplyImpulse, command.Kind);
+        Assert.Equal(new PhysicsBodyId(3), command.Body);
+        Assert.Throws<ArgumentException>(() => PhysicsCommand.ApplyImpulse(
+            default,
+            PhysicsVector3.Zero,
+            PhysicsVector3.Zero));
+        Assert.Throws<ArgumentOutOfRangeException>(() => PhysicsCommand.ApplyImpulse(
+            new PhysicsBodyId(3),
+            new PhysicsVector3(float.PositiveInfinity, 0, 0),
+            PhysicsVector3.Zero));
+    }
+
+    [Fact]
+    public void PhysicsEventsUseFactoriesThatMatchTheirPayloads()
+    {
+        PhysicsEvent contact = PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2));
+        PhysicsEvent broken = PhysicsEvent.JointBroken(new PhysicsJointId(9));
+        PhysicsEvent destroyed = PhysicsEvent.BodyDestroyed(new PhysicsBodyId(4));
+
+        Assert.Equal(PhysicsEventKind.ContactStarted, contact.Kind);
+        Assert.Equal(new PhysicsBodyId(1), contact.BodyA);
+        Assert.Equal(new PhysicsBodyId(2), contact.BodyB);
+        Assert.Equal(PhysicsEventKind.JointBroken, broken.Kind);
+        Assert.Equal(new PhysicsJointId(9), broken.Joint);
+        Assert.Equal(PhysicsEventKind.BodyDestroyed, destroyed.Kind);
+        Assert.Equal(new PhysicsBodyId(4), destroyed.BodyA);
+    }
+
+    [Fact]
+    public void JointDefinitionRejectsInvalidBodyPairsAndBreakThresholds()
+    {
+        Assert.Throws<ArgumentException>(() => new JointDefinition(
+            PhysicsJointKind.Fixed,
+            new PhysicsBodyId(4),
+            new PhysicsBodyId(4),
+            PhysicsConstraintMask.None,
+            1,
+            1));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new JointDefinition(
+            PhysicsJointKind.Fixed,
+            new PhysicsBodyId(4),
+            new PhysicsBodyId(5),
+            PhysicsConstraintMask.None,
+            float.NaN,
+            1));
+    }
+
+    [Fact]
+    public void DisposedWorldRejectsFurtherOperations()
+    {
+        RecordingPhysicsWorld world = new();
+        world.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => world.Step(FixedTimeStep.FromSeconds(1f / 60f)));
+    }
+    [Fact]
+    public void ContractFakeAppliesBatchBeforeStepAndPublishesSnapshotsAndEvents()
+    {
+        using RecordingPhysicsWorld world = new();
+        PhysicsBodyId body = world.CreateBody(DynamicBox());
+        PhysicsCommand[] commands =
+        {
+            PhysicsCommand.ApplyImpulse(body, new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero)
+        };
+
+        world.ApplyCommands(commands);
+        world.Step(FixedTimeStep.FromSeconds(1f / 60f));
+
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[1];
+        PhysicsEvent[] events = new PhysicsEvent[2];
+        Assert.Equal(1, world.CopySnapshots(snapshots));
+        Assert.Equal(1, world.DrainEvents(events));
+        Assert.Equal(body, snapshots[0].Body);
+        Assert.Equal(PhysicsEventKind.ContactStarted, events[0].Kind);
+        Assert.Equal(new[] { "apply", "step" }, world.Phases);
+    }
+
+    private static BodyDefinition DynamicBox() => new(
+        PhysicsBodyMode.Dynamic,
+        PhysicsVector3.Zero,
+        PhysicsQuaternion.Identity,
+        1,
+        new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) });
+
+    private sealed class RecordingPhysicsWorld : IPhysicsWorld
+    {
+        private readonly List<string> _phases = new();
+        private readonly List<PhysicsBodyId> _bodies = new();
+        private bool _disposed;
+        private bool _pendingEvent;
+
+        public PhysicsCapabilities Capabilities { get; } = new(
+            new HashSet<PhysicsJointKind> { PhysicsJointKind.Fixed },
+            SupportsContinuousCollision: false,
+            SupportsPerBodyInertia: false);
+
+        public IReadOnlyList<string> Phases => _phases;
+
+        public PhysicsBodyId CreateBody(BodyDefinition definition)
+        {
+            ThrowIfDisposed();
+            ArgumentNullException.ThrowIfNull(definition);
+            PhysicsBodyId body = new((uint)(_bodies.Count + 1));
+            _bodies.Add(body);
+            return body;
+        }
+
+        public void DestroyBody(PhysicsBodyId body)
+        {
+            ThrowIfDisposed();
+            _bodies.Remove(body);
+        }
+
+        public PhysicsJointId CreateJoint(JointDefinition definition)
+        {
+            ThrowIfDisposed();
+            return new(1);
+        }
+
+        public void DestroyJoint(PhysicsJointId joint)
+        {
+            ThrowIfDisposed();
+        }
+
+        public void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands)
+        {
+            ThrowIfDisposed();
+            Assert.Equal(1, commands.Length);
+            _phases.Add("apply");
+        }
+
+        public void Step(FixedTimeStep timeStep)
+        {
+            ThrowIfDisposed();
+            _phases.Add("step");
+            _pendingEvent = true;
+        }
+
+        public int CopySnapshots(Span<PhysicsBodySnapshot> destination)
+        {
+            ThrowIfDisposed();
+            Assert.True(destination.Length >= _bodies.Count);
+            for (int index = 0; index < _bodies.Count; index++)
+            {
+                destination[index] = new(_bodies[index], PhysicsVector3.Zero, PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero);
+            }
+
+            return _bodies.Count;
+        }
+
+        public int DrainEvents(Span<PhysicsEvent> destination)
+        {
+            ThrowIfDisposed();
+            Assert.True(destination.Length > 0);
+            if (!_pendingEvent)
+            {
+                return 0;
+            }
+
+            destination[0] = PhysicsEvent.ContactStarted(_bodies[0], new PhysicsBodyId(99));
+            _pendingEvent = false;
+            return 1;
+        }
+
+        public void Dispose() => _disposed = true;
+
+        private void ThrowIfDisposed()
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+        }
+    }
+}
