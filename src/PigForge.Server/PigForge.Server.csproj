@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PigForge.Core\PigForge.Core.csproj" />
+    <ProjectReference Include="..\PigForge.Physics.Abstractions\PigForge.Physics.Abstractions.csproj" />
+    <ProjectReference Include="..\PigForge.Protocol\PigForge.Protocol.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

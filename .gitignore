@@ -1,0 +1,9 @@
+**/[Bb]in/
+**/[Oo]bj/
+.vs/
+.vscode/
+TestResults/
+artifacts/
+*.user
+*.suo
+*.DotSettings.user
