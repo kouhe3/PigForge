@@ -25,6 +25,7 @@ contentVersion           non-empty content catalog identifier
 physicsBehaviorVersion   non-empty behavior/compatibility identifier
 stateHashAlgorithm       = sha256-canonical-v1
 fixedTickRate             1..240
+simulationTicks           1..100000
 randomSeed                uint32
 ```
 
@@ -66,6 +67,8 @@ Commands are ordered by the tuple:
 
 For equal `Tick`, `Sequence` must be strictly increasing. `Sequence` is positive and `PlayerId` is positive.
 
+Commands with `Tick = 0` are applied after loading `initialState` and before the first physics step. Commands with `Tick = N` are applied immediately before the physics step that produces frame `N`.
+
 v1 commands:
 
 ```text
@@ -87,6 +90,8 @@ Unknown command kinds are invalid in v1. A future incompatible command shape req
 ## Frames
 
 Frames have strictly increasing positive `Tick` values. Each frame contains:
+
+The document contains exactly `SimulationTicks` frames, numbered contiguously from `1` through `SimulationTicks`.
 
 ```text
 snapshots

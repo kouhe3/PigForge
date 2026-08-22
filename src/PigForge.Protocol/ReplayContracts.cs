@@ -4,6 +4,8 @@ public static class ReplayFormat
 {
     public const string Name = "pigforge.physics.replay";
     public const ushort CurrentVersion = 1;
+
+    public const uint MaxSimulationTicks = 100_000;
 }
 
 public static class ReplayHashAlgorithms
@@ -42,6 +44,7 @@ public sealed record ReplayHeader(
     string PhysicsBehaviorVersion,
     string StateHashAlgorithm,
     ushort FixedTickRate,
+    uint SimulationTicks,
     uint RandomSeed);
 
 public readonly record struct ReplayVector3(float X, float Y, float Z)
@@ -131,6 +134,16 @@ public sealed record ReplayDocument(
     ReplayHeader Header,
     ReplayInitialState InitialState,
     IReadOnlyList<ReplayCommand> Commands,
+    IReadOnlyList<ReplayFrame> Frames,
+    ReplayResult FinalResult);
+
+public sealed record ReplayInput(
+    string Format,
+    ReplayHeader Header,
+    ReplayInitialState InitialState,
+    IReadOnlyList<ReplayCommand> Commands);
+
+public sealed record ReplayOutput(
     IReadOnlyList<ReplayFrame> Frames,
     ReplayResult FinalResult);
 

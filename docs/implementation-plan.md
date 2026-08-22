@@ -40,14 +40,14 @@ Network transport and client
 - Input: body definitions, joint definitions, commands, random seed, content version.
 - Output: snapshots, contacts, break events, entity lifecycle, final result.
 - Acceptance: schema includes explicit version and does not contain Unity or native pointer fields.
-- Verify: JSON Schema parse, protocol validation tests, invalid version/order/hash/joint/null-frame/non-finite rejection pass (`7` protocol tests).
+- Verify: JSON Schema parse, protocol validation tests, invalid version/order/hash/joint/null-frame/non-finite/Tick-limit rejection pass (`8` protocol tests).
 - Files: `schemas/physics-replay-v1.schema.json`, `docs/specs/physics-replay-v1.md`, `src/PigForge.Protocol/ReplayContracts.cs`, `src/PigForge.Protocol/ReplayDocumentValidator.cs`, `tests/PigForge.Protocol.Tests/UnitTest1.cs`.
 
-### Task 2: Implement fixed Tick replay runner
+### Task 2: Implement fixed Tick replay runner — Complete
 
-- Acceptance: same input file runs for an exact Tick count; output ordering is stable.
-- Verify: run the same replay twice and compare event sequence/final hash.
-- Files likely touched: `src/PigForge.Core/`, `src/PigForge.Server/`, `tests/`.
+- Acceptance: input is validated before simulation; Tick 0 commands run before Tick 1; exactly `SimulationTicks` frames are emitted; output order and hash are stable.
+- Verify: `5` Core tests cover Tick ordering, exact frame count, invalid-input short circuit, and order-independent canonical state hashing.
+- Files: `src/PigForge.Core/ReplayRunner.cs`, `src/PigForge.Protocol/ReplayContracts.cs`, `src/PigForge.Protocol/ReplayDocumentValidator.cs`, `tests/PigForge.Core.Tests/ReplayRunnerTests.cs`.
 
 ## Phase 2: Physics Backends
 

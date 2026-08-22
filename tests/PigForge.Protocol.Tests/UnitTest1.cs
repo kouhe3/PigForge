@@ -31,6 +31,20 @@ public sealed class ReplayContractTests
     }
 
     [Fact]
+    public void SimulationTickLimitIsEnforced()
+    {
+        ReplayDocument valid = ReplayFixtures.Valid();
+        ReplayDocument document = valid with
+        {
+            Header = valid.Header with { SimulationTicks = ReplayFormat.MaxSimulationTicks + 1 }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("SimulationTicks", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void CommandsMustBeOrderedByTickAndSequence()
     {
         ReplayDocument document = ReplayFixtures.Valid() with
@@ -145,6 +159,7 @@ internal static class ReplayFixtures
                 PhysicsBehaviorVersion: "bple-legacy-v1",
                 StateHashAlgorithm: ReplayHashAlgorithms.Sha256CanonicalV1,
                 FixedTickRate: 60,
+                SimulationTicks: 1,
                 RandomSeed: 1234),
             InitialState: new ReplayInitialState(
                 Entities: new[] { entity },

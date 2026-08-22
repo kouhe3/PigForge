@@ -4,22 +4,14 @@ public static class ReplayDocumentValidator
 {
     public static ReplayValidationResult Validate(ReplayDocument? document)
     {
-        List<string> errors = new();
-
         if (document is null)
         {
             return new ReplayValidationResult(new[] { "ReplayDocument is required." });
         }
 
-        if (!string.Equals(document.Format, ReplayFormat.Name, StringComparison.Ordinal))
-        {
-            errors.Add($"Format must be '{ReplayFormat.Name}'.");
-        }
-
-        ValidateHeader(document.Header, errors);
-        ValidateInitialState(document.InitialState, errors);
-        ValidateCommands(document.Commands, errors);
-        ValidateFrames(document.Frames, errors);
+        List<string> errors = new();
+        ValidateCommon(document.Format, document.Header, document.InitialState, document.Commands, errors);
+        ValidateFrames(document.Frames, document.Header?.SimulationTicks, errors);
         ValidateFinalResult(document.FinalResult, errors);
 
         if (document.Frames is { Count: > 0 } && document.FinalResult is not null &&
@@ -30,6 +22,35 @@ public static class ReplayDocumentValidator
         }
 
         return new ReplayValidationResult(errors);
+    }
+
+    public static ReplayValidationResult Validate(ReplayInput? input)
+    {
+        if (input is null)
+        {
+            return new ReplayValidationResult(new[] { "ReplayInput is required." });
+        }
+
+        List<string> errors = new();
+        ValidateCommon(input.Format, input.Header, input.InitialState, input.Commands, errors);
+        return new ReplayValidationResult(errors);
+    }
+
+    private static void ValidateCommon(
+        string? format,
+        ReplayHeader? header,
+        ReplayInitialState? initialState,
+        IReadOnlyList<ReplayCommand>? commands,
+        ICollection<string> errors)
+    {
+        if (!string.Equals(format, ReplayFormat.Name, StringComparison.Ordinal))
+        {
+            errors.Add($"Format must be '{ReplayFormat.Name}'.");
+        }
+
+        ValidateHeader(header, errors);
+        ValidateInitialState(initialState, errors);
+        ValidateCommands(commands, header?.SimulationTicks, errors);
     }
 
     private static void ValidateHeader(ReplayHeader? header, ICollection<string> errors)
@@ -64,6 +85,11 @@ public static class ReplayDocumentValidator
         {
             errors.Add("FixedTickRate must be between 1 and 240.");
         }
+
+        if (header.SimulationTicks is 0 or > ReplayFormat.MaxSimulationTicks)
+        {
+            errors.Add($"SimulationTicks must be between 1 and {ReplayFormat.MaxSimulationTicks}.");
+        }
     }
 
     private static void ValidateInitialState(ReplayInitialState? initialState, ICollection<string> errors)
@@ -78,7 +104,10 @@ public static class ReplayDocumentValidator
         ValidateJoints(initialState.Joints, bodyIds, errors);
     }
 
-    private static void ValidateCommands(IReadOnlyList<ReplayCommand>? commands, ICollection<string> errors)
+    private static void ValidateCommands(
+        IReadOnlyList<ReplayCommand>? commands,
+        uint? simulationTicks,
+        ICollection<string> errors)
     {
         if (commands is null)
         {
@@ -106,6 +135,11 @@ public static class ReplayDocumentValidator
             if (command.PlayerId == 0)
             {
                 errors.Add("Command player ID must be positive.");
+            }
+
+            if (simulationTicks.HasValue && command.Tick > simulationTicks.Value)
+            {
+                errors.Add($"Command sequence {command.Sequence} is outside SimulationTicks.");
             }
 
             if (hasPrevious && (command.Tick < previousTick ||
@@ -149,7 +183,10 @@ public static class ReplayDocumentValidator
         }
     }
 
-    private static void ValidateFrames(IReadOnlyList<ReplayFrame>? frames, ICollection<string> errors)
+    private static void ValidateFrames(
+        IReadOnlyList<ReplayFrame>? frames,
+        uint? simulationTicks,
+        ICollection<string> errors)
     {
         if (frames is null)
         {
@@ -157,14 +194,21 @@ public static class ReplayDocumentValidator
             return;
         }
 
+        if (simulationTicks.HasValue && frames.Count != simulationTicks.Value)
+        {
+            errors.Add("Frames count must equal SimulationTicks.");
+        }
+
         bool hasPrevious = false;
         uint previousTick = 0;
+        uint expectedTick = 1;
 
         foreach (ReplayFrame? frame in frames)
         {
             if (frame is null)
             {
                 errors.Add("Frames cannot contain null entries.");
+                expectedTick++;
                 continue;
             }
 
@@ -173,10 +217,16 @@ public static class ReplayDocumentValidator
                 errors.Add("Frames must use strictly increasing positive Tick values.");
             }
 
+            if (frame.Tick != expectedTick)
+            {
+                errors.Add($"Frame Tick {frame.Tick} is not the expected Tick {expectedTick}.");
+            }
+
             ValidateEntityStates(frame.Snapshots, $"Frame[{frame.Tick}].Snapshots", errors);
             ValidateEvents(frame.Events, frame.Tick, errors);
 
             previousTick = frame.Tick;
+            expectedTick++;
             hasPrevious = true;
         }
     }
@@ -196,6 +246,7 @@ public static class ReplayDocumentValidator
                 errors.Add($"Frame[{tick}].Events cannot contain null entries.");
                 continue;
             }
+
             if (!Enum.IsDefined(@event.Kind))
             {
                 errors.Add($"Frame[{tick}] contains an invalid event kind.");
