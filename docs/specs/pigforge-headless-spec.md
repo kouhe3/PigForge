@@ -15,14 +15,15 @@ Unity 继续作为离线参考运行时或客户端适配器，但不进入服�
 - 玩家：通过客户端建造、启动和运行载具。
 - 服务器：验证命令、推进固定 Tick、运行物理、判定事件和胜负、广播快照。
 - 内容工具：把现有 Unity/关卡数据转换为与引擎无关的 PigForge 内容定义。
-- 维护者：可以替换 Unity、MagicPhysX 或其他物理后端，而不重写核心规则。
+- 维护者：可以替换 Unity、BepuPhysics、JoltPhysicsSharp 或其他物理后端，而不重写核心规则。
 
 ## Tech Stack
 
 - C# / .NET 10 LTS
 - `PigForge.Core`：数据导向游戏状态与规则；不引用 Unity 或具体物理后端
 - `PigForge.Physics.Abstractions`：PigForge 语义物理契约；不暴露引擎对象或 native 指针
-- `PigForge.Physics.MagicPhysX`：后续接入 NVIDIA PhysX 5 的 .NET/native 适配器
+- `PigForge.Physics.Bepu`：当前主后端，基于纯 C# BepuPhysics v2
+- `PigForge.Physics.Jolt`：计划中的第二后端，基于 JoltPhysicsSharp 和锁定的 native RID 包
 - Unity 6：只作为参考运行时或客户端适配器
 - 测试：xUnit；固定 Tick 回放和后端差异测试
 - 文本文件：UTF-8、LF；由 `.editorconfig` 和 `.gitattributes` 约束
@@ -44,10 +45,11 @@ dotnet run --project src/PigForge.Server/PigForge.Server.csproj -c Release
 src/
 ├── PigForge.Core/                    # WorldState、ECS-like stores和游戏规则
 ├── PigForge.Physics.Abstractions/    # 物理语义契约、句柄、快照和事件
+├── PigForge.Physics.Bepu/            # 纯 C# BepuPhysics v2 适配器
 ├── PigForge.Protocol/                # 版本化命令、快照和回放 DTO/schema
 ├── PigForge.Replay/                  # 回放执行、Tick 调度和 canonical hash
-├── PigForge.Physics.MagicPhysX/      # .NET 10 + native PhysX 适配器
-└── PigForge.Server/                  # 固定 Tick、房间、权威服务端
+├── PigForge.Server/                  # 固定 Tick、房间、权威服务端
+└── PigForge.Physics.Jolt/            # 计划中的 Jolt native 适配器
 
 schemas/                              # 跨运行时 wire/replay schema
 content/                              # 引擎无关的烘焙后内容
@@ -84,8 +86,10 @@ PigForge.Replay
 PigForge.Server
     ├── Core
     ├── Replay
-    └── MagicPhysX
+    └── PigForge.Physics.Bepu
 
+PigForge.Physics.Jolt
+    └── Physics.Abstractions
 Unity Reference Adapter
     └── versioned schema/replay files
 ```
@@ -233,7 +237,7 @@ Tick 数
 
 ### Never
 
-- Core 引用 UnityEngine、MagicPhysX 或 native 指针
+- Core 引用 UnityEngine、任何具体物理后端或 native 指针
 - Server 启动 Unity 场景、UI、MainMenu 或 MonoBehaviour 链
 - 客户端声明位置、接触、断裂或胜负结果
 - 通过静默 fallback 隐藏后端能力缺失

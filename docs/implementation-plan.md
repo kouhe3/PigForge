@@ -2,7 +2,7 @@
 
 ## Overview
 
-在 .NET 10 中建立不依赖 Unity 的数据导向游戏核心、版本化回放边界和可替换物理后端。Unity 只作为离线参考运行时；MagicPhysX 作为第一生产候选后端。实现顺序以风险优先：先锁定跨运行时契约和物理生命周期，再迁移 BPLE 内容与玩法，最后加入联机传输。
+在 .NET 10 中建立不依赖 Unity 的数据导向游戏核心、版本化回放边界和可替换物理后端。Unity 只作为离线参考运行时；BepuPhysics v2 作为第一生产候选后端，JoltPhysicsSharp 作为第二后端候选。实现顺序以风险优先：先锁定跨运行时契约和物理生命周期，再迁移 BPLE 内容与玩法，最后加入联机传输。
 
 ## Architecture Decisions
 
@@ -15,13 +15,14 @@
 
 ## Dependency Graph
 
-```text
 Versioned command/replay schema
               ↓
 Physics contract and replay harness
        ┌──────┴────────┐
        ↓               ↓
-Unity reference    MagicPhysX adapter
+Unity reference    Bepu adapter
+                       ↓
+                  Jolt adapter
        └──────┬────────┘
               ↓
 Portable content definitions
@@ -65,18 +66,26 @@ Network transport and client
 - Verify: Unity runtime smoke test and replay file inspection.
 - Files likely touched: `unity/` and schema mapping only.
 
-### Task 4: Add MagicPhysX backend smoke test
+### Task 4: Add Bepu backend smoke test — In progress
 
-- Scope: Foundation, Physics, Dispatcher, Scene, Material, Box, fixed Tick, release.
-- Acceptance: no Unity dependency; native resources release; missing native backend fails explicitly.
-- Verify: .NET 10 integration test on Windows x64; run repeated fixed-Tick replay.
-- Files likely touched: `src/PigForge.Physics.MagicPhysX/`, `tests/PigForge.Physics.Tests/`.
+- Scope: pure C# BepuPhysics v2 adapter with static Ground, dynamic Box, fixed Tick, impulse commands, snapshots, contact events, and explicit disposal.
+- Acceptance: no Unity or native runtime dependency; unsupported shape/joint capabilities fail explicitly; resources release on world disposal.
+- Verify: .NET 10 integration tests cover a falling Box, ground contact, impulse-before-Step, unsupported capabilities, repeated fixed Tick, and snapshot output.
+- Files: `src/PigForge.Physics.Bepu/`, `tests/PigForge.Physics.Tests/`.
+
+### Task 4.5: Add Jolt backend — Planned
+
+- Scope: optional native JoltPhysicsSharp adapter behind the same `IPhysicsWorld` contract; use only after Bepu behavior and performance baselines exist.
+- Acceptance: native RID assets are pinned, missing native runtime fails explicitly, and the adapter passes the shared contract tests.
+- Verify: Windows x64 integration test first, then Linux x64; compare replay snapshots and contact event sequences against Bepu with tolerance reporting.
+- Files likely touched: `src/PigForge.Physics.Jolt/`, `tests/PigForge.Physics.Tests/`.
 
 ### Task 5: Add cross-backend differential report
 
-- Acceptance: Unity and MagicPhysX runs compare snapshots, events, final result, and tolerance bands.
+- Acceptance: Unity, Bepu, and Jolt runs compare snapshots, events, final result, and tolerance bands.
 - Verify: known simple scene passes event-level comparison; differences are reported with Tick and EntityId.
 - Files likely touched: `src/PigForge.Replay/` or `tests/PigForge.Replay.Tests/`.
+
 
 ## Phase 3: Portable Content and ECS
 
@@ -86,11 +95,6 @@ Network transport and client
 - Verify: fixture content loads and validates before simulation.
 - Files likely touched: `schemas/`, `src/PigForge.Core/`, `content/` fixtures.
 
-### Task 7: Implement stable EntityId/component stores
-
-- Acceptance: slot reuse increments generation; stale IDs fail; hot stores avoid per-Tick allocation.
-- Verify: destruction/reuse tests, allocation benchmark, state snapshot test.
-- Files likely touched: `src/PigForge.Core/`, `tests/PigForge.Core.Tests/`.
 
 ### Task 8: Migrate construction rules
 
@@ -112,7 +116,7 @@ Network transport and client
 
 - Acceptance: one room owns one authoritative physics scene; input, physics and rules phases are ordered; shutdown releases resources.
 - Verify: start room, run fixed Ticks, stop room, confirm no leaked handles and stable final hash.
-- Files likely touched: `src/PigForge.Server/`, `src/PigForge.Physics.MagicPhysX/`, tests.
+- Files likely touched: `src/PigForge.Server/`, `src/PigForge.Physics.Bepu/`, tests.
 
 ### Task 11: Add command validation and idempotence
 
@@ -144,7 +148,7 @@ Network transport and client
 
 - [ ] Schema round-trip passes
 - [ ] Replay repeats identically for the selected backend
-- [ ] Unity reference and MagicPhysX smoke scenes produce comparable events
+- [ ] Unity reference, Bepu, and Jolt smoke scenes produce comparable events
 
 ### Checkpoint B: Gameplay proof
 
@@ -163,7 +167,7 @@ Network transport and client
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| MagicPhysX native version differs from Unity PhysX integration | High | Pin native version, run replay comparison, preserve behavior versions |
+| Bepu and Jolt behavior differs from Unity PhysX | High | Keep one server authority, pin behavior versions, run replay comparison and preserve tolerance reports |
 | Interface leaks backend-specific features | High | semantic capability contract, opaque IDs, adapter-only native types |
 | ECS rewrite consumes effort before behavior is known | High | use sparse component stores first; migrate one vertical gameplay slice |
 | Managed allocation causes Tick spikes | Medium | measure allocation/GC first, then pool hot buffers; avoid global unsafe rewrite |

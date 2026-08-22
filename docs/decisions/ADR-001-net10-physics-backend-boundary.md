@@ -12,7 +12,7 @@ Accepted
 
 PigForge 需要从反编译 Unity 项目中重建可联机、可无头运行的游戏。现有 BPLE_Unity6 使用 Unity 内置 3D 物理；Unity 的内置 3D 物理是 PhysX 集成，但 Unity 的托管运行时和项目生命周期不应成为无头服务端的基础依赖。
 
-项目还需要保留替换物理后端的能力，例如在独立 .NET 服务中使用 MagicPhysX、未来评估其他后端，或使用 Unity 项目作为离线参考运行时。
+项目还需要保留替换物理后端的能力。当前选择纯 C# 的 BepuPhysics v2 作为无头服务器主后端；JoltPhysicsSharp 作为第二后端候选，Unity 继续作为离线参考运行时。
 
 ## 决策
 
@@ -20,7 +20,8 @@ PigForge 需要从反编译 Unity 项目中重建可联机、可无头运行的�
 2. 不为 Unity 的 Mono/托管兼容性把核心项目降级到 `netstandard`，也不让 Unity 作为核心程序集的编译目标。
 3. 物理后端通过端口/适配器隔离：
    - `PigForge.Physics.Abstractions` 只定义 PigForge 所需的语义数据、稳定句柄、能力声明、快照和事件。
-   - `PigForge.Physics.MagicPhysX` 实现无 Unity 的 PhysX 后端。
+   - `PigForge.Physics.Bepu` 实现当前主后端，不引入 native runtime。
+   - `PigForge.Physics.Jolt` 作为计划中的 native 第二后端，必须锁定 JoltPhysicsSharp 及其 RID 资源。
    - Unity 物理只作为独立 Unity 参考运行时或客户端适配器存在，不进入 `PigForge.Core` 和 `PigForge.Server` 的依赖图。
 4. Unity 与 .NET 10 进程之间通过版本化协议或回放文件交换数据，而不是共享依赖 Unity Mono 的 C# 程序集。
 5. 物理后端在每个固定 Tick 内按统一阶段运行：
@@ -46,9 +47,9 @@ PigForge 需要从反编译 Unity 项目中重建可联机、可无头运行的�
 
 拒绝。BPLE 需要关节、断裂、碰撞事件、查询、CCD、惯性和约束自由度。接口应表达游戏实际需要的语义能力，并通过能力声明拒绝不支持的后端，而不是静默近似。
 
-### 让 Unity 和 MagicPhysX 在线同时作为权威
+### 让 Unity、Bepu 和 Jolt 在线同时作为权威
 
-拒绝。两套求解器的时间步、solver、接触参数、关节创建顺序和 native 版本可能不同；在线双权威会产生状态分叉。Unity 只用于离线参考和回放比较，线上服务器只有一个权威后端。
+拒绝。多套求解器的时间步、solver、接触参数、关节创建顺序和 native 版本可能不同；在线多权威会产生状态分叉。线上服务器只有一个配置好的权威后端，其他后端只用于离线回放比较。
 
 ## 后果
 
@@ -63,7 +64,7 @@ PigForge 需要从反编译 Unity 项目中重建可联机、可无头运行的�
 ### 成本
 
 - 需要维护版本化协议/回放 schema。
-- Unity 参考运行时和 MagicPhysX 后端需要各自的资源转换与参数映射。
+- Unity 参考运行时、Bepu 主后端和 Jolt 第二后端需要各自的资源转换与参数映射。
 - 换物理后端仍然需要重新烘焙碰撞形状、映射关节、调参并运行回归回放。
 - 不同后端的行为不能默认逐 Tick、逐浮点值一致；首先保证事件和最终玩法结果兼容。
 

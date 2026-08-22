@@ -1,4 +1,5 @@
 using PigForge.Physics.Abstractions;
+using PigForge.Physics.Bepu;
 
 namespace PigForge.Physics.Tests;
 
@@ -124,6 +125,87 @@ public sealed class PhysicsContractTests
         Assert.Equal(PhysicsEventKind.ContactStarted, events[0].Kind);
         Assert.Equal(new[] { "apply", "step" }, world.Phases);
     }
+
+    [Fact]
+    public void BepuWorldDropsDynamicBoxOntoGroundAndPublishesContact()
+    {
+        using BepuPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));
+        PhysicsBodyId ground = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Static,
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.Identity,
+            0,
+            new ShapeDefinition[] { new BoxShapeDefinition(10, 0.5f, 10) }));
+        PhysicsBodyId box = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 4, 0),
+            PhysicsQuaternion.Identity,
+            1,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+
+        PhysicsEvent[] events = new PhysicsEvent[8];
+        _ = world.DrainEvents(events);
+        bool contactStarted = false;
+        FixedTimeStep timeStep = FixedTimeStep.FromSeconds(1f / 60f);
+        for (int tick = 0; tick < 180; tick++)
+        {
+            world.ApplyCommands(ReadOnlySpan<PhysicsCommand>.Empty);
+            world.Step(timeStep);
+            int eventCount = world.DrainEvents(events);
+            for (int index = 0; index < eventCount; index++)
+            {
+                contactStarted |= events[index].Kind == PhysicsEventKind.ContactStarted
+                    && ((events[index].BodyA == ground && events[index].BodyB == box)
+                        || (events[index].BodyA == box && events[index].BodyB == ground));
+            }
+        }
+
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[2];
+        int snapshotCount = world.CopySnapshots(snapshots);
+        PhysicsBodySnapshot boxSnapshot = Assert.Single(snapshots[..snapshotCount], snapshot => snapshot.Body == box);
+
+        Assert.InRange(boxSnapshot.Position.Y, 0.95f, 1.1f);
+        Assert.True(contactStarted);
+    }
+
+    [Fact]
+    public void BepuWorldAppliesImpulseBeforeFixedStep()
+    {
+        using BepuPhysicsWorld world = new(new PhysicsVector3(0, 0, 0));
+        PhysicsBodyId body = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 2, 0),
+            PhysicsQuaternion.Identity,
+            2,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+        PhysicsEvent[] events = new PhysicsEvent[1];
+        _ = world.DrainEvents(events);
+
+        world.ApplyCommands(new[]
+        {
+            PhysicsCommand.ApplyImpulse(body, new PhysicsVector3(0, 4, 0), PhysicsVector3.Zero)
+        });
+        world.Step(FixedTimeStep.FromSeconds(1f / 60f));
+
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[1];
+        world.CopySnapshots(snapshots);
+        Assert.Equal(2f, snapshots[0].LinearVelocity.Y, precision: 4);
+    }
+
+    [Fact]
+    public void BepuWorldRejectsUnsupportedShapeAndJoint()
+    {
+        using BepuPhysicsWorld world = new(PhysicsVector3.Zero);
+        Assert.Throws<NotSupportedException>(() => world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.Identity,
+            1,
+            new ShapeDefinition[] { new UnsupportedShapeDefinition() })));
+        Assert.Empty(world.Capabilities.SupportedJointKinds);
+    }
+
+    private sealed record UnsupportedShapeDefinition() : ShapeDefinition(PhysicsShapeKind.Sphere);
 
     private static BodyDefinition DynamicBox() => new(
         PhysicsBodyMode.Dynamic,
