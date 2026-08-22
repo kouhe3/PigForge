@@ -7,5 +7,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PigForge.Core.Tests/PigForge.Core.Tests.csproj" />
+    <Project Path="tests/PigForge.Protocol.Tests/PigForge.Protocol.Tests.csproj" />
   </Folder>
 </Solution>

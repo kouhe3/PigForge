@@ -1,4 +1,3 @@
-using PigForge.Core;
 
 namespace PigForge.Protocol;
 
@@ -32,7 +31,7 @@ public sealed record ClientCommandEnvelope(
 }
 
 public sealed record EntitySnapshot(
-	EntityId Entity,
+    uint Entity,
 	uint PhysicsBody,
 	float PositionX,
 	float PositionY,

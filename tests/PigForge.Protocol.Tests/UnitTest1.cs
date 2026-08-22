@@ -1,0 +1,165 @@
+using PigForge.Protocol;
+
+namespace PigForge.Protocol.Tests;
+
+public sealed class ReplayContractTests
+{
+    [Fact]
+    public void ValidReplayDocumentPassesValidation()
+    {
+        ReplayDocument document = ReplayFixtures.Valid();
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+        Assert.Equal(ReplayFormat.CurrentVersion, document.Header.ProtocolVersion);
+        Assert.Equal(ReplayFormat.Name, document.Format);
+    }
+
+    [Fact]
+    public void UnsupportedProtocolVersionIsRejected()
+    {
+        ReplayDocument valid = ReplayFixtures.Valid();
+        ReplayDocument document = valid with
+        {
+            Header = valid.Header with { ProtocolVersion = 99 }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("ProtocolVersion", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CommandsMustBeOrderedByTickAndSequence()
+    {
+        ReplayDocument document = ReplayFixtures.Valid() with
+        {
+            Commands = new ReplayCommand[]
+            {
+                new StartSimulationCommand(Tick: 2, Sequence: 2, PlayerId: 1),
+                new StartSimulationCommand(Tick: 1, Sequence: 1, PlayerId: 1)
+            }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("command order", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void JointMustReferenceTwoKnownBodies()
+    {
+        ReplayDocument valid = ReplayFixtures.Valid();
+        ReplayDocument document = valid with
+        {
+            InitialState = valid.InitialState with
+            {
+                Joints = new[]
+                {
+                    new ReplayJointState(
+                        JointId: 1,
+                        BodyA: 1,
+                        BodyB: 999,
+                        Kind: ReplayJointKind.Fixed,
+                        Constraints: 0,
+                        BreakForce: 100,
+                        BreakTorque: 100)
+                }
+            }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("invalid or identical bodies", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NullLastFrameIsReportedWithoutThrowing()
+    {
+        ReplayDocument valid = ReplayFixtures.Valid();
+        ReplayDocument document = valid with
+        {
+            Frames = new ReplayFrame[] { null! }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("null entries", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NonFinitePhysicalValuesAreRejected()
+    {
+        ReplayDocument valid = ReplayFixtures.Valid();
+        ReplayEntityState invalidEntity = valid.InitialState.Entities[0] with
+        {
+            Position = new ReplayVector3(float.NaN, 0, 0)
+        };
+        ReplayDocument document = valid with
+        {
+            InitialState = valid.InitialState with
+            {
+                Entities = new[] { invalidEntity }
+            }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("non-finite", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FinalStateHashMustBeSha256Hex()
+    {
+        ReplayDocument valid = ReplayFixtures.Valid();
+        ReplayDocument document = valid with
+        {
+            FinalResult = valid.FinalResult with { StateHash = "invalid" }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("StateHash", StringComparison.Ordinal));
+    }
+}
+
+internal static class ReplayFixtures
+{
+    public static ReplayDocument Valid()
+    {
+        ReplayEntityState entity = new(
+            EntityId: 1,
+            PhysicsBodyId: 1,
+            PartTypeId: 1,
+            Position: new ReplayVector3(0, 1, 0),
+            Rotation: ReplayQuaternion.Identity,
+            LinearVelocity: ReplayVector3.Zero,
+            AngularVelocity: ReplayVector3.Zero);
+
+        return new ReplayDocument(
+            Format: ReplayFormat.Name,
+            Header: new ReplayHeader(
+                ProtocolVersion: ReplayFormat.CurrentVersion,
+                ContentVersion: "content-v1",
+                PhysicsBehaviorVersion: "bple-legacy-v1",
+                StateHashAlgorithm: ReplayHashAlgorithms.Sha256CanonicalV1,
+                FixedTickRate: 60,
+                RandomSeed: 1234),
+            InitialState: new ReplayInitialState(
+                Entities: new[] { entity },
+                Joints: Array.Empty<ReplayJointState>()),
+            Commands: new ReplayCommand[]
+            {
+                new StartSimulationCommand(Tick: 1, Sequence: 1, PlayerId: 1)
+            },
+            Frames: new[]
+            {
+                new ReplayFrame(1, new[] { entity }, Array.Empty<ReplayEvent>())
+            },
+            FinalResult: new ReplayResult(
+                Outcome: ReplayOutcome.Success,
+                CompletedTick: 1,
+                StateHash: new string('a', 64)));
+    }
+}

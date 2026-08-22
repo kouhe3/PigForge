@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigforge.invalid/schemas/physics-replay-v1.schema.json",
+  "title": "PigForge Physics Replay v1",
+  "description": "Language-neutral replay contract for comparing physics backends and reproducing server simulation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "header", "initialState", "commands", "frames", "finalResult"],
+  "properties": {
+    "format": { "const": "pigforge.physics.replay" },
+    "header": { "$ref": "#/$defs/replayHeader" },
+    "initialState": { "$ref": "#/$defs/replayInitialState" },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/replayCommand" }
+    },
+    "frames": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/replayFrame" }
+    },
+    "finalResult": { "$ref": "#/$defs/replayResult" }
+  },
+  "$defs": {
+    "positiveUInt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "nonNegativeUInt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "finiteNumber": { "type": "number" },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "quaternion": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "replayHeader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "contentVersion",
+        "physicsBehaviorVersion",
+        "stateHashAlgorithm",
+        "fixedTickRate",
+        "randomSeed"
+      ],
+      "properties": {
+        "protocolVersion": { "const": 1 },
+        "contentVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "physicsBehaviorVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "stateHashAlgorithm": {
+          "const": "sha256-canonical-v1"
+        },
+        "fixedTickRate": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 240
+        },
+        "randomSeed": { "$ref": "#/$defs/nonNegativeUInt" }
+      }
+    },
+    "replayInitialState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entities", "joints"],
+      "properties": {
+        "entities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replayEntityState" }
+        },
+        "joints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replayJointState" }
+        }
+      }
+    },
+    "replayEntityState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entityId",
+        "physicsBodyId",
+        "partTypeId",
+        "position",
+        "rotation",
+        "linearVelocity",
+        "angularVelocity"
+      ],
+      "properties": {
+        "entityId": { "$ref": "#/$defs/positiveUInt" },
+        "physicsBodyId": { "$ref": "#/$defs/positiveUInt" },
+        "partTypeId": { "$ref": "#/$defs/positiveUInt" },
+        "position": { "$ref": "#/$defs/vector3" },
+        "rotation": { "$ref": "#/$defs/quaternion" },
+        "linearVelocity": { "$ref": "#/$defs/vector3" },
+        "angularVelocity": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "replayJointState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jointId", "bodyA", "bodyB", "kind", "constraints", "breakForce", "breakTorque"],
+      "properties": {
+        "jointId": { "$ref": "#/$defs/positiveUInt" },
+        "bodyA": { "$ref": "#/$defs/positiveUInt" },
+        "bodyB": { "$ref": "#/$defs/positiveUInt" },
+        "kind": {
+          "enum": ["FIXED", "DISTANCE", "REVOLUTE", "CONFIGURABLE"]
+        },
+        "constraints": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "breakForce": {
+          "type": "number",
+          "minimum": 0
+        },
+        "breakTorque": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "replayCommand": {
+      "oneOf": [
+        { "$ref": "#/$defs/placePartCommand" },
+        { "$ref": "#/$defs/removePartCommand" },
+        { "$ref": "#/$defs/rotatePartCommand" },
+        { "$ref": "#/$defs/startSimulationCommand" }
+      ]
+    },
+    "commandBase": {
+      "type": "object",
+      "required": ["tick", "sequence", "playerId", "kind"],
+      "properties": {
+        "tick": { "$ref": "#/$defs/nonNegativeUInt" },
+        "sequence": { "$ref": "#/$defs/positiveUInt" },
+        "playerId": { "$ref": "#/$defs/positiveUInt" },
+        "kind": { "type": "string" }
+      }
+    },
+    "placePartCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind", "partTypeId", "gridX", "gridY", "rotation"],
+          "properties": {
+            "kind": { "const": "PLACE_PART" },
+            "partTypeId": { "$ref": "#/$defs/positiveUInt" },
+            "gridX": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "gridY": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
+            "rotation": { "type": "integer", "minimum": 0, "maximum": 3 }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "removePartCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind", "entityId"],
+          "properties": {
+            "kind": { "const": "REMOVE_PART" },
+            "entityId": { "$ref": "#/$defs/positiveUInt" }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "rotatePartCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind", "entityId", "rotation"],
+          "properties": {
+            "kind": { "const": "ROTATE_PART" },
+            "entityId": { "$ref": "#/$defs/positiveUInt" },
+            "rotation": { "type": "integer", "minimum": 0, "maximum": 3 }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "startSimulationCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "START_SIMULATION" }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "replayFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tick", "snapshots", "events"],
+      "properties": {
+        "tick": { "$ref": "#/$defs/positiveUInt" },
+        "snapshots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replayEntityState" }
+        },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replayEvent" }
+        }
+      }
+    },
+    "replayEvent": {
+      "oneOf": [
+        { "$ref": "#/$defs/contactEvent" },
+        { "$ref": "#/$defs/jointBrokenEvent" },
+        { "$ref": "#/$defs/entityLifecycleEvent" }
+      ]
+    },
+    "eventBase": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string" }
+      }
+    },
+    "contactEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/eventBase" },
+        {
+          "type": "object",
+          "required": ["kind", "bodyA", "bodyB"],
+          "properties": {
+            "kind": {
+              "enum": ["CONTACT_STARTED", "CONTACT_PERSISTED", "CONTACT_ENDED"]
+            },
+            "bodyA": { "$ref": "#/$defs/positiveUInt" },
+            "bodyB": { "$ref": "#/$defs/positiveUInt" }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "jointBrokenEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/eventBase" },
+        {
+          "type": "object",
+          "required": ["kind", "jointId"],
+          "properties": {
+            "kind": { "const": "JOINT_BROKEN" },
+            "jointId": { "$ref": "#/$defs/positiveUInt" }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "entityLifecycleEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/eventBase" },
+        {
+          "type": "object",
+          "required": ["kind", "entityId"],
+          "properties": {
+            "kind": { "enum": ["ENTITY_CREATED", "ENTITY_DESTROYED"] },
+            "entityId": { "$ref": "#/$defs/positiveUInt" }
+          },
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "replayResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "completedTick", "stateHash"],
+      "properties": {
+        "outcome": {
+          "enum": ["SUCCESS", "FAILURE", "ABORTED"]
+        },
+        "completedTick": { "$ref": "#/$defs/nonNegativeUInt" },
+        "stateHash": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        }
+      }
+    }
+  }
+}

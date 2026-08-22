@@ -21,5 +21,6 @@
 ## 文档
 
 - `docs/specs/pigforge-headless-spec.md`：项目目标、边界、测试策略和成功标准。
+- `docs/specs/physics-replay-v1.md`：回放字段、事件顺序和 canonical state hash 规则。
 - `docs/decisions/ADR-001-net10-physics-backend-boundary.md`：`.NET 10`、Unity 隔离和物理后端边界决策。
 - `docs/implementation-plan.md`：按依赖关系排列的实施计划和检查点。

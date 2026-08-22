@@ -35,13 +35,13 @@ Network transport and client
 
 ## Phase 1: Contracts and Replay
 
-### Task 1: Define versioned physics schema
+### Task 1: Define versioned physics schema — Complete
 
 - Input: body definitions, joint definitions, commands, random seed, content version.
 - Output: snapshots, contacts, break events, entity lifecycle, final result.
 - Acceptance: schema includes explicit version and does not contain Unity or native pointer fields.
-- Verify: serialize/deserialize round-trip tests and invalid version rejection.
-- Files likely touched: `schemas/`, `src/PigForge.Protocol/`, `tests/`.
+- Verify: JSON Schema parse, protocol validation tests, invalid version/order/hash/joint/null-frame/non-finite rejection pass (`7` protocol tests).
+- Files: `schemas/physics-replay-v1.schema.json`, `docs/specs/physics-replay-v1.md`, `src/PigForge.Protocol/ReplayContracts.cs`, `src/PigForge.Protocol/ReplayDocumentValidator.cs`, `tests/PigForge.Protocol.Tests/UnitTest1.cs`.
 
 ### Task 2: Implement fixed Tick replay runner
 
