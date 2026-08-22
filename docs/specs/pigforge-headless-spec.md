@@ -42,10 +42,11 @@ dotnet run --project src/PigForge.Server/PigForge.Server.csproj -c Release
 
 ```text
 src/
-├── PigForge.Core/                    # WorldState、ECS-like stores、规则和命令处理
+├── PigForge.Core/                    # WorldState、ECS-like stores和游戏规则
 ├── PigForge.Physics.Abstractions/    # 物理语义契约、句柄、快照和事件
-├── PigForge.Physics.MagicPhysX/      # .NET 10 + native PhysX 适配器
 ├── PigForge.Protocol/                # 版本化命令、快照和回放 DTO/schema
+├── PigForge.Replay/                  # 回放执行、Tick 调度和 canonical hash
+├── PigForge.Physics.MagicPhysX/      # .NET 10 + native PhysX 适配器
 └── PigForge.Server/                  # 固定 Tick、房间、权威服务端
 
 schemas/                              # 跨运行时 wire/replay schema
@@ -55,8 +56,9 @@ unity/                                # 独立 Unity 参考/客户端适配器
 
 tests/
 ├── PigForge.Core.Tests/              # 纯规则和状态测试
-├── PigForge.Physics.Tests/           # 后端契约与生命周期测试
-└── PigForge.Replay.Tests/            # Unity/PhysX 后端回放差异测试
+├── PigForge.Protocol.Tests/          # 协议和 Schema 边界测试
+├── PigForge.Replay.Tests/            # ReplayRunner 和后端差异测试
+└── PigForge.Physics.Tests/           # 后端契约与生命周期测试
 
 docs/
 ├── specs/                            # 产品和技术规格
@@ -74,13 +76,18 @@ tasks/                                # 本地 agent 工作清单，按仓库策
 PigForge.Core
     ↓
 PigForge.Physics.Abstractions
-    ↑                         ↑
-PigForge.Physics.MagicPhysX  Unity Reference Adapter
+
+PigForge.Replay
+    ├── Protocol
+    └── Physics.Abstractions
 
 PigForge.Server
     ├── Core
-    ├── Protocol
+    ├── Replay
     └── MagicPhysX
+
+Unity Reference Adapter
+    └── versioned schema/replay files
 ```
 
 Unity 不引用 `PigForge.Core`、`PigForge.Server` 或 net10 服务端程序集。Unity 和服务端共享的是版本化协议/回放 Schema，而非 Unity 兼容的 CLR 程序集。

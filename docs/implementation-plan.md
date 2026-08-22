@@ -46,8 +46,8 @@ Network transport and client
 ### Task 2: Implement fixed Tick replay runner — Complete
 
 - Acceptance: input is validated before simulation; Tick 0 commands run before Tick 1; exactly `SimulationTicks` frames are emitted; output order and hash are stable.
-- Verify: `5` Core tests cover Tick ordering, exact frame count, invalid-input short circuit, and order-independent canonical state hashing.
-- Files: `src/PigForge.Core/ReplayRunner.cs`, `src/PigForge.Protocol/ReplayContracts.cs`, `src/PigForge.Protocol/ReplayDocumentValidator.cs`, `tests/PigForge.Core.Tests/ReplayRunnerTests.cs`.
+- Verify: `3` Replay tests cover Tick ordering, exact frame count, invalid-input short circuit, and order-independent canonical state hashing.
+- Files: `src/PigForge.Replay/ReplayRunner.cs`, `src/PigForge.Protocol/ReplayContracts.cs`, `src/PigForge.Protocol/ReplayDocumentValidator.cs`, `tests/PigForge.Replay.Tests/ReplayRunnerTests.cs`.
 
 ## Phase 2: Physics Backends
 

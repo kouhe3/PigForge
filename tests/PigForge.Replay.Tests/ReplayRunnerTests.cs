@@ -1,7 +1,8 @@
+using PigForge.Replay;
 using PigForge.Physics.Abstractions;
 using PigForge.Protocol;
 
-namespace PigForge.Core.Tests;
+namespace PigForge.Replay.Tests;
 
 public sealed class ReplayRunnerTests
 {

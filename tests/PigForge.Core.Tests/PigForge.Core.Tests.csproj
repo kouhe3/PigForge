@@ -22,7 +22,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/PigForge.Core/PigForge.Core.csproj" />
     <ProjectReference Include="../../src/PigForge.Physics.Abstractions/PigForge.Physics.Abstractions.csproj" />
-    <ProjectReference Include="../../src/PigForge.Protocol/PigForge.Protocol.csproj" />
   </ItemGroup>
 
 </Project>

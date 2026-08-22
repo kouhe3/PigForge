@@ -4,11 +4,12 @@
 
 ## 当前结构
 
-- `src/PigForge.Core`：游戏状态与领域规则，不依赖 Unity 或具体物理引擎。
+- `src/PigForge.Core`：游戏状态与领域规则，不依赖 Unity、协议或具体物理引擎。
 - `src/PigForge.Physics.Abstractions`：物理后端契约与跨引擎数据类型。
-- `src/PigForge.Protocol`：客户端命令、服务器快照和协议版本。
+- `src/PigForge.Protocol`：客户端命令、服务器快照、回放契约和协议版本。
+- `src/PigForge.Replay`：固定 Tick 回放执行器和 canonical state hash。
 - `src/PigForge.Server`：可运行的无头服务器宿主。
-- `tests/PigForge.Core.Tests`：核心契约测试。
+- `tests/`：Core、Protocol 和 Replay 分层测试。
 
 当前阶段只建立稳定边界，不引入 Unity 或具体 PhysX NuGet 包。后续物理实现应放在独立适配器项目中，例如 `PigForge.Physics.MagicPhysX`。
 

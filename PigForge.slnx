@@ -3,10 +3,12 @@
     <Project Path="src/PigForge.Core/PigForge.Core.csproj" />
     <Project Path="src/PigForge.Physics.Abstractions/PigForge.Physics.Abstractions.csproj" />
     <Project Path="src/PigForge.Protocol/PigForge.Protocol.csproj" />
+    <Project Path="src/PigForge.Replay/PigForge.Replay.csproj" />
     <Project Path="src/PigForge.Server/PigForge.Server.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PigForge.Core.Tests/PigForge.Core.Tests.csproj" />
     <Project Path="tests/PigForge.Protocol.Tests/PigForge.Protocol.Tests.csproj" />
+    <Project Path="tests/PigForge.Replay.Tests/PigForge.Replay.Tests.csproj" />
   </Folder>
 </Solution>

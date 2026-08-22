@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../PigForge.Physics.Abstractions/PigForge.Physics.Abstractions.csproj" />
+    <ProjectReference Include="../PigForge.Protocol/PigForge.Protocol.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

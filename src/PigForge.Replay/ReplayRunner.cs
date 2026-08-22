@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using PigForge.Physics.Abstractions;
 using PigForge.Protocol;
 
-namespace PigForge.Core;
+namespace PigForge.Replay;
 
 public interface IReplaySimulation
 {
