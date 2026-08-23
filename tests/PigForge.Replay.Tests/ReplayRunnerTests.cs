@@ -1,5 +1,6 @@
 using PigForge.Replay;
 using PigForge.Physics.Abstractions;
+using PigForge.Physics.Bepu;
 using PigForge.Protocol;
 
 namespace PigForge.Replay.Tests;
@@ -51,6 +52,33 @@ public sealed class ReplayRunnerTests
         Assert.Equal(forward, reverse);
     }
 
+    [Fact]
+    public void BepuReplayProducesStableHashAndEventSequenceAcrossRuns()
+    {
+        ReplayInput input = BepuReplayFixtures.FallingBoxInput();
+
+        ReplayOutput first = BepuReplayFixtures.Run(input);
+        ReplayOutput second = BepuReplayFixtures.Run(input);
+
+        Assert.Equal(first.FinalResult.StateHash, second.FinalResult.StateHash);
+        Assert.Equal(first.FinalResult.Outcome, second.FinalResult.Outcome);
+        Assert.Equal(first.Frames.SelectMany(frame => frame.Events), second.Frames.SelectMany(frame => frame.Events));
+        Assert.Contains(
+            first.Frames.SelectMany(frame => frame.Events),
+            @event => @event.Kind == ReplayEventKind.ContactStarted);
+    }
+
+    [Fact]
+    public void BepuReplayMapsRemovedBodyToEntityDestroyedEvent()
+    {
+        ReplayOutput output = BepuReplayFixtures.Run(BepuReplayFixtures.RemovalInput());
+
+        ReplayEvent destroyed = Assert.Single(output.Frames[0].Events);
+        Assert.Equal(ReplayEventKind.EntityDestroyed, destroyed.Kind);
+        Assert.Equal((uint)2, destroyed.EntityId);
+        Assert.Empty(output.Frames[0].Snapshots);
+    }
+
     private sealed class RecordingReplaySimulation : IReplaySimulation
     {
         private ReplayEntityState _entity = ReplayRunnerFixtures.Entity(1, 1);
@@ -81,15 +109,9 @@ public sealed class ReplayRunnerTests
             };
         }
 
-        public IReadOnlyList<ReplayEntityState> CaptureSnapshots()
-        {
-            return new[] { _entity };
-        }
+        public IReadOnlyList<ReplayEntityState> CaptureSnapshots() => new[] { _entity };
 
-        public IReadOnlyList<ReplayEvent> DrainEvents()
-        {
-            return Array.Empty<ReplayEvent>();
-        }
+        public IReadOnlyList<ReplayEvent> DrainEvents() => Array.Empty<ReplayEvent>();
     }
 }
 
@@ -128,5 +150,92 @@ internal static class ReplayRunnerFixtures
             Rotation: ReplayQuaternion.Identity,
             LinearVelocity: ReplayVector3.Zero,
             AngularVelocity: ReplayVector3.Zero);
+    }
+}
+
+internal static class BepuReplayFixtures
+{
+    public static ReplayOutput Run(ReplayInput input)
+    {
+        using PhysicsReplaySimulation simulation = new(
+            new BepuPhysicsWorld(new PhysicsVector3(0, -9.81f, 0)),
+            new BepuContentCatalog());
+        return new ReplayRunner(simulation).Run(input);
+    }
+
+    public static ReplayInput FallingBoxInput()
+    {
+        return new ReplayInput(
+            ReplayFormat.Name,
+            Header(180),
+            new ReplayInitialState(
+                new[]
+                {
+                    Entity(1, 1, 1, new ReplayVector3(0, 0, 0)),
+                    Entity(2, 2, 2, new ReplayVector3(0, 4, 0))
+                },
+                Array.Empty<ReplayJointState>()),
+            Array.Empty<ReplayCommand>());
+    }
+
+    public static ReplayInput RemovalInput()
+    {
+        return new ReplayInput(
+            ReplayFormat.Name,
+            Header(1),
+            new ReplayInitialState(
+                new[] { Entity(2, 2, 2, new ReplayVector3(0, 2, 0)) },
+                Array.Empty<ReplayJointState>()),
+            new ReplayCommand[]
+            {
+                new RemovePartCommand(0, 1, 1, 2)
+            });
+    }
+
+    private static ReplayHeader Header(uint simulationTicks) => new(
+        ReplayFormat.CurrentVersion,
+        "content-v1",
+        "bepu-2.4.0-v1",
+        ReplayHashAlgorithms.Sha256CanonicalV1,
+        60,
+        simulationTicks,
+        1234);
+
+    private static ReplayEntityState Entity(uint entityId, uint bodyId, uint partTypeId, ReplayVector3 position) => new(
+        entityId,
+        bodyId,
+        partTypeId,
+        position,
+        ReplayQuaternion.Identity,
+        ReplayVector3.Zero,
+        ReplayVector3.Zero);
+
+    private sealed class BepuContentCatalog : IReplayPhysicsContent
+    {
+        public BodyDefinition CreateBody(ReplayEntityState entity)
+        {
+            return entity.PartTypeId switch
+            {
+                1 => new BodyDefinition(
+                    PhysicsBodyMode.Static,
+                    ToPhysics(entity.Position),
+                    ToPhysics(entity.Rotation),
+                    0,
+                    new ShapeDefinition[] { new BoxShapeDefinition(10, 0.5f, 10) }),
+                2 => new BodyDefinition(
+                    PhysicsBodyMode.Dynamic,
+                    ToPhysics(entity.Position),
+                    ToPhysics(entity.Rotation),
+                    1,
+                    new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) },
+                    ToPhysics(entity.LinearVelocity),
+                    ToPhysics(entity.AngularVelocity)),
+                _ => throw new NotSupportedException($"Unknown test part type {entity.PartTypeId}.")
+            };
+        }
+
+        private static PhysicsVector3 ToPhysics(ReplayVector3 value) => new(value.X, value.Y, value.Z);
+
+        private static PhysicsQuaternion ToPhysics(ReplayQuaternion value) => new(value.X, value.Y, value.Z, value.W);
     }
 }

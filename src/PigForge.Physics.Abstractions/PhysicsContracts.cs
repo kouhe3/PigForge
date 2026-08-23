@@ -123,8 +123,10 @@ public sealed class BodyDefinition
 		PhysicsVector3 position,
 		PhysicsQuaternion rotation,
 		float mass,
-		IReadOnlyList<ShapeDefinition> shapes)
-		: this(PhysicsBodyMode.Dynamic, position, rotation, mass, shapes)
+		IReadOnlyList<ShapeDefinition> shapes,
+		PhysicsVector3 linearVelocity = default,
+		PhysicsVector3 angularVelocity = default)
+		: this(PhysicsBodyMode.Dynamic, position, rotation, mass, shapes, linearVelocity, angularVelocity)
 	{
 	}
 
@@ -133,7 +135,9 @@ public sealed class BodyDefinition
 		PhysicsVector3 position,
 		PhysicsQuaternion rotation,
 		float mass,
-		IReadOnlyList<ShapeDefinition> shapes)
+		IReadOnlyList<ShapeDefinition> shapes,
+		PhysicsVector3 linearVelocity = default,
+		PhysicsVector3 angularVelocity = default)
 	{
 		if (!Enum.IsDefined(mode))
 		{
@@ -158,6 +162,21 @@ public sealed class BodyDefinition
 			throw new ArgumentOutOfRangeException(nameof(mass), mass, requirement);
 		}
 
+		if (!linearVelocity.IsFinite)
+		{
+			throw new ArgumentOutOfRangeException(nameof(linearVelocity), "A body linear velocity must contain only finite values.");
+		}
+
+		if (!angularVelocity.IsFinite)
+		{
+			throw new ArgumentOutOfRangeException(nameof(angularVelocity), "A body angular velocity must contain only finite values.");
+		}
+
+		if (mode == PhysicsBodyMode.Static && (linearVelocity != PhysicsVector3.Zero || angularVelocity != PhysicsVector3.Zero))
+		{
+			throw new ArgumentException("A static body cannot have an initial velocity.");
+		}
+
 		ArgumentNullException.ThrowIfNull(shapes);
 		if (shapes.Count == 0)
 		{
@@ -176,6 +195,8 @@ public sealed class BodyDefinition
 		Position = position;
 		Rotation = rotation;
 		Mass = mass;
+		LinearVelocity = linearVelocity;
+		AngularVelocity = angularVelocity;
 		Shapes = shapes;
 	}
 
@@ -183,8 +204,11 @@ public sealed class BodyDefinition
 	public PhysicsVector3 Position { get; }
 	public PhysicsQuaternion Rotation { get; }
 	public float Mass { get; }
+	public PhysicsVector3 LinearVelocity { get; }
+	public PhysicsVector3 AngularVelocity { get; }
 	public IReadOnlyList<ShapeDefinition> Shapes { get; }
 }
+
 
 public sealed record JointDefinition
 {

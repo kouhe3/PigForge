@@ -66,12 +66,12 @@ Network transport and client
 - Verify: Unity runtime smoke test and replay file inspection.
 - Files likely touched: `unity/` and schema mapping only.
 
-### Task 4: Add Bepu backend smoke test — In progress
+### Task 4: Add Bepu backend and replay adapter — Complete
 
-- Scope: pure C# BepuPhysics v2 adapter with static Ground, dynamic Box, fixed Tick, impulse commands, snapshots, contact events, and explicit disposal.
-- Acceptance: no Unity or native runtime dependency; unsupported shape/joint capabilities fail explicitly; resources release on world disposal.
-- Verify: .NET 10 integration tests cover a falling Box, ground contact, impulse-before-Step, unsupported capabilities, repeated fixed Tick, and snapshot output.
-- Files: `src/PigForge.Physics.Bepu/`, `tests/PigForge.Physics.Tests/`.
+- Scope: pure C# BepuPhysics v2 adapter with static Ground, dynamic Box, fixed Tick, impulse commands, initial velocities, snapshots, deterministic contact events, explicit disposal, and a physics replay adapter.
+- Acceptance: no Unity or native runtime dependency; unsupported shape/joint capabilities fail explicitly; destroyed bodies release their shape resources; replay snapshots and events map stable logical IDs.
+- Verify: .NET 10 integration tests cover falling Box contact, impulse-before-Step, unsupported capabilities, body lifecycle, deterministic repeated replay hash/event sequence, and snapshot output.
+- Files: `src/PigForge.Physics.Bepu/`, `src/PigForge.Replay/PhysicsReplaySimulation.cs`, `tests/PigForge.Physics.Tests/`, `tests/PigForge.Replay.Tests/`.
 
 ### Task 4.5: Add Jolt backend — Planned
 

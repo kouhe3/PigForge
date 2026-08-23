@@ -8,7 +8,7 @@
 - `src/PigForge.Physics.Abstractions`：物理后端契约与跨引擎数据类型。
 - `src/PigForge.Physics.Bepu`：基于纯 C# BepuPhysics v2 的无头物理适配器。
 - `src/PigForge.Protocol`：客户端命令、服务器快照、回放契约和协议版本。
-- `src/PigForge.Replay`：固定 Tick 回放执行器和 canonical state hash。
+- `src/PigForge.Replay`：固定 Tick 回放执行器、canonical state hash 和物理回放适配器。
 - `src/PigForge.Server`：可运行的无头服务器宿主。
 - `tests/`：Core、Protocol、Replay 和 Physics contract 分层测试。
 

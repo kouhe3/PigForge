@@ -15,12 +15,14 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private readonly Simulation _simulation;
     private readonly Dictionary<PhysicsBodyId, BodyHandle> _dynamicBodies = new();
     private readonly Dictionary<PhysicsBodyId, StaticHandle> _staticBodies = new();
+    private readonly Dictionary<PhysicsBodyId, TypedIndex> _shapesByBody = new();
     private readonly Dictionary<int, PhysicsBodyId> _dynamicIdsByHandle = new();
     private readonly Dictionary<int, PhysicsBodyId> _staticIdsByHandle = new();
     private readonly List<PhysicsBodyId> _bodyOrder = new();
     private readonly List<PhysicsEvent> _events = new();
     private readonly HashSet<ContactPair> _activeContacts = new();
     private readonly HashSet<ContactPair> _currentContacts = new();
+    private readonly List<ContactPair> _orderedContacts = new();
     private uint _nextBodyId = 1;
     private bool _disposed;
 
@@ -64,6 +66,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         {
             BodyDescription body = BodyDescription.CreateDynamic(
                 pose,
+                new BodyVelocity(ToNumerics(definition.LinearVelocity), ToNumerics(definition.AngularVelocity)),
                 physicsShape.ComputeInertia(definition.Mass),
                 new CollidableDescription(shapeIndex),
                 BodyDescription.GetDefaultActivity(physicsShape));
@@ -72,6 +75,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             _dynamicIdsByHandle.Add(handle.Value, id);
         }
 
+        _shapesByBody.Add(id, shapeIndex);
         _bodyOrder.Add(id);
         _events.Add(PhysicsEvent.BodyCreated(id));
         return id;
@@ -93,6 +97,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         else
         {
             throw new KeyNotFoundException($"Physics body {body.Value} does not exist.");
+        }
+
+        if (_shapesByBody.Remove(body, out TypedIndex shapeIndex))
+        {
+            _simulation.Shapes.RemoveAndDispose(shapeIndex, _bufferPool);
         }
 
         _bodyOrder.Remove(body);
@@ -147,14 +156,20 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _currentContacts.Clear();
         _simulation.Timestep(timeStep.Seconds);
 
-        foreach (ContactPair contact in _currentContacts)
+        _orderedContacts.Clear();
+        _orderedContacts.AddRange(_currentContacts);
+        _orderedContacts.Sort(ContactPairComparer.Instance);
+        foreach (ContactPair contact in _orderedContacts)
         {
             _events.Add(_activeContacts.Contains(contact)
                 ? PhysicsEvent.ContactPersisted(contact.A, contact.B)
                 : PhysicsEvent.ContactStarted(contact.A, contact.B));
         }
 
-        foreach (ContactPair contact in _activeContacts)
+        _orderedContacts.Clear();
+        _orderedContacts.AddRange(_activeContacts);
+        _orderedContacts.Sort(ContactPairComparer.Instance);
+        foreach (ContactPair contact in _orderedContacts)
         {
             if (!_currentContacts.Contains(contact))
             {
@@ -228,12 +243,14 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _bufferPool.Clear();
         _dynamicBodies.Clear();
         _staticBodies.Clear();
+        _shapesByBody.Clear();
         _dynamicIdsByHandle.Clear();
         _staticIdsByHandle.Clear();
         _bodyOrder.Clear();
         _events.Clear();
         _activeContacts.Clear();
         _currentContacts.Clear();
+        _orderedContacts.Clear();
     }
 
     private void RecordContact(CollidablePair pair)
@@ -306,6 +323,17 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         public static ContactPair Create(PhysicsBodyId first, PhysicsBodyId second) => first.Value < second.Value
             ? new(first, second)
             : new(second, first);
+    }
+
+    private sealed class ContactPairComparer : IComparer<ContactPair>
+    {
+        public static ContactPairComparer Instance { get; } = new();
+
+        public int Compare(ContactPair left, ContactPair right)
+        {
+            int first = left.A.Value.CompareTo(right.A.Value);
+            return first != 0 ? first : left.B.Value.CompareTo(right.B.Value);
+        }
     }
 
     private struct NarrowPhaseCallbacks : INarrowPhaseCallbacks

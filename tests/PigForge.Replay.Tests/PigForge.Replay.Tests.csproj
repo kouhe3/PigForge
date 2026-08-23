@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/PigForge.Replay/PigForge.Replay.csproj" />
+    <ProjectReference Include="../../src/PigForge.Physics.Bepu/PigForge.Physics.Bepu.csproj" />
   </ItemGroup>
 
 </Project>

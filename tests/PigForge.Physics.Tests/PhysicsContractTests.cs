@@ -40,6 +40,28 @@ public sealed class PhysicsContractTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new BoxShapeDefinition(0, 1, 1));
     }
 
+	[Fact]
+	public void BodyDefinitionPreservesInitialVelocitiesAndRejectsStaticVelocity()
+	{
+		BodyDefinition body = new(
+			PhysicsVector3.Zero,
+			PhysicsQuaternion.Identity,
+			1,
+			new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) },
+			new PhysicsVector3(1, 2, 3),
+			new PhysicsVector3(4, 5, 6));
+
+		Assert.Equal(new PhysicsVector3(1, 2, 3), body.LinearVelocity);
+		Assert.Equal(new PhysicsVector3(4, 5, 6), body.AngularVelocity);
+		Assert.Throws<ArgumentException>(() => new BodyDefinition(
+			PhysicsBodyMode.Static,
+			PhysicsVector3.Zero,
+			PhysicsQuaternion.Identity,
+			0,
+			new ShapeDefinition[] { new BoxShapeDefinition(1, 1, 1) },
+			new PhysicsVector3(1, 0, 0)));
+	}
+
     [Fact]
     public void ImpulseCommandRequiresValidBodyAndFiniteValues()
     {
