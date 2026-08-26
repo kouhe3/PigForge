@@ -7,4 +7,16 @@ artifacts/
 *.user
 *.suo
 *.DotSettings.user
+**/[Ll]ibrary/
+**/[Tt]emp/
+**/[Ll]ogs/
+**/[Uu]ser[Ss]ettings/
+**/[Bb]uild/
+**/[Bb]uilds/
+**/[Mm]emoryCaptures/
+**/[Rr]ecordings/
+**/[Aa]ssets/[Tt]utorial[Ii]nfo/
+unity/PigForge.UnityReference/replays/
+replays/
+.agents/
 /tasks/

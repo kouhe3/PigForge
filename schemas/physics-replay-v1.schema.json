@@ -188,10 +188,10 @@
             "gridX": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
             "gridY": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
             "rotation": { "type": "integer", "minimum": 0, "maximum": 3 }
-          },
-          "unevaluatedProperties": false
+          }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "removePartCommand": {
       "allOf": [
@@ -202,10 +202,10 @@
           "properties": {
             "kind": { "const": "REMOVE_PART" },
             "entityId": { "$ref": "#/$defs/positiveUInt" }
-          },
-          "unevaluatedProperties": false
+          }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "rotatePartCommand": {
       "allOf": [
@@ -217,10 +217,10 @@
             "kind": { "const": "ROTATE_PART" },
             "entityId": { "$ref": "#/$defs/positiveUInt" },
             "rotation": { "type": "integer", "minimum": 0, "maximum": 3 }
-          },
-          "unevaluatedProperties": false
+          }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "startSimulationCommand": {
       "allOf": [
@@ -230,10 +230,10 @@
           "required": ["kind"],
           "properties": {
             "kind": { "const": "START_SIMULATION" }
-          },
-          "unevaluatedProperties": false
+          }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "replayFrame": {
       "type": "object",
