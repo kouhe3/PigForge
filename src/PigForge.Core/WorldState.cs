@@ -2,9 +2,39 @@ using PigForge.Physics.Abstractions;
 
 namespace PigForge.Core;
 
+/// <summary>
+/// Stable entity handle: low bits hold the slot index (+1 so the zero value stays invalid),
+/// high bits hold the generation that invalidates handles after slot reuse.
+/// </summary>
 public readonly record struct EntityId(uint Value)
 {
+	public const int SlotBits = 20;
+	public const uint SlotMask = (1u << SlotBits) - 1;
+	public const uint GenerationModulus = 1u << (32 - SlotBits);
+
 	public bool IsValid => Value != 0;
+
+	public uint SlotIndex => (Value & SlotMask) - 1;
+
+	public uint Generation => Value >> SlotBits;
+
+	public static EntityId FromSlotAndGeneration(uint slotIndex, uint generation) =>
+		new(((generation << SlotBits) | (slotIndex + 1)) & uint.MaxValue);
+
+	public static EntityId FromSlotAndGenerationChecked(uint slotIndex, uint generation)
+	{
+		if (slotIndex >= SlotMask)
+		{
+			throw new ArgumentOutOfRangeException(nameof(slotIndex), slotIndex, $"Slot index must stay below {SlotMask}.");
+		}
+
+		if (generation is 0 or >= GenerationModulus)
+		{
+			throw new ArgumentOutOfRangeException(nameof(generation), generation, $"Generation must be in [1, {GenerationModulus - 1}].");
+		}
+
+		return FromSlotAndGeneration(slotIndex, generation);
+	}
 }
 
 public readonly record struct Tick(uint Value);
