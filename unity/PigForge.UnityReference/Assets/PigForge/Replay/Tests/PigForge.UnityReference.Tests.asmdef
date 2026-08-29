@@ -1,0 +1,19 @@
+{
+    "name": "PigForge.UnityReference.Tests",
+    "rootNamespace": "PigForge.UnityReference.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "PigForge.UnityReference.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "testAssemblies": true
+}
