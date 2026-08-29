@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigforge.invalid/schemas/part-content-v1.schema.json",
+  "title": "PigForge Part Content v1",
+  "description": "Engine-agnostic part and collision content. Files authored against this schema contain no engine asset references (no Unity Asset GUIDs, no GameObject or scene paths); engines bind their own assets to parts via partTypeId.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schemaVersion", "contentVersion", "parts"],
+  "properties": {
+    "format": { "const": "pigforge.part-content" },
+    "schemaVersion": { "const": 1 },
+    "contentVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/partDefinition" }
+    }
+  },
+  "$defs": {
+    "positiveUInt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "finiteNumber": { "type": "number" },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "partDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partTypeId", "name", "mode", "mass", "shapes"],
+      "properties": {
+        "partTypeId": { "$ref": "#/$defs/positiveUInt" },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "mode": { "enum": ["static", "dynamic"] },
+        "mass": { "$ref": "#/$defs/finiteNumber" },
+        "shapes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/shapeDefinition" }
+        }
+      }
+    },
+    "shapeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "enum": ["box", "sphere", "capsule", "convexMesh", "triangleMesh"]
+        },
+        "halfExtents": { "$ref": "#/$defs/vector3" },
+        "radius": { "$ref": "#/$defs/finiteNumber" },
+        "cylinderHalfHeight": { "$ref": "#/$defs/finiteNumber" },
+        "vertices": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/vector3" }
+        },
+        "triangles": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "offset": { "$ref": "#/$defs/vector3" }
+      }
+    }
+  }
+}
