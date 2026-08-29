@@ -67,6 +67,29 @@ public readonly record struct PhysicsVector3(float X, float Y, float Z)
 	public static PhysicsVector3 Zero => new(0, 0, 0);
 
 	public bool IsFinite => float.IsFinite(X) && float.IsFinite(Y) && float.IsFinite(Z);
+
+	public static float Distance(PhysicsVector3 left, PhysicsVector3 right)
+	{
+		float dx = left.X - right.X;
+		float dy = left.Y - right.Y;
+		float dz = left.Z - right.Z;
+		return MathF.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+	}
+
+	public static PhysicsVector3 Normalize(PhysicsVector3 value)
+	{
+		float length = MathF.Sqrt((value.X * value.X) + (value.Y * value.Y) + (value.Z * value.Z));
+		return length <= float.Epsilon ? Zero : new PhysicsVector3(value.X / length, value.Y / length, value.Z / length);
+	}
+
+	public static PhysicsVector3 operator -(PhysicsVector3 left, PhysicsVector3 right) =>
+		new(left.X - right.X, left.Y - right.Y, left.Z - right.Z);
+
+	public static PhysicsVector3 operator +(PhysicsVector3 left, PhysicsVector3 right) =>
+		new(left.X + right.X, left.Y + right.Y, left.Z + right.Z);
+
+	public static PhysicsVector3 operator *(PhysicsVector3 left, float scalar) =>
+		new(left.X * scalar, left.Y * scalar, left.Z * scalar);
 }
 
 public readonly record struct PhysicsQuaternion(float X, float Y, float Z, float W)
