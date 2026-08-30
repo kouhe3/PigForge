@@ -137,7 +137,15 @@ Network transport and client
 - Verify: start room, run fixed Ticks, stop room, confirm no leaked handles and stable final hash.
 - Files likely touched: `src/PigForge.Server/`, `src/PigForge.Physics.Bepu/`, tests.
 
-### Task 11: Add command validation and idempotence
+### Task 11: Add command validation and idempotence - Complete
+
+- Acceptance: duplicate, stale, out-of-order and capability-invalid commands are rejected or handled deterministically.
+- Verify: `11` server tests pass - per-player sequence idempotence (duplicates ignored, stale rejected, gaps allowed), rule rejections recorded without state mutation, mode gating (build commands after start rejected, start is one-way), and a malicious command script (duplicates + stale + invalid rotation + occupied cells + post-start build) producing identical double-run hashes and outcome logs.
+- Files: `src/PigForge.Server/CommandValidator.cs`, `src/PigForge.Server/GameRoom.cs` (two-mode lifecycle, command pipeline), `tests/PigForge.Server.Tests/GameRoomTests.cs`.
+
+### Task 11 - original notes
+
+- Acceptance: duplicate, stale, out-of-order and capability-invalid commands are rejected or handled deterministically.: Add command validation and idempotence
 
 - Acceptance: duplicate, stale, out-of-order and capability-invalid commands are rejected or handled deterministically.
 - Verify: command boundary tests and replay with malformed inputs.
