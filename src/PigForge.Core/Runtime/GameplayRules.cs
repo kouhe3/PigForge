@@ -374,6 +374,30 @@ public sealed class GameplayRules
         }
     }
 
+    /// <summary>
+    /// Clears every gameplay store entry for an entity that was destroyed by another
+    /// owner (e.g. construction rules removing a part). Adjusts the live-pig count.
+    /// </summary>
+    public void CleanupEntityStores(EntityId entity)
+    {
+        if (_pigs.TryGet(entity, out _))
+        {
+            _alivePigs--;
+        }
+
+        if (_bodies.TryGet(entity, out PhysicsBodyLink link))
+        {
+            _entitiesByBody.Remove(link.Body.Value);
+        }
+
+        _damage.Remove(entity);
+        _motors.Remove(entity);
+        _tnt.Remove(entity);
+        _wheels.Remove(entity);
+        _pigs.Remove(entity);
+        _bodies.Remove(entity);
+    }
+
     private void DestroyEntity(EntityId entity, GameplayTickOutput output)
     {
         if (_pigs.TryGet(entity, out _))

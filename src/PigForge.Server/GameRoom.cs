@@ -1,7 +1,9 @@
 using System.Runtime.InteropServices;
 using PigForge.Core;
+using PigForge.Core.Construction;
 using PigForge.Core.Content;
 using PigForge.Physics.Abstractions;
+using PigForge.Protocol;
 
 namespace PigForge.Server;
 
@@ -35,9 +37,10 @@ public sealed record GameRoomOptions(
 }
 
 /// <summary>
-/// One room owns exactly one authoritative physics world. Each tick advances through
-/// ordered phases: input (apply the rules' commands from the previous tick) → physics
-/// step → snapshot/event collection → rules update → destruction. Ticks are driven
+/// One room owns exactly one authoritative physics world and progresses through two
+/// modes: Building (construction commands mutate pure rules state, no bodies exist)
+/// and Running (bodies are created at Start, then every tick advances through ordered
+/// phases: input → physics step → telemetry → rules → destruction). Ticks are driven
 /// manually so execution stays deterministic; wall-clock scheduling is a transport concern.
 /// </summary>
 public sealed class GameRoom : IDisposable
@@ -54,12 +57,14 @@ public sealed class GameRoom : IDisposable
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
+    private readonly ConstructionRules _construction;
     private readonly GameplayRules _rules;
+    private readonly CommandValidator _validator = new();
     private readonly GameplayTickOutput _output = new();
     private readonly Dictionary<uint, PhysicsBodyId> _bodyByEntity = new();
+    private readonly List<CommandOutcome> _outcomeLog = new();
     private PhysicsBodySnapshot[] _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
-    private bool _sealed;
     private bool _disposed;
 
     public GameRoom(GameRoomOptions options)
@@ -76,9 +81,12 @@ public sealed class GameRoom : IDisposable
         _tnt = new TntStore(_entities);
         _wheels = new WheelStore(_entities);
         _pigs = new PigStore(_entities);
+        _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         _rules = new GameplayRules(
             _entities, _damage, _motors, _tnt, _wheels, _pigs, _bodies, _transforms, options.GameplayConfig);
     }
+
+    public RoomMode Mode { get; private set; } = RoomMode.Building;
 
     public uint CurrentTick { get; private set; }
 
@@ -88,22 +96,17 @@ public sealed class GameRoom : IDisposable
 
     public int BodyCount => _bodyByEntity.Count;
 
-    /// <summary>Spawns a level actor. Allowed only during setup, before the first tick.</summary>
+    public IReadOnlyList<CommandOutcome> OutcomeLog => _outcomeLog;
+
+    /// <summary>Spawns a level actor during the building phase, bypassing grid occupancy (level authoring).</summary>
     public EntityId Spawn(in RoomSpawnSpec spec)
     {
         ThrowIfDisposed();
-        if (_sealed)
-        {
-            throw new InvalidOperationException("Level setup is sealed after the first tick.");
-        }
+        EnsureBuilding("Spawn");
 
         EntityId entity = _entities.Create();
         _parts.Set(entity, new PartLink(spec.PartTypeId));
         _transforms.Set(entity, new EntityTransform(spec.Position, PhysicsQuaternion.Identity));
-        PhysicsBodyId body = _world.CreateBody(_content.CreateBodyDefinition(spec.PartTypeId, spec.Position, PhysicsQuaternion.Identity));
-        _bodies.Set(entity, new PhysicsBodyLink(body));
-        _rules.LinkBody(entity, body, isDynamic: spec.Role != RoomActorRole.Part || _content.GetPart(spec.PartTypeId).Mode == PhysicsBodyMode.Dynamic);
-        _bodyByEntity.Add(entity.Value, body);
 
         switch (spec.Role)
         {
@@ -125,14 +128,111 @@ public sealed class GameRoom : IDisposable
             _rules.AddWheel(entity);
         }
 
-        EnsureBuffers();
         return entity;
+    }
+
+    /// <summary>
+    /// Submits a client command. Validation makes duplicates idempotent and rejects
+    /// stale, out-of-order, wrong-mode, and rule-invalid submissions deterministically;
+    /// every outcome is recorded in <see cref="OutcomeLog"/>.
+    /// </summary>
+    public CommandOutcome Submit(ReplayCommand command)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(command);
+
+        CommandStatus status = _validator.Validate(command, Mode, CurrentTick);
+        ConstructionError ruleError = ConstructionError.None;
+        if (status == CommandStatus.Accepted)
+        {
+            (status, ruleError) = ExecuteCommand(command);
+        }
+
+        CommandOutcome outcome = new(command, status, ruleError);
+        _outcomeLog.Add(outcome);
+        return outcome;
+    }
+
+    private (CommandStatus, ConstructionError) ExecuteCommand(ReplayCommand command)
+    {
+        switch (command)
+        {
+            case PlacePartCommand place:
+            {
+                ConstructionResult placed = _construction.Place(place.PartTypeId, place.GridX, place.GridY, place.Rotation);
+                return placed.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None)
+                    : (CommandStatus.RuleRejected, placed.Error);
+            }
+
+            case RotatePartCommand rotate:
+            {
+                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Rotation);
+                return rotated.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None)
+                    : (CommandStatus.RuleRejected, rotated.Error);
+            }
+
+            case RemovePartCommand remove:
+            {
+                EntityId entity = new(remove.EntityId);
+                ConstructionResult removed = _construction.Remove(entity);
+                if (removed.IsSuccess)
+                {
+                    _rules.CleanupEntityStores(entity);
+                    _bodyByEntity.Remove(entity.Value);
+                }
+
+                return removed.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None)
+                    : (CommandStatus.RuleRejected, removed.Error);
+            }
+
+            case StartSimulationCommand:
+                Start();
+                return (CommandStatus.Accepted, ConstructionError.None);
+
+            default:
+                return (CommandStatus.UnknownKind, ConstructionError.None);
+        }
+    }
+
+    /// <summary>
+    /// Transitions Building → Running and materialises one authoritative body per entity,
+    /// in slot order, from the rules-state transforms.
+    /// </summary>
+    public void Start()
+    {
+        ThrowIfDisposed();
+        if (Mode != RoomMode.Building)
+        {
+            throw new InvalidOperationException("Only a building room can start simulation.");
+        }
+
+        var parts = _parts.GetEnumerator();
+        while (parts.MoveNext())
+        {
+            EntityId entity = parts.CurrentId;
+            uint partTypeId = parts.CurrentValue.PartTypeId;
+            _transforms.TryGet(entity, out EntityTransform transform);
+            PhysicsBodyId body = _world.CreateBody(_content.CreateBodyDefinition(partTypeId, transform.Position, transform.Rotation));
+            _bodies.Set(entity, new PhysicsBodyLink(body));
+            _rules.LinkBody(entity, body, isDynamic: _content.GetPart(partTypeId).Mode == PhysicsBodyMode.Dynamic);
+            _bodyByEntity.Add(entity.Value, body);
+        }
+
+        EnsureBuffers();
+        Mode = RoomMode.Running;
     }
 
     public void Tick()
     {
         ThrowIfDisposed();
-        _sealed = true;
+        if (Mode != RoomMode.Running)
+        {
+            throw new InvalidOperationException("The room must start simulation before ticking.");
+        }
+
         CurrentTick++;
 
         // Phase 1 (input): commands the rules produced last tick drive the physics world.
@@ -166,16 +266,22 @@ public sealed class GameRoom : IDisposable
         }
     }
 
-    /// <summary>Deterministic state hash over the authoritative snapshots plus rule outcomes.</summary>
+    /// <summary>Deterministic hash: layout hash in Building, authoritative snapshot hash in Running.</summary>
     public long ComputeStateHash()
     {
         ThrowIfDisposed();
-        int count = _world.CopySnapshots(_snapshotBuffer);
-        PhysicsBodySnapshot[] ordered = _snapshotBuffer.Take(count).OrderBy(snapshot => snapshot.Body.Value).ToArray();
         long hash = 17;
         hash = unchecked((hash * 31) + CurrentTick.GetHashCode());
         hash = unchecked((hash * 31) + (int)Phase);
         hash = unchecked((hash * 31) + _rules.AlivePigs);
+
+        if (Mode == RoomMode.Building)
+        {
+            return unchecked((hash * 31) + _construction.ComputeLayoutHash());
+        }
+
+        int count = _world.CopySnapshots(_snapshotBuffer);
+        PhysicsBodySnapshot[] ordered = _snapshotBuffer.Take(count).OrderBy(snapshot => snapshot.Body.Value).ToArray();
         foreach (PhysicsBodySnapshot snapshot in ordered)
         {
             hash = unchecked((hash * 31) + snapshot.Body.Value.GetHashCode());
@@ -196,8 +302,10 @@ public sealed class GameRoom : IDisposable
         }
 
         _disposed = true;
+        Mode = RoomMode.Closed;
         _world.Dispose();
         _bodyByEntity.Clear();
+        _outcomeLog.Clear();
         _output.Clear();
         _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
         _eventBuffer = Array.Empty<PhysicsEvent>();
@@ -205,9 +313,17 @@ public sealed class GameRoom : IDisposable
 
     private void EnsureBuffers()
     {
-        int bodyCount = _bodyByEntity.Count;
+        int bodyCount = Math.Max(1, _bodyByEntity.Count);
         _snapshotBuffer = new PhysicsBodySnapshot[bodyCount];
         _eventBuffer = new PhysicsEvent[(bodyCount * (bodyCount - 1) / 2) + bodyCount + 16];
+    }
+
+    private void EnsureBuilding(string operation)
+    {
+        if (Mode != RoomMode.Building)
+        {
+            throw new InvalidOperationException($"{operation} is only allowed while the room is building.");
+        }
     }
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);

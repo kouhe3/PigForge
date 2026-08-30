@@ -1,5 +1,6 @@
 using PigForge.Core;
 using PigForge.Core.Content;
+using PigForge.Protocol;
 using PigForge.Physics.Abstractions;
 using PigForge.Physics.Bepu;
 using PigForge.Server;
@@ -13,6 +14,7 @@ public sealed class GameRoomTests
     private const uint PartTnt = 3;
     private const uint PartWheel = 4;
     private const uint PartGround = 5;
+    private const uint PlayerOne = 1;
 
     [Fact]
     public void RoomAdvancesTickPhasesInOrder()
@@ -20,6 +22,7 @@ public sealed class GameRoomTests
         ScriptedPhysicsWorld world = new();
         GameRoom room = CreateRoom(() => world);
         room.Spawn(new RoomSpawnSpec(PartWheel, new PhysicsVector3(2f, 1f, 0f), MotorImpulsePerTick: 2f, MotorDirectionX: 1f, IsWheel: true));
+        room.Start();
         world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(1), new PhysicsVector3(2f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
         world.QueueEvent(PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)));
 
@@ -44,6 +47,7 @@ public sealed class GameRoomTests
         GameRoom room = CreateRoom(() => world);
         room.Spawn(new RoomSpawnSpec(PartPig, new PhysicsVector3(0f, 1f, 0f), RoomActorRole.Pig, HitPoints: 1f));
         room.Spawn(new RoomSpawnSpec(PartBlock, new PhysicsVector3(0f, 1f, 0f)));
+        room.Start();
         world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsQuaternion.Identity, new PhysicsVector3(15f, 0f, 0f), PhysicsVector3.Zero));
         world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)));
 
@@ -65,19 +69,114 @@ public sealed class GameRoomTests
         room.Dispose();
 
         Assert.Equal(1, world.DisposeCount);
+        Assert.Equal(RoomMode.Closed, room.Mode);
         Assert.Throws<ObjectDisposedException>(() => room.Tick());
         Assert.Throws<ObjectDisposedException>(() => room.ComputeStateHash());
         Assert.Throws<ObjectDisposedException>(() => room.Spawn(new RoomSpawnSpec(PartBlock, PhysicsVector3.Zero)));
     }
 
     [Fact]
-    public void SpawnAfterFirstTickIsRejected()
+    public void RoomLifecycleGatesSpawningAndTicking()
     {
         GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
-        room.Tick();
 
+        Assert.Throws<InvalidOperationException>(() => room.Tick());
+
+        room.Start();
+        Assert.Equal(RoomMode.Running, room.Mode);
         Assert.Throws<InvalidOperationException>(() =>
             room.Spawn(new RoomSpawnSpec(PartBlock, PhysicsVector3.Zero)));
+        Assert.Throws<InvalidOperationException>(() => room.Start());
+    }
+
+    [Fact]
+    public void DuplicatePlaceCommandIsIdempotent()
+    {
+        GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
+
+        CommandOutcome first = room.Submit(Place(1, 0, 0));
+        long hashAfterFirst = room.ComputeStateHash();
+        CommandOutcome duplicate = room.Submit(Place(1, 0, 0));
+
+        Assert.True(first.IsAccepted);
+        Assert.Equal(CommandStatus.Duplicate, duplicate.Status);
+        Assert.Equal(hashAfterFirst, room.ComputeStateHash());
+    }
+
+    [Fact]
+    public void StaleSequencesAreRejectedWhileGapsAreAllowed()
+    {
+        GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
+
+        Assert.True(room.Submit(Place(2, 0, 0)).IsAccepted);
+        Assert.Equal(CommandStatus.StaleSequence, room.Submit(Place(1, 5, 0)).Status);
+        Assert.True(room.Submit(Place(5, 5, 0)).IsAccepted);
+        Assert.Equal(CommandStatus.StaleSequence, room.Submit(Place(4, 9, 0)).Status);
+        Assert.Equal(CommandStatus.Duplicate, room.Submit(Place(5, 9, 0)).Status);
+    }
+
+    [Fact]
+    public void RuleRejectionsAreRecordedWithoutMutatingState()
+    {
+        GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
+
+        CommandOutcome first = room.Submit(Place(1, 0, 0));
+        long hashAfterFirst = room.ComputeStateHash();
+        CommandOutcome occupied = room.Submit(Place(2, 0, 0));
+        CommandOutcome invalidRotation = room.Submit(Place(3, 4, 0, rotation: 4));
+
+        Assert.True(first.IsAccepted);
+        Assert.Equal(CommandStatus.RuleRejected, occupied.Status);
+        Assert.Equal(PigForge.Core.Construction.ConstructionError.CellsOccupied, occupied.Error);
+        Assert.Equal(CommandStatus.RuleRejected, invalidRotation.Status);
+        Assert.Equal(hashAfterFirst, room.ComputeStateHash());
+    }
+
+    [Fact]
+    public void BuildCommandsAfterStartAreRejectedAndStartIsOneWay()
+    {
+        GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
+        room.Start();
+
+        CommandOutcome buildAfterStart = room.Submit(Place(1, 0, 0));
+        CommandOutcome secondStart = room.Submit(new StartSimulationCommand(Tick: 0, Sequence: 2, PlayerId: PlayerOne));
+
+        Assert.Equal(CommandStatus.WrongMode, buildAfterStart.Status);
+        Assert.Equal(CommandStatus.WrongMode, secondStart.Status);
+        Assert.Throws<InvalidOperationException>(() => room.Start());
+    }
+
+    [Fact]
+    public void MaliciousCommandScriptIsDeterministic()
+    {
+        (long hash, CommandStatus[] statuses) first = RunMaliciousScript();
+        (long hash, CommandStatus[] statuses) second = RunMaliciousScript();
+
+        Assert.Equal(first.hash, second.hash);
+        Assert.Equal(first.statuses, second.statuses);
+        Assert.Contains(CommandStatus.RuleRejected, first.statuses);
+        Assert.Contains(CommandStatus.Duplicate, first.statuses);
+        Assert.Contains(CommandStatus.StaleSequence, first.statuses);
+        Assert.Contains(CommandStatus.Accepted, first.statuses);
+    }
+
+    private static (long Hash, CommandStatus[] Statuses) RunMaliciousScript()
+    {
+        GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
+        room.Spawn(new RoomSpawnSpec(PartPig, new PhysicsVector3(50f, 1f, 0f), RoomActorRole.Pig, HitPoints: 100f));
+
+        uint sequence = 0;
+        room.Submit(Place(++sequence, 0, 0));
+        room.Submit(Place(sequence, 0, 0));
+        room.Submit(Place(++sequence, 0, 0));
+        room.Submit(Place(1, 9, 9, rotation: 4));
+        room.Submit(Place(++sequence, 1, 0));
+        room.Submit(Place(2, 9, 9));
+        room.Submit(new StartSimulationCommand(Tick: 0, Sequence: ++sequence, PlayerId: PlayerOne));
+        room.Submit(Place(++sequence, 5, 5));
+
+        room.RunTicks(30);
+        return (room.ComputeStateHash(), room.OutcomeLog.Select(outcome => outcome.Status).ToArray());
     }
 
     [Fact]
@@ -91,17 +190,18 @@ public sealed class GameRoomTests
     }
 
     [Fact]
-    public void PhysicsRoomReachesStableOutcomeAndReleasesAllBodies()
+    public void PhysicsRoomReachesStableOutcomeAndReleasesDestroyedBodies()
     {
         (long hash, GameplayPhase phase, int remainingBodies) = RunPhysicsRoomWithDetails();
 
         Assert.Equal(GameplayPhase.Won, phase);
         Assert.Equal(3, remainingBodies);
+        GC.KeepAlive(hash);
     }
 
     private static long RunPhysicsRoom()
     {
-        (GameRoom room, _) = CreatePhysicsRoom();
+        using GameRoom room = CreatePhysicsRoom();
         using (room)
         {
             room.RunTicks(240);
@@ -111,8 +211,7 @@ public sealed class GameRoomTests
 
     private static (long Hash, GameplayPhase Phase, int RemainingBodies) RunPhysicsRoomWithDetails()
     {
-        (GameRoom room, ScriptedPhysicsWorld _) = CreatePhysicsRoom();
-        using (room)
+        using GameRoom room = CreatePhysicsRoom();
         {
             for (uint tick = 0; tick < 240 && room.Phase == GameplayPhase.Playing; tick++)
             {
@@ -123,9 +222,8 @@ public sealed class GameRoomTests
         }
     }
 
-    private static (GameRoom Room, ScriptedPhysicsWorld World) CreatePhysicsRoom()
+    private static GameRoom CreatePhysicsRoom()
     {
-        ScriptedPhysicsWorld world = new();
         PartContentLibrary content = new(PartContentParser.Parse(LevelContentJson));
         GameRoomOptions options = GameRoomOptions.Create(content, () => new BepuPhysicsWorld(new PhysicsVector3(0f, -9.81f, 0f))) with
         {
@@ -143,7 +241,8 @@ public sealed class GameRoomTests
         room.Spawn(new RoomSpawnSpec(PartPig, new PhysicsVector3(8f, 1f, 0f), RoomActorRole.Pig, HitPoints: 20f));
         room.Spawn(new RoomSpawnSpec(PartTnt, new PhysicsVector3(8.9f, 1f, 0f), RoomActorRole.Tnt));
         room.Spawn(new RoomSpawnSpec(PartBlock, new PhysicsVector3(8.9f, 8f, 0f)));
-        return (room, world);
+        room.Start();
+        return room;
     }
 
     private static GameRoom CreateRoom(Func<IPhysicsWorld> factory)
@@ -152,6 +251,8 @@ public sealed class GameRoomTests
         return new GameRoom(GameRoomOptions.Create(content, factory));
     }
 
+    private static PlacePartCommand Place(uint sequence, int gridX, int gridY, byte rotation = 0) =>
+        new PlacePartCommand(Tick: 0, Sequence: sequence, PlayerId: PlayerOne, PartTypeId: PartBlock, GridX: gridX, GridY: gridY, Rotation: rotation);
     private const string LevelContentJson = """
     {
         "format": "pigforge.part-content",
@@ -176,7 +277,6 @@ public sealed class GameRoomTests
         private readonly List<PhysicsBodySnapshot> _snapshots = new();
         private readonly List<PhysicsEvent> _events = new();
         private readonly List<string> _log = new();
-        private int _pendingCommandCount;
 
         public List<string> OperationLog => _log;
 
@@ -221,11 +321,7 @@ public sealed class GameRoomTests
 
         public void DestroyJoint(PhysicsJointId joint) => throw new NotSupportedException();
 
-        public void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands)
-        {
-            _pendingCommandCount = commands.Length;
-            _log.Add($"apply:{commands.Length}");
-        }
+        public void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands) => _log.Add($"apply:{commands.Length}");
 
         public void Step(FixedTimeStep timeStep) => _log.Add("step");
 
