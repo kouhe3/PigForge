@@ -173,6 +173,12 @@ Prerequisite: Tasks 10 and 11 (room loop and command validation) — constructio
 - Acceptance: replay protocol version bumps with backward-rejection of invalid versions; merged compounds split deterministically along seams on threshold breach.
 - Verify: protocol v2 round-trip and rejection tests; construction OBB tests; compound split replay fixtures with double-run hash equality.
 
+### Task 12: Add snapshot publication - Complete
+
+- Acceptance: snapshots contain only server-owned state; payload size and frequency are measured; no JSON in the Tick hot path.
+- Verify: `13` protocol tests (round-trip, truncated/foreign/bad-version rejection, 64 B per entity bound, 10k-frame zero-allocation encoding) and `4` server publishing tests (local consumer decodes tick/phase/entities, destroyed entities leave the frame, identical rooms publish identical byte streams, per-frame publishing is allocation-free).
+- Files: `src/PigForge.Protocol/SnapshotWire.cs`, `src/PigForge.Server/GameRoom.cs` (`TryPublishSnapshot`), `tests/PigForge.Protocol.Tests/SnapshotWireTests.cs`, `tests/PigForge.Server.Tests/SnapshotPublishingTests.cs`.
+
 ## Phase 5: Performance and Client
 
 ### Task 16: Establish performance baseline
