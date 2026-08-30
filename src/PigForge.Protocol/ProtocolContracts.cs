@@ -3,7 +3,7 @@ namespace PigForge.Protocol;
 
 public static class ProtocolVersion
 {
-	public const ushort Current = 1;
+	public const ushort Current = 2;
 }
 
 public enum ClientCommandKind

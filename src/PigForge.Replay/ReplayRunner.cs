@@ -107,7 +107,7 @@ public sealed class ReplayRunner
 
 public static class ReplayStateHasher
 {
-    private static ReadOnlySpan<byte> HashPrefix => "pigforge.state.v1\0"u8;
+    private static ReadOnlySpan<byte> HashPrefix => "pigforge.state.v2\0"u8;
 
     public static string Compute(uint completedTick, IReadOnlyList<ReplayEntityState> states)
     {
@@ -131,6 +131,7 @@ public static class ReplayStateHasher
             AppendQuaternion(hash, scratch, state.Rotation);
             AppendVector3(hash, scratch, state.LinearVelocity);
             AppendVector3(hash, scratch, state.AngularVelocity);
+            AppendSingle(hash, scratch, state.Scale);
         }
 
         return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();

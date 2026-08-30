@@ -76,9 +76,9 @@ public static class ReplayDocumentValidator
             errors.Add("PhysicsBehaviorVersion is required.");
         }
 
-        if (!string.Equals(header.StateHashAlgorithm, ReplayHashAlgorithms.Sha256CanonicalV1, StringComparison.Ordinal))
+        if (!string.Equals(header.StateHashAlgorithm, ReplayHashAlgorithms.Sha256CanonicalV2, StringComparison.Ordinal))
         {
-            errors.Add($"StateHashAlgorithm must be '{ReplayHashAlgorithms.Sha256CanonicalV1}'.");
+            errors.Add($"StateHashAlgorithm must be '{ReplayHashAlgorithms.Sha256CanonicalV2}'.");
         }
 
         if (header.FixedTickRate is < 1 or > 240)
@@ -163,14 +163,19 @@ public static class ReplayDocumentValidator
                 errors.Add("Command kind does not match its command type.");
             }
 
-            if (command is PlacePartCommand placePart && (placePart.PartTypeId == 0 || placePart.Rotation > 3))
+            if (command is PlacePartCommand placePart && (placePart.PartTypeId == 0
+                || !float.IsFinite(placePart.PositionX)
+                || !float.IsFinite(placePart.PositionY)
+                || !float.IsFinite(placePart.Angle)
+                || !float.IsFinite(placePart.Scale)
+                || placePart.Scale is <= 0f or > 4f))
             {
-                errors.Add("PlacePartCommand has invalid part type or rotation.");
+                errors.Add("PlacePartCommand has invalid part type, position, angle or scale.");
             }
 
-            if (command is RotatePartCommand rotatePart && (rotatePart.EntityId == 0 || rotatePart.Rotation > 3))
+            if (command is RotatePartCommand rotatePart && (rotatePart.EntityId == 0 || !float.IsFinite(rotatePart.Angle)))
             {
-                errors.Add("RotatePartCommand has invalid entity or rotation.");
+                errors.Add("RotatePartCommand has invalid entity or angle.");
             }
 
             if (command is RemovePartCommand removePart && removePart.EntityId == 0)
@@ -338,6 +343,11 @@ public static class ReplayDocumentValidator
             if (!AreFinite(state.Position, state.Rotation, state.LinearVelocity, state.AngularVelocity))
             {
                 errors.Add($"{path} contains a non-finite physical value.");
+            }
+
+            if (!float.IsFinite(state.Scale) || state.Scale <= 0)
+            {
+                errors.Add($"{path} contains an invalid entity scale.");
             }
         }
 

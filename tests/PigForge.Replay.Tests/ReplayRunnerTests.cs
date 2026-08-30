@@ -53,6 +53,17 @@ public sealed class ReplayRunnerTests
     }
 
     [Fact]
+    public void StateHashCoversEntityScale()
+    {
+        ReplayEntityState unscaled = ReplayRunnerFixtures.Entity(1, 1);
+        ReplayEntityState scaled = ReplayRunnerFixtures.Entity(1, 1) with { Scale = 2f };
+
+        Assert.NotEqual(
+            ReplayStateHasher.Compute(4, new[] { unscaled }),
+            ReplayStateHasher.Compute(4, new[] { scaled }));
+    }
+
+    [Fact]
     public void BepuReplayProducesStableHashAndEventSequenceAcrossRuns()
     {
         ReplayInput input = BepuReplayFixtures.FallingBoxInput();
@@ -124,7 +135,7 @@ internal static class ReplayRunnerFixtures
             ProtocolVersion: ReplayFormat.CurrentVersion,
             ContentVersion: "content-v1",
             PhysicsBehaviorVersion: "bple-legacy-v1",
-            StateHashAlgorithm: ReplayHashAlgorithms.Sha256CanonicalV1,
+            StateHashAlgorithm: ReplayHashAlgorithms.Sha256CanonicalV2,
             FixedTickRate: 60,
             SimulationTicks: 3,
             RandomSeed: 1234);
@@ -196,7 +207,7 @@ internal static class BepuReplayFixtures
         ReplayFormat.CurrentVersion,
         "content-v1",
         "bepu-2.4.0-v1",
-        ReplayHashAlgorithms.Sha256CanonicalV1,
+        ReplayHashAlgorithms.Sha256CanonicalV2,
         60,
         simulationTicks,
         1234);
@@ -221,7 +232,7 @@ internal static class BepuReplayFixtures
                     ToPhysics(entity.Position),
                     ToPhysics(entity.Rotation),
                     0,
-                    new ShapeDefinition[] { new BoxShapeDefinition(10, 0.5f, 10) }),
+                    new ShapeDefinition[] { new BoxShapeDefinition(10 * entity.Scale, 0.5f * entity.Scale, 10) }),
                 2 => new BodyDefinition(
                     PhysicsBodyMode.Dynamic,
                     ToPhysics(entity.Position),

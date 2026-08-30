@@ -15,7 +15,7 @@
 
 | 形态 | 输入 | 依赖 | 用途 |
 |---|---|---|---|
-| A：回放查看器 | `physics-replay-v1` JSON + `part-content` JSON（本地文件） | 无，纯前端 | 调试回放、后端差异对比、内容格式验证；同时是开发工具 |
+| A：回放查看器 | `physics-replay-v2` JSON + `part-content` JSON（本地文件） | 无，纯前端 | 调试回放、后端差异对比、内容格式验证；同时是开发工具 |
 | B：实时客户端 | 服务器快照流 + 命令回执（Phase 4/5 交付后） | WebSocket 连接 | 玩家建造、启动、观战；显示 + 本地预测 |
 
 形态 A 与形态 B 共享渲染层、UI 层；仅数据源与连接层不同。
@@ -57,7 +57,7 @@ clients/web/
 
 ## 4. 数据契约
 
-- 回放文档：`schemas/physics-replay-v1.schema.json`（TS 类型生成来源）。
+- 回放文档：`schemas/physics-replay-v2.schema.json`（TS 类型生成来源）。
 - 内容文档：`schemas/part-content-v1.schema.json`。
 - 示例数据：`content/parts.json`、`unity/PigForge.UnityReference/replays/unity-reference-replay.json`。
 - 差异报告（M2 可选输入）：`ReplayComparer` 输出的差异序列（后续如有需要可版本化为独立 Schema，M2 先用内存结构）。

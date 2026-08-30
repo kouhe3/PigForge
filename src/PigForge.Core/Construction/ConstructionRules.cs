@@ -18,6 +18,7 @@ public enum ConstructionError
     UnknownPartType,
     InvalidRotation,
     InvalidScale,
+    InvalidPosition,
     FootprintTooLarge,
     CellsOccupied,
     PartLimitReached,
@@ -119,6 +120,11 @@ public sealed class ConstructionRules
         if (!float.IsFinite(scale) || scale is <= 0f or > MaxScale)
         {
             return Failure(ConstructionError.InvalidScale);
+        }
+
+        if (!float.IsFinite(positionX) || !float.IsFinite(positionY))
+        {
+            return Failure(ConstructionError.InvalidPosition);
         }
 
         PartDefinition part;
@@ -240,44 +246,6 @@ public sealed class ConstructionRules
         _transforms.Remove(entity);
         _entities.Destroy(entity);
         return new ConstructionResult(entity, ConstructionError.None);
-    }
-
-    // v1 grid-command bridges: convert cell placements to the free-pose API. They
-    // disappear together with the v1 protocol commands.
-    public ConstructionResult Place(uint partTypeId, int gridX, int gridY, byte rotation)
-    {
-        if (rotation > 3)
-        {
-            return Failure(ConstructionError.InvalidRotation);
-        }
-
-        PartDefinition part;
-        try
-        {
-            part = _content.GetPart(partTypeId);
-        }
-        catch (KeyNotFoundException)
-        {
-            return Failure(ConstructionError.UnknownPartType);
-        }
-
-        (int width, int height) = FootprintInCells(part, rotation);
-        return Place(
-            partTypeId,
-            (gridX + (width / 2f)) * CellSize,
-            (gridY + (height / 2f)) * CellSize,
-            rotation * (MathF.PI / 2f),
-            1f);
-    }
-
-    public ConstructionResult Rotate(EntityId entity, byte rotation)
-    {
-        if (rotation > 3)
-        {
-            return Failure(ConstructionError.InvalidRotation);
-        }
-
-        return Rotate(entity, rotation * (MathF.PI / 2f));
     }
 
     /// <summary>
@@ -486,21 +454,6 @@ public sealed class ConstructionRules
     }
 
     private static int BucketIndex(float value) => (int)MathF.Floor(value / BucketSize);
-
-    private static (int Width, int Height) FootprintInCells(PartDefinition part, byte rotation)
-    {
-        PartShapeDefinition shape = part.Shapes[0];
-        (float width, float height) = shape.Kind switch
-        {
-            PhysicsShapeKind.Box when shape.BoxHalfExtents is { Length: 3 } halfExtents => (halfExtents[0] * 2f, halfExtents[1] * 2f),
-            PhysicsShapeKind.Sphere when shape.Radius is float radius => (radius * 2f, radius * 2f),
-            _ => throw new NotSupportedException($"Part type {part.PartTypeId} has no grid footprint rule for shape kind {shape.Kind}.")
-        };
-
-        int widthCells = Math.Max(1, (int)MathF.Ceiling(width / CellSize));
-        int heightCells = Math.Max(1, (int)MathF.Ceiling(height / CellSize));
-        return rotation % 2 == 0 ? (widthCells, heightCells) : (heightCells, widthCells);
-    }
 
     private static PhysicsQuaternion RotationQuaternion(float angle)
     {

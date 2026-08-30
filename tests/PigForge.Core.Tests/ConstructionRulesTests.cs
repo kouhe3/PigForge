@@ -14,8 +14,8 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        ConstructionResult first = rules.Place(PartBlock, gridX: 0, gridY: 0, rotation: 0);
-        ConstructionResult second = rules.Place(PartBlock, gridX: 1, gridY: 0, rotation: 0);
+        ConstructionResult first = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f);
+        ConstructionResult second = rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f);
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -26,28 +26,40 @@ public sealed class ConstructionRulesTests
     }
 
     [Fact]
-    public void PlaceOnOccupiedCellsIsRejected()
+    public void PlaceOnOverlappingFootprintIsRejected()
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        Assert.True(rules.Place(PartBlock, 0, 0, 0).IsSuccess);
-        ConstructionResult blocked = rules.Place(PartBlock, 0, 0, 0);
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f).IsSuccess);
+        ConstructionResult blocked = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f);
 
         Assert.Equal(ConstructionError.CellsOccupied, blocked.Error);
         Assert.Equal(1, rules.PartCount);
     }
 
     [Theory]
-    [InlineData(99u, 0, ConstructionError.UnknownPartType)]
-    [InlineData(PartBlock, 4, ConstructionError.InvalidRotation)]
-    public void InvalidPlacementCommandsAreRejected(uint partTypeId, byte rotation, ConstructionError expected)
+    [InlineData(99u, 0f, ConstructionError.UnknownPartType)]
+    [InlineData(PartBlock, float.NaN, ConstructionError.InvalidRotation)]
+    public void InvalidPlacementCommandsAreRejected(uint partTypeId, float angle, ConstructionError expected)
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        ConstructionResult result = rules.Place(partTypeId, 0, 0, rotation);
+        ConstructionResult result = rules.Place(partTypeId, 0.5f, 0.5f, angle, 1f);
 
         Assert.Equal(expected, result.Error);
         Assert.Equal(0, rules.PartCount);
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(float.NaN)]
+    [InlineData(-1f)]
+    [InlineData(5f)]
+    public void InvalidScalesAreRejected(float scale)
+    {
+        (ConstructionRules rules, _) = CreateRules();
+
+        Assert.Equal(ConstructionError.InvalidScale, rules.Place(PartBlock, 0.5f, 0.5f, 0f, scale).Error);
     }
 
     [Fact]
@@ -55,9 +67,9 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, _) = CreateRules(new ConstructionLimits(MaxParts: 2, MaxConnectionsPerPart: 6, MaxFootprintCells: 64));
 
-        Assert.True(rules.Place(PartBlock, 0, 0, 0).IsSuccess);
-        Assert.True(rules.Place(PartBlock, 5, 0, 0).IsSuccess);
-        ConstructionResult third = rules.Place(PartBlock, 9, 0, 0);
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 5.5f, 0.5f, 0f, 1f).IsSuccess);
+        ConstructionResult third = rules.Place(PartBlock, 9.5f, 0.5f, 0f, 1f);
 
         Assert.Equal(ConstructionError.PartLimitReached, third.Error);
     }
@@ -67,22 +79,22 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, _) = CreateRules(new ConstructionLimits(MaxParts: 64, MaxConnectionsPerPart: 2, MaxFootprintCells: 64));
 
-        Assert.True(rules.Place(PartBlock, 0, 0, 0).IsSuccess);
-        Assert.True(rules.Place(PartBlock, 1, 0, 0).IsSuccess);
-        Assert.True(rules.Place(PartBlock, -1, 0, 0).IsSuccess);
-        ConstructionResult thirdNeighbour = rules.Place(PartBlock, 0, 1, 0);
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f).IsSuccess);
+        Assert.True(rules.Place(PartBlock, -0.5f, 0.5f, 0f, 1f).IsSuccess);
+        ConstructionResult thirdNeighbour = rules.Place(PartBlock, 0.5f, 1.5f, 0f, 1f);
 
         Assert.Equal(ConstructionError.ConnectionLimitReached, thirdNeighbour.Error);
     }
 
     [Fact]
-    public void RemoveDestroysEntityAndFreesCellsForReuse()
+    public void RemoveDestroysEntityAndFreesSpaceForReuse()
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult placed = rules.Place(PartBlock, 0, 0, 0);
+        ConstructionResult placed = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f);
 
         ConstructionResult removed = rules.Remove(placed.Entity);
-        ConstructionResult replaced = rules.Place(PartBlock, 0, 0, 0);
+        ConstructionResult replaced = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f);
 
         Assert.True(removed.IsSuccess);
         Assert.False(rules.IsAlive(placed.Entity));
@@ -106,31 +118,33 @@ public sealed class ConstructionRulesTests
     public void RotateRecomputesOccupancyTransformAndConnections()
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult plank = rules.Place(PartPlank, 0, 0, 0);
-        ConstructionResult block = rules.Place(PartBlock, 2, 0, 0);
+        ConstructionResult plank = rules.Place(PartPlank, 1.0f, 0.5f, 0f, 1f);
+        ConstructionResult block = rules.Place(PartBlock, 2.5f, 0.5f, 0f, 1f);
         Assert.True(plank.IsSuccess);
         Assert.True(block.IsSuccess);
         Assert.NotEmpty(rules.ConnectionsOf(plank.Entity));
 
-        ConstructionResult rotated = rules.Rotate(plank.Entity, rotation: 1);
+        ConstructionResult rotated = rules.Rotate(plank.Entity, angle: MathF.PI / 2f);
 
         Assert.True(rotated.IsSuccess);
         EntityTransform transform = TransformOf(rules, plank.Entity);
-        Assert.Equal(0.5f, transform.Position.X, 3f);
-        Assert.Equal(1f, transform.Position.Y, 3f);
+        Assert.Equal(1.0f, transform.Position.X, 3f);
+        Assert.Equal(0.5f, transform.Position.Y, 3f);
         Assert.Equal(MathF.Sin(MathF.PI / 4f), transform.Rotation.Z, 3f);
+        // The rotated plank no longer reaches the block through proximity.
         Assert.Empty(rules.ConnectionsOf(plank.Entity));
         Assert.Empty(rules.ConnectionsOf(block.Entity));
     }
 
     [Fact]
-    public void RotateIntoOccupiedCellsIsBlocked()
+    public void RotateIntoOccupiedFootprintIsBlocked()
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult plank = rules.Place(PartPlank, 0, 0, 0);
-        Assert.True(rules.Place(PartBlock, 0, 1, 0).IsSuccess);
+        ConstructionResult plank = rules.Place(PartPlank, 1.0f, 0.5f, 0f, 1f);
+        // Sits exactly where the 90°-rotated plank would sweep, flush to its rest pose.
+        Assert.True(rules.Place(PartBlock, 1.0f, 1.5f, 0f, 1f).IsSuccess);
 
-        ConstructionResult rotated = rules.Rotate(plank.Entity, rotation: 1);
+        ConstructionResult rotated = rules.Rotate(plank.Entity, angle: MathF.PI / 2f);
 
         Assert.Equal(ConstructionError.RotationBlocked, rotated.Error);
         EntityTransform transform = TransformOf(rules, plank.Entity);
@@ -148,6 +162,8 @@ public sealed class ConstructionRulesTests
         Assert.Equal(firstRun.rejections, secondRun.rejections);
         Assert.Contains(ConstructionError.CellsOccupied, firstRun.rejections);
         Assert.Contains(ConstructionError.InvalidRotation, firstRun.rejections);
+        Assert.Contains(ConstructionError.InvalidScale, firstRun.rejections);
+        Assert.Contains(ConstructionError.InvalidPosition, firstRun.rejections);
     }
 
     private static EntityTransform TransformOf(ConstructionRules rules, EntityId entity)
@@ -179,23 +195,26 @@ public sealed class ConstructionRulesTests
         List<ConstructionError> rejections = new();
         List<EntityId> entities = new();
 
-        (char op, uint part, int x, int y, byte rotation)[] script =
+        (char op, uint part, float x, float y, float angle, float scale)[] script =
         {
-            ('p', PartBlock, 0, 0, 0),
-            ('p', PartBlock, 1, 0, 0),
-            ('p', PartPlank, 3, 0, 0),
-            ('r', 0, 3, 0, 1),
-            ('p', PartBlock, 1, 0, 0),
-            ('p', PartBlock, 4, 0, 4),
-            ('x', 0, 0, 0, 9),
+            ('p', PartBlock, 0.5f, 0.5f, 0f, 1f),
+            ('p', PartBlock, 1.5f, 0.5f, 0f, 1f),
+            ('p', PartPlank, 4.0f, 0.5f, 0f, 1f),
+            ('r', 0, 0, 0, MathF.PI / 2f, 1f),
+            ('p', PartBlock, 1.5f, 0.5f, 0f, 1f),
+            ('p', PartBlock, 9.5f, 0.5f, 0f, 0f),
+            ('p', PartBlock, 8.5f, 0.5f, float.NaN, 1f),
+            ('p', PartBlock, float.NaN, 0.5f, 0f, 1f),
+            ('p', PartBlock, 6.0f, 6.0f, 0.4f, 1f),
+            ('x', 0, 0, 0, 0f, 1f),
         };
 
-        foreach ((char op, uint part, int x, int y, byte rotation) in script)
+        foreach ((char op, uint part, float x, float y, float angle, float scale) in script)
         {
             switch (op)
             {
                 case 'p':
-                    ConstructionResult placed = rules.Place(part, x, y, rotation);
+                    ConstructionResult placed = rules.Place(part, x, y, angle, scale);
                     if (placed.IsSuccess)
                     {
                         entities.Add(placed.Entity);
@@ -207,7 +226,7 @@ public sealed class ConstructionRulesTests
 
                     break;
                 case 'r':
-                    ConstructionResult rotated = rules.Rotate(entities[^1], rotation);
+                    ConstructionResult rotated = rules.Rotate(entities[^1], angle);
                     if (!rotated.IsSuccess)
                     {
                         rejections.Add(rotated.Error);

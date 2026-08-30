@@ -3,14 +3,14 @@ namespace PigForge.Protocol;
 public static class ReplayFormat
 {
     public const string Name = "pigforge.physics.replay";
-    public const ushort CurrentVersion = 1;
+    public const ushort CurrentVersion = 2;
 
     public const uint MaxSimulationTicks = 100_000;
 }
 
 public static class ReplayHashAlgorithms
 {
-    public const string Sha256CanonicalV1 = "sha256-canonical-v1";
+    public const string Sha256CanonicalV2 = "sha256-canonical-v2";
 }
 
 public enum ReplayJointKind
@@ -64,7 +64,8 @@ public sealed record ReplayEntityState(
     ReplayVector3 Position,
     ReplayQuaternion Rotation,
     ReplayVector3 LinearVelocity,
-    ReplayVector3 AngularVelocity);
+    ReplayVector3 AngularVelocity,
+    float Scale = 1f);
 
 public sealed record ReplayJointState(
     uint JointId,
@@ -85,14 +86,17 @@ public abstract record ReplayCommand(
     uint PlayerId,
     ClientCommandKind Kind);
 
+/// <summary>Free planar placement (v2): position in metres, <paramref name="Angle"/> in
+/// radians, uniform <paramref name="Scale"/> in (0, 4].</summary>
 public sealed record PlacePartCommand(
     uint Tick,
     uint Sequence,
     uint PlayerId,
     uint PartTypeId,
-    int GridX,
-    int GridY,
-    byte Rotation) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.PlacePart);
+    float PositionX,
+    float PositionY,
+    float Angle,
+    float Scale) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.PlacePart);
 
 public sealed record RemovePartCommand(
     uint Tick,
@@ -105,7 +109,7 @@ public sealed record RotatePartCommand(
     uint Sequence,
     uint PlayerId,
     uint EntityId,
-    byte Rotation) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.RotatePart);
+    float Angle) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.RotatePart);
 
 public sealed record StartSimulationCommand(
     uint Tick,

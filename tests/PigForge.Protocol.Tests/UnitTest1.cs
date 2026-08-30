@@ -31,6 +31,20 @@ public sealed class ReplayContractTests
     }
 
     [Fact]
+    public void V1DocumentsAreRejectedByV2()
+    {
+        ReplayDocument valid = ReplayFixtures.Valid();
+        ReplayDocument document = valid with
+        {
+            Header = valid.Header with { ProtocolVersion = 1 }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("ProtocolVersion", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void SimulationTickLimitIsEnforced()
     {
         ReplayDocument valid = ReplayFixtures.Valid();
@@ -190,7 +204,7 @@ internal static class ReplayFixtures
                 ProtocolVersion: ReplayFormat.CurrentVersion,
                 ContentVersion: "content-v1",
                 PhysicsBehaviorVersion: "bple-legacy-v1",
-                StateHashAlgorithm: ReplayHashAlgorithms.Sha256CanonicalV1,
+                StateHashAlgorithm: ReplayHashAlgorithms.Sha256CanonicalV2,
                 FixedTickRate: 60,
                 SimulationTicks: 1,
                 RandomSeed: 1234),

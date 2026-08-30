@@ -9,24 +9,25 @@ public readonly record struct SnapshotEntity(
 	ReplayVector3 Position,
 	ReplayQuaternion Rotation,
 	ReplayVector3 LinearVelocity,
-	ReplayVector3 AngularVelocity);
+	ReplayVector3 AngularVelocity,
+	float Scale);
 
 public readonly record struct SnapshotFrameHeader(ushort Version, uint Tick, byte Phase, uint EntityCount);
 
 /// <summary>
-/// Binary wire format for published authoritative room snapshots (v1).
+/// Binary wire format for published authoritative room snapshots (v2).
 /// Layout, little-endian: magic "PGFS" | version:u16 | tick:u32 | phase:u8 | entityCount:u32,
 /// then per entity: entityId:u32 | physicsBodyId:u32 | partTypeId:u32 | position:3f |
-/// rotation:4f | linearVelocity:3f | angularVelocity:3f.
+/// rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f.
 /// The hot path is span-based: no JSON and no allocations.
 /// </summary>
 public static class SnapshotFrame
 {
-	public const ushort CurrentVersion = 1;
+	public const ushort CurrentVersion = 2;
 
 	public const int HeaderByteCount = 15;
 
-	public const int EntityByteCount = 12 + (4 * 13);
+	public const int EntityByteCount = 12 + (4 * 14);
 
 	public static int GetMaxByteCount(int entityCount) => HeaderByteCount + (entityCount * EntityByteCount);
 
@@ -106,6 +107,7 @@ public ref struct SnapshotFrameWriter
 		WriteQuaternion(span[24..], entity.Rotation);
 		WriteVector3(span[40..], entity.LinearVelocity);
 		WriteVector3(span[52..], entity.AngularVelocity);
+		BinaryPrimitives.WriteSingleLittleEndian(span[64..], entity.Scale);
 		_position += SnapshotFrame.EntityByteCount;
 		return true;
 	}
@@ -157,7 +159,8 @@ public ref struct SnapshotFrameReader
 			ReadVector3(span[12..]),
 			ReadQuaternion(span[24..]),
 			ReadVector3(span[40..]),
-			ReadVector3(span[52..]));
+			ReadVector3(span[52..]),
+			BinaryPrimitives.ReadSingleLittleEndian(span[64..]));
 		_position += SnapshotFrame.EntityByteCount;
 		_remaining--;
 		return true;

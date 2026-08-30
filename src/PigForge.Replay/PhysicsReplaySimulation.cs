@@ -42,7 +42,7 @@ public sealed class PhysicsReplaySimulation : IReplaySimulation, IDisposable
             BodyDefinition definition = _content.CreateBody(entity)
                 ?? throw new InvalidOperationException($"Content returned no body definition for entity {entity.EntityId}.");
             PhysicsBodyId physicsBody = _world.CreateBody(definition);
-            if (!_bindingsByPhysicsBody.TryAdd(physicsBody, new BodyBinding(entity.EntityId, entity.PhysicsBodyId, entity.PartTypeId)))
+            if (!_bindingsByPhysicsBody.TryAdd(physicsBody, new BodyBinding(entity.EntityId, entity.PhysicsBodyId, entity.PartTypeId, entity.Scale)))
             {
                 throw new InvalidOperationException($"Physics body {physicsBody.Value} was returned more than once.");
             }
@@ -109,7 +109,8 @@ public sealed class PhysicsReplaySimulation : IReplaySimulation, IDisposable
                 ToReplay(snapshot.Position),
                 ToReplay(snapshot.Rotation),
                 ToReplay(snapshot.LinearVelocity),
-                ToReplay(snapshot.AngularVelocity));
+                ToReplay(snapshot.AngularVelocity),
+                binding.Scale);
         }
 
         return snapshots;
@@ -234,5 +235,5 @@ public sealed class PhysicsReplaySimulation : IReplaySimulation, IDisposable
 
     private static ReplayQuaternion ToReplay(PhysicsQuaternion value) => new(value.X, value.Y, value.Z, value.W);
 
-    private readonly record struct BodyBinding(uint EntityId, uint ReplayBodyId, uint PartTypeId);
+    private readonly record struct BodyBinding(uint EntityId, uint ReplayBodyId, uint PartTypeId, float Scale);
 }

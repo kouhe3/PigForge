@@ -185,7 +185,7 @@ internal static class DiffFixtures
                     ToPhysics(entity.Position),
                     ToPhysics(entity.Rotation),
                     0,
-                    new ShapeDefinition[] { new BoxShapeDefinition(10, 0.5f, 10) }),
+                    new ShapeDefinition[] { new BoxShapeDefinition(10 * entity.Scale, 0.5f * entity.Scale, 10) }),
                 2 => new BodyDefinition(
                     PhysicsBodyMode.Dynamic,
                     ToPhysics(entity.Position),

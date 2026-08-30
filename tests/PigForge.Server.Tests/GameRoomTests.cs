@@ -127,12 +127,14 @@ public sealed class GameRoomTests
         CommandOutcome first = room.Submit(Place(1, 0, 0));
         long hashAfterFirst = room.ComputeStateHash();
         CommandOutcome occupied = room.Submit(Place(2, 0, 0));
-        CommandOutcome invalidRotation = room.Submit(Place(3, 4, 0, rotation: 4));
+        CommandOutcome invalidAngle = room.Submit(new PlacePartCommand(
+            Tick: 0, Sequence: 3, PlayerId: PlayerOne, PartTypeId: PartBlock,
+            PositionX: float.NaN, PositionY: 0.5f, Angle: 0f, Scale: 1f));
 
         Assert.True(first.IsAccepted);
         Assert.Equal(CommandStatus.RuleRejected, occupied.Status);
         Assert.Equal(ConstructionError.CellsOccupied, occupied.Error);
-        Assert.Equal(CommandStatus.RuleRejected, invalidRotation.Status);
+        Assert.Equal(CommandStatus.RuleRejected, invalidAngle.Status);
         Assert.Equal(hashAfterFirst, room.ComputeStateHash());
     }
 
@@ -296,6 +298,20 @@ public sealed class GameRoomTests
         Assert.Contains(CommandStatus.Accepted, first.statuses);
     }
 
+    [Fact]
+    public void PlacementAngleAndScaleEnterTheBuildingStateHash()
+    {
+        static long HashWith(float angle, float scale)
+        {
+            using GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
+            room.Submit(new PlacePartCommand(Tick: 0, Sequence: 1, PlayerId: PlayerOne, PartTypeId: PartBlock, PositionX: 1f, PositionY: 0.5f, Angle: angle, Scale: scale));
+            return room.ComputeStateHash();
+        }
+
+        Assert.NotEqual(HashWith(0f, 1f), HashWith(0.3f, 1f));
+        Assert.NotEqual(HashWith(0f, 1f), HashWith(0f, 2f));
+    }
+
     private static (long Hash, CommandStatus[] Statuses) RunMaliciousScript()
     {
         GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
@@ -381,8 +397,18 @@ public sealed class GameRoomTests
                 TntIgniteImpactSpeed: 5f)));
     }
 
+    // v1 tests author placements in grid cells; the free-pose command takes metres,
+    // so a 1×1 cell maps to its centre (gx + 0.5, gy + 0.5).
     private static PlacePartCommand Place(uint sequence, int gridX, int gridY, byte rotation = 0) =>
-        new PlacePartCommand(Tick: 0, Sequence: sequence, PlayerId: PlayerOne, PartTypeId: PartBlock, GridX: gridX, GridY: gridY, Rotation: rotation);
+        new PlacePartCommand(
+            Tick: 0,
+            Sequence: sequence,
+            PlayerId: PlayerOne,
+            PartTypeId: PartBlock,
+            PositionX: gridX + 0.5f,
+            PositionY: gridY + 0.5f,
+            Angle: rotation * (MathF.PI / 2f),
+            Scale: 1f);
 
     private const string LevelContentJson = """
     {

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pigforge.invalid/schemas/physics-replay-v1.schema.json",
-  "title": "PigForge Physics Replay v1",
+  "$id": "https://pigforge.invalid/schemas/physics-replay-v2.schema.json",
+  "title": "PigForge Physics Replay v2",
   "description": "Language-neutral replay contract for comparing physics backends and reproducing server simulation.",
   "type": "object",
   "additionalProperties": false,
@@ -68,7 +68,7 @@
         "randomSeed"
       ],
       "properties": {
-        "protocolVersion": { "const": 1 },
+        "protocolVersion": { "const": 2 },
         "contentVersion": {
           "type": "string",
           "minLength": 1,
@@ -80,7 +80,7 @@
           "maxLength": 128
         },
         "stateHashAlgorithm": {
-          "const": "sha256-canonical-v1"
+          "const": "sha256-canonical-v2"
         },
         "fixedTickRate": {
           "type": "integer",
@@ -120,7 +120,8 @@
         "position",
         "rotation",
         "linearVelocity",
-        "angularVelocity"
+        "angularVelocity",
+        "scale"
       ],
       "properties": {
         "entityId": { "$ref": "#/$defs/positiveUInt" },
@@ -129,7 +130,8 @@
         "position": { "$ref": "#/$defs/vector3" },
         "rotation": { "$ref": "#/$defs/quaternion" },
         "linearVelocity": { "$ref": "#/$defs/vector3" },
-        "angularVelocity": { "$ref": "#/$defs/vector3" }
+        "angularVelocity": { "$ref": "#/$defs/vector3" },
+        "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 }
       }
     },
     "replayJointState": {
@@ -182,13 +184,14 @@
         { "$ref": "#/$defs/commandBase" },
         {
           "type": "object",
-          "required": ["kind", "partTypeId", "gridX", "gridY", "rotation"],
+          "required": ["kind", "partTypeId", "positionX", "positionY", "angle", "scale"],
           "properties": {
             "kind": { "const": "PLACE_PART" },
             "partTypeId": { "$ref": "#/$defs/positiveUInt" },
-            "gridX": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
-            "gridY": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 },
-            "rotation": { "type": "integer", "minimum": 0, "maximum": 3 }
+            "positionX": { "$ref": "#/$defs/finiteNumber" },
+            "positionY": { "$ref": "#/$defs/finiteNumber" },
+            "angle": { "$ref": "#/$defs/finiteNumber" },
+            "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 }
           }
         }
       ],
@@ -213,11 +216,11 @@
         { "$ref": "#/$defs/commandBase" },
         {
           "type": "object",
-          "required": ["kind", "entityId", "rotation"],
+          "required": ["kind", "entityId", "angle"],
           "properties": {
             "kind": { "const": "ROTATE_PART" },
             "entityId": { "$ref": "#/$defs/positiveUInt" },
-            "rotation": { "type": "integer", "minimum": 0, "maximum": 3 }
+            "angle": { "$ref": "#/$defs/finiteNumber" }
           }
         }
       ],

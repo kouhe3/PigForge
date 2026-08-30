@@ -187,7 +187,8 @@ public sealed class GameRoom : IDisposable
         {
             case PlacePartCommand place:
             {
-                ConstructionResult placed = _construction.Place(place.PartTypeId, place.GridX, place.GridY, place.Rotation);
+                ConstructionResult placed = _construction.Place(
+                    place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale);
                 return placed.IsSuccess
                     ? (CommandStatus.Accepted, ConstructionError.None)
                     : (CommandStatus.RuleRejected, placed.Error);
@@ -195,7 +196,7 @@ public sealed class GameRoom : IDisposable
 
             case RotatePartCommand rotate:
             {
-                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Rotation);
+                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle);
                 return rotated.IsSuccess
                     ? (CommandStatus.Accepted, ConstructionError.None)
                     : (CommandStatus.RuleRejected, rotated.Error);
@@ -418,7 +419,8 @@ public sealed class GameRoom : IDisposable
                     ToReplay(snapshot.Position),
                     ToReplay(snapshot.Rotation),
                     ToReplay(snapshot.LinearVelocity),
-                    ToReplay(snapshot.AngularVelocity))))
+                    ToReplay(snapshot.AngularVelocity),
+                    _transforms.TryGet(entity, out EntityTransform transform) ? transform.Scale : 1f)))
             {
                 bytesWritten = 0;
                 return false;
