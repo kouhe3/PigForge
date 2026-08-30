@@ -83,9 +83,12 @@ ROTATE_PART
 
 START_SIMULATION
     no additional fields
+
+ENTER_BUILD_MODE
+    policy(CLEAR|KEEP)
 ```
 
-Unknown command kinds are invalid in v1. A future incompatible command shape requires a new protocol version.
+Unknown command kinds are invalid in v1. New command kinds may be added to v1 additively (documents that use only earlier kinds remain valid); any change to an existing command's shape requires a new protocol version.
 
 ## Frames
 

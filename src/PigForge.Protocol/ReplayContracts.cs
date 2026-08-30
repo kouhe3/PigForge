@@ -112,6 +112,19 @@ public sealed record StartSimulationCommand(
     uint Sequence,
     uint PlayerId) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.StartSimulation);
 
+/// <summary>What happens to the previous run's entities when a running room re-enters build mode.</summary>
+public enum BuildModePolicy : byte
+{
+    Clear = 0,
+    Keep = 1
+}
+
+public sealed record EnterBuildModeCommand(
+    uint Tick,
+    uint Sequence,
+    uint PlayerId,
+    BuildModePolicy Policy) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.EnterBuildMode);
+
 public sealed record ReplayEvent(
     ReplayEventKind Kind,
     uint? BodyA = null,

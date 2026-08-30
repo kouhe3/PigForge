@@ -163,7 +163,8 @@
         { "$ref": "#/$defs/placePartCommand" },
         { "$ref": "#/$defs/removePartCommand" },
         { "$ref": "#/$defs/rotatePartCommand" },
-        { "$ref": "#/$defs/startSimulationCommand" }
+        { "$ref": "#/$defs/startSimulationCommand" },
+        { "$ref": "#/$defs/enterBuildModeCommand" }
       ]
     },
     "commandBase": {
@@ -230,6 +231,20 @@
           "required": ["kind"],
           "properties": {
             "kind": { "const": "START_SIMULATION" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "enterBuildModeCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind", "policy"],
+          "properties": {
+            "kind": { "const": "ENTER_BUILD_MODE" },
+            "policy": { "enum": ["CLEAR", "KEEP"] }
           }
         }
       ],

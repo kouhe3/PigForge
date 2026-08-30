@@ -154,6 +154,7 @@ public static class ReplayDocumentValidator
                 RemovePartCommand => ClientCommandKind.RemovePart,
                 RotatePartCommand => ClientCommandKind.RotatePart,
                 StartSimulationCommand => ClientCommandKind.StartSimulation,
+                EnterBuildModeCommand => ClientCommandKind.EnterBuildMode,
                 _ => null
             };
 
@@ -175,6 +176,11 @@ public static class ReplayDocumentValidator
             if (command is RemovePartCommand removePart && removePart.EntityId == 0)
             {
                 errors.Add("RemovePartCommand entity ID must be positive.");
+            }
+
+            if (command is EnterBuildModeCommand enterBuildMode && !Enum.IsDefined(enterBuildMode.Policy))
+            {
+                errors.Add("EnterBuildModeCommand has an invalid policy.");
             }
 
             previousTick = command.Tick;

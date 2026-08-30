@@ -136,6 +136,39 @@ public sealed class ReplayContractTests
 
         Assert.Contains(result.Errors, error => error.Contains("StateHash", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void EnterBuildModeCommandPassesValidation()
+    {
+        ReplayDocument document = ReplayFixtures.Valid() with
+        {
+            Commands = new ReplayCommand[]
+            {
+                new StartSimulationCommand(Tick: 1, Sequence: 1, PlayerId: 1),
+                new EnterBuildModeCommand(Tick: 1, Sequence: 2, PlayerId: 1, Policy: BuildModePolicy.Keep)
+            }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+    }
+
+    [Fact]
+    public void EnterBuildModeCommandRejectsUndefinedPolicy()
+    {
+        ReplayDocument document = ReplayFixtures.Valid() with
+        {
+            Commands = new ReplayCommand[]
+            {
+                new EnterBuildModeCommand(Tick: 1, Sequence: 1, PlayerId: 1, Policy: (BuildModePolicy)42)
+            }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("EnterBuildModeCommand", StringComparison.Ordinal));
+    }
 }
 
 internal static class ReplayFixtures
