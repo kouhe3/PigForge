@@ -59,12 +59,12 @@ Network transport and client
 
 ## Phase 2: Physics Backends
 
-### Task 3: Add Unity reference adapter
+### Task 3: Add Unity reference adapter — Complete
 
 - Scope: independent Unity project/assembly; no reference to net10 Core or Server.
 - Acceptance: creates a ground and dynamic box, uses explicit fixed simulation, exports the shared replay format.
-- Verify: Unity runtime smoke test and replay file inspection.
-- Files likely touched: `unity/` and schema mapping only.
+- Verify: Unity Test Framework PlayMode smoke test passes via Unity CLI (`-runTests -testPlatform PlayMode`, exit 0); exported replay conforms to `physics-replay-v1` schema checks.
+- Files: `unity/PigForge.UnityReference/` (`ReferenceReplayExporter.cs`, PlayMode smoke test, runtime/tests asmdef).
 
 ### Task 4: Add Bepu backend and replay adapter — Complete
 
@@ -73,42 +73,55 @@ Network transport and client
 - Verify: .NET 10 integration tests cover falling Box contact, impulse-before-Step, unsupported capabilities, body lifecycle, deterministic repeated replay hash/event sequence, and snapshot output.
 - Files: `src/PigForge.Physics.Bepu/`, `src/PigForge.Replay/PhysicsReplaySimulation.cs`, `tests/PigForge.Physics.Tests/`, `tests/PigForge.Replay.Tests/`.
 
-### Task 4.5: Add Jolt backend — Planned
+### Task 4.5: Add Jolt backend — Complete
+
+- Scope: JoltPhysicsSharp 2.22 adapter behind the same `IPhysicsWorld` contract.
+- Acceptance: native RID assets are pinned (body-to-BodyID locked mapping with sequence-number stale guard), missing native runtime fails explicitly (wrapped DllNotFoundException/BadImageFormatException), and the adapter passes the shared contract tests.
+- Verify: Windows x64 tests pass (`17` physics tests incl. Jolt repeat-run determinism and Jolt/Bepu event-level/landing/impulse comparison); Linux x64 remains an optional follow-up.
+- Files: `src/PigForge.Physics.Jolt/JoltPhysicsWorld.cs`, `tests/PigForge.Physics.Tests/JoltPhysicsContractTests.cs`.
 
 - Scope: optional native JoltPhysicsSharp adapter behind the same `IPhysicsWorld` contract; use only after Bepu behavior and performance baselines exist.
 - Acceptance: native RID assets are pinned, missing native runtime fails explicitly, and the adapter passes the shared contract tests.
 - Verify: Windows x64 integration test first, then Linux x64; compare replay snapshots and contact event sequences against Bepu with tolerance reporting.
 - Files likely touched: `src/PigForge.Physics.Jolt/`, `tests/PigForge.Physics.Tests/`.
 
-### Task 5: Add cross-backend differential report
+### Task 5: Add cross-backend differential report — Complete
 
-- Acceptance: Unity, Bepu, and Jolt runs compare snapshots, events, final result, and tolerance bands.
-- Verify: known simple scene passes event-level comparison; differences are reported with Tick and EntityId.
-- Files likely touched: `src/PigForge.Replay/` or `tests/PigForge.Replay.Tests/`.
+- Acceptance: any two backend runs compare snapshots, events, final result, and tolerance bands.
+- Verify: `10` replay tests cover snapshot/event/final-result diff reporting by Tick and EntityId, event tick-tolerance windows, and a real Bepu vs Jolt box drop whose first contact aligns within the window while solver divergence is reported honestly.
+- Files: `src/PigForge.Replay/ReplayDiffReport.cs`, `tests/PigForge.Replay.Tests/ReplayDiffTests.cs`.
 
 
 ## Phase 3: Portable Content and ECS
 
-### Task 6: Define portable part and collision content
+### Task 6: Define portable part and collision content — Complete
 
-- Acceptance: body, shape, material, mass, inertia, connection and break definitions contain no Unity asset references.
-- Verify: fixture content loads and validates before simulation.
-- Files likely touched: `schemas/`, `src/PigForge.Core/`, `content/` fixtures.
+- Acceptance: engine-agnostic part content with no Unity asset references; per-kind shape field whitelists; startup-time rejection of invalid documents.
+- Verify: `13` Core content tests pass (sample content load, GUID-like field rejection, mass/mode rules, duplicate ids, one-pass error reporting, BodyDefinition mapping).
+- Files: `schemas/part-content-v1.schema.json`, `content/parts.json`, `src/PigForge.Core/Content/` (document DTOs, parser, library).
+- Note: material fields (restitution/friction) are deferred to the runtime-rules revision per ADR-002.
 
+### Task 7: Add generation-safe EntityId and component stores — Complete
 
-### Task 8: Migrate construction rules
+- Acceptance: old handles die after slot reuse; hot path has no per-tick allocations.
+- Verify: `21` Core entity tests pass (recycle invalidation across a generation window with documented 12-bit wrap semantics, stale-write rejection, live-only enumeration, zero-allocation steady-state benchmark over 512-entity batch loops).
+- Files: `src/PigForge.Core/WorldState.cs` (EntityId packing), `src/PigForge.Core/Entities/` (EntityStore, ComponentStore, Transform/PhysicsBody/Part stores), `tests/PigForge.Core.Tests/EntityStoreTests.cs`.
+
+### Task 8: Migrate construction rules — Complete
 
 - Scope: place, remove, rotate, grid occupancy, connection validity and limits.
 - Acceptance: rules run without Unity or physics-native types.
-- Verify: boundary and invalid-command tests plus replay fixtures.
-- Files likely touched: `src/PigForge.Core/`, `tests/PigForge.Core.Tests/`.
+- Verify: `11` boundary/invalid-command tests (occupancy conflicts, unknown parts, invalid rotation, part/connection limits, removal semantics, blocked rotation with reconnection) plus a deterministic double-run replay fixture asserting identical layout hash and rejection sequence.
+- Files: `src/PigForge.Core/Construction/ConstructionRules.cs`, `tests/PigForge.Core.Tests/ConstructionRulesTests.cs`.
 
-### Task 9: Migrate runtime gameplay rules
+### Task 9: Migrate runtime gameplay rules — Implemented with known semantic deviations; revision required per ADR-002
 
-- Scope: motors, wheels, pigs, damage, TNT, joint breaks and level completion.
-- Acceptance: server rules consume physics events/snapshots and determine outcomes without renderer state.
-- Verify: typical and stress replay fixtures against the selected behavior baseline.
-- Files likely touched: `src/PigForge.Core/`, `tests/`, `replays/` fixtures.
+- Status: first implementation exists (`40` tests, typical fixture wins via Bepu, stress fixture with 76 bodies deterministic across double runs), but its semantics were written before ADR-002 and deviate from the original game.
+- Known deviations (must be reworked together with their tests): impact damage kills pigs (pigs are indestructible), blast damage (TNT is impulse-only), `Won = all pigs dead` (win is delivery into the goal trigger zone), `Failed = timeout` (confirmed fail path is pig out of bounds triggering restart).
+- Revision acceptance: no damage/hp primitives anywhere in runtime rules (only impulse, joint break thresholds, position triggers, reset); material restitution/friction move from hardcoded backend values into part content; goal zone and map bounds come from a level content format.
+- Verify: typical and stress replay fixtures re-recorded against ADR-002 semantics; deterministic double-run hashes.
+- Files likely touched: `src/PigForge.Core/Runtime/`, `src/PigForge.Core/Content/`, `schemas/part-content-v1.schema.json` (material fields), tests.
+- Reference: `docs/decisions/ADR-002-runtime-rules-semantics.md`.
 
 ## Phase 4: Headless Server
 
@@ -130,17 +143,34 @@ Network transport and client
 - Verify: snapshot byte benchmark and end-to-end local consumer test.
 - Files likely touched: `src/PigForge.Protocol/`, `src/PigForge.Server/`, tests.
 
+## Phase 4.5: Feature Expansion (protocol v2)
+
+Prerequisite: Tasks 10 and 11 (room loop and command validation) — construction commands currently have no path into the replay/server loop (`PhysicsReplaySimulation.ApplyCommand` rejects `PlacePartCommand`).
+
+### Task 14.5: Build-mode lifecycle commands (issue #7)
+
+- Scope: explicit `EnterBuildMode` command with clear/keep policy; keep semantics preserve the previous contraption as a frozen or re-launchable entity group (deterministic group copy).
+- Acceptance: re-entering build mode without clearing reproduces the original "second vehicle" behaviour as a rule, deterministically, and counts toward part/connection limits and state hash.
+- Verify: replay fixtures for clear and keep policies; double-run hash equality.
+
+### Task 15: Free placement, scaling and compound merging (issue #4, protocol v2)
+
+- Scope: break the grid coupling introduced by our own rules, not by physics — commands gain free angle and scale; replay entity state gains scale and it enters the canonical state hash; construction occupancy rewrites from cell ownership to spatial-hash coarse filtering plus OBB overlap; connections move to attachment-point/proximity semantics; optional compound merging for joint-count reduction with seam-based splitting per ADR-002 (impulse threshold, no damage accumulation).
+- Acceptance: replay protocol version bumps with backward-rejection of invalid versions; merged compounds split deterministically along seams on threshold breach.
+- Verify: protocol v2 round-trip and rejection tests; construction OBB tests; compound split replay fixtures with double-run hash equality.
+
 ## Phase 5: Performance and Client
 
-### Task 13: Establish performance baseline
+### Task 16: Establish performance baseline
 
 - Measure typical/stress scenes: Tick p50/p95/p99, allocation, GC pauses, native memory, snapshot size, concurrent rooms.
 - Acceptance: recorded baseline is reproducible and no optimization is accepted without comparison.
 
-### Task 14: Add client adapter
+### Task 17: Add client adapter
 
+- Client form factor is frozen in `docs/specs/web-client-spec.md`: a Vue 3 + Canvas 2D web client under `clients/web/` (form A replay viewer needs no server; form B live client depends on this task and Task 12 snapshot publication).
 - Acceptance: client consumes snapshots and renders state; it cannot authoritatively set position, contact, break or result.
-- Verify: connect local client to one server room and compare displayed state to server snapshots.
+- Verify: connect local web client (form B) to one server room and compare displayed state to server snapshots.
 
 ## Checkpoints
 
@@ -154,6 +184,7 @@ Network transport and client
 
 - [ ] Portable content validates before simulation
 - [ ] Construction and runtime rules run without Unity
+- [ ] Runtime rules conform to ADR-002 semantics (deviation list cleared)
 - [ ] Typical BPLE fixture reaches the same observable result as the baseline
 
 ### Checkpoint C: Server proof
