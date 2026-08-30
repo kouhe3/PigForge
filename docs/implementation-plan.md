@@ -80,11 +80,6 @@ Network transport and client
 - Verify: Windows x64 tests pass (`17` physics tests incl. Jolt repeat-run determinism and Jolt/Bepu event-level/landing/impulse comparison); Linux x64 remains an optional follow-up.
 - Files: `src/PigForge.Physics.Jolt/JoltPhysicsWorld.cs`, `tests/PigForge.Physics.Tests/JoltPhysicsContractTests.cs`.
 
-- Scope: optional native JoltPhysicsSharp adapter behind the same `IPhysicsWorld` contract; use only after Bepu behavior and performance baselines exist.
-- Acceptance: native RID assets are pinned, missing native runtime fails explicitly, and the adapter passes the shared contract tests.
-- Verify: Windows x64 integration test first, then Linux x64; compare replay snapshots and contact event sequences against Bepu with tolerance reporting.
-- Files likely touched: `src/PigForge.Physics.Jolt/`, `tests/PigForge.Physics.Tests/`.
-
 ### Task 5: Add cross-backend differential report — Complete
 
 - Acceptance: any two backend runs compare snapshots, events, final result, and tolerance bands.
@@ -128,41 +123,23 @@ Network transport and client
 - Verify: `6` server tests pass - scripted-world phase-order assertions (apply -> step -> copy -> drain per tick, rules commands flowing through the input phase), destroyed entities release their bodies, Dispose is idempotent and releases the world exactly once, spawn sealed after first tick, and real-Bepu rooms produce identical double-run hashes with a stable outcome.
 - Files: `src/PigForge.Server/GameRoom.cs`, `tests/PigForge.Server.Tests/GameRoomTests.cs`.
 
-### Task 10: Implement room-owned fixed Tick loop
-
-- Acceptance: one room owns one authoritative physics scene; input, physics and rules phases are ordered; shutdown releases resources.
-- Verify: start room, run fixed Ticks, stop room, confirm no leaked handles and stable final hash.
-- Files likely touched: `src/PigForge.Server/`, `src/PigForge.Physics.Bepu/`, tests.
-
 ### Task 11: Add command validation and idempotence - Complete
 
 - Acceptance: duplicate, stale, out-of-order and capability-invalid commands are rejected or handled deterministically.
 - Verify: `11` server tests pass - per-player sequence idempotence (duplicates ignored, stale rejected, gaps allowed), rule rejections recorded without state mutation, mode gating (build commands after start rejected, start is one-way), and a malicious command script (duplicates + stale + invalid rotation + occupied cells + post-start build) producing identical double-run hashes and outcome logs.
 - Files: `src/PigForge.Server/CommandValidator.cs`, `src/PigForge.Server/GameRoom.cs` (two-mode lifecycle, command pipeline), `tests/PigForge.Server.Tests/GameRoomTests.cs`.
 
-### Task 11 - original notes
-
-- Acceptance: duplicate, stale, out-of-order and capability-invalid commands are rejected or handled deterministically.: Add command validation and idempotence
-
-- Acceptance: duplicate, stale, out-of-order and capability-invalid commands are rejected or handled deterministically.
-- Verify: command boundary tests and replay with malformed inputs.
-- Files likely touched: `src/PigForge.Protocol/`, `src/PigForge.Server/`, tests.
-
-### Task 12: Add snapshot publication
-
-- Acceptance: snapshots contain only server-owned state; payload size and frequency are measured; no JSON in the Tick hot path.
-- Verify: snapshot byte benchmark and end-to-end local consumer test.
-- Files likely touched: `src/PigForge.Protocol/`, `src/PigForge.Server/`, tests.
-
 ## Phase 4.5: Feature Expansion (protocol v2)
 
 Prerequisite: Tasks 10 and 11 (room loop and command validation) — construction commands currently have no path into the replay/server loop (`PhysicsReplaySimulation.ApplyCommand` rejects `PlacePartCommand`).
 
-### Task 14.5: Build-mode lifecycle commands (issue #7)
+### Task 14.5: Build-mode lifecycle commands (issue #7) - Complete
 
-- Scope: explicit `EnterBuildMode` command with clear/keep policy; keep semantics preserve the previous contraption as a frozen or re-launchable entity group (deterministic group copy).
+- Scope: explicit `EnterBuildMode` command (protocol v1 additive) with clear/keep policy; keep semantics preserve the previous run's entities as a frozen in-place group at their last telemetry poses; clear semantics destroy everything and re-spawn the configured level actors.
 - Acceptance: re-entering build mode without clearing reproduces the original "second vehicle" behaviour as a rule, deterministically, and counts toward part/connection limits and state hash.
-- Verify: replay fixtures for clear and keep policies; double-run hash equality.
+- Verify: `15` protocol tests (EnterBuildMode validation incl. undefined-policy rejection); `6` new core tests (cells released on freeze, frozen parts non-editable and limit/hash-counted, ResetAll, gameplay reset allows relinking the same bodies); `4` new server tests (mode/tick gating with idempotence, keep freezes at telemetry poses and blocks edits while a second vehicle relaunches, clear restores level spawns and cells, real-Bepu double-run hash equality for both policies); full suite `108` tests green, Release build zero warnings.
+- Files: `src/PigForge.Protocol/` (command, policy, validator), `schemas/physics-replay-v1.schema.json`, `docs/specs/physics-replay-v1.md`, `src/PigForge.Core/Construction/ConstructionRules.cs` (frozen group + ResetAll), `src/PigForge.Core/Runtime/GameplayRules.cs` (ResetForRebuild/ResetAll), `src/PigForge.Server/GameRoom.cs`, `src/PigForge.Server/CommandValidator.cs`, tests.
+- Semantics notes: frozen entities release their grid cells and never connect to fresh placements (independent second vehicle); frozen pigs/TNT keep their gameplay roles and relaunch as dynamic bodies; build-phase commands always carry Tick 0 while `EnterBuildMode` must carry the room's current tick.
 
 ### Task 15: Free placement, scaling and compound merging (issue #4, protocol v2)
 
