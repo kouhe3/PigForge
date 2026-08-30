@@ -1,7 +1,5 @@
 namespace PigForge.Core;
 
-public readonly record struct DamageState(float HitPoints, float ImpactThreshold, float ImpactFactor);
-
 public readonly record struct MotorState(float ImpulsePerTick, float DirectionX);
 
 public readonly record struct TntState(ushort FuseTicks, bool Ignited);
@@ -9,8 +7,6 @@ public readonly record struct TntState(ushort FuseTicks, bool Ignited);
 public readonly record struct WheelMarker;
 
 public readonly record struct PigMarker;
-
-public sealed class DamageStore(EntityStore entities) : ComponentStore<DamageState>(entities);
 
 public sealed class MotorStore(EntityStore entities) : ComponentStore<MotorState>(entities);
 

@@ -5,19 +5,18 @@ using PigForge.Physics.Bepu;
 
 namespace PigForge.Core.Tests;
 
+/// <summary>
+/// Runtime rules tests rewritten against ADR-002 semantics: pigs are indestructible
+/// bouncy cargo, TNT is a pure momentum source, win is delivery into the goal zone,
+/// and a pig leaving the map bounds requests a restart.
+/// </summary>
 public sealed class GameplayRulesTests
 {
-    private const uint PartBlock = 1;
-    private const uint PartPig = 2;
-    private const uint PartTnt = 3;
-    private const uint PartWheel = 4;
-    private const uint PartGround = 5;
-
     [Fact]
     public void MotorDrivesWheelOnlyWhileWheelTouchesSomething()
     {
         EntityStore entities = new();
-        GameplayHarness harness = new(entities);
+        GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId axle = entities.Create();
         harness.Rules.AddMotor(axle, 2f, 1f);
         harness.Rules.AddWheel(axle);
@@ -34,88 +33,105 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
-    public void ImpactAboveThresholdDamagesPigAndWinsLevel()
+    public void PigIsIndestructibleUnderImpacts()
     {
         EntityStore entities = new();
-        GameplayHarness harness = new(entities);
+        GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId pig = entities.Create();
-        harness.Rules.AddPig(pig, hitPoints: 8f);
+        harness.Rules.AddPig(pig);
         harness.Link(pig, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(15, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(20, 0, 0));
         harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
         harness.Tick(1, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
-
-        Assert.Equal(0, harness.Rules.AlivePigs);
-        Assert.Contains(pig, harness.Output.DestroyedEntities);
-        Assert.Equal(GameplayPhase.Won, harness.Rules.Phase);
-    }
-
-    [Fact]
-    public void ImpactBelowThresholdLeavesPigUnharmed()
-    {
-        EntityStore entities = new();
-        GameplayHarness harness = new(entities);
-        EntityId pig = entities.Create();
-        harness.Rules.AddPig(pig, hitPoints: 8f);
-        harness.Link(pig, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(2, 0, 0));
-        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
-
-        harness.Tick(1, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
 
         Assert.Equal(1, harness.Rules.AlivePigs);
         Assert.Empty(harness.Output.DestroyedEntities);
         Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+        Assert.False(harness.Rules.RestartRequested);
     }
 
     [Fact]
-    public void TntIgnitesOnContactAndExplodesAfterFuse()
+    public void TntIgnitesOnContactAndExplodesIntoPureImpulse()
     {
         EntityStore entities = new();
-        GameplayHarness harness = new(entities);
+        GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId tnt = entities.Create();
         EntityId neighbour = entities.Create();
         harness.Rules.AddTnt(tnt, fuseTicks: 1);
         harness.Link(tnt, new PhysicsBodyId(1));
         harness.Link(neighbour, new PhysicsBodyId(2));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
-        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        // Establish pre-impact velocities, then the contact tick shows the velocity
+        // change the strike produces (the real impact signal per ADR-002).
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), new PhysicsVector3(10, 0, 0));
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(5, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), PhysicsVector3.Zero);
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         Assert.Empty(harness.Output.Commands);
         Assert.Empty(harness.Output.DestroyedEntities);
 
-        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        // Ignition and the fuse decrement share the contact tick; the blast follows next tick.
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
 
         PhysicsCommand blast = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(2), blast.Body);
         Assert.True(blast.Impulse.X > 0, "Blast must push the neighbour away from the charge.");
         Assert.Contains(tnt, harness.Output.DestroyedEntities);
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
     }
 
     [Fact]
-    public void LevelFailsOnTimeout()
+    public void PigEnteringGoalZoneWins()
     {
         EntityStore entities = new();
         GameplayHarness harness = new(entities, new GameplayConfig(
-            MaxTicks: 2, ImpactSpeedThreshold: 5f, ImpactDamageFactor: 1f,
-            TntBlastRadius: 4f, TntBlastImpulse: 12f, TntBlastDamage: 25f));
+            GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f));
         EntityId pig = entities.Create();
-        harness.Rules.AddPig(pig, hitPoints: 100f);
+        harness.Rules.AddPig(pig);
         harness.Link(pig, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(-8, 1, 0), PhysicsVector3.Zero);
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
-        harness.Tick(2, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(GameplayPhase.Won, harness.Rules.Phase);
+    }
+
+    [Fact]
+    public void PigLeavingMapBoundsRequestsRestart()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-50, -10, -50), new PhysicsVector3(50, 50, 50)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f));
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(60, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
 
         Assert.Equal(GameplayPhase.Failed, harness.Rules.Phase);
+        Assert.True(harness.Rules.RestartRequested);
+        Assert.Equal(1, harness.Rules.AlivePigs);
     }
 
     [Fact]
     public void JointBreakEventsAreRecorded()
     {
         EntityStore entities = new();
-        GameplayHarness harness = new(entities);
+        GameplayHarness harness = new(entities, FarZonesConfig());
 
         harness.Tick(1, new[] { PhysicsEvent.JointBroken(new PhysicsJointId(7)) });
 
@@ -123,7 +139,7 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
-    public void TypicalReplayFixtureIsDeterministicAndCompletes()
+    public void TypicalLevelFixtureDeliversPigAndIsDeterministic()
     {
         long first = PhysicsDrivenLevel.RunTypical();
         long second = PhysicsDrivenLevel.RunTypical();
@@ -133,7 +149,7 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
-    public void StressReplayFixtureIsDeterministicAcrossManyBodies()
+    public void StressLevelFixtureIsDeterministicAcrossManyBodies()
     {
         long first = PhysicsDrivenLevel.RunStress();
         long second = PhysicsDrivenLevel.RunStress();
@@ -141,6 +157,13 @@ public sealed class GameplayRulesTests
         Assert.Equal(first, second);
         Assert.NotEqual(0, first);
     }
+
+    private static GameplayConfig FarZonesConfig() => new(
+        GoalZone: new GameplayZone(new PhysicsVector3(500, 500, 500), new PhysicsVector3(501, 501, 501)),
+        MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+        TntBlastRadius: 4f,
+        TntBlastImpulse: 12f,
+        TntIgniteImpactSpeed: 5f);
 
     private sealed class GameplayHarness
     {
@@ -151,18 +174,16 @@ public sealed class GameplayRulesTests
 
         public GameplayTickOutput Output { get; } = new();
 
-        public GameplayHarness(EntityStore entities, GameplayConfig? config = null)
+        public GameplayHarness(EntityStore entities, GameplayConfig config)
         {
             _bodies = new PhysicsBodyStore(entities);
             Rules = new GameplayRules(
                 entities,
-                new DamageStore(entities),
                 new MotorStore(entities),
                 new TntStore(entities),
                 new WheelStore(entities),
                 new PigStore(entities),
                 _bodies,
-                new TransformStore(entities),
                 config);
         }
 
@@ -179,65 +200,53 @@ public sealed class GameplayRulesTests
             Rules.Tick(tick, events.ToArray(), CollectionsMarshal.AsSpan(_snapshots), Output);
     }
 
-    /// <summary>Orchestrates a real Bepu world with the rules, mirroring the future room loop: ApplyCommands → Step → events/snapshots → rules.</summary>
+    /// <summary>Orchestrates a real Bepu world with rules and level content, mirroring the room loop.</summary>
     private sealed class PhysicsDrivenLevel : IDisposable
     {
-        private const float BlastRadius = 4f;
         private static readonly FixedTimeStep TimeStep = FixedTimeStep.FromSeconds(1f / 60f);
         private static readonly PhysicsVector3 Gravity = new(0, -9.81f, 0);
+        private static readonly PartContentLibrary Content = new(PartContentParser.Parse(PartContentJson));
+        private static readonly LevelContentDocument TypicalLevel = LevelContentLibrary.Parse(TypicalLevelJson);
+        private static readonly LevelContentDocument StressLevel = LevelContentLibrary.Parse(StressLevelJson);
 
-        private readonly PartContentLibrary _content;
-        private readonly EntityStore _entities;
+        private readonly EntityStore _entities = new();
         private readonly PartStore _parts;
         private readonly TransformStore _transforms;
         private readonly PhysicsBodyStore _bodies;
-        private readonly DamageStore _damage;
         private readonly GameplayRules _rules;
         private readonly BepuPhysicsWorld _world;
         private readonly GameplayTickOutput _output = new();
         private readonly Dictionary<uint, PhysicsBodyId> _bodyByEntity = new();
-        private PhysicsEvent[] _eventBuffer = new PhysicsEvent[64];
-        private PhysicsBodySnapshot[] _snapshotBuffer = new PhysicsBodySnapshot[16];
+        private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
+        private PhysicsBodySnapshot[] _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
 
-        private PhysicsDrivenLevel(GameplayConfig config)
+        private PhysicsDrivenLevel(LevelContentDocument level)
         {
-            _content = new PartContentLibrary(PartContentParser.Parse(LevelContentJson));
-            _entities = new EntityStore();
             _parts = new PartStore(_entities);
             _transforms = new TransformStore(_entities);
             _bodies = new PhysicsBodyStore(_entities);
-            _damage = new DamageStore(_entities);
             _world = new BepuPhysicsWorld(Gravity);
             _rules = new GameplayRules(
                 _entities,
-                _damage,
                 new MotorStore(_entities),
                 new TntStore(_entities),
                 new WheelStore(_entities),
                 new PigStore(_entities),
                 _bodies,
-                _transforms,
-                config);
+                new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
+
+            foreach (LevelSpawnDefinition spawn in level.Spawns)
+            {
+                Spawn(spawn);
+            }
         }
 
         public static long RunTypical()
         {
-            using PhysicsDrivenLevel level = new(DefaultConfig());
-            level.SpawnGround();
-            EntityId wheel = level.Spawn(PartWheel, new PhysicsVector3(2f, 1f, 0f));
-            level._rules.AddMotor(wheel, 1.5f, 1f);
-            level._rules.AddWheel(wheel);
-            level.SpawnPig(new PhysicsVector3(8f, 1f, 0f), hitPoints: 20f);
-            level.SpawnTnt(new PhysicsVector3(8.9f, 1f, 0f));
-            level.Spawn(PartBlock, new PhysicsVector3(8.9f, 8f, 0f));
-
-            for (uint tick = 1; tick <= 300; tick++)
+            using PhysicsDrivenLevel level = new(TypicalLevel);
+            for (uint tick = 1; tick <= 300 && level._rules.Phase == GameplayPhase.Playing; tick++)
             {
                 level.StepTick(tick);
-                if (level._rules.Phase != GameplayPhase.Playing)
-                {
-                    break;
-                }
             }
 
             Assert.Equal(GameplayPhase.Won, level._rules.Phase);
@@ -246,84 +255,44 @@ public sealed class GameplayRulesTests
 
         public static long RunStress()
         {
-            using PhysicsDrivenLevel level = new(DefaultConfig());
-            level.SpawnGround();
-            for (int index = 0; index < 8; index++)
-            {
-                level.SpawnPig(new PhysicsVector3(2f + (index * 2.4f), 1f, 0f), hitPoints: 30f);
-            }
-
-            for (int index = 0; index < 4; index++)
-            {
-                level.SpawnTnt(new PhysicsVector3(3.2f + (index * 4.8f), 1f, 0f));
-            }
-
-            for (int index = 0; index < 64; index++)
-            {
-                float x = 0.6f + ((index % 16) * 1.2f);
-                float y = 6f + ((index / 16) * 1.1f);
-                level.Spawn(PartBlock, new PhysicsVector3(x, y, 0f));
-            }
-
-            for (uint tick = 1; tick <= 240; tick++)
+            using PhysicsDrivenLevel level = new(StressLevel);
+            for (uint tick = 1; tick <= 240 && level._rules.Phase == GameplayPhase.Playing; tick++)
             {
                 level.StepTick(tick);
-                if (level._rules.Phase != GameplayPhase.Playing)
-                {
-                    break;
-                }
             }
 
             return level.ComputeStateHash();
         }
 
-        private static GameplayConfig DefaultConfig() => new(
-            MaxTicks: 300,
-            ImpactSpeedThreshold: 5f,
-            ImpactDamageFactor: 1f,
-            TntBlastRadius: BlastRadius,
-            TntBlastImpulse: 12f,
-            TntBlastDamage: 40f);
-
-        private void SpawnGround()
-        {
-            // The ground spawns through the same path but is flagged static so rule
-            // impulses never target it.
-            EntityId ground = _entities.Create();
-            _parts.Set(ground, new PartLink(PartGround));
-            _transforms.Set(ground, new EntityTransform(new PhysicsVector3(0f, -0.5f, 0f), PhysicsQuaternion.Identity));
-            PhysicsBodyId body = _world.CreateBody(_content.CreateBodyDefinition(PartGround, new PhysicsVector3(0f, -0.5f, 0f), PhysicsQuaternion.Identity));
-            _bodies.Set(ground, new PhysicsBodyLink(body));
-            _rules.LinkBody(ground, body, isDynamic: false);
-            _bodyByEntity.Add(ground.Value, body);
-            EnsureBuffers();
-        }
-
-        private EntityId SpawnPig(PhysicsVector3 position, float hitPoints)
-        {
-            EntityId pig = Spawn(PartPig, position);
-            _rules.AddPig(pig, hitPoints);
-            return pig;
-        }
-
-        private EntityId SpawnTnt(PhysicsVector3 position)
-        {
-            EntityId tnt = Spawn(PartTnt, position);
-            _rules.AddTnt(tnt, fuseTicks: 1);
-            return tnt;
-        }
-
-        private EntityId Spawn(uint partTypeId, PhysicsVector3 position)
+        private void Spawn(LevelSpawnDefinition spawn)
         {
             EntityId entity = _entities.Create();
-            _parts.Set(entity, new PartLink(partTypeId));
-            _transforms.Set(entity, new EntityTransform(position, PhysicsQuaternion.Identity));
-            PhysicsBodyId body = _world.CreateBody(_content.CreateBodyDefinition(partTypeId, position, PhysicsQuaternion.Identity));
+            _parts.Set(entity, new PartLink(spawn.PartTypeId));
+            _transforms.Set(entity, new EntityTransform(spawn.Position, PhysicsQuaternion.Identity));
+            PhysicsBodyId body = _world.CreateBody(Content.CreateBodyDefinition(spawn.PartTypeId, spawn.Position, PhysicsQuaternion.Identity));
             _bodies.Set(entity, new PhysicsBodyLink(body));
             _rules.LinkBody(entity, body);
             _bodyByEntity.Add(entity.Value, body);
             EnsureBuffers();
-            return entity;
+
+            if (spawn.MotorImpulsePerTick != 0f)
+            {
+                _rules.AddMotor(entity, spawn.MotorImpulsePerTick, spawn.MotorDirectionX);
+            }
+
+            if (spawn.IsWheel)
+            {
+                _rules.AddWheel(entity);
+            }
+
+            if (spawn.Role == LevelActorRole.Pig)
+            {
+                _rules.AddPig(entity);
+            }
+            else if (spawn.Role == LevelActorRole.Tnt)
+            {
+                _rules.AddTnt(entity, spawn.TntFuseTicks);
+            }
         }
 
         private void StepTick(uint tick)
@@ -349,26 +318,13 @@ public sealed class GameplayRulesTests
             hash = unchecked((hash * 31) + (int)_rules.Phase);
             hash = unchecked((hash * 31) + _rules.AlivePigs);
             hash = unchecked((hash * 31) + _rules.BrokenJoints.Count);
-
-            Dictionary<uint, float> hitPointsByEntity = new();
-            var damage = _damage.GetEnumerator();
-            while (damage.MoveNext())
-            {
-                hitPointsByEntity[damage.CurrentId.Value] = damage.CurrentValue.HitPoints;
-            }
-
-            foreach (uint entityValue in hitPointsByEntity.Keys.OrderBy(value => value))
-            {
-                hash = unchecked((hash * 31) + entityValue);
-                hash = unchecked((hash * 31) + BitConverter.SingleToInt32Bits(hitPointsByEntity[entityValue]));
-            }
-
+            hash = unchecked((hash * 31) + _bodyByEntity.Count.GetHashCode());
             return hash;
         }
 
         private void EnsureBuffers()
         {
-            int bodyCount = _bodyByEntity.Count + 1;
+            int bodyCount = _bodyByEntity.Count;
             _snapshotBuffer = new PhysicsBodySnapshot[bodyCount];
             _eventBuffer = new PhysicsEvent[(bodyCount * (bodyCount - 1) / 2) + bodyCount + 16];
         }
@@ -376,17 +332,109 @@ public sealed class GameplayRulesTests
         public void Dispose() => _world.Dispose();
     }
 
-    private const string LevelContentJson = """
+    private const string PartContentJson = """
     {
         "format": "pigforge.part-content",
         "schemaVersion": 1,
         "contentVersion": "gameplay-test-v1",
         "parts": [
             { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
-            { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ] },
+            { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "material": { "restitution": 0.2, "friction": 0.4 }, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ] },
             { "partTypeId": 3, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ] },
             { "partTypeId": 4, "name": "wheel", "mode": "dynamic", "mass": 0.8, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
-            { "partTypeId": 5, "name": "ground", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [40, 0.5, 10] } ] }
+            { "partTypeId": 5, "name": "ground", "mode": "static", "mass": 0, "material": { "restitution": 0, "friction": 0.8 }, "shapes": [ { "kind": "box", "halfExtents": [40, 0.5, 10] } ] }
+        ]
+    }
+    """;
+
+    private const string TypicalLevelJson = """
+    {
+        "format": "pigforge.level-content",
+        "schemaVersion": 1,
+        "contentVersion": "typical-level-v1",
+        "goalZone": { "min": [-9, 0, -2], "max": [-7, 4, 2] },
+        "bounds": { "min": [-100, -5, -20], "max": [100, 60, 20] },
+        "spawns": [
+            { "partTypeId": 5, "position": [0, -0.5, 0] },
+            { "partTypeId": 2, "position": [7.5, 1, 0], "role": "pig" },
+            { "partTypeId": 3, "position": [8.9, 1, 0], "role": "tnt" },
+            { "partTypeId": 1, "position": [8.9, 8, 0] }
+        ]
+    }
+    """;
+
+    private const string StressLevelJson = """
+    {
+        "format": "pigforge.level-content",
+        "schemaVersion": 1,
+        "contentVersion": "stress-level-v1",
+        "goalZone": { "min": [-9, 0, -2], "max": [-7, 4, 2] },
+        "bounds": { "min": [-100, -5, -20], "max": [100, 60, 20] },
+        "spawns": [
+            { "partTypeId": 5, "position": [0, -0.5, 0] },
+            { "partTypeId": 2, "position": [2, 1, 0], "role": "pig" },
+            { "partTypeId": 2, "position": [4.4, 1, 0], "role": "pig" },
+            { "partTypeId": 2, "position": [6.8, 1, 0], "role": "pig" },
+            { "partTypeId": 2, "position": [9.2, 1, 0], "role": "pig" },
+            { "partTypeId": 2, "position": [11.6, 1, 0], "role": "pig" },
+            { "partTypeId": 2, "position": [14, 1, 0], "role": "pig" },
+            { "partTypeId": 2, "position": [16.4, 1, 0], "role": "pig" },
+            { "partTypeId": 2, "position": [18.8, 1, 0], "role": "pig" },
+            { "partTypeId": 3, "position": [3.2, 1, 0], "role": "tnt" },
+            { "partTypeId": 3, "position": [8, 1, 0], "role": "tnt" },
+            { "partTypeId": 3, "position": [12.8, 1, 0], "role": "tnt" },
+            { "partTypeId": 3, "position": [17.6, 1, 0], "role": "tnt" },
+            { "partTypeId": 1, "position": [0.6, 6, 0] },
+            { "partTypeId": 1, "position": [1.8, 6, 0] },
+            { "partTypeId": 1, "position": [3, 6, 0] },
+            { "partTypeId": 1, "position": [4.2, 6, 0] },
+            { "partTypeId": 1, "position": [5.4, 6, 0] },
+            { "partTypeId": 1, "position": [6.6, 6, 0] },
+            { "partTypeId": 1, "position": [7.8, 6, 0] },
+            { "partTypeId": 1, "position": [9, 6, 0] },
+            { "partTypeId": 1, "position": [10.2, 6, 0] },
+            { "partTypeId": 1, "position": [11.4, 6, 0] },
+            { "partTypeId": 1, "position": [12.6, 6, 0] },
+            { "partTypeId": 1, "position": [13.8, 6, 0] },
+            { "partTypeId": 1, "position": [15, 6, 0] },
+            { "partTypeId": 1, "position": [16.2, 6, 0] },
+            { "partTypeId": 1, "position": [17.4, 6, 0] },
+            { "partTypeId": 1, "position": [18.6, 6, 0] },
+            { "partTypeId": 1, "position": [19.8, 6, 0] },
+            { "partTypeId": 1, "position": [0.6, 7.1, 0] },
+            { "partTypeId": 1, "position": [1.8, 7.1, 0] },
+            { "partTypeId": 1, "position": [3, 7.1, 0] },
+            { "partTypeId": 1, "position": [4.2, 7.1, 0] },
+            { "partTypeId": 1, "position": [5.4, 7.1, 0] },
+            { "partTypeId": 1, "position": [6.6, 7.1, 0] },
+            { "partTypeId": 1, "position": [7.8, 7.1, 0] },
+            { "partTypeId": 1, "position": [9, 7.1, 0] },
+            { "partTypeId": 1, "position": [10.2, 7.1, 0] },
+            { "partTypeId": 1, "position": [11.4, 7.1, 0] },
+            { "partTypeId": 1, "position": [12.6, 7.1, 0] },
+            { "partTypeId": 1, "position": [13.8, 7.1, 0] },
+            { "partTypeId": 1, "position": [15, 7.1, 0] },
+            { "partTypeId": 1, "position": [16.2, 7.1, 0] },
+            { "partTypeId": 1, "position": [17.4, 7.1, 0] },
+            { "partTypeId": 1, "position": [18.6, 7.1, 0] },
+            { "partTypeId": 1, "position": [19.8, 7.1, 0] },
+            { "partTypeId": 1, "position": [0.6, 8.2, 0] },
+            { "partTypeId": 1, "position": [1.8, 8.2, 0] },
+            { "partTypeId": 1, "position": [3, 8.2, 0] },
+            { "partTypeId": 1, "position": [4.2, 8.2, 0] },
+            { "partTypeId": 1, "position": [5.4, 8.2, 0] },
+            { "partTypeId": 1, "position": [6.6, 8.2, 0] },
+            { "partTypeId": 1, "position": [7.8, 8.2, 0] },
+            { "partTypeId": 1, "position": [9, 8.2, 0] },
+            { "partTypeId": 1, "position": [10.2, 8.2, 0] },
+            { "partTypeId": 1, "position": [11.4, 8.2, 0] },
+            { "partTypeId": 1, "position": [12.6, 8.2, 0] },
+            { "partTypeId": 1, "position": [13.8, 8.2, 0] },
+            { "partTypeId": 1, "position": [15, 8.2, 0] },
+            { "partTypeId": 1, "position": [16.2, 8.2, 0] },
+            { "partTypeId": 1, "position": [17.4, 8.2, 0] },
+            { "partTypeId": 1, "position": [18.6, 8.2, 0] },
+            { "partTypeId": 1, "position": [19.8, 8.2, 0] }
         ]
     }
     """;

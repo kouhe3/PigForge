@@ -12,7 +12,6 @@ public sealed record RoomSpawnSpec(
     uint PartTypeId,
     PhysicsVector3 Position,
     RoomActorRole Role = RoomActorRole.Part,
-    float HitPoints = 1f,
     ushort TntFuseTicks = 1,
     float MotorImpulsePerTick = 0f,
     float MotorDirectionX = 0f,
@@ -30,10 +29,10 @@ public sealed record GameRoomOptions(
     ushort TickRateHz,
     PartContentLibrary Content,
     Func<IPhysicsWorld> WorldFactory,
-    GameplayConfig? GameplayConfig = null)
+    GameplayConfig GameplayConfig)
 {
-    public static GameRoomOptions Create(PartContentLibrary content, Func<IPhysicsWorld> worldFactory, ushort tickRateHz = 60) =>
-        new(tickRateHz, content, worldFactory);
+    public static GameRoomOptions Create(PartContentLibrary content, Func<IPhysicsWorld> worldFactory, GameplayConfig gameplayConfig, ushort tickRateHz = 60) =>
+        new(tickRateHz, content, worldFactory, gameplayConfig);
 }
 
 /// <summary>
@@ -52,7 +51,6 @@ public sealed class GameRoom : IDisposable
     private readonly PartStore _parts;
     private readonly TransformStore _transforms;
     private readonly PhysicsBodyStore _bodies;
-    private readonly DamageStore _damage;
     private readonly MotorStore _motors;
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
@@ -77,14 +75,13 @@ public sealed class GameRoom : IDisposable
         _parts = new PartStore(_entities);
         _transforms = new TransformStore(_entities);
         _bodies = new PhysicsBodyStore(_entities);
-        _damage = new DamageStore(_entities);
         _motors = new MotorStore(_entities);
         _tnt = new TntStore(_entities);
         _wheels = new WheelStore(_entities);
         _pigs = new PigStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         _rules = new GameplayRules(
-            _entities, _damage, _motors, _tnt, _wheels, _pigs, _bodies, _transforms, options.GameplayConfig);
+            _entities, _motors, _tnt, _wheels, _pigs, _bodies, options.GameplayConfig);
     }
 
     public RoomMode Mode { get; private set; } = RoomMode.Building;
@@ -94,6 +91,8 @@ public sealed class GameRoom : IDisposable
     public GameplayPhase Phase => _rules.Phase;
 
     public int AlivePigs => _rules.AlivePigs;
+
+    public bool RestartRequested => _rules.RestartRequested;
 
     public int BodyCount => _bodyByEntity.Count;
 
@@ -112,7 +111,7 @@ public sealed class GameRoom : IDisposable
         switch (spec.Role)
         {
             case RoomActorRole.Pig:
-                _rules.AddPig(entity, spec.HitPoints);
+                _rules.AddPig(entity);
                 break;
             case RoomActorRole.Tnt:
                 _rules.AddTnt(entity, spec.TntFuseTicks);
@@ -130,6 +129,28 @@ public sealed class GameRoom : IDisposable
         }
 
         return entity;
+    }
+
+    /// <summary>Spawns every actor of an engine-agnostic level document (building phase).</summary>
+    public void SetupFromLevel(LevelContentDocument level)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        foreach (LevelSpawnDefinition spawn in level.Spawns)
+        {
+            Spawn(new RoomSpawnSpec(
+                spawn.PartTypeId,
+                spawn.Position,
+                spawn.Role switch
+                {
+                    LevelActorRole.Pig => RoomActorRole.Pig,
+                    LevelActorRole.Tnt => RoomActorRole.Tnt,
+                    _ => RoomActorRole.Part
+                },
+                spawn.TntFuseTicks,
+                spawn.MotorImpulsePerTick,
+                spawn.MotorDirectionX,
+                spawn.IsWheel));
+        }
     }
 
     /// <summary>

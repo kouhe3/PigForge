@@ -113,7 +113,7 @@ public static class PartContentParser
             }
         }
 
-        RequireExactly(seen, new[] { "partTypeId", "name", "mode", "mass", "shapes" }, path, errors);
+        RequireExactly(seen, new[] { "partTypeId", "name", "mode", "mass", "shapes" }, path, errors, optionalProperty: "material");
         RejectEngineAssetReferences(seen, path, errors);
 
         uint partTypeId = 0;
@@ -486,7 +486,7 @@ public static class PartContentParser
         }
     }
 
-    private static void RequireExactly(HashSet<string> seen, string[] required, string path, List<string> errors)
+    private static void RequireExactly(HashSet<string> seen, string[] required, string path, List<string> errors, string? optionalProperty = null)
     {
         foreach (string name in required)
         {
@@ -498,7 +498,7 @@ public static class PartContentParser
 
         foreach (string name in seen)
         {
-            if (!required.Contains(name))
+            if (!required.Contains(name) && name != optionalProperty)
             {
                 errors.Add($"{path}: unknown property '{name}'.");
             }

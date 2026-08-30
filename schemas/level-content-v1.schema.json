@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigforge.invalid/schemas/level-content-v1.schema.json",
+  "title": "PigForge Level Content v1",
+  "description": "Engine-agnostic level definition: spawn list, goal trigger zone and map bounds. Per ADR-002 the level carries position triggers only; there is no damage or health data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns"],
+  "properties": {
+    "format": { "const": "pigforge.level-content" },
+    "schemaVersion": { "const": 1 },
+    "contentVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
+    "goalZone": { "$ref": "#/$defs/zone" },
+    "bounds": { "$ref": "#/$defs/zone" },
+    "spawns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/spawn" }
+    }
+  },
+  "$defs": {
+    "positiveUInt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "finiteNumber": { "type": "number" },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "$ref": "#/$defs/vector3" },
+        "max": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "spawn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partTypeId", "position"],
+      "properties": {
+        "partTypeId": { "$ref": "#/$defs/positiveUInt" },
+        "position": { "$ref": "#/$defs/vector3" },
+        "role": { "enum": ["part", "pig", "tnt"] },
+        "tntFuseTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "motorImpulsePerTick": { "$ref": "#/$defs/finiteNumber" },
+        "motorDirectionX": { "enum": [-1, 0, 1] },
+        "wheel": { "type": "boolean" }
+      }
+    }
+  }
+}

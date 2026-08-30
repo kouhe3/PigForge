@@ -77,6 +77,9 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             _dynamicBodies.Add(id, handle);
             _dynamicIdsByHandle.Add(handle.Value, id);
             _frictionByDynamicHandle.Add(handle.Value, definition.Material.Friction);
+            // Sleeping bodies would ignore impulses, and waking via the BodyReference
+            // setter corrupts solver state; keep dynamics always awake.
+            _simulation.Bodies[handle].Activity.SleepThreshold = -1f;
         }
 
         _shapesByBody.Add(id, shapeIndex);
@@ -150,9 +153,12 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             }
 
             BodyReference body = _simulation.Bodies[handle];
+            // Wake BEFORE writing velocity: waking after ApplyImpulse corrupts the
+            // sleeping body's integration state (observed garbage velocities).
+            body.Awake = true;
             Vector3 impulse = ToNumerics(command.Impulse);
-            Vector3 impulseOffset = ToNumerics(command.WorldPoint) - body.Pose.Position;
-            body.ApplyImpulse(impulse, impulseOffset);
+            Vector3 offset = ToNumerics(command.WorldPoint) - body.Pose.Position;
+            body.ApplyImpulse(impulse, offset);
         }
     }
 

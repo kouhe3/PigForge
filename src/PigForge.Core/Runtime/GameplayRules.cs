@@ -9,21 +9,31 @@ public enum GameplayPhase
     Failed
 }
 
+public readonly record struct GameplayZone(PhysicsVector3 Min, PhysicsVector3 Max)
+{
+    public bool Contains(PhysicsVector3 position) =>
+        position.X >= Min.X && position.X <= Max.X
+        && position.Y >= Min.Y && position.Y <= Max.Y
+        && position.Z >= Min.Z && position.Z <= Max.Z;
+}
+
+/// <summary>
+/// Level-driven rule parameters. Per ADR-002 there are no damage primitives: only
+/// impulses, position triggers (goal zone, map bounds) and restart.
+/// </summary>
 public sealed record GameplayConfig(
-    uint MaxTicks,
-    float ImpactSpeedThreshold,
-    float ImpactDamageFactor,
+    GameplayZone GoalZone,
+    GameplayZone MapBounds,
     float TntBlastRadius,
     float TntBlastImpulse,
-    float TntBlastDamage)
+    float TntIgniteImpactSpeed)
 {
     public static GameplayConfig Default { get; } = new(
-        MaxTicks: 600,
-        ImpactSpeedThreshold: 5f,
-        ImpactDamageFactor: 1f,
+        GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+        MapBounds: new GameplayZone(new PhysicsVector3(-100, -5, -20), new PhysicsVector3(100, 60, 20)),
         TntBlastRadius: 4f,
-        TntBlastImpulse: 12f,
-        TntBlastDamage: 25f);
+        TntBlastImpulse: 25f,
+        TntIgniteImpactSpeed: 5f);
 }
 
 /// <summary>Per-tick rule output; the caller owns and reuses the instance to keep the tick path allocation-free.</summary>
@@ -41,20 +51,19 @@ public sealed class GameplayTickOutput
 }
 
 /// <summary>
-/// Runtime gameplay rules (motors, wheels, pigs, TNT, breakage, level outcome) that
-/// consume physics events and snapshots only — no renderer, engine, or physics-native
-/// state. Deterministic: identical event/snapshot streams produce identical outputs.
+/// Runtime gameplay rules (motors, wheels, pigs, TNT, joint breaks, level outcome) that
+/// consume physics events and snapshots only. Semantics per ADR-002: pigs are
+/// indestructible bouncy cargo; TNT is a pure momentum source; win is delivery into the
+/// goal zone; a pig leaving the map bounds requests a deterministic restart.
 /// </summary>
 public sealed class GameplayRules
 {
     private readonly EntityStore _entities;
-    private readonly DamageStore _damage;
     private readonly MotorStore _motors;
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
     private readonly PhysicsBodyStore _bodies;
-    private readonly TransformStore _transforms;
     private readonly GameplayConfig _config;
 
     private readonly Dictionary<uint, EntityId> _entitiesByBody = new();
@@ -62,34 +71,32 @@ public sealed class GameplayRules
     private readonly HashSet<uint> _touchedBodies = new();
     private readonly HashSet<uint> _brokenJoints = new();
     private readonly HashSet<uint> _dynamicBodies = new();
+    private readonly Dictionary<uint, PhysicsVector3> _previousVelocities = new();
     private int _alivePigs;
-    private int _pigsRegistered;
 
     public GameplayRules(
         EntityStore entities,
-        DamageStore damage,
         MotorStore motors,
         TntStore tnt,
         WheelStore wheels,
         PigStore pigs,
         PhysicsBodyStore bodies,
-        TransformStore transforms,
-        GameplayConfig? config = null)
+        GameplayConfig config)
     {
         _entities = entities ?? throw new ArgumentNullException(nameof(entities));
-        _damage = damage ?? throw new ArgumentNullException(nameof(damage));
         _motors = motors ?? throw new ArgumentNullException(nameof(motors));
         _tnt = tnt ?? throw new ArgumentNullException(nameof(tnt));
         _wheels = wheels ?? throw new ArgumentNullException(nameof(wheels));
         _pigs = pigs ?? throw new ArgumentNullException(nameof(pigs));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
-        _transforms = transforms ?? throw new ArgumentNullException(nameof(transforms));
-        _config = config ?? GameplayConfig.Default;
+        _config = config ?? throw new ArgumentNullException(nameof(config));
     }
 
     public GameplayPhase Phase { get; private set; } = GameplayPhase.Playing;
 
     public int AlivePigs => _alivePigs;
+
+    public bool RestartRequested { get; private set; }
 
     public IReadOnlyCollection<uint> BrokenJoints => _brokenJoints;
 
@@ -107,19 +114,14 @@ public sealed class GameplayRules
         }
     }
 
-    public void AddPig(EntityId entity, float hitPoints)
+    public void AddPig(EntityId entity)
     {
         _pigs.Set(entity, default);
-        _damage.Set(entity, new DamageState(hitPoints, ImpactThreshold: 0f, ImpactFactor: 1f));
         _alivePigs++;
-        _pigsRegistered++;
     }
 
-    public void AddTnt(EntityId entity, ushort fuseTicks)
-    {
+    public void AddTnt(EntityId entity, ushort fuseTicks) =>
         _tnt.Set(entity, new TntState(fuseTicks, Ignited: false));
-        _damage.Set(entity, new DamageState(1f, ImpactThreshold: 0f, ImpactFactor: 0f));
-    }
 
     public void AddMotor(EntityId entity, float impulsePerTick, float directionX) =>
         _motors.Set(entity, new MotorState(impulsePerTick, directionX));
@@ -136,19 +138,20 @@ public sealed class GameplayRules
         output.Clear();
         _touchedBodies.Clear();
         IngestSnapshots(snapshots);
-        ProcessEvents(events, output);
+        ProcessEvents(events);
         RunMotors(output);
-        RunTntFuses(tick, output);
-        ReapDestroyed(output);
+        RunTntFuses(output);
         DropCommandsForDestroyedBodies(output);
+        CheckObjectives();
+        StorePreviousVelocities();
+    }
 
-        if (_pigsRegistered > 0 && _alivePigs == 0)
+    private void StorePreviousVelocities()
+    {
+        _previousVelocities.Clear();
+        foreach (var entry in _kinematicsByBody)
         {
-            Phase = GameplayPhase.Won;
-        }
-        else if (tick >= _config.MaxTicks)
-        {
-            Phase = GameplayPhase.Failed;
+            _previousVelocities[entry.Key] = entry.Value.Velocity;
         }
     }
 
@@ -166,7 +169,7 @@ public sealed class GameplayRules
         }
     }
 
-    private void ProcessEvents(ReadOnlySpan<PhysicsEvent> events, GameplayTickOutput output)
+    private void ProcessEvents(ReadOnlySpan<PhysicsEvent> events)
     {
         for (int index = 0; index < events.Length; index++)
         {
@@ -179,8 +182,14 @@ public sealed class GameplayRules
                     _touchedBodies.Add(physicsEvent.BodyB.Value);
                     if (physicsEvent.Kind == PhysicsEventKind.ContactStarted)
                     {
-                        ApplyImpactDamage(physicsEvent.BodyA, physicsEvent.BodyB, output);
-                        IgniteTntInContact(physicsEvent.BodyA, physicsEvent.BodyB);
+                        // Per ADR-002 the original game ignites TNT on strong impact only;
+                        // a gentle touch (resting on ground) must not trigger it. Post-step
+                        // velocities already include the collision response, so the impact
+                        // signal is the pair's largest velocity change (impulse per mass) —
+                        // a braced charge takes little of its own, but the striker shows it.
+                        float pairImpact = MathF.Max(VelocityChange(physicsEvent.BodyA), VelocityChange(physicsEvent.BodyB));
+                        IgniteTntOnBody(physicsEvent.BodyA, pairImpact);
+                        IgniteTntOnBody(physicsEvent.BodyB, pairImpact);
                     }
 
                     break;
@@ -191,45 +200,21 @@ public sealed class GameplayRules
         }
     }
 
-    private void ApplyImpactDamage(PhysicsBodyId bodyA, PhysicsBodyId bodyB, GameplayTickOutput output)
+    private float VelocityChange(PhysicsBodyId body)
     {
-        if (!_kinematicsByBody.TryGetValue(bodyA.Value, out var kinematicsA)
-            || !_kinematicsByBody.TryGetValue(bodyB.Value, out var kinematicsB))
+        if (!_kinematicsByBody.TryGetValue(body.Value, out var current)
+            || !_previousVelocities.TryGetValue(body.Value, out var previous))
         {
-            return;
+            return 0f;
         }
 
-        float relativeSpeed = PhysicsVector3.Distance(kinematicsA.Velocity, kinematicsB.Velocity);
-        ApplyDamageToBody(bodyA, relativeSpeed, output);
-        ApplyDamageToBody(bodyB, relativeSpeed, output);
+        return PhysicsVector3.Distance(current.Velocity, previous);
     }
 
-    private void ApplyDamageToBody(PhysicsBodyId body, float relativeSpeed, GameplayTickOutput output)
+    private void IgniteTntOnBody(PhysicsBodyId body, float impactSpeed)
     {
-        if (!_entitiesByBody.TryGetValue(body.Value, out EntityId entity)
-            || !_damage.TryGet(entity, out DamageState damage))
-        {
-            return;
-        }
-
-        float impact = (relativeSpeed - damage.ImpactThreshold) * damage.ImpactFactor;
-        if (impact <= 0)
-        {
-            return;
-        }
-
-        _damage.Set(entity, damage with { HitPoints = damage.HitPoints - impact });
-    }
-
-    private void IgniteTntInContact(PhysicsBodyId bodyA, PhysicsBodyId bodyB)
-    {
-        IgniteTntOnBody(bodyA);
-        IgniteTntOnBody(bodyB);
-    }
-
-    private void IgniteTntOnBody(PhysicsBodyId body)
-    {
-        if (!_entitiesByBody.TryGetValue(body.Value, out EntityId entity)
+        if (impactSpeed < _config.TntIgniteImpactSpeed
+            || !_entitiesByBody.TryGetValue(body.Value, out EntityId entity)
             || !_tnt.TryGet(entity, out TntState tnt)
             || tnt.Ignited)
         {
@@ -260,11 +245,11 @@ public sealed class GameplayRules
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
                 new PhysicsVector3(motor.ImpulsePerTick * motor.DirectionX, 0f, 0f),
-                PhysicsVector3.Zero));
+                _kinematicsByBody[link.Body.Value].Position));
         }
     }
 
-    private void RunTntFuses(uint tick, GameplayTickOutput output)
+    private void RunTntFuses(GameplayTickOutput output)
     {
         List<uint> exploded = null!;
         var tntComponents = _tnt.GetEnumerator();
@@ -312,8 +297,7 @@ public sealed class GameplayRules
         {
             if (bodyId == link.Body.Value
                 || !_dynamicBodies.Contains(bodyId)
-                || !_kinematicsByBody.TryGetValue(bodyId, out var kinematics)
-                || !_entitiesByBody.TryGetValue(bodyId, out EntityId target))
+                || !_kinematicsByBody.TryGetValue(bodyId, out var kinematics))
             {
                 continue;
             }
@@ -328,15 +312,11 @@ public sealed class GameplayRules
             PhysicsVector3 direction = distance > float.Epsilon
                 ? PhysicsVector3.Normalize(kinematics.Position - center.Position)
                 : new PhysicsVector3(0f, 1f, 0f);
+            // Impulse at the target's own centre of mass: blasts push, they do not spin.
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 new PhysicsBodyId(bodyId),
                 direction * (_config.TntBlastImpulse * falloff),
-                PhysicsVector3.Zero));
-
-            if (_damage.TryGet(target, out DamageState damage))
-            {
-                _damage.Set(target, damage with { HitPoints = damage.HitPoints - (_config.TntBlastDamage * falloff) });
-            }
+                kinematics.Position));
         }
 
         DestroyEntity(tntEntity, output);
@@ -350,27 +330,29 @@ public sealed class GameplayRules
         }
     }
 
-    private void ReapDestroyed(GameplayTickOutput output)
+    private void CheckObjectives()
     {
-        // Slot-ordered sweep keeps destruction order deterministic.
-        var damageComponents = _damage.GetEnumerator();
-        List<EntityId> dead = null!;
-        while (damageComponents.MoveNext())
+        var pigs = _pigs.GetEnumerator();
+        while (pigs.MoveNext())
         {
-            if (damageComponents.CurrentValue.HitPoints <= 0)
+            if (!_bodies.TryGet(pigs.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
             {
-                (dead ??= new List<EntityId>()).Add(damageComponents.CurrentId);
+                continue;
             }
-        }
 
-        if (dead is null)
-        {
-            return;
-        }
+            if (_config.GoalZone.Contains(kinematics.Position))
+            {
+                Phase = GameplayPhase.Won;
+                return;
+            }
 
-        foreach (EntityId entity in dead)
-        {
-            DestroyEntity(entity, output);
+            if (!_config.MapBounds.Contains(kinematics.Position))
+            {
+                Phase = GameplayPhase.Failed;
+                RestartRequested = true;
+                return;
+            }
         }
     }
 
@@ -388,9 +370,9 @@ public sealed class GameplayRules
         if (_bodies.TryGet(entity, out PhysicsBodyLink link))
         {
             _entitiesByBody.Remove(link.Body.Value);
+            _dynamicBodies.Remove(link.Body.Value);
         }
 
-        _damage.Remove(entity);
         _motors.Remove(entity);
         _tnt.Remove(entity);
         _wheels.Remove(entity);
@@ -411,13 +393,11 @@ public sealed class GameplayRules
             _dynamicBodies.Remove(link.Body.Value);
         }
 
-        _damage.Remove(entity);
         _motors.Remove(entity);
         _tnt.Remove(entity);
         _wheels.Remove(entity);
         _pigs.Remove(entity);
         _bodies.Remove(entity);
-        _transforms.Remove(entity);
         _entities.Destroy(entity);
         output.DestroyedEntities.Add(entity);
     }

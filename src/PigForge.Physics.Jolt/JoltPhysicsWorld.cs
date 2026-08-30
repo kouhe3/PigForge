@@ -196,6 +196,8 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
                 throw new KeyNotFoundException($"Impulse target body {command.Body.Value} does not exist or is not dynamic.");
             }
 
+            // Sleeping bodies ignore impulses; activate first.
+            _bodyInterface.ActivateBody(rid);
             _bodyInterface.AddImpulse(rid, ToVector3(command.Impulse), ToVector3(command.WorldPoint));
         }
     }
