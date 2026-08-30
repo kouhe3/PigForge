@@ -64,7 +64,13 @@ public sealed class CommandValidator
             (RoomMode.Building, StartSimulationCommand) => command.Tick == 0
                 ? CommandStatus.Accepted
                 : CommandStatus.StaleTick,
+            // Build-phase commands are timeless pre-simulation inputs and always carry
+            // Tick 0, including in a re-entered building phase (issue #7).
             (RoomMode.Building, PlacePartCommand or RotatePartCommand or RemovePartCommand) => command.Tick == 0
+                ? CommandStatus.Accepted
+                : CommandStatus.StaleTick,
+            (RoomMode.Building, EnterBuildModeCommand) => CommandStatus.WrongMode,
+            (RoomMode.Running, EnterBuildModeCommand) => command.Tick == currentTick
                 ? CommandStatus.Accepted
                 : CommandStatus.StaleTick,
             (RoomMode.Running, StartSimulationCommand or PlacePartCommand or RotatePartCommand or RemovePartCommand) => CommandStatus.WrongMode,

@@ -151,6 +151,138 @@ public sealed class GameRoomTests
     }
 
     [Fact]
+    public void EnterBuildModeIsGatedByModeAndTick()
+    {
+        GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());
+
+        Assert.Equal(
+            CommandStatus.WrongMode,
+            room.Submit(new EnterBuildModeCommand(Tick: 0, Sequence: 1, PlayerId: PlayerOne, Policy: BuildModePolicy.Keep)).Status);
+
+        room.Start();
+        room.RunTicks(3);
+        Assert.Equal(
+            CommandStatus.StaleTick,
+            room.Submit(new EnterBuildModeCommand(Tick: 2, Sequence: 2, PlayerId: PlayerOne, Policy: BuildModePolicy.Keep)).Status);
+
+        CommandOutcome entered = room.Submit(new EnterBuildModeCommand(Tick: 3, Sequence: 3, PlayerId: PlayerOne, Policy: BuildModePolicy.Keep));
+        Assert.True(entered.IsAccepted);
+        Assert.Equal(RoomMode.Building, room.Mode);
+        Assert.Equal(
+            CommandStatus.Duplicate,
+            room.Submit(new EnterBuildModeCommand(Tick: 3, Sequence: 3, PlayerId: PlayerOne, Policy: BuildModePolicy.Keep)).Status);
+
+        // Build commands in a re-entered building phase still carry Tick 0.
+        Assert.True(room.Submit(Place(4, 6, 6)).IsAccepted);
+    }
+
+    [Fact]
+    public void KeepPolicyFreezesTheContraptionAndBlocksEdits()
+    {
+        ScriptedPhysicsWorld world = new();
+        GameRoom room = CreateRoom(() => world);
+        room.Spawn(new RoomSpawnSpec(PartPig, new PhysicsVector3(0f, 1f, 0f), RoomActorRole.Pig));
+        room.Submit(Place(1, 3, 0));
+        room.Start();
+        // The contraption moved during the run; the world reports its resting pose.
+        world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(2), new PhysicsVector3(5f, 2f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
+        uint placedBlockEntity = (1u << 20) | 2; // second slot, first generation
+
+        Assert.True(room.Submit(new EnterBuildModeCommand(Tick: 0, Sequence: 2, PlayerId: PlayerOne, Policy: BuildModePolicy.Keep)).IsAccepted);
+
+        Assert.Equal(RoomMode.Building, room.Mode);
+        Assert.Equal(0, room.BodyCount);
+        Assert.Equal(new[] { new PhysicsBodyId(1), new PhysicsBodyId(2) }, world.DestroyedBodies);
+        Assert.Equal(GameplayPhase.Playing, room.Phase);
+        Assert.Equal(1, room.AlivePigs);
+
+        // The frozen part is no longer editable...
+        CommandOutcome removeFrozen = room.Submit(new RemovePartCommand(Tick: 0, Sequence: 3, PlayerId: PlayerOne, EntityId: placedBlockEntity));
+        Assert.Equal(CommandStatus.RuleRejected, removeFrozen.Status);
+        Assert.Equal(ConstructionError.FrozenEntity, removeFrozen.Error);
+        // ...and a second vehicle can be built and relaunched alongside it.
+        Assert.True(room.Submit(Place(4, 6, 6)).IsAccepted);
+        room.Start();
+
+        Assert.Equal(3, room.BodyCount);
+        PhysicsBodySnapshot frozenRelaunch = Assert.Single(world.Snapshots, snapshot => snapshot.Position == new PhysicsVector3(5f, 2f, 0f));
+        Assert.Equal(new PhysicsBodyId(2), frozenRelaunch.Body);
+    }
+
+    [Fact]
+    public void ClearPolicyRestoresTheLevelSpawns()
+    {
+        ScriptedPhysicsWorld world = new();
+        GameRoom room = CreateRoom(() => world);
+        room.SetupFromLevel(new LevelContentDocument(
+            ContentVersion: "clear-test-v1",
+            GoalZone: new GameplayZone(new PhysicsVector3(500f, 500f, 500f), new PhysicsVector3(501f, 501f, 501f)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000f, -1000f, -1000f), new PhysicsVector3(1000f, 1000f, 1000f)),
+            Spawns: new[]
+            {
+                new LevelSpawnDefinition(PartGround, new PhysicsVector3(0f, -0.5f, 0f)),
+                new LevelSpawnDefinition(PartPig, new PhysicsVector3(7.5f, 1f, 0f), LevelActorRole.Pig)
+            }));
+        room.Submit(Place(1, 2, 2));
+        room.Start();
+        room.RunTicks(2);
+
+        Assert.True(room.Submit(new EnterBuildModeCommand(Tick: 2, Sequence: 2, PlayerId: PlayerOne, Policy: BuildModePolicy.Clear)).IsAccepted);
+
+        Assert.Equal(RoomMode.Building, room.Mode);
+        Assert.Equal(0, room.BodyCount);
+        Assert.Equal(1, room.AlivePigs);
+
+        // Player construction was wiped; the same cells are buildable again.
+        Assert.True(room.Submit(Place(3, 2, 2)).IsAccepted);
+        room.Start();
+        Assert.Equal(3, room.BodyCount);
+    }
+
+    [Fact]
+    public void BuildModeLifecycleDoubleRunIsDeterministic()
+    {
+        Assert.Equal(RunLifecycleRoom(BuildModePolicy.Keep), RunLifecycleRoom(BuildModePolicy.Keep));
+        Assert.Equal(RunLifecycleRoom(BuildModePolicy.Clear), RunLifecycleRoom(BuildModePolicy.Clear));
+        Assert.NotEqual(
+            RunLifecycleRoom(BuildModePolicy.Keep).FinalBodies,
+            RunLifecycleRoom(BuildModePolicy.Clear).FinalBodies);
+    }
+
+    private static (long TransitionHash, long FinalHash, int FinalBodies) RunLifecycleRoom(BuildModePolicy policy)
+    {
+        using GameRoom room = CreateLifecycleRoom();
+        room.RunTicks(90);
+        room.Submit(new EnterBuildModeCommand(Tick: 90, Sequence: 10, PlayerId: PlayerOne, Policy: policy));
+        long transitionHash = room.ComputeStateHash();
+        room.Submit(Place(11, 40, 0));
+        room.Submit(new StartSimulationCommand(Tick: 0, Sequence: 12, PlayerId: PlayerOne));
+        room.RunTicks(90);
+        return (transitionHash, room.ComputeStateHash(), room.BodyCount);
+    }
+
+    private static GameRoom CreateLifecycleRoom()
+    {
+        PartContentLibrary content = new(PartContentParser.Parse(LevelContentJson));
+        GameRoom room = new(GameRoomOptions.Create(
+            content,
+            () => new BepuPhysicsWorld(new PhysicsVector3(0f, -9.81f, 0f)),
+            new GameplayConfig(
+                GoalZone: new GameplayZone(new PhysicsVector3(-9f, 0f, -2f), new PhysicsVector3(-7f, 4f, 2f)),
+                MapBounds: new GameplayZone(new PhysicsVector3(-100f, -5f, -20f), new PhysicsVector3(100f, 60f, 20f)),
+                TntBlastRadius: 4f,
+                TntBlastImpulse: 25f,
+                TntIgniteImpactSpeed: 5f)));
+        room.Spawn(new RoomSpawnSpec(PartGround, new PhysicsVector3(0f, -0.5f, 0f)));
+        room.Spawn(new RoomSpawnSpec(PartPig, new PhysicsVector3(7.5f, 1f, 0f), RoomActorRole.Pig));
+        room.Spawn(new RoomSpawnSpec(PartTnt, new PhysicsVector3(8.9f, 1f, 0f), RoomActorRole.Tnt));
+        room.Submit(Place(1, 20, 0));
+        room.Submit(Place(2, 21, 0));
+        room.Start();
+        return room;
+    }
+
+    [Fact]
     public void MaliciousCommandScriptIsDeterministic()
     {
         (long hash, CommandStatus[] statuses) first = RunMaliciousScript();
@@ -279,6 +411,8 @@ public sealed class GameRoomTests
         public List<string> OperationLog => _log;
 
         public List<PhysicsBodyId> DestroyedBodies { get; } = new();
+
+        public IReadOnlyList<PhysicsBodySnapshot> Snapshots => _snapshots;
 
         public int DisposeCount { get; private set; }
 

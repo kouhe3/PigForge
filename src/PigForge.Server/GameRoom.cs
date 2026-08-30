@@ -39,8 +39,11 @@ public sealed record GameRoomOptions(
 /// One room owns exactly one authoritative physics world and progresses through two
 /// modes: Building (construction commands mutate pure rules state, no bodies exist)
 /// and Running (bodies are created at Start, then every tick advances through ordered
-/// phases: input → physics step → telemetry → rules → destruction). Ticks are driven
-/// manually so execution stays deterministic; wall-clock scheduling is a transport concern.
+/// phases: input → physics step → telemetry → rules → destruction). A running room can
+/// re-enter Building via <see cref="EnterBuildMode"/> (issue #7), destroying all bodies;
+/// the keep policy freezes the previous contraption at its last poses while the clear
+/// policy resets to the configured level. Ticks are driven manually so execution stays
+/// deterministic; wall-clock scheduling is a transport concern.
 /// </summary>
 public sealed class GameRoom : IDisposable
 {
@@ -64,6 +67,7 @@ public sealed class GameRoom : IDisposable
     private readonly List<CommandOutcome> _outcomeLog = new();
     private PhysicsBodySnapshot[] _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
+    private LevelContentDocument? _level;
     private bool _disposed;
 
     public GameRoom(GameRoomOptions options)
@@ -131,10 +135,12 @@ public sealed class GameRoom : IDisposable
         return entity;
     }
 
-    /// <summary>Spawns every actor of an engine-agnostic level document (building phase).</summary>
+    /// <summary>Spawns every actor of an engine-agnostic level document (building phase).
+    /// The document is remembered so a clear-policy build-mode re-entry can restore it.</summary>
     public void SetupFromLevel(LevelContentDocument level)
     {
         ArgumentNullException.ThrowIfNull(level);
+        _level = level;
         foreach (LevelSpawnDefinition spawn in level.Spawns)
         {
             Spawn(new RoomSpawnSpec(
@@ -218,6 +224,10 @@ public sealed class GameRoom : IDisposable
                 Start();
                 return (CommandStatus.Accepted, ConstructionError.None);
 
+            case EnterBuildModeCommand enterBuild:
+                EnterBuildMode(enterBuild.Policy);
+                return (CommandStatus.Accepted, ConstructionError.None);
+
             default:
                 return (CommandStatus.UnknownKind, ConstructionError.None);
         }
@@ -250,6 +260,85 @@ public sealed class GameRoom : IDisposable
 
         EnsureBuffers();
         Mode = RoomMode.Running;
+    }
+
+    /// <summary>
+    /// Running → Building transition (issue #7). Both policies destroy every
+    /// authoritative body, returning the room to a body-free building phase. Keep
+    /// freezes each living entity at its last telemetry pose: the previous contraption
+    /// stays in the field (non-editable, counted toward part limits and the layout
+    /// hash) and relaunches on the next Start; charges are re-armed with remaining
+    /// fuse. Clear destroys everything and re-spawns the configured level actors.
+    /// </summary>
+    private void EnterBuildMode(BuildModePolicy policy)
+    {
+        Mode = RoomMode.Building;
+        _output.Clear();
+
+        uint[] entityValues = _bodyByEntity.Keys.ToArray();
+        Array.Sort(entityValues);
+        Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> posesByEntity = CapturePoses();
+        foreach (uint entityValue in entityValues)
+        {
+            PhysicsBodyId body = _bodyByEntity[entityValue];
+            _world.DestroyBody(body);
+            _entityByBody.Remove(body.Value);
+            _bodyByEntity.Remove(entityValue);
+        }
+
+        if (policy == BuildModePolicy.Keep)
+        {
+            _construction.FreezeAll(posesByEntity);
+            foreach (uint entityValue in entityValues)
+            {
+                // Level actors (pigs, TNT spawns) are not construction entities; they
+                // freeze at their poses directly and keep their gameplay roles.
+                if (!_construction.IsFrozen(entityValue)
+                    && posesByEntity.TryGetValue(entityValue, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) pose))
+                {
+                    _transforms.Set(new EntityId(entityValue), new EntityTransform(pose.Position, pose.Rotation));
+                }
+            }
+
+            _rules.ResetForRebuild();
+        }
+        else
+        {
+            _construction.ResetAll();
+            _rules.ResetAll();
+            List<EntityId> remainingActors = new();
+            var parts = _parts.GetEnumerator();
+            while (parts.MoveNext())
+            {
+                remainingActors.Add(parts.CurrentId);
+            }
+
+            foreach (EntityId actor in remainingActors)
+            {
+                _entities.Destroy(actor);
+            }
+
+            if (_level is not null)
+            {
+                SetupFromLevel(_level);
+            }
+        }
+    }
+
+    private Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> CapturePoses()
+    {
+        int count = _world.CopySnapshots(_snapshotBuffer);
+        Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)> poses = new(count);
+        for (int index = 0; index < count; index++)
+        {
+            PhysicsBodySnapshot snapshot = _snapshotBuffer[index];
+            if (_entityByBody.TryGetValue(snapshot.Body.Value, out EntityId entity))
+            {
+                poses.Add(entity.Value, (snapshot.Position, snapshot.Rotation));
+            }
+        }
+
+        return poses;
     }
 
     public void Tick()
