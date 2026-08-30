@@ -114,14 +114,11 @@ Network transport and client
 - Verify: `11` boundary/invalid-command tests (occupancy conflicts, unknown parts, invalid rotation, part/connection limits, removal semantics, blocked rotation with reconnection) plus a deterministic double-run replay fixture asserting identical layout hash and rejection sequence.
 - Files: `src/PigForge.Core/Construction/ConstructionRules.cs`, `tests/PigForge.Core.Tests/ConstructionRulesTests.cs`.
 
-### Task 9: Migrate runtime gameplay rules — Implemented with known semantic deviations; revision required per ADR-002
+### Task 9: Migrate runtime gameplay rules - Complete (ADR-002 semantics)
 
-- Status: first implementation exists (`40` tests, typical fixture wins via Bepu, stress fixture with 76 bodies deterministic across double runs), but its semantics were written before ADR-002 and deviate from the original game.
-- Known deviations (must be reworked together with their tests): impact damage kills pigs (pigs are indestructible), blast damage (TNT is impulse-only), `Won = all pigs dead` (win is delivery into the goal trigger zone), `Failed = timeout` (confirmed fail path is pig out of bounds triggering restart).
-- Revision acceptance: no damage/hp primitives anywhere in runtime rules (only impulse, joint break thresholds, position triggers, reset); material restitution/friction move from hardcoded backend values into part content; goal zone and map bounds come from a level content format.
-- Verify: typical and stress replay fixtures re-recorded against ADR-002 semantics; deterministic double-run hashes.
-- Files likely touched: `src/PigForge.Core/Runtime/`, `src/PigForge.Core/Content/`, `schemas/part-content-v1.schema.json` (material fields), tests.
-- Reference: `docs/decisions/ADR-002-runtime-rules-semantics.md`.
+- Acceptance: server rules consume physics events/snapshots and determine outcomes without renderer state; semantics per ADR-002 (no damage primitives).
+- Verify: `8` gameplay rule tests - motor/wheel contact gating, pig indestructibility, TNT ignition on impact velocity change with fuse, pure-impulse blast at target centres of mass, goal-zone win trigger, map-bounds restart request, joint-break recording; typical level fixture (Bepu, block ignites TNT, blast delivers pig into goal zone) and stress fixture (76 bodies) deterministic across double runs.
+- Files: `src/PigForge.Core/Runtime/`, `src/PigForge.Core/Content/LevelContentParser.cs`, `schemas/part-content-v1.schema.json` (material fields), `schemas/level-content-v1.schema.json`, `src/PigForge.Physics.Bepu/` (material pair friction, sleepless dynamics), `tests/PigForge.Core.Tests/GameplayRulesTests.cs`.
 
 ## Phase 4: Headless Server
 
