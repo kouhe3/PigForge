@@ -114,8 +114,8 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
             AngularVelocity = ToVector3(definition.AngularVelocity),
             LinearDamping = 0f,
             AngularDamping = 0f,
-            Friction = 0.8f,
-            Restitution = 0f,
+            Friction = definition.Material.Friction,
+            Restitution = definition.Material.Restitution,
             AllowSleeping = false
         };
 

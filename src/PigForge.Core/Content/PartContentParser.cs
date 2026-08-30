@@ -172,6 +172,19 @@ public static class PartContentParser
             }
         }
 
+        float restitution = 0f;
+        float friction = 0.8f;
+        if (seen.Contains("material") && element.TryGetProperty("material", out JsonElement materialElement))
+        {
+            if (materialElement.ValueKind != JsonValueKind.Object
+                || !TryReadMaterial(materialElement, path, out restitution, out friction))
+            {
+                errors.Add($"{path}.material: must be an object with restitution in [0, 1] and friction in [0, 4].");
+                restitution = 0f;
+                friction = 0.8f;
+            }
+        }
+
         List<PartShapeDefinition> shapes = new();
         if (seen.Contains("shapes") && element.TryGetProperty("shapes", out JsonElement shapesElement))
         {
@@ -204,6 +217,8 @@ public static class PartContentParser
             seen.Contains("mass") && element.TryGetProperty("mass", out JsonElement massValue) && IsFiniteNumber(massValue)
                 ? massValue.GetSingle()
                 : 0f,
+            restitution,
+            friction,
             shapes));
     }
 
@@ -303,6 +318,35 @@ public static class PartContentParser
             vertices,
             triangles,
             offset));
+    }
+
+    private static bool TryReadMaterial(JsonElement element, string path, out float restitution, out float friction)
+    {
+        restitution = 0f;
+        friction = 0.8f;
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                return false;
+            }
+        }
+
+        if (!seen.SetEquals(new HashSet<string> { "restitution", "friction" })
+            || !element.TryGetProperty("restitution", out JsonElement restitutionElement)
+            || !element.TryGetProperty("friction", out JsonElement frictionElement)
+            || restitutionElement.ValueKind != JsonValueKind.Number
+            || frictionElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(restitutionElement)
+            || !IsFiniteNumber(frictionElement))
+        {
+            return false;
+        }
+
+        restitution = restitutionElement.GetSingle();
+        friction = frictionElement.GetSingle();
+        return restitution is >= 0f and <= 1f && friction is >= 0f and <= 4f;
     }
 
     private static string? ReadVersion(JsonElement element, string path, List<string> errors)

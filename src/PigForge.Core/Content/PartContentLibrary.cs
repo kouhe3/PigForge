@@ -74,6 +74,7 @@ public sealed class PartContentLibrary
             part.Mass,
             shapes,
             linearVelocity,
-            angularVelocity);
+            angularVelocity,
+            new PhysicsMaterial(part.Restitution, part.Friction));
     }
 }

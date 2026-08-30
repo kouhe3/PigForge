@@ -112,6 +112,12 @@ public readonly record struct FixedTimeStep(float Seconds)
 	}
 }
 
+/// <summary>Per-body surface properties. Restitution is solver-dependent: Jolt applies it natively, Bepu v2 has no restitution support.</summary>
+public sealed record PhysicsMaterial(float Restitution, float Friction)
+{
+	public static PhysicsMaterial Default { get; } = new(Restitution: 0f, Friction: 0.8f);
+}
+
 public abstract record ShapeDefinition(PhysicsShapeKind Kind);
 
 public sealed record BoxShapeDefinition : ShapeDefinition
@@ -160,7 +166,8 @@ public sealed class BodyDefinition
 		float mass,
 		IReadOnlyList<ShapeDefinition> shapes,
 		PhysicsVector3 linearVelocity = default,
-		PhysicsVector3 angularVelocity = default)
+		PhysicsVector3 angularVelocity = default,
+		PhysicsMaterial? material = null)
 	{
 		if (!Enum.IsDefined(mode))
 		{
@@ -214,12 +221,19 @@ public sealed class BodyDefinition
 			}
 		}
 
+		if (material is not null && (!float.IsFinite(material.Restitution) || material.Restitution is < 0 or > 1
+			|| !float.IsFinite(material.Friction) || material.Friction < 0))
+		{
+			throw new ArgumentOutOfRangeException(nameof(material), "A physics material must have restitution in [0, 1] and non-negative finite friction.");
+		}
+
 		Mode = mode;
 		Position = position;
 		Rotation = rotation;
 		Mass = mass;
 		LinearVelocity = linearVelocity;
 		AngularVelocity = angularVelocity;
+		Material = material ?? PhysicsMaterial.Default;
 		Shapes = shapes;
 	}
 
@@ -229,6 +243,7 @@ public sealed class BodyDefinition
 	public float Mass { get; }
 	public PhysicsVector3 LinearVelocity { get; }
 	public PhysicsVector3 AngularVelocity { get; }
+	public PhysicsMaterial Material { get; }
 	public IReadOnlyList<ShapeDefinition> Shapes { get; }
 }
 

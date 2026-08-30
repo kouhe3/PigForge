@@ -16,6 +16,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private readonly Dictionary<PhysicsBodyId, BodyHandle> _dynamicBodies = new();
     private readonly Dictionary<PhysicsBodyId, StaticHandle> _staticBodies = new();
     private readonly Dictionary<PhysicsBodyId, TypedIndex> _shapesByBody = new();
+    private readonly Dictionary<int, float> _frictionByDynamicHandle = new();
+    private readonly Dictionary<int, float> _frictionByStaticHandle = new();
     private readonly Dictionary<int, PhysicsBodyId> _dynamicIdsByHandle = new();
     private readonly Dictionary<int, PhysicsBodyId> _staticIdsByHandle = new();
     private readonly List<PhysicsBodyId> _bodyOrder = new();
@@ -61,6 +63,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             StaticHandle handle = _simulation.Statics.Add(new StaticDescription(pose, shapeIndex));
             _staticBodies.Add(id, handle);
             _staticIdsByHandle.Add(handle.Value, id);
+            _frictionByStaticHandle.Add(handle.Value, definition.Material.Friction);
         }
         else
         {
@@ -73,6 +76,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             BodyHandle handle = _simulation.Bodies.Add(body);
             _dynamicBodies.Add(id, handle);
             _dynamicIdsByHandle.Add(handle.Value, id);
+            _frictionByDynamicHandle.Add(handle.Value, definition.Material.Friction);
         }
 
         _shapesByBody.Add(id, shapeIndex);
@@ -87,11 +91,13 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         if (_dynamicBodies.Remove(body, out BodyHandle dynamicHandle))
         {
             _dynamicIdsByHandle.Remove(dynamicHandle.Value);
+            _frictionByDynamicHandle.Remove(dynamicHandle.Value);
             _simulation.Bodies.Remove(dynamicHandle);
         }
         else if (_staticBodies.Remove(body, out StaticHandle staticHandle))
         {
             _staticIdsByHandle.Remove(staticHandle.Value);
+            _frictionByStaticHandle.Remove(staticHandle.Value);
             _simulation.Statics.Remove(staticHandle);
         }
         else
@@ -244,6 +250,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _dynamicBodies.Clear();
         _staticBodies.Clear();
         _shapesByBody.Clear();
+        _frictionByDynamicHandle.Clear();
+        _frictionByStaticHandle.Clear();
         _dynamicIdsByHandle.Clear();
         _staticIdsByHandle.Clear();
         _bodyOrder.Clear();
@@ -262,6 +270,17 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             _currentContacts.Add(ContactPair.Create(bodyA, bodyB));
         }
     }
+
+    internal float CombineFriction(CollidablePair pair)
+    {
+        float frictionA = GetMaterialFriction(pair.A);
+        float frictionB = GetMaterialFriction(pair.B);
+        return (frictionA + frictionB) * 0.5f;
+    }
+
+    private float GetMaterialFriction(CollidableReference reference) => reference.Mobility == CollidableMobility.Static
+        ? _frictionByStaticHandle.GetValueOrDefault(reference.StaticHandle.Value, PhysicsMaterial.Default.Friction)
+        : _frictionByDynamicHandle.GetValueOrDefault(reference.BodyHandle.Value, PhysicsMaterial.Default.Friction);
 
     private bool TryGetBodyId(CollidableReference reference, out PhysicsBodyId body)
     {
@@ -360,7 +379,9 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         {
             pairMaterial = new PairMaterialProperties
             {
-                FrictionCoefficient = 0.8f,
+                // Per-body friction from content, combined as the pair average.
+                // BepuPhysics v2 has no restitution support; see PhysicsMaterial docs.
+                FrictionCoefficient = _world.CombineFriction(pair),
                 MaximumRecoveryVelocity = 2f,
                 SpringSettings = new SpringSettings(30, 1)
             };

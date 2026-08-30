@@ -16,6 +16,8 @@ public sealed record PartDefinition(
     string Name,
     PhysicsBodyMode Mode,
     float Mass,
+    float Restitution,
+    float Friction,
     IReadOnlyList<PartShapeDefinition> Shapes);
 
 public sealed record PartShapeDefinition(

@@ -52,11 +52,21 @@
         },
         "mode": { "enum": ["static", "dynamic"] },
         "mass": { "$ref": "#/$defs/finiteNumber" },
+        "material": { "$ref": "#/$defs/material" },
         "shapes": {
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/shapeDefinition" }
         }
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["restitution", "friction"],
+      "properties": {
+        "restitution": { "type": "number", "minimum": 0, "maximum": 1 },
+        "friction": { "type": "number", "minimum": 0, "maximum": 4 }
       }
     },
     "shapeDefinition": {
