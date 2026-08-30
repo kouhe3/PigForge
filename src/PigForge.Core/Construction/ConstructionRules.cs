@@ -23,7 +23,8 @@ public enum ConstructionError
     ConnectionLimitReached,
     EntityNotFound,
     NotAConstructionEntity,
-    RotationBlocked
+    RotationBlocked,
+    FrozenEntity
 }
 
 public readonly record struct ConstructionResult(EntityId Entity, ConstructionError Error)
@@ -52,6 +53,9 @@ public sealed class ConstructionRules
     private readonly Dictionary<long, uint> _ownerByCell = new();
     private readonly Dictionary<uint, List<long>> _cellsByEntity = new();
     private readonly Dictionary<uint, HashSet<uint>> _connectionsByEntity = new();
+    // Frozen entities (kept from a previous run) hold world poses and never claim cells,
+    // so fresh placements neither collide with them nor connect to them (issue #7).
+    private readonly HashSet<uint> _frozenEntities = new();
 
     public ConstructionRules(
         EntityStore entities,
@@ -67,9 +71,13 @@ public sealed class ConstructionRules
         _limits = limits ?? ConstructionLimits.Default;
     }
 
-    public int PartCount => _cellsByEntity.Count;
+    public int PartCount => _cellsByEntity.Count + _frozenEntities.Count;
+
+    public int FrozenCount => _frozenEntities.Count;
 
     public bool IsAlive(EntityId entity) => _entities.IsAlive(entity);
+
+    public bool IsFrozen(uint entityValue) => _frozenEntities.Contains(entityValue);
 
     public bool TryGetTransform(EntityId entity, out EntityTransform transform) => _transforms.TryGet(entity, out transform);
 
@@ -115,7 +123,7 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.FootprintTooLarge);
         }
 
-        if (_cellsByEntity.Count >= _limits.MaxParts)
+        if (_cellsByEntity.Count + _frozenEntities.Count >= _limits.MaxParts)
         {
             return Failure(ConstructionError.PartLimitReached);
         }
@@ -169,6 +177,11 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.NotAConstructionEntity);
         }
 
+        if (_frozenEntities.Contains(entity.Value))
+        {
+            return Failure(ConstructionError.FrozenEntity);
+        }
+
         foreach (long cell in _cellsByEntity[entity.Value])
         {
             _ownerByCell.Remove(cell);
@@ -194,6 +207,11 @@ public sealed class ConstructionRules
             return _entities.IsAlive(entity)
                 ? Failure(ConstructionError.NotAConstructionEntity)
                 : Failure(ConstructionError.EntityNotFound);
+        }
+
+        if (_frozenEntities.Contains(entity.Value))
+        {
+            return Failure(ConstructionError.FrozenEntity);
         }
 
         List<long> currentCells = _cellsByEntity[entity.Value];
@@ -234,6 +252,58 @@ public sealed class ConstructionRules
         return new ConstructionResult(entity, ConstructionError.None);
     }
 
+    /// <summary>
+    /// Freezes every build entity into a kept group (issue #7): cells are released back
+    /// to the grid, transforms move to the supplied world poses (entities without a pose
+    /// keep their build transform), and the group becomes non-editable while still
+    /// counting toward part limits, the layout hash, and the next Start.
+    /// </summary>
+    public void FreezeAll(IReadOnlyDictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> worldPoses)
+    {
+        ArgumentNullException.ThrowIfNull(worldPoses);
+
+        foreach (uint entityValue in _cellsByEntity.Keys.ToArray())
+        {
+            foreach (long cell in _cellsByEntity[entityValue])
+            {
+                _ownerByCell.Remove(cell);
+            }
+
+            _cellsByEntity.Remove(entityValue);
+            EntityId entity = new(entityValue);
+            if (worldPoses.TryGetValue(entityValue, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) pose))
+            {
+                _transforms.Set(entity, new EntityTransform(pose.Position, pose.Rotation));
+            }
+
+            _frozenEntities.Add(entityValue);
+        }
+    }
+
+    /// <summary>Destroys every construction entity (build and frozen) in ascending entity order.</summary>
+    public List<uint> ResetAll()
+    {
+        List<uint> destroyed = new(_cellsByEntity.Count + _frozenEntities.Count);
+        destroyed.AddRange(_cellsByEntity.Keys);
+        destroyed.AddRange(_frozenEntities);
+        destroyed.Sort();
+
+        _ownerByCell.Clear();
+        _cellsByEntity.Clear();
+        _frozenEntities.Clear();
+        foreach (uint entityValue in destroyed)
+        {
+            EntityId entity = new(entityValue);
+            UnlinkAll(entityValue);
+            _connectionsByEntity.Remove(entityValue);
+            _parts.Remove(entity);
+            _transforms.Remove(entity);
+            _entities.Destroy(entity);
+        }
+
+        return destroyed;
+    }
+
     /// <summary>Stable hash over layout, transforms, connections, and rejections-friendly state.</summary>
     public long ComputeLayoutHash()
     {
@@ -246,6 +316,29 @@ public sealed class ConstructionRules
                 hash = unchecked(hash * 31 + cell);
             }
 
+            if (_parts.TryGet(new EntityId(entityValue), out PartLink link))
+            {
+                hash = unchecked(hash * 31 + link.PartTypeId);
+            }
+
+            if (_transforms.TryGet(new EntityId(entityValue), out EntityTransform transform))
+            {
+                hash = unchecked(hash * 31 + transform.Position.GetHashCode());
+                hash = unchecked(hash * 31 + transform.Rotation.GetHashCode());
+            }
+
+            IEnumerable<uint> orderedConnections = _connectionsByEntity.TryGetValue(entityValue, out HashSet<uint>? connections)
+                ? connections.OrderBy(value => value)
+                : Array.Empty<uint>();
+            foreach (uint connection in orderedConnections)
+            {
+                hash = unchecked(hash * 31 + connection);
+            }
+        }
+
+        foreach (uint entityValue in _frozenEntities.OrderBy(value => value))
+        {
+            hash = unchecked(hash * 31 + entityValue);
             if (_parts.TryGet(new EntityId(entityValue), out PartLink link))
             {
                 hash = unchecked(hash * 31 + link.PartTypeId);

@@ -76,6 +76,14 @@ public class ComponentStore<T>
         return true;
     }
 
+    /// <summary>Drops every component entry at once (mode transitions, level resets).</summary>
+    public void Clear()
+    {
+        Array.Clear(_keys, 0, _keys.Length);
+        Array.Clear(_values, 0, _values.Length);
+        _count = 0;
+    }
+
     public Enumerator GetEnumerator() => new(this);
 
     private void ThrowIfStale(EntityId id)

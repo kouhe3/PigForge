@@ -380,6 +380,49 @@ public sealed class GameplayRules
         _bodies.Remove(entity);
     }
 
+    /// <summary>
+    /// Prepares a fresh run after re-entering build mode with the keep policy: per-body
+    /// telemetry is dropped (bodies are recreated and re-linked on the next Start),
+    /// charges are re-armed with their remaining fuse, and the outcome reverts to
+    /// playing. Frozen entities keep their roles, pig count and fuse remainders.
+    /// </summary>
+    public void ResetForRebuild()
+    {
+        _entitiesByBody.Clear();
+        _dynamicBodies.Clear();
+        _kinematicsByBody.Clear();
+        _previousVelocities.Clear();
+        _touchedBodies.Clear();
+        _brokenJoints.Clear();
+        var tntComponents = _tnt.GetEnumerator();
+        while (tntComponents.MoveNext())
+        {
+            _tnt.Set(tntComponents.CurrentId, tntComponents.CurrentValue with { Ignited = false });
+        }
+
+        Phase = GameplayPhase.Playing;
+        RestartRequested = false;
+    }
+
+    /// <summary>Drops all gameplay state for a full level reset (clear policy).</summary>
+    public void ResetAll()
+    {
+        _entitiesByBody.Clear();
+        _dynamicBodies.Clear();
+        _kinematicsByBody.Clear();
+        _previousVelocities.Clear();
+        _touchedBodies.Clear();
+        _brokenJoints.Clear();
+        _motors.Clear();
+        _tnt.Clear();
+        _wheels.Clear();
+        _pigs.Clear();
+        _bodies.Clear();
+        _alivePigs = 0;
+        Phase = GameplayPhase.Playing;
+        RestartRequested = false;
+    }
+
     private void DestroyEntity(EntityId entity, GameplayTickOutput output)
     {
         if (_pigs.TryGet(entity, out _))
