@@ -251,7 +251,8 @@ public sealed class GameRoom : IDisposable
             EntityId entity = parts.CurrentId;
             uint partTypeId = parts.CurrentValue.PartTypeId;
             _transforms.TryGet(entity, out EntityTransform transform);
-            PhysicsBodyId body = _world.CreateBody(_content.CreateBodyDefinition(partTypeId, transform.Position, transform.Rotation));
+            PhysicsBodyId body = _world.CreateBody(_content.CreateBodyDefinition(
+                partTypeId, transform.Position, transform.Rotation, transform.Scale));
             _bodies.Set(entity, new PhysicsBodyLink(body));
             _rules.LinkBody(entity, body, isDynamic: _content.GetPart(partTypeId).Mode == PhysicsBodyMode.Dynamic);
             _bodyByEntity.Add(entity.Value, body);

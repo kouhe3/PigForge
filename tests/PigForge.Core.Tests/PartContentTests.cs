@@ -183,7 +183,7 @@ public sealed class PartContentTests
             1,
             new PhysicsVector3(0, 4, 0),
             PhysicsQuaternion.Identity,
-            new PhysicsVector3(0, 1, 0));
+            linearVelocity: new PhysicsVector3(0, 1, 0));
 
         Assert.Equal(PhysicsBodyMode.Dynamic, definition.Mode);
         Assert.Equal(2f, definition.Mass);
@@ -213,7 +213,7 @@ public sealed class PartContentTests
             2,
             PhysicsVector3.Zero,
             PhysicsQuaternion.Identity,
-            new PhysicsVector3(1, 0, 0)));
+            linearVelocity: new PhysicsVector3(1, 0, 0)));
         Assert.Throws<NotSupportedException>(() => library.CreateBodyDefinition(
             3,
             PhysicsVector3.Zero,

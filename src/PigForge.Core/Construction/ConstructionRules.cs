@@ -17,6 +17,7 @@ public enum ConstructionError
     None,
     UnknownPartType,
     InvalidRotation,
+    InvalidScale,
     FootprintTooLarge,
     CellsOccupied,
     PartLimitReached,
@@ -33,14 +34,24 @@ public readonly record struct ConstructionResult(EntityId Entity, ConstructionEr
 }
 
 /// <summary>
-/// Grid-based construction rules (place, remove, rotate, occupancy, adjacency
-/// connections and caps) expressed purely with Core handles and content — no Unity,
-/// physics-native, or renderer types. Deterministic by construction: the same command
-/// script produces the same layout, rejections, and state hash.
+/// Free-placement construction rules (issue #4): parts go down at arbitrary planar poses
+/// and scales, occupancy is exact footprint overlap behind a coarse spatial hash, and
+/// parts whose footprints come within <see cref="ConnectionProximity"/> connect. Frozen
+/// entities (issue #7) keep occupying space at their world poses but are not editable.
+/// Deterministic by construction: the same command script produces the same layout,
+/// rejections, and state hash. No Unity, physics-native, or renderer types.
 /// </summary>
 public sealed class ConstructionRules
 {
     public const float CellSize = 1f;
+    public const float ConnectionProximity = 0.15f;
+
+    /// <summary>Marginal penetrations count as legal touching, not overlap.</summary>
+    public const float OverlapTolerance = 0.01f;
+
+    public const float MaxScale = 4f;
+
+    private const float BucketSize = 4f;
 
     private readonly EntityStore _entities;
     private readonly PartStore _parts;
@@ -48,13 +59,11 @@ public sealed class ConstructionRules
     private readonly PartContentLibrary _content;
     private readonly ConstructionLimits _limits;
 
-    // Cell ownership and per-entity adjacency are build-phase state, not tick hot path,
-    // so dictionary allocations here are acceptable.
-    private readonly Dictionary<long, uint> _ownerByCell = new();
-    private readonly Dictionary<uint, List<long>> _cellsByEntity = new();
+    // Occupancy and adjacency are build-phase state, not tick hot path, so dictionary
+    // allocations here are acceptable.
+    private readonly Dictionary<long, List<uint>> _entitiesByBucket = new();
+    private readonly Dictionary<uint, PartFootprint> _footprintByEntity = new();
     private readonly Dictionary<uint, HashSet<uint>> _connectionsByEntity = new();
-    // Frozen entities (kept from a previous run) hold world poses and never claim cells,
-    // so fresh placements neither collide with them nor connect to them (issue #7).
     private readonly HashSet<uint> _frozenEntities = new();
 
     public ConstructionRules(
@@ -71,7 +80,7 @@ public sealed class ConstructionRules
         _limits = limits ?? ConstructionLimits.Default;
     }
 
-    public int PartCount => _cellsByEntity.Count + _frozenEntities.Count;
+    public int PartCount => _footprintByEntity.Count;
 
     public int FrozenCount => _frozenEntities.Count;
 
@@ -100,11 +109,16 @@ public sealed class ConstructionRules
             : Array.Empty<uint>();
     }
 
-    public ConstructionResult Place(uint partTypeId, int gridX, int gridY, byte rotation)
+    public ConstructionResult Place(uint partTypeId, float positionX, float positionY, float angle, float scale)
     {
-        if (!IsValidRotation(rotation))
+        if (!float.IsFinite(angle))
         {
             return Failure(ConstructionError.InvalidRotation);
+        }
+
+        if (!float.IsFinite(scale) || scale is <= 0f or > MaxScale)
+        {
+            return Failure(ConstructionError.InvalidScale);
         }
 
         PartDefinition part;
@@ -117,27 +131,25 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.UnknownPartType);
         }
 
-        (int width, int height) = FootprintInCells(part, rotation);
-        if (width * height > _limits.MaxFootprintCells)
+        PartFootprint footprint = PartFootprint.ForPart(part, positionX, positionY, angle, scale);
+        (float minX, float minY, float maxX, float maxY) = footprint.Bounds();
+        int areaInCells = (int)MathF.Ceiling(maxX - minX) * (int)MathF.Ceiling(maxY - minY);
+        if (areaInCells > _limits.MaxFootprintCells)
         {
             return Failure(ConstructionError.FootprintTooLarge);
         }
 
-        if (_cellsByEntity.Count + _frozenEntities.Count >= _limits.MaxParts)
+        if (_footprintByEntity.Count >= _limits.MaxParts)
         {
             return Failure(ConstructionError.PartLimitReached);
         }
 
-        List<long> cells = AcquireCells(gridX, gridY, width, height);
-        foreach (long cell in cells)
+        if (CollectOverlapping(footprint, -OverlapTolerance, exclude: 0).Count > 0)
         {
-            if (_ownerByCell.ContainsKey(cell))
-            {
-                return Failure(ConstructionError.CellsOccupied);
-            }
+            return Failure(ConstructionError.CellsOccupied);
         }
 
-        List<uint> neighbours = CollectNeighbours(cells, exclude: 0);
+        List<uint> neighbours = CollectOverlapping(footprint, ConnectionProximity, exclude: 0);
         if (neighbours.Count > _limits.MaxConnectionsPerPart
             || neighbours.Any(neighbour => ConnectionCount(neighbour) + 1 > _limits.MaxConnectionsPerPart))
         {
@@ -145,16 +157,12 @@ public sealed class ConstructionRules
         }
 
         EntityId entity = _entities.Create();
-        foreach (long cell in cells)
-        {
-            _ownerByCell.Add(cell, entity.Value);
-        }
-
-        _cellsByEntity.Add(entity.Value, cells);
+        SetFootprint(entity.Value, footprint);
         _parts.Set(entity, new PartLink(partTypeId));
         _transforms.Set(entity, new EntityTransform(
-            CellCenter(gridX, gridY, width, height),
-            RotationQuaternion(rotation)));
+            new PhysicsVector3(positionX, positionY, 0f),
+            RotationQuaternion(angle),
+            scale));
 
         foreach (uint neighbour in neighbours)
         {
@@ -162,6 +170,49 @@ public sealed class ConstructionRules
         }
 
         _connectionsByEntity.Add(entity.Value, new HashSet<uint>(neighbours));
+        return new ConstructionResult(entity, ConstructionError.None);
+    }
+
+    public ConstructionResult Rotate(EntityId entity, float angle)
+    {
+        if (!float.IsFinite(angle))
+        {
+            return Failure(ConstructionError.InvalidRotation);
+        }
+
+        if (!_entities.IsAlive(entity) || !_parts.TryGet(entity, out PartLink link))
+        {
+            return _entities.IsAlive(entity)
+                ? Failure(ConstructionError.NotAConstructionEntity)
+                : Failure(ConstructionError.EntityNotFound);
+        }
+
+        if (_frozenEntities.Contains(entity.Value))
+        {
+            return Failure(ConstructionError.FrozenEntity);
+        }
+
+        _transforms.TryGet(entity, out EntityTransform current);
+        PartDefinition part = _content.GetPart(link.PartTypeId);
+        PartFootprint candidate = PartFootprint.ForPart(part, current.Position.X, current.Position.Y, angle, current.Scale);
+        if (CollectOverlapping(candidate, -OverlapTolerance, exclude: entity.Value).Count > 0)
+        {
+            return Failure(ConstructionError.RotationBlocked);
+        }
+
+        HashSet<uint> previousNeighbours = new(_connectionsByEntity.TryGetValue(entity.Value, out HashSet<uint>? connections)
+            ? connections
+            : Array.Empty<uint>());
+        UnsetFootprint(entity.Value);
+        SetFootprint(entity.Value, candidate);
+        _transforms.Set(entity, new EntityTransform(current.Position, RotationQuaternion(angle), current.Scale));
+
+        Reconnect(entity.Value);
+        foreach (uint previous in previousNeighbours)
+        {
+            Reconnect(previous);
+        }
+
         return new ConstructionResult(entity, ConstructionError.None);
     }
 
@@ -182,100 +233,79 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.FrozenEntity);
         }
 
-        foreach (long cell in _cellsByEntity[entity.Value])
-        {
-            _ownerByCell.Remove(cell);
-        }
-
-        _cellsByEntity.Remove(entity.Value);
+        UnsetFootprint(entity.Value);
         UnlinkAll(entity.Value);
+        _connectionsByEntity.Remove(entity.Value);
         _parts.Remove(entity);
         _transforms.Remove(entity);
         _entities.Destroy(entity);
         return new ConstructionResult(entity, ConstructionError.None);
     }
 
-    public ConstructionResult Rotate(EntityId entity, byte rotation)
+    // v1 grid-command bridges: convert cell placements to the free-pose API. They
+    // disappear together with the v1 protocol commands.
+    public ConstructionResult Place(uint partTypeId, int gridX, int gridY, byte rotation)
     {
-        if (!IsValidRotation(rotation))
+        if (rotation > 3)
         {
             return Failure(ConstructionError.InvalidRotation);
         }
 
-        if (!_entities.IsAlive(entity) || !_parts.TryGet(entity, out PartLink link))
+        PartDefinition part;
+        try
         {
-            return _entities.IsAlive(entity)
-                ? Failure(ConstructionError.NotAConstructionEntity)
-                : Failure(ConstructionError.EntityNotFound);
+            part = _content.GetPart(partTypeId);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Failure(ConstructionError.UnknownPartType);
         }
 
-        if (_frozenEntities.Contains(entity.Value))
-        {
-            return Failure(ConstructionError.FrozenEntity);
-        }
-
-        List<long> currentCells = _cellsByEntity[entity.Value];
-        (int anchorX, int anchorY) = CellAnchor(currentCells);
-        PartDefinition part = _content.GetPart(link.PartTypeId);
         (int width, int height) = FootprintInCells(part, rotation);
-        List<long> targetCells = AcquireCells(anchorX, anchorY, width, height);
-        bool blocked = targetCells.Any(cell =>
-            _ownerByCell.TryGetValue(cell, out uint owner) && owner != entity.Value);
+        return Place(
+            partTypeId,
+            (gridX + (width / 2f)) * CellSize,
+            (gridY + (height / 2f)) * CellSize,
+            rotation * (MathF.PI / 2f),
+            1f);
+    }
 
-        if (blocked)
+    public ConstructionResult Rotate(EntityId entity, byte rotation)
+    {
+        if (rotation > 3)
         {
-            return Failure(ConstructionError.RotationBlocked);
+            return Failure(ConstructionError.InvalidRotation);
         }
 
-        var affectedNeighbours = new HashSet<uint>(_connectionsByEntity[entity.Value]);
-        foreach (long cell in currentCells)
-        {
-            _ownerByCell.Remove(cell);
-        }
-
-        foreach (long cell in targetCells)
-        {
-            _ownerByCell.Add(cell, entity.Value);
-        }
-
-        _cellsByEntity[entity.Value] = targetCells;
-        _transforms.Set(entity, new EntityTransform(
-            CellCenter(anchorX, anchorY, width, height),
-            RotationQuaternion(rotation)));
-
-        Reconnect(entity.Value);
-        foreach (uint neighbour in affectedNeighbours)
-        {
-            Reconnect(neighbour);
-        }
-
-        return new ConstructionResult(entity, ConstructionError.None);
+        return Rotate(entity, rotation * (MathF.PI / 2f));
     }
 
     /// <summary>
-    /// Freezes every build entity into a kept group (issue #7): cells are released back
-    /// to the grid, transforms move to the supplied world poses (entities without a pose
-    /// keep their build transform), and the group becomes non-editable while still
-    /// counting toward part limits, the layout hash, and the next Start.
+    /// Freezes every build entity into a kept group (issue #7): transforms move to the
+    /// supplied world poses (entities without a pose keep their build transform), the
+    /// group becomes non-editable, and its footprints keep occupying space so fresh
+    /// placements cannot intersect the wreckage.
     /// </summary>
     public void FreezeAll(IReadOnlyDictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> worldPoses)
     {
         ArgumentNullException.ThrowIfNull(worldPoses);
 
-        foreach (uint entityValue in _cellsByEntity.Keys.ToArray())
+        foreach (uint entityValue in _footprintByEntity.Keys.ToArray())
         {
-            foreach (long cell in _cellsByEntity[entityValue])
-            {
-                _ownerByCell.Remove(cell);
-            }
-
-            _cellsByEntity.Remove(entityValue);
             EntityId entity = new(entityValue);
-            if (worldPoses.TryGetValue(entityValue, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) pose))
+            _transforms.TryGet(entity, out EntityTransform current);
+            EntityTransform target = worldPoses.TryGetValue(entityValue, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) pose)
+                ? new EntityTransform(pose.Position, pose.Rotation, current.Scale)
+                : current;
+            _transforms.Set(entity, target);
+
+            if (!_parts.TryGet(entity, out PartLink link))
             {
-                _transforms.Set(entity, new EntityTransform(pose.Position, pose.Rotation));
+                continue;
             }
 
+            UnsetFootprint(entityValue);
+            SetFootprint(entityValue, PartFootprint.ForPart(_content.GetPart(link.PartTypeId), target.Position, target.Rotation, target.Scale));
             _frozenEntities.Add(entityValue);
         }
     }
@@ -283,19 +313,17 @@ public sealed class ConstructionRules
     /// <summary>Destroys every construction entity (build and frozen) in ascending entity order.</summary>
     public List<uint> ResetAll()
     {
-        List<uint> destroyed = new(_cellsByEntity.Count + _frozenEntities.Count);
-        destroyed.AddRange(_cellsByEntity.Keys);
-        destroyed.AddRange(_frozenEntities);
+        List<uint> destroyed = new(_footprintByEntity.Count);
+        destroyed.AddRange(_footprintByEntity.Keys);
         destroyed.Sort();
 
-        _ownerByCell.Clear();
-        _cellsByEntity.Clear();
+        _entitiesByBucket.Clear();
+        _footprintByEntity.Clear();
+        _connectionsByEntity.Clear();
         _frozenEntities.Clear();
         foreach (uint entityValue in destroyed)
         {
             EntityId entity = new(entityValue);
-            UnlinkAll(entityValue);
-            _connectionsByEntity.Remove(entityValue);
             _parts.Remove(entity);
             _transforms.Remove(entity);
             _entities.Destroy(entity);
@@ -304,39 +332,11 @@ public sealed class ConstructionRules
         return destroyed;
     }
 
-    /// <summary>Stable hash over layout, transforms, connections, and rejections-friendly state.</summary>
+    /// <summary>Stable hash over part types, poses, scales, and connections.</summary>
     public long ComputeLayoutHash()
     {
         long hash = 17;
-        foreach (uint entityValue in _cellsByEntity.Keys.OrderBy(value => value))
-        {
-            hash = unchecked(hash * 31 + entityValue);
-            foreach (long cell in _cellsByEntity[entityValue].OrderBy(cell => cell))
-            {
-                hash = unchecked(hash * 31 + cell);
-            }
-
-            if (_parts.TryGet(new EntityId(entityValue), out PartLink link))
-            {
-                hash = unchecked(hash * 31 + link.PartTypeId);
-            }
-
-            if (_transforms.TryGet(new EntityId(entityValue), out EntityTransform transform))
-            {
-                hash = unchecked(hash * 31 + transform.Position.GetHashCode());
-                hash = unchecked(hash * 31 + transform.Rotation.GetHashCode());
-            }
-
-            IEnumerable<uint> orderedConnections = _connectionsByEntity.TryGetValue(entityValue, out HashSet<uint>? connections)
-                ? connections.OrderBy(value => value)
-                : Array.Empty<uint>();
-            foreach (uint connection in orderedConnections)
-            {
-                hash = unchecked(hash * 31 + connection);
-            }
-        }
-
-        foreach (uint entityValue in _frozenEntities.OrderBy(value => value))
+        foreach (uint entityValue in _footprintByEntity.Keys.OrderBy(value => value))
         {
             hash = unchecked(hash * 31 + entityValue);
             if (_parts.TryGet(new EntityId(entityValue), out PartLink link))
@@ -348,6 +348,7 @@ public sealed class ConstructionRules
             {
                 hash = unchecked(hash * 31 + transform.Position.GetHashCode());
                 hash = unchecked(hash * 31 + transform.Rotation.GetHashCode());
+                hash = unchecked(hash * 31 + transform.Scale.GetHashCode());
             }
 
             IEnumerable<uint> orderedConnections = _connectionsByEntity.TryGetValue(entityValue, out HashSet<uint>? connections)
@@ -364,12 +365,12 @@ public sealed class ConstructionRules
 
     private void Reconnect(uint entityValue)
     {
-        if (!_cellsByEntity.TryGetValue(entityValue, out List<long>? cells))
+        if (!_footprintByEntity.TryGetValue(entityValue, out PartFootprint footprint))
         {
             return;
         }
 
-        List<uint> neighbours = CollectNeighbours(cells, entityValue);
+        List<uint> neighbours = CollectOverlapping(footprint, ConnectionProximity, entityValue);
         UnlinkAll(entityValue);
         _connectionsByEntity[entityValue] = new HashSet<uint>(neighbours);
         foreach (uint neighbour in neighbours)
@@ -406,57 +407,85 @@ public sealed class ConstructionRules
     private int ConnectionCount(uint entityValue) =>
         _connectionsByEntity.TryGetValue(entityValue, out HashSet<uint>? connections) ? connections.Count : 0;
 
-    private List<uint> CollectNeighbours(List<long> cells, uint exclude)
+    /// <summary>Coarse bucket query followed by the exact footprint test.</summary>
+    private List<uint> CollectOverlapping(in PartFootprint footprint, float margin, uint exclude)
     {
-        var neighbours = new HashSet<uint>();
-        foreach (long cell in cells)
+        HashSet<uint> seen = new();
+        List<uint> results = new();
+        (float minX, float minY, float maxX, float maxY) = footprint.Bounds(margin);
+        int minBucketX = BucketIndex(minX);
+        int maxBucketX = BucketIndex(maxX);
+        int minBucketY = BucketIndex(minY);
+        int maxBucketY = BucketIndex(maxY);
+        for (int bucketY = minBucketY; bucketY <= maxBucketY; bucketY++)
         {
-            (int x, int y) = UnpackCell(cell);
-            TryAddNeighbour(neighbours, x - 1, y, exclude);
-            TryAddNeighbour(neighbours, x + 1, y, exclude);
-            TryAddNeighbour(neighbours, x, y - 1, exclude);
-            TryAddNeighbour(neighbours, x, y + 1, exclude);
-        }
-
-        return neighbours.ToList();
-    }
-
-    private void TryAddNeighbour(HashSet<uint> neighbours, int x, int y, uint exclude)
-    {
-        if (_ownerByCell.TryGetValue(PackCell(x, y), out uint owner) && owner != exclude)
-        {
-            neighbours.Add(owner);
-        }
-    }
-
-    private static List<long> AcquireCells(int gridX, int gridY, int width, int height)
-    {
-        var cells = new List<long>(width * height);
-        for (int offsetY = 0; offsetY < height; offsetY++)
-        {
-            for (int offsetX = 0; offsetX < width; offsetX++)
+            for (int bucketX = minBucketX; bucketX <= maxBucketX; bucketX++)
             {
-                cells.Add(PackCell(gridX + offsetX, gridY + offsetY));
+                if (!_entitiesByBucket.TryGetValue(PackBucket(bucketX, bucketY), out List<uint>? bucket))
+                {
+                    continue;
+                }
+
+                foreach (uint entityValue in bucket)
+                {
+                    if (entityValue == exclude || !seen.Add(entityValue) || !_footprintByEntity.TryGetValue(entityValue, out PartFootprint other))
+                    {
+                        continue;
+                    }
+
+                    if (other.Overlaps(footprint, margin))
+                    {
+                        results.Add(entityValue);
+                    }
+                }
             }
         }
 
-        return cells;
+        return results;
     }
 
-    private (int AnchorX, int AnchorY) CellAnchor(List<long> cells)
+    private void SetFootprint(uint entityValue, in PartFootprint footprint)
     {
-        (int firstX, int firstY) = UnpackCell(cells[0]);
-        int minX = firstX;
-        int minY = firstY;
-        foreach (long cell in cells)
+        (float minX, float minY, float maxX, float maxY) = footprint.Bounds();
+        for (int bucketY = BucketIndex(minY); bucketY <= BucketIndex(maxY); bucketY++)
         {
-            (int x, int y) = UnpackCell(cell);
-            minX = Math.Min(minX, x);
-            minY = Math.Min(minY, y);
+            for (int bucketX = BucketIndex(minX); bucketX <= BucketIndex(maxX); bucketX++)
+            {
+                long key = PackBucket(bucketX, bucketY);
+                if (!_entitiesByBucket.TryGetValue(key, out List<uint>? bucket))
+                {
+                    bucket = new List<uint>();
+                    _entitiesByBucket.Add(key, bucket);
+                }
+
+                bucket.Add(entityValue);
+            }
         }
 
-        return (minX, minY);
+        _footprintByEntity[entityValue] = footprint;
     }
+
+    private void UnsetFootprint(uint entityValue)
+    {
+        if (!_footprintByEntity.Remove(entityValue, out PartFootprint footprint))
+        {
+            return;
+        }
+
+        (float minX, float minY, float maxX, float maxY) = footprint.Bounds();
+        for (int bucketY = BucketIndex(minY); bucketY <= BucketIndex(maxY); bucketY++)
+        {
+            for (int bucketX = BucketIndex(minX); bucketX <= BucketIndex(maxX); bucketX++)
+            {
+                if (_entitiesByBucket.TryGetValue(PackBucket(bucketX, bucketY), out List<uint>? bucket))
+                {
+                    bucket.Remove(entityValue);
+                }
+            }
+        }
+    }
+
+    private static int BucketIndex(float value) => (int)MathF.Floor(value / BucketSize);
 
     private static (int Width, int Height) FootprintInCells(PartDefinition part, byte rotation)
     {
@@ -473,22 +502,13 @@ public sealed class ConstructionRules
         return rotation % 2 == 0 ? (widthCells, heightCells) : (heightCells, widthCells);
     }
 
-    private static PhysicsVector3 CellCenter(int gridX, int gridY, int width, int height) => new(
-        (gridX + width / 2f) * CellSize,
-        (gridY + height / 2f) * CellSize,
-        0f);
-
-    private static PhysicsQuaternion RotationQuaternion(byte rotation)
+    private static PhysicsQuaternion RotationQuaternion(float angle)
     {
-        float halfAngle = rotation * MathF.PI / 4f;
+        float halfAngle = angle / 2f;
         return new PhysicsQuaternion(0f, 0f, MathF.Sin(halfAngle), MathF.Cos(halfAngle));
     }
 
-    private static bool IsValidRotation(byte rotation) => rotation <= 3;
-
     private static ConstructionResult Failure(ConstructionError error) => new(default, error);
 
-    private static long PackCell(int x, int y) => ((long)(uint)y << 32) | (uint)x;
-
-    private static (int X, int Y) UnpackCell(long cell) => ((int)(uint)cell, (int)(uint)(cell >> 32));
+    private static long PackBucket(int x, int y) => ((long)(uint)x << 32) | (uint)y;
 }

@@ -57,11 +57,20 @@ public sealed class FrozenContraptionTests
     {
         (ConstructionRules rules, EntityStore entities) = CreateRules();
         ConstructionResult kept = rules.Place(PartBlock, 0, 0, 0);
-        rules.FreezeAll(new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>());
+        var movedPose = new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>
+        {
+            [kept.Entity.Value] = (new PhysicsVector3(20f, 5f, 0f), PhysicsQuaternion.Identity)
+        };
+        rules.FreezeAll(movedPose);
+
+        // The wreckage still occupies the spot it rests at...
+        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 20f, 5f, 0f, 1f).Error);
+        // ...but its old cells are free and fresh parts stay editable.
         ConstructionResult fresh = rules.Place(PartBlock, 0, 0, 0);
 
+        Assert.True(fresh.IsSuccess);
         Assert.Equal(ConstructionError.FrozenEntity, rules.Remove(kept.Entity).Error);
-        Assert.Equal(ConstructionError.FrozenEntity, rules.Rotate(kept.Entity, 1).Error);
+        Assert.Equal(ConstructionError.FrozenEntity, rules.Rotate(kept.Entity, 1f).Error);
         Assert.True(rules.Remove(fresh.Entity).IsSuccess);
         Assert.True(entities.IsAlive(kept.Entity));
     }
@@ -82,7 +91,10 @@ public sealed class FrozenContraptionTests
     {
         (ConstructionRules rules, EntityStore entities) = CreateRules();
         ConstructionResult frozen = rules.Place(PartBlock, 0, 0, 0);
-        rules.FreezeAll(new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>());
+        rules.FreezeAll(new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>
+        {
+            [frozen.Entity.Value] = (new PhysicsVector3(20f, 5f, 0f), PhysicsQuaternion.Identity)
+        });
         ConstructionResult fresh = rules.Place(PartBlock, 0, 0, 0);
 
         List<uint> destroyed = rules.ResetAll();
@@ -91,7 +103,7 @@ public sealed class FrozenContraptionTests
         Assert.Equal(0, rules.PartCount);
         Assert.Equal(0, entities.Count);
         Assert.False(rules.IsAlive(frozen.Entity));
-        Assert.True(rules.Place(PartBlock, 0, 0, 0).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 20f, 5f, 0f, 1f).IsSuccess);
     }
 
     private static long HashAfterFreeze(PhysicsVector3 pose)

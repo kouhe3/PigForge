@@ -2,7 +2,7 @@ using PigForge.Physics.Abstractions;
 
 namespace PigForge.Core;
 
-public readonly record struct EntityTransform(PhysicsVector3 Position, PhysicsQuaternion Rotation);
+public readonly record struct EntityTransform(PhysicsVector3 Position, PhysicsQuaternion Rotation, float Scale = 1f);
 
 public readonly record struct PhysicsBodyLink(PhysicsBodyId Body);
 
