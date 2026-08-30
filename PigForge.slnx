@@ -12,5 +12,6 @@
     <Project Path="tests/PigForge.Protocol.Tests/PigForge.Protocol.Tests.csproj" />
     <Project Path="tests/PigForge.Replay.Tests/PigForge.Replay.Tests.csproj" />
     <Project Path="tests/PigForge.Physics.Tests/PigForge.Physics.Tests.csproj" />
+    <Project Path="tests/PigForge.Server.Tests/PigForge.Server.Tests.csproj" />
   </Folder>
 </Solution>
