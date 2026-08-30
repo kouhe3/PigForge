@@ -62,6 +62,7 @@ public sealed class GameRoom : IDisposable
     private readonly CommandValidator _validator = new();
     private readonly GameplayTickOutput _output = new();
     private readonly Dictionary<uint, PhysicsBodyId> _bodyByEntity = new();
+    private readonly Dictionary<uint, EntityId> _entityByBody = new();
     private readonly List<CommandOutcome> _outcomeLog = new();
     private PhysicsBodySnapshot[] _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
@@ -180,7 +181,11 @@ public sealed class GameRoom : IDisposable
                 if (removed.IsSuccess)
                 {
                     _rules.CleanupEntityStores(entity);
-                    _bodyByEntity.Remove(entity.Value);
+                    if (_bodyByEntity.Remove(entity.Value, out PhysicsBodyId removedBody))
+                    {
+                        _entityByBody.Remove(removedBody.Value);
+                        _world.DestroyBody(removedBody);
+                    }
                 }
 
                 return removed.IsSuccess
@@ -219,6 +224,7 @@ public sealed class GameRoom : IDisposable
             _bodies.Set(entity, new PhysicsBodyLink(body));
             _rules.LinkBody(entity, body, isDynamic: _content.GetPart(partTypeId).Mode == PhysicsBodyMode.Dynamic);
             _bodyByEntity.Add(entity.Value, body);
+            _entityByBody.Add(body.Value, entity);
         }
 
         EnsureBuffers();
@@ -253,6 +259,7 @@ public sealed class GameRoom : IDisposable
         {
             if (_bodyByEntity.Remove(destroyed.Value, out PhysicsBodyId body))
             {
+                _entityByBody.Remove(body.Value);
                 _world.DestroyBody(body);
             }
         }
@@ -265,6 +272,55 @@ public sealed class GameRoom : IDisposable
             Tick();
         }
     }
+
+    /// <summary>
+    /// Publishes the authoritative snapshot frame in the binary wire format. The hot
+    /// path uses span writes only: no JSON and no allocations.
+    /// </summary>
+    public bool TryPublishSnapshot(Span<byte> destination, out int bytesWritten)
+    {
+        ThrowIfDisposed();
+        if (!SnapshotFrame.TryEncodeHeader(
+                destination,
+                new SnapshotFrameHeader(ProtocolVersion.Current, CurrentTick, (byte)Phase, (uint)_bodyByEntity.Count),
+                out SnapshotFrameWriter writer))
+        {
+            bytesWritten = 0;
+            return false;
+        }
+
+        int count = _world.CopySnapshots(_snapshotBuffer);
+        for (int index = 0; index < count; index++)
+        {
+            PhysicsBodySnapshot snapshot = _snapshotBuffer[index];
+            if (!_entityByBody.TryGetValue(snapshot.Body.Value, out EntityId entity)
+                || !_parts.TryGet(entity, out PartLink part))
+            {
+                bytesWritten = 0;
+                return false;
+            }
+
+            if (!writer.WriteEntity(new SnapshotEntity(
+                    entity.Value,
+                    snapshot.Body.Value,
+                    part.PartTypeId,
+                    ToReplay(snapshot.Position),
+                    ToReplay(snapshot.Rotation),
+                    ToReplay(snapshot.LinearVelocity),
+                    ToReplay(snapshot.AngularVelocity))))
+            {
+                bytesWritten = 0;
+                return false;
+            }
+        }
+
+        bytesWritten = writer.WrittenBytes;
+        return true;
+    }
+
+    private static ReplayVector3 ToReplay(PhysicsVector3 value) => new(value.X, value.Y, value.Z);
+
+    private static ReplayQuaternion ToReplay(PhysicsQuaternion value) => new(value.X, value.Y, value.Z, value.W);
 
     /// <summary>Deterministic hash: layout hash in Building, authoritative snapshot hash in Running.</summary>
     public long ComputeStateHash()
@@ -305,6 +361,7 @@ public sealed class GameRoom : IDisposable
         Mode = RoomMode.Closed;
         _world.Dispose();
         _bodyByEntity.Clear();
+        _entityByBody.Clear();
         _outcomeLog.Clear();
         _output.Clear();
         _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
