@@ -125,6 +125,12 @@ Network transport and client
 
 ## Phase 4: Headless Server
 
+### Task 10: Implement room-owned fixed Tick loop - Complete
+
+- Acceptance: one room owns one authoritative physics scene; input, physics and rules phases are ordered; shutdown releases resources.
+- Verify: `6` server tests pass - scripted-world phase-order assertions (apply -> step -> copy -> drain per tick, rules commands flowing through the input phase), destroyed entities release their bodies, Dispose is idempotent and releases the world exactly once, spawn sealed after first tick, and real-Bepu rooms produce identical double-run hashes with a stable outcome.
+- Files: `src/PigForge.Server/GameRoom.cs`, `tests/PigForge.Server.Tests/GameRoomTests.cs`.
+
 ### Task 10: Implement room-owned fixed Tick loop
 
 - Acceptance: one room owns one authoritative physics scene; input, physics and rules phases are ordered; shutdown releases resources.
