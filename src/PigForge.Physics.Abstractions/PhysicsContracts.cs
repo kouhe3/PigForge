@@ -20,7 +20,8 @@ public enum PhysicsShapeKind
 	Sphere,
 	Capsule,
 	ConvexMesh,
-	TriangleMesh
+	TriangleMesh,
+	Compound
 }
 
 public enum PhysicsBodyMode
@@ -90,6 +91,14 @@ public readonly record struct PhysicsVector3(float X, float Y, float Z)
 
 	public static PhysicsVector3 operator *(PhysicsVector3 left, float scalar) =>
 		new(left.X * scalar, left.Y * scalar, left.Z * scalar);
+
+	public static float Dot(PhysicsVector3 left, PhysicsVector3 right) =>
+		(left.X * right.X) + (left.Y * right.Y) + (left.Z * right.Z);
+
+	public static PhysicsVector3 Cross(PhysicsVector3 left, PhysicsVector3 right) => new(
+		(left.Y * right.Z) - (left.Z * right.Y),
+		(left.Z * right.X) - (left.X * right.Z),
+		(left.X * right.Y) - (left.Y * right.X));
 }
 
 public readonly record struct PhysicsQuaternion(float X, float Y, float Z, float W)
@@ -97,6 +106,23 @@ public readonly record struct PhysicsQuaternion(float X, float Y, float Z, float
 	public static PhysicsQuaternion Identity => new(0, 0, 0, 1);
 
 	public bool IsFinite => float.IsFinite(X) && float.IsFinite(Y) && float.IsFinite(Z) && float.IsFinite(W);
+
+	/// <summary>Conjugate; for the unit quaternions used here this is the inverse rotation.</summary>
+	public PhysicsQuaternion Inverse => new(-X, -Y, -Z, W);
+
+	public static PhysicsQuaternion operator *(PhysicsQuaternion left, PhysicsQuaternion right) => new(
+		(left.W * right.X) + (left.X * right.W) + (left.Y * right.Z) - (left.Z * right.Y),
+		(left.W * right.Y) - (left.X * right.Z) + (left.Y * right.W) + (left.Z * right.X),
+		(left.W * right.Z) + (left.X * right.Y) - (left.Y * right.X) + (left.Z * right.W),
+		(left.W * right.W) - (left.X * right.X) - (left.Y * right.Y) - (left.Z * right.Z));
+
+	/// <summary>Rotates a vector by this unit quaternion.</summary>
+	public PhysicsVector3 Rotate(PhysicsVector3 value)
+	{
+		PhysicsVector3 u = new(X, Y, Z);
+		PhysicsVector3 inner = PhysicsVector3.Cross(u, value) + (value * W);
+		return value + (PhysicsVector3.Cross(u, inner) * 2f);
+	}
 }
 
 public readonly record struct FixedTimeStep(float Seconds)
@@ -144,6 +170,60 @@ public sealed record BoxShapeDefinition : ShapeDefinition
 			throw new ArgumentOutOfRangeException(parameterName, value, "A box half extent must be finite and positive.");
 		}
 	}
+}
+
+/// <summary>One child of a compound shape: a leaf shape at a fixed offset from the body origin.</summary>
+public sealed record CompoundChild(ShapeDefinition Shape, PhysicsVector3 Offset, PhysicsQuaternion Rotation)
+{
+	public CompoundChild(ShapeDefinition shape, PhysicsVector3 offset)
+		: this(shape, offset, PhysicsQuaternion.Identity)
+	{
+	}
+}
+
+/// <summary>
+/// A rigid composition of leaf shapes. Child offsets are expressed relative to the body
+/// origin, and the body origin is the assembly's centre of mass — creators position the
+/// body accordingly so snapshots report the centre-of-mass frame.
+/// </summary>
+public sealed record CompoundShapeDefinition : ShapeDefinition
+{
+	public CompoundShapeDefinition(IReadOnlyList<CompoundChild> children)
+		: base(PhysicsShapeKind.Compound)
+	{
+		ArgumentNullException.ThrowIfNull(children);
+		if (children.Count == 0)
+		{
+			throw new ArgumentException("A compound shape requires at least one child.", nameof(children));
+		}
+
+		foreach (CompoundChild? child in children)
+		{
+			if (child is null || child.Shape is null)
+			{
+				throw new ArgumentException("A compound shape cannot contain null children.", nameof(children));
+			}
+
+			if (child.Shape is CompoundShapeDefinition)
+			{
+				throw new ArgumentException("A compound shape cannot contain nested compounds.", nameof(children));
+			}
+
+			if (!child.Offset.IsFinite)
+			{
+				throw new ArgumentOutOfRangeException(nameof(children), "A compound child offset must contain only finite values.");
+			}
+
+			if (!child.Rotation.IsFinite)
+			{
+				throw new ArgumentOutOfRangeException(nameof(children), "A compound child rotation must contain only finite values.");
+			}
+		}
+
+		Children = children;
+	}
+
+	public IReadOnlyList<CompoundChild> Children { get; }
 }
 
 public sealed class BodyDefinition

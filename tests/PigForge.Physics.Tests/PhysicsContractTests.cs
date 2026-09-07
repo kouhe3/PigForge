@@ -227,6 +227,76 @@ public sealed class PhysicsContractTests
         Assert.Empty(world.Capabilities.SupportedJointKinds);
     }
 
+    [Fact]
+    public void BepuWorldCreatesCompoundDropsItAndReleasesShapes()
+    {
+        using BepuPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));
+        PhysicsBodyId ground = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Static,
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.Identity,
+            0,
+            new ShapeDefinition[] { new BoxShapeDefinition(10, 0.5f, 10) }));
+        CompoundShapeDefinition compound = new(new[]
+        {
+            new CompoundChild(new BoxShapeDefinition(0.5f, 0.5f, 0.5f), new PhysicsVector3(-0.55f, 0f, 0f)),
+            new CompoundChild(new BoxShapeDefinition(0.5f, 0.5f, 0.5f), new PhysicsVector3(0.55f, 0f, 0f))
+        });
+        PhysicsBodyId body = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 4, 0),
+            PhysicsQuaternion.Identity,
+            2,
+            new ShapeDefinition[] { compound }));
+
+        PhysicsEvent[] events = new PhysicsEvent[16];
+        _ = world.DrainEvents(events);
+        bool contactStarted = false;
+        FixedTimeStep timeStep = FixedTimeStep.FromSeconds(1f / 60f);
+        for (int tick = 0; tick < 180; tick++)
+        {
+            world.ApplyCommands(ReadOnlySpan<PhysicsCommand>.Empty);
+            world.Step(timeStep);
+            int eventCount = world.DrainEvents(events);
+            for (int index = 0; index < eventCount; index++)
+            {
+                contactStarted |= events[index].Kind == PhysicsEventKind.ContactStarted
+                    && ((events[index].BodyA == ground && events[index].BodyB == body)
+                        || (events[index].BodyA == body && events[index].BodyB == ground));
+            }
+        }
+
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[2];
+        int snapshotCount = world.CopySnapshots(snapshots);
+        PhysicsBodySnapshot compoundSnapshot = Assert.Single(snapshots[..snapshotCount], snapshot => snapshot.Body == body);
+        Assert.InRange(compoundSnapshot.Position.Y, 0.95f, 1.2f);
+        Assert.True(contactStarted);
+
+        world.DestroyBody(body);
+        world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 3, 0),
+            PhysicsQuaternion.Identity,
+            1,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+    }
+
+    [Fact]
+    public void BepuWorldRejectsStaticCompound()
+    {
+        using BepuPhysicsWorld world = new(PhysicsVector3.Zero);
+        CompoundShapeDefinition compound = new(new[]
+        {
+            new CompoundChild(new BoxShapeDefinition(0.5f, 0.5f, 0.5f), PhysicsVector3.Zero)
+        });
+        Assert.Throws<NotSupportedException>(() => world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Static,
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.Identity,
+            0,
+            new ShapeDefinition[] { compound })));
+    }
+
     private sealed record UnsupportedShapeDefinition() : ShapeDefinition(PhysicsShapeKind.Sphere);
 
     private static BodyDefinition DynamicBox() => new(

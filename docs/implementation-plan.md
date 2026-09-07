@@ -141,11 +141,12 @@ Prerequisite: Tasks 10 and 11 (room loop and command validation) — constructio
 - Files: `src/PigForge.Protocol/` (command, policy, validator), `schemas/physics-replay-v1.schema.json`, `docs/specs/physics-replay-v1.md`, `src/PigForge.Core/Construction/ConstructionRules.cs` (frozen group + ResetAll), `src/PigForge.Core/Runtime/GameplayRules.cs` (ResetForRebuild/ResetAll), `src/PigForge.Server/GameRoom.cs`, `src/PigForge.Server/CommandValidator.cs`, tests.
 - Semantics notes: frozen entities release their grid cells and never connect to fresh placements (independent second vehicle); frozen pigs/TNT keep their gameplay roles and relaunch as dynamic bodies; build-phase commands always carry Tick 0 while `EnterBuildMode` must carry the room's current tick.
 
-### Task 15: Free placement, scaling and compound merging (issue #4, protocol v2)
+### Task 15: Free placement, scaling and compound merging (issue #4, protocol v2) - Complete
 
 - Scope: break the grid coupling introduced by our own rules, not by physics — commands gain free angle and scale; replay entity state gains scale and it enters the canonical state hash; construction occupancy rewrites from cell ownership to spatial-hash coarse filtering plus OBB overlap; connections move to attachment-point/proximity semantics; optional compound merging for joint-count reduction with seam-based splitting per ADR-002 (impulse threshold, no damage accumulation).
 - Acceptance: replay protocol version bumps with backward-rejection of invalid versions; merged compounds split deterministically along seams on threshold breach.
-- Verify: protocol v2 round-trip and rejection tests; construction OBB tests; compound split replay fixtures with double-run hash equality.
+- Verify: protocol v2 round-trip and rejection tests; construction OBB tests (`FreePlacementTests`); compound merge/split Core fixtures with double-run hash equality (`CompoundAssemblerTests`); Bepu compound create/drop/dispose and static-compound rejection; GameRoom Start welds connected parts into one physics body. Full suite `131` tests green, Release build zero warnings.
+- Files: `src/PigForge.Core/Construction/CompoundAssembler.cs`, `src/PigForge.Physics.Abstractions/PhysicsContracts.cs` (`CompoundShapeDefinition`), `src/PigForge.Physics.Bepu/BepuPhysicsWorld.cs`, `src/PigForge.Server/GameRoom.cs`, tests.
 
 ### Task 12: Add snapshot publication - Complete
 

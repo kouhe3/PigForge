@@ -64,9 +64,15 @@ public sealed class GameRoom : IDisposable
     private readonly GameplayTickOutput _output = new();
     private readonly Dictionary<uint, PhysicsBodyId> _bodyByEntity = new();
     private readonly Dictionary<uint, EntityId> _entityByBody = new();
+    private readonly Dictionary<uint, List<uint>> _entitiesByBody = new();
+    private readonly Dictionary<uint, (PhysicsVector3 Offset, PhysicsQuaternion Rotation)> _compoundLocalByEntity = new();
+    private readonly List<LiveCompound> _liveCompounds = new();
+    private readonly List<PhysicsCommand> _appliedCommands = new();
+    private readonly float _seamBreakImpulse;
     private readonly List<CommandOutcome> _outcomeLog = new();
     private PhysicsBodySnapshot[] _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
+    private readonly List<uint> _entityOrder = new();
     private LevelContentDocument? _level;
     private bool _disposed;
 
@@ -76,6 +82,7 @@ public sealed class GameRoom : IDisposable
         _content = options.Content ?? throw new ArgumentException("Room options must carry part content.", nameof(options));
         _world = options.WorldFactory?.Invoke() ?? throw new ArgumentException("Room options must provide a world factory.", nameof(options));
         _timeStep = FixedTimeStep.FromSeconds(1f / (options.TickRateHz == 0 ? (ushort)60 : options.TickRateHz));
+        _seamBreakImpulse = options.GameplayConfig.SeamBreakImpulse;
         _parts = new PartStore(_entities);
         _transforms = new TransformStore(_entities);
         _bodies = new PhysicsBodyStore(_entities);
@@ -209,11 +216,7 @@ public sealed class GameRoom : IDisposable
                 if (removed.IsSuccess)
                 {
                     _rules.CleanupEntityStores(entity);
-                    if (_bodyByEntity.Remove(entity.Value, out PhysicsBodyId removedBody))
-                    {
-                        _entityByBody.Remove(removedBody.Value);
-                        _world.DestroyBody(removedBody);
-                    }
+                    UnbindEntity(entity, destroyBodyIfOrphan: true);
                 }
 
                 return removed.IsSuccess
@@ -235,8 +238,9 @@ public sealed class GameRoom : IDisposable
     }
 
     /// <summary>
-    /// Transitions Building → Running and materialises one authoritative body per entity,
-    /// in slot order, from the rules-state transforms.
+    /// Transitions Building → Running and materialises authoritative bodies from
+    /// construction connections: connected dynamic boxes become one compound, other
+    /// parts stay one body each. Slot order of clusters is deterministic.
     /// </summary>
     public void Start()
     {
@@ -246,18 +250,18 @@ public sealed class GameRoom : IDisposable
             throw new InvalidOperationException("Only a building room can start simulation.");
         }
 
+        List<EntityId> entities = new();
         var parts = _parts.GetEnumerator();
         while (parts.MoveNext())
         {
-            EntityId entity = parts.CurrentId;
-            uint partTypeId = parts.CurrentValue.PartTypeId;
-            _transforms.TryGet(entity, out EntityTransform transform);
-            PhysicsBodyId body = _world.CreateBody(_content.CreateBodyDefinition(
-                partTypeId, transform.Position, transform.Rotation, transform.Scale));
-            _bodies.Set(entity, new PhysicsBodyLink(body));
-            _rules.LinkBody(entity, body, isDynamic: _content.GetPart(partTypeId).Mode == PhysicsBodyMode.Dynamic);
-            _bodyByEntity.Add(entity.Value, body);
-            _entityByBody.Add(body.Value, entity);
+            entities.Add(parts.CurrentId);
+        }
+
+        entities.Sort((left, right) => left.Value.CompareTo(right.Value));
+        List<CompoundCluster> clusters = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
+        foreach (CompoundCluster cluster in clusters)
+        {
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content));
         }
 
         EnsureBuffers();
@@ -280,13 +284,21 @@ public sealed class GameRoom : IDisposable
         uint[] entityValues = _bodyByEntity.Keys.ToArray();
         Array.Sort(entityValues);
         Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> posesByEntity = CapturePoses();
+        HashSet<uint> destroyedBodies = new();
         foreach (uint entityValue in entityValues)
         {
             PhysicsBodyId body = _bodyByEntity[entityValue];
-            _world.DestroyBody(body);
-            _entityByBody.Remove(body.Value);
-            _bodyByEntity.Remove(entityValue);
+            if (destroyedBodies.Add(body.Value))
+            {
+                _world.DestroyBody(body);
+            }
         }
+
+        _bodyByEntity.Clear();
+        _entityByBody.Clear();
+        _entitiesByBody.Clear();
+        _compoundLocalByEntity.Clear();
+        _liveCompounds.Clear();
 
         if (policy == BuildModePolicy.Keep)
         {
@@ -330,14 +342,15 @@ public sealed class GameRoom : IDisposable
     private Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> CapturePoses()
     {
         int count = _world.CopySnapshots(_snapshotBuffer);
-        Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)> poses = new(count);
-        for (int index = 0; index < count; index++)
+        Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)> poses = new(_bodyByEntity.Count);
+        foreach (KeyValuePair<uint, PhysicsBodyId> pair in _bodyByEntity)
         {
-            PhysicsBodySnapshot snapshot = _snapshotBuffer[index];
-            if (_entityByBody.TryGetValue(snapshot.Body.Value, out EntityId entity))
+            if (!TryFindSnapshot(pair.Value, count, out PhysicsBodySnapshot snapshot))
             {
-                poses.Add(entity.Value, (snapshot.Position, snapshot.Rotation));
+                continue;
             }
+
+            poses[pair.Key] = WorldPose(pair.Key, snapshot);
         }
 
         return poses;
@@ -352,6 +365,9 @@ public sealed class GameRoom : IDisposable
         }
 
         CurrentTick++;
+
+        _appliedCommands.Clear();
+        _appliedCommands.AddRange(_output.Commands);
 
         // Phase 1 (input): commands the rules produced last tick drive the physics world.
         _world.ApplyCommands(CollectionsMarshal.AsSpan(_output.Commands));
@@ -369,12 +385,11 @@ public sealed class GameRoom : IDisposable
         // Phase 5 (cleanup): bodies of destroyed entities leave the authoritative scene.
         foreach (EntityId destroyed in _output.DestroyedEntities)
         {
-            if (_bodyByEntity.Remove(destroyed.Value, out PhysicsBodyId body))
-            {
-                _entityByBody.Remove(body.Value);
-                _world.DestroyBody(body);
-            }
+            UnbindEntity(destroyed, destroyBodyIfOrphan: true);
         }
+
+        // Phase 5.5: ADR-002 seam split from the impulses that just landed.
+        SplitFromAppliedCommands(snapshotCount);
     }
 
     public void RunTicks(uint count)
@@ -402,25 +417,28 @@ public sealed class GameRoom : IDisposable
         }
 
         int count = _world.CopySnapshots(_snapshotBuffer);
-        for (int index = 0; index < count; index++)
+        FillEntityOrder();
+        for (int index = 0; index < _entityOrder.Count; index++)
         {
-            PhysicsBodySnapshot snapshot = _snapshotBuffer[index];
-            if (!_entityByBody.TryGetValue(snapshot.Body.Value, out EntityId entity)
-                || !_parts.TryGet(entity, out PartLink part))
+            uint entityValue = _entityOrder[index];
+            PhysicsBodyId body = _bodyByEntity[entityValue];
+            if (!TryFindSnapshot(body, count, out PhysicsBodySnapshot snapshot)
+                || !_parts.TryGet(new EntityId(entityValue), out PartLink part))
             {
                 bytesWritten = 0;
                 return false;
             }
 
+            (PhysicsVector3 position, PhysicsQuaternion rotation) = WorldPose(entityValue, snapshot);
             if (!writer.WriteEntity(new SnapshotEntity(
-                    entity.Value,
+                    entityValue,
                     snapshot.Body.Value,
                     part.PartTypeId,
-                    ToReplay(snapshot.Position),
-                    ToReplay(snapshot.Rotation),
+                    ToReplay(position),
+                    ToReplay(rotation),
                     ToReplay(snapshot.LinearVelocity),
                     ToReplay(snapshot.AngularVelocity),
-                    _transforms.TryGet(entity, out EntityTransform transform) ? transform.Scale : 1f)))
+                    _transforms.TryGet(new EntityId(entityValue), out EntityTransform transform) ? transform.Scale : 1f)))
             {
                 bytesWritten = 0;
                 return false;
@@ -475,17 +493,187 @@ public sealed class GameRoom : IDisposable
         _world.Dispose();
         _bodyByEntity.Clear();
         _entityByBody.Clear();
+        _entitiesByBody.Clear();
+        _compoundLocalByEntity.Clear();
+        _liveCompounds.Clear();
+        _appliedCommands.Clear();
         _outcomeLog.Clear();
         _output.Clear();
         _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
         _eventBuffer = Array.Empty<PhysicsEvent>();
     }
 
+    private void BindCluster(CompoundCluster cluster, BodyDefinition definition)
+    {
+        PhysicsBodyId body = _world.CreateBody(definition);
+        foreach (CompoundMember member in cluster.Members)
+        {
+            _bodies.Set(member.Entity, new PhysicsBodyLink(body));
+            _rules.LinkBody(member.Entity, body, isDynamic: definition.Mode == PhysicsBodyMode.Dynamic);
+            _bodyByEntity.Add(member.Entity.Value, body);
+            if (!_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
+            {
+                members = new List<uint>();
+                _entitiesByBody.Add(body.Value, members);
+                _entityByBody.Add(body.Value, member.Entity);
+            }
+
+            members.Add(member.Entity.Value);
+            if (cluster.IsMerged)
+            {
+                _compoundLocalByEntity[member.Entity.Value] = (member.LocalOffset, member.LocalRotation);
+            }
+        }
+
+        if (cluster.IsMerged)
+        {
+            _liveCompounds.Add(new LiveCompound(body, cluster));
+        }
+    }
+
+    private void UnbindEntity(EntityId entity, bool destroyBodyIfOrphan)
+    {
+        if (!_bodyByEntity.Remove(entity.Value, out PhysicsBodyId body))
+        {
+            return;
+        }
+
+        _compoundLocalByEntity.Remove(entity.Value);
+        if (_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
+        {
+            members.Remove(entity.Value);
+            if (members.Count == 0)
+            {
+                _entitiesByBody.Remove(body.Value);
+                _entityByBody.Remove(body.Value);
+                _liveCompounds.RemoveAll(live => live.Body == body);
+                if (destroyBodyIfOrphan)
+                {
+                    _world.DestroyBody(body);
+                }
+            }
+            else if (_entityByBody.TryGetValue(body.Value, out EntityId primary) && primary == entity)
+            {
+                _entityByBody[body.Value] = new EntityId(members[0]);
+            }
+        }
+        else if (destroyBodyIfOrphan)
+        {
+            _entityByBody.Remove(body.Value);
+            _world.DestroyBody(body);
+        }
+    }
+
+    private void SplitFromAppliedCommands(int snapshotCount)
+    {
+        for (int index = 0; index < _appliedCommands.Count; index++)
+        {
+            PhysicsCommand command = _appliedCommands[index];
+            float magnitude = PhysicsVector3.Distance(command.Impulse, PhysicsVector3.Zero);
+            if (magnitude <= _seamBreakImpulse)
+            {
+                continue;
+            }
+
+            int liveIndex = _liveCompounds.FindIndex(candidate => candidate.Body == command.Body);
+            if (liveIndex < 0 || !TryFindSnapshot(command.Body, snapshotCount, out PhysicsBodySnapshot snapshot))
+            {
+                continue;
+            }
+
+            LiveCompound live = _liveCompounds[liveIndex];
+            live.Cluster.WorldPosition = snapshot.Position;
+            live.Cluster.WorldRotation = snapshot.Rotation;
+            CompoundSeam? seam = CompoundAssembler.NearestSeam(live.Cluster, command.WorldPoint);
+            if (seam is null || magnitude <= seam.Value.BreakImpulse)
+            {
+                continue;
+            }
+
+            IReadOnlyList<CompoundCluster> pieces = CompoundAssembler.SplitAlongSeam(live.Cluster, seam.Value);
+            if (pieces.Count == 1)
+            {
+                live.Cluster = pieces[0];
+                continue;
+            }
+
+            List<uint> members = _entitiesByBody.TryGetValue(live.Body.Value, out List<uint>? bound)
+                ? new List<uint>(bound)
+                : new List<uint>();
+            foreach (uint entityValue in members)
+            {
+                UnbindEntity(new EntityId(entityValue), destroyBodyIfOrphan: false);
+            }
+
+            _world.DestroyBody(live.Body);
+            foreach (CompoundCluster piece in pieces)
+            {
+                BindCluster(piece, piece.CreateBodyDefinition(_content, snapshot.LinearVelocity, snapshot.AngularVelocity));
+            }
+
+            EnsureBuffers();
+        }
+    }
+
+    private (PhysicsVector3 Position, PhysicsQuaternion Rotation) WorldPose(uint entityValue, PhysicsBodySnapshot snapshot)
+    {
+        if (!_compoundLocalByEntity.TryGetValue(entityValue, out (PhysicsVector3 Offset, PhysicsQuaternion Rotation) local))
+        {
+            return (snapshot.Position, snapshot.Rotation);
+        }
+
+        return (snapshot.Position + snapshot.Rotation.Rotate(local.Offset), snapshot.Rotation * local.Rotation);
+    }
+
+    private bool TryFindSnapshot(PhysicsBodyId body, int snapshotCount, out PhysicsBodySnapshot snapshot)
+    {
+        for (int index = 0; index < snapshotCount; index++)
+        {
+            if (_snapshotBuffer[index].Body == body)
+            {
+                snapshot = _snapshotBuffer[index];
+                return true;
+            }
+        }
+
+        snapshot = default;
+        return false;
+    }
+
+    private void FillEntityOrder()
+    {
+        if (_entityOrder.Capacity < _bodyByEntity.Count)
+        {
+            _entityOrder.Capacity = _bodyByEntity.Count;
+        }
+
+        _entityOrder.Clear();
+        foreach (KeyValuePair<uint, PhysicsBodyId> pair in _bodyByEntity)
+        {
+            _entityOrder.Add(pair.Key);
+        }
+
+        _entityOrder.Sort();
+    }
+
     private void EnsureBuffers()
     {
-        int bodyCount = Math.Max(1, _bodyByEntity.Count);
-        _snapshotBuffer = new PhysicsBodySnapshot[bodyCount];
-        _eventBuffer = new PhysicsEvent[(bodyCount * (bodyCount - 1) / 2) + bodyCount + 16];
+        int bodyCount = Math.Max(1, _entitiesByBody.Count);
+        if (_snapshotBuffer.Length < bodyCount)
+        {
+            _snapshotBuffer = new PhysicsBodySnapshot[bodyCount];
+        }
+
+        int eventCapacity = (bodyCount * (bodyCount - 1) / 2) + bodyCount + 16;
+        if (_eventBuffer.Length < eventCapacity)
+        {
+            _eventBuffer = new PhysicsEvent[eventCapacity];
+        }
+
+        if (_entityOrder.Capacity < _bodyByEntity.Count)
+        {
+            _entityOrder.Capacity = _bodyByEntity.Count;
+        }
     }
 
     private void EnsureBuilding(string operation)
@@ -497,4 +685,11 @@ public sealed class GameRoom : IDisposable
     }
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
+
+    private sealed class LiveCompound(PhysicsBodyId body, CompoundCluster cluster)
+    {
+        public PhysicsBodyId Body { get; } = body;
+
+        public CompoundCluster Cluster { get; set; } = cluster;
+    }
 }

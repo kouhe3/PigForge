@@ -312,6 +312,19 @@ public sealed class GameRoomTests
         Assert.NotEqual(HashWith(0f, 1f), HashWith(0f, 2f));
     }
 
+    [Fact]
+    public void ConnectedPartsShareOnePhysicsBodyAtStart()
+    {
+        ScriptedPhysicsWorld world = new();
+        using GameRoom room = CreateRoom(() => world);
+        room.Submit(new PlacePartCommand(Tick: 0, Sequence: 1, PlayerId: PlayerOne, PartTypeId: PartBlock, PositionX: 0f, PositionY: 0f, Angle: 0f, Scale: 1f));
+        room.Submit(new PlacePartCommand(Tick: 0, Sequence: 2, PlayerId: PlayerOne, PartTypeId: PartBlock, PositionX: 1.1f, PositionY: 0f, Angle: 0f, Scale: 1f));
+        room.Start();
+
+        Assert.Equal(2, room.BodyCount);
+        Assert.Single(world.Snapshots);
+    }
+
     private static (long Hash, CommandStatus[] Statuses) RunMaliciousScript()
     {
         GameRoom room = CreateRoom(() => new ScriptedPhysicsWorld());

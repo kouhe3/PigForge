@@ -26,14 +26,16 @@ public sealed record GameplayConfig(
     GameplayZone MapBounds,
     float TntBlastRadius,
     float TntBlastImpulse,
-    float TntIgniteImpactSpeed)
+    float TntIgniteImpactSpeed,
+    float SeamBreakImpulse = 10f)
 {
     public static GameplayConfig Default { get; } = new(
         GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
         MapBounds: new GameplayZone(new PhysicsVector3(-100, -5, -20), new PhysicsVector3(100, 60, 20)),
         TntBlastRadius: 4f,
         TntBlastImpulse: 25f,
-        TntIgniteImpactSpeed: 5f);
+        TntIgniteImpactSpeed: 5f,
+        SeamBreakImpulse: 10f);
 }
 
 /// <summary>Per-tick rule output; the caller owns and reuses the instance to keep the tick path allocation-free.</summary>
@@ -107,7 +109,7 @@ public sealed class GameplayRules
             throw new ArgumentException($"Entity {entity.Value} has no physics body link matching {body.Value}.", nameof(body));
         }
 
-        _entitiesByBody.Add(body.Value, entity);
+        _entitiesByBody[body.Value] = entity;
         if (isDynamic)
         {
             _dynamicBodies.Add(body.Value);

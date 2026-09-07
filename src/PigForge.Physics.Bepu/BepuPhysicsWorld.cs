@@ -5,6 +5,7 @@ using BepuPhysics.CollisionDetection;
 using BepuPhysics.Constraints;
 using BepuUtilities;
 using BepuUtilities.Memory;
+using BepuCompoundChild = BepuPhysics.Collidables.CompoundChild;
 using PigForge.Physics.Abstractions;
 
 namespace PigForge.Physics.Bepu;
@@ -16,6 +17,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private readonly Dictionary<PhysicsBodyId, BodyHandle> _dynamicBodies = new();
     private readonly Dictionary<PhysicsBodyId, StaticHandle> _staticBodies = new();
     private readonly Dictionary<PhysicsBodyId, TypedIndex> _shapesByBody = new();
+    private readonly Dictionary<TypedIndex, List<TypedIndex>> _childShapesByCompound = new();
     private readonly Dictionary<int, float> _frictionByDynamicHandle = new();
     private readonly Dictionary<int, float> _frictionByStaticHandle = new();
     private readonly Dictionary<int, PhysicsBodyId> _dynamicIdsByHandle = new();
@@ -52,11 +54,33 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(definition);
-        BoxShapeDefinition shape = GetSingleBoxShape(definition);
-        Box physicsShape = new(shape.HalfExtentX * 2, shape.HalfExtentY * 2, shape.HalfExtentZ * 2);
         PhysicsBodyId id = AllocateBodyId();
         RigidPose pose = CreatePose(definition.Position, definition.Rotation);
-        TypedIndex shapeIndex = _simulation.Shapes.Add(physicsShape);
+
+        TypedIndex shapeIndex;
+        BodyInertia inertia;
+        BodyActivityDescription activity;
+        if (definition.Shapes.Count == 1 && definition.Shapes[0] is BoxShapeDefinition box)
+        {
+            Box physicsShape = new(box.HalfExtentX * 2, box.HalfExtentY * 2, box.HalfExtentZ * 2);
+            shapeIndex = _simulation.Shapes.Add(physicsShape);
+            inertia = physicsShape.ComputeInertia(definition.Mass);
+            activity = BodyDescription.GetDefaultActivity(physicsShape);
+        }
+        else if (definition.Shapes.Count == 1 && definition.Shapes[0] is CompoundShapeDefinition compound)
+        {
+            if (definition.Mode == PhysicsBodyMode.Static)
+            {
+                throw new NotSupportedException("BepuPhysics backend does not support static compound bodies yet.");
+            }
+
+            shapeIndex = BuildCompoundShape(compound, definition.Mass, out inertia);
+            activity = new BodyActivityDescription(0.01f);
+        }
+        else
+        {
+            throw new NotSupportedException("BepuPhysics backend supports exactly one box or compound shape per body.");
+        }
 
         if (definition.Mode == PhysicsBodyMode.Static)
         {
@@ -70,9 +94,9 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             BodyDescription body = BodyDescription.CreateDynamic(
                 pose,
                 new BodyVelocity(ToNumerics(definition.LinearVelocity), ToNumerics(definition.AngularVelocity)),
-                physicsShape.ComputeInertia(definition.Mass),
+                inertia,
                 new CollidableDescription(shapeIndex),
-                BodyDescription.GetDefaultActivity(physicsShape));
+                activity);
             BodyHandle handle = _simulation.Bodies.Add(body);
             _dynamicBodies.Add(id, handle);
             _dynamicIdsByHandle.Add(handle.Value, id);
@@ -111,6 +135,13 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         if (_shapesByBody.Remove(body, out TypedIndex shapeIndex))
         {
             _simulation.Shapes.RemoveAndDispose(shapeIndex, _bufferPool);
+            if (_childShapesByCompound.Remove(shapeIndex, out List<TypedIndex>? childShapes))
+            {
+                foreach (TypedIndex childShape in childShapes)
+                {
+                    _simulation.Shapes.Remove(childShape);
+                }
+            }
         }
 
         _bodyOrder.Remove(body);
@@ -256,6 +287,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _dynamicBodies.Clear();
         _staticBodies.Clear();
         _shapesByBody.Clear();
+        _childShapesByCompound.Clear();
         _frictionByDynamicHandle.Clear();
         _frictionByStaticHandle.Clear();
         _dynamicIdsByHandle.Clear();
@@ -311,15 +343,74 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         return new PhysicsBodyId(_nextBodyId++);
     }
 
-    private static BoxShapeDefinition GetSingleBoxShape(BodyDefinition definition)
+    /// <summary>
+    /// Builds a Compound from the definition's children. <see cref="CompoundBuilder.BuildDynamicCompound"/>
+    /// recentres children onto the assembly centre of mass; callers should pose the body
+    /// at that centre so snapshots report the centre-of-mass frame. Child shapes are
+    /// registered in the shape collection and removed with the compound.
+    /// Source: https://github.com/bepu/bepuphysics2/blob/master/BepuPhysics/Collidables/CompoundBuilder.cs
+    /// </summary>
+    private TypedIndex BuildCompoundShape(CompoundShapeDefinition compound, float totalMass, out BodyInertia inertia)
     {
-        if (definition.Shapes.Count != 1 || definition.Shapes[0] is not BoxShapeDefinition box)
+        int count = compound.Children.Count;
+        Span<float> childMasses = stackalloc float[count];
+        float totalVolume = 0f;
+        for (int index = 0; index < count; index++)
         {
-            throw new NotSupportedException("BepuPhysics backend currently supports exactly one box shape per body.");
+            float volume = BoxVolume(compound.Children[index].Shape);
+            childMasses[index] = volume;
+            totalVolume += volume;
         }
 
-        return box;
+        if (totalVolume <= 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(compound), "A compound requires positive child volume.");
+        }
+
+        for (int index = 0; index < count; index++)
+        {
+            childMasses[index] *= totalMass / totalVolume;
+        }
+
+        var builder = new CompoundBuilder(_bufferPool, _simulation.Shapes, count);
+        try
+        {
+            for (int index = 0; index < count; index++)
+            {
+                Abstractions.CompoundChild child = compound.Children[index];
+                Box box = BoxFor(child.Shape);
+                RigidPose pose = new(ToNumerics(child.Offset), ToNumerics(child.Rotation));
+                builder.Add(in box, in pose, childMasses[index]);
+            }
+
+            builder.BuildDynamicCompound(out Buffer<BepuCompoundChild> children, out inertia, out _);
+            List<TypedIndex> childShapes = new(count);
+            for (int index = 0; index < count; index++)
+            {
+                childShapes.Add(children[index].ShapeIndex);
+            }
+
+            TypedIndex compoundIndex = _simulation.Shapes.Add(new Compound(children));
+            _childShapesByCompound.Add(compoundIndex, childShapes);
+            return compoundIndex;
+        }
+        finally
+        {
+            builder.Dispose();
+        }
     }
+
+    private static Box BoxFor(ShapeDefinition shape) => shape switch
+    {
+        BoxShapeDefinition box => new Box(box.HalfExtentX * 2, box.HalfExtentY * 2, box.HalfExtentZ * 2),
+        _ => throw new NotSupportedException("BepuPhysics compound children must be boxes for now.")
+    };
+
+    private static float BoxVolume(ShapeDefinition shape) => shape switch
+    {
+        BoxShapeDefinition box => 8f * box.HalfExtentX * box.HalfExtentY * box.HalfExtentZ,
+        _ => throw new NotSupportedException("BepuPhysics compound children must be boxes for now.")
+    };
 
     private static RigidPose CreatePose(PhysicsVector3 position, PhysicsQuaternion rotation)
     {
