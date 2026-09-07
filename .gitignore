@@ -20,3 +20,5 @@ unity/PigForge.UnityReference/replays/
 replays/
 .agents/
 /tasks/
+**/node_modules/
+clients/web/dist/

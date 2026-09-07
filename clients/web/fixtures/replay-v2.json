@@ -1,0 +1,97 @@
+{
+  "format": "pigforge.physics.replay",
+  "header": {
+    "protocolVersion": 2,
+    "contentVersion": "pigforge-base-content-v1",
+    "physicsBehaviorVersion": "bepu-v2",
+    "stateHashAlgorithm": "sha256-canonical-v2",
+    "fixedTickRate": 60,
+    "simulationTicks": 2,
+    "randomSeed": 0
+  },
+  "initialState": {
+    "entities": [
+      {
+        "entityId": 1,
+        "physicsBodyId": 1,
+        "partTypeId": 2,
+        "position": [0, -0.5, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearVelocity": [0, 0, 0],
+        "angularVelocity": [0, 0, 0],
+        "scale": 1
+      },
+      {
+        "entityId": 2,
+        "physicsBodyId": 2,
+        "partTypeId": 1,
+        "position": [0, 4, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearVelocity": [0, 0, 0],
+        "angularVelocity": [0, 0, 0],
+        "scale": 1
+      }
+    ],
+    "joints": []
+  },
+  "commands": [],
+  "frames": [
+    {
+      "tick": 1,
+      "snapshots": [
+        {
+          "entityId": 1,
+          "physicsBodyId": 1,
+          "partTypeId": 2,
+          "position": [0, -0.5, 0],
+          "rotation": [0, 0, 0, 1],
+          "linearVelocity": [0, 0, 0],
+          "angularVelocity": [0, 0, 0],
+          "scale": 1
+        },
+        {
+          "entityId": 2,
+          "physicsBodyId": 2,
+          "partTypeId": 1,
+          "position": [0, 3.8, 0],
+          "rotation": [0, 0, 0, 1],
+          "linearVelocity": [0, -0.16, 0],
+          "angularVelocity": [0, 0, 0],
+          "scale": 1
+        }
+      ],
+      "events": []
+    },
+    {
+      "tick": 2,
+      "snapshots": [
+        {
+          "entityId": 1,
+          "physicsBodyId": 1,
+          "partTypeId": 2,
+          "position": [0, -0.5, 0],
+          "rotation": [0, 0, 0, 1],
+          "linearVelocity": [0, 0, 0],
+          "angularVelocity": [0, 0, 0],
+          "scale": 1
+        },
+        {
+          "entityId": 2,
+          "physicsBodyId": 2,
+          "partTypeId": 1,
+          "position": [0, 3.5, 0],
+          "rotation": [0, 0, 0, 1],
+          "linearVelocity": [0, -0.32, 0],
+          "angularVelocity": [0, 0, 0],
+          "scale": 1
+        }
+      ],
+      "events": [{ "kind": "CONTACT_STARTED", "bodyA": 1, "bodyB": 2 }]
+    }
+  ],
+  "finalResult": {
+    "outcome": "SUCCESS",
+    "completedTick": 2,
+    "stateHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

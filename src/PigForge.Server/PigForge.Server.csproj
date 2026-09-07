@@ -4,6 +4,7 @@
     <ProjectReference Include="..\PigForge.Core\PigForge.Core.csproj" />
     <ProjectReference Include="..\PigForge.Physics.Abstractions\PigForge.Physics.Abstractions.csproj" />
     <ProjectReference Include="..\PigForge.Protocol\PigForge.Protocol.csproj" />
+    <ProjectReference Include="..\PigForge.Physics.Bepu\PigForge.Physics.Bepu.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

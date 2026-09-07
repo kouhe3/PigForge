@@ -156,16 +156,19 @@ Prerequisite: Tasks 10 and 11 (room loop and command validation) — constructio
 
 ## Phase 5: Performance and Client
 
-### Task 16: Establish performance baseline
+### Task 16: Establish performance baseline - Complete
 
 - Measure typical/stress scenes: Tick p50/p95/p99, allocation, GC pauses, native memory, snapshot size, concurrent rooms.
 - Acceptance: recorded baseline is reproducible and no optimization is accepted without comparison.
+- Verify: `dotnet run --project src/PigForge.Benchmarks/PigForge.Benchmarks.csproj -c Release` prints typical (4 bodies), stress (66 bodies) and concurrent-8 reports; allocation/snapshot columns match across two consecutive runs; percentile helper tests plus typical metric-presence test pass. Bepu has no native runtime — committed heap and working set stand in for native memory.
+- Files: `src/PigForge.Benchmarks/`, `tests/PigForge.Server.Tests/PerformanceBaselineTests.cs`.
 
-### Task 17: Add client adapter
+### Task 17: Add client adapter - Complete
 
 - Client form factor is frozen in `docs/specs/web-client-spec.md`: a Vue 3 + Canvas 2D web client under `clients/web/` (form A replay viewer needs no server; form B live client depends on this task and Task 12 snapshot publication).
 - Acceptance: client consumes snapshots and renders state; it cannot authoritatively set position, contact, break or result.
-- Verify: connect local web client (form B) to one server room and compare displayed state to server snapshots.
+- Verify: `pnpm test` and `pnpm build` in `clients/web/` (replay v2 fixture, PGFS decoder matching `SnapshotWire`, camera round-trip); form B connects to `dotnet run --project src/PigForge.Server -- --demo-ws` at `ws://127.0.0.1:5088/snapshots` and draws inbound binary frames only — the socket never sends pose, contact, break or outcome.
+- Files: `clients/web/`, `src/PigForge.Server/DemoSnapshotHost.cs`.
 
 ## Checkpoints
 
