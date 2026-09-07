@@ -6,6 +6,7 @@
     <Project Path="src/PigForge.Replay/PigForge.Replay.csproj" />
     <Project Path="src/PigForge.Physics.Bepu/PigForge.Physics.Bepu.csproj" />
     <Project Path="src/PigForge.Server/PigForge.Server.csproj" />
+    <Project Path="src/PigForge.Benchmarks/PigForge.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PigForge.Core.Tests/PigForge.Core.Tests.csproj" />

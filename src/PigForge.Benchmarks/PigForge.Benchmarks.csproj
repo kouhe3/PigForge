@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../PigForge.Server/PigForge.Server.csproj" />
+    <ProjectReference Include="../PigForge.Physics.Bepu/PigForge.Physics.Bepu.csproj" />
+  </ItemGroup>
+</Project>

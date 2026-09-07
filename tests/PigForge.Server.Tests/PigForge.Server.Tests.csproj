@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/PigForge.Server/PigForge.Server.csproj" />
     <ProjectReference Include="../../src/PigForge.Physics.Bepu/PigForge.Physics.Bepu.csproj" />
+    <ProjectReference Include="../../src/PigForge.Benchmarks/PigForge.Benchmarks.csproj" />
   </ItemGroup>
 
 </Project>
