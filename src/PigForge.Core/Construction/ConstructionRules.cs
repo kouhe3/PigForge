@@ -84,6 +84,10 @@ public sealed class ConstructionRules
 
     public int PartCount => _footprintByEntity.Count;
 
+    /// <summary>Placed (player-built) entity ids, including frozen ones; level-authoring
+    /// spawns are not construction entities and are excluded.</summary>
+    public IReadOnlyCollection<uint> PlacedEntities => (IReadOnlyCollection<uint>)_footprintByEntity.Keys;
+
     public int FrozenCount => _frozenEntities.Count;
 
     public bool IsAlive(EntityId entity) => _entities.IsAlive(entity);
@@ -293,6 +297,16 @@ public sealed class ConstructionRules
         foreach (uint entityValue in destroyed)
         {
             EntityId entity = new(entityValue);
+            if (!_entities.IsAlive(entity))
+            {
+                // An entity may have been destroyed by runtime rules (e.g. TNT blast,
+                // detached construction member) during the run without the
+                // construction registry being told. Never re-destroy a stale handle.
+                _parts.Remove(entity);
+                _transforms.Remove(entity);
+                continue;
+            }
+
             _parts.Remove(entity);
             _transforms.Remove(entity);
             _entities.Destroy(entity);

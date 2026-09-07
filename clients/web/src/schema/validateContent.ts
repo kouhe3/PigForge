@@ -53,6 +53,7 @@ function validatePart(part: PartDefinition, seen: Set<number>, errors: string[])
   if ("assetGuid" in part || "guid" in part) {
     errors.push(`Part ${part.partTypeId} contains a GUID-like field.`);
   }
+  validateCapabilities(part.partTypeId, part.capabilities, errors);
   if (!Array.isArray(part.shapes) || part.shapes.length === 0) {
     errors.push(`Part ${part.partTypeId} needs at least one shape.`);
     return;
@@ -76,4 +77,36 @@ function validateShape(partTypeId: number, shape: PartShape, errors: string[]): 
 
 function isVec3(value: unknown): value is [number, number, number] {
   return Array.isArray(value) && value.length === 3 && value.every((item) => typeof item === "number");
+}
+
+function validateCapabilities(partTypeId: number, capabilities: unknown, errors: string[]): void {
+  if (capabilities === undefined || capabilities === null) {
+    return;
+  }
+  if (typeof capabilities !== "object" || capabilities === null) {
+    errors.push(`Part ${partTypeId} capabilities must be an object.`);
+    return;
+  }
+  const value = capabilities as Record<string, unknown>;
+  if (value.pig !== undefined && typeof value.pig !== "boolean") {
+    errors.push(`Part ${partTypeId} capabilities.pig must be a boolean.`);
+  }
+  if (value.wheel !== undefined && typeof value.wheel !== "boolean") {
+    errors.push(`Part ${partTypeId} capabilities.wheel must be a boolean.`);
+  }
+  if (value.motor !== undefined) {
+    const motor = value.motor as { thrustPerTick?: unknown; directionX?: unknown } | null;
+    if (typeof motor !== "object" || motor === null
+      || typeof motor.thrustPerTick !== "number" || !Number.isFinite(motor.thrustPerTick)
+      || motor.directionX !== -1 && motor.directionX !== 0 && motor.directionX !== 1) {
+      errors.push(`Part ${partTypeId} capabilities.motor needs a finite thrustPerTick and directionX in -1, 0, 1.`);
+    }
+  }
+  if (value.tnt !== undefined) {
+    const tnt = value.tnt as { fuseTicks?: unknown } | null;
+    if (typeof tnt !== "object" || tnt === null
+      || typeof tnt.fuseTicks !== "number" || !Number.isInteger(tnt.fuseTicks) || tnt.fuseTicks < 0) {
+      errors.push(`Part ${partTypeId} capabilities.tnt needs a non-negative integer fuseTicks.`);
+    }
+  }
 }

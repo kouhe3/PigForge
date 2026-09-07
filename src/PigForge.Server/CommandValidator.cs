@@ -73,7 +73,14 @@ public sealed class CommandValidator
             (RoomMode.Running, EnterBuildModeCommand) => command.Tick == currentTick
                 ? CommandStatus.Accepted
                 : CommandStatus.StaleTick,
+            // Retry is a single deferred "return to build" command: the sequence gate
+            // already orders it, so a stale-tick lag from the client's last snapshot
+            // must not reject it. Only a "future" tick (ahead of the room) is refused.
+            (RoomMode.Running, RetryCommand) => command.Tick <= currentTick
+                ? CommandStatus.Accepted
+                : CommandStatus.StaleTick,
             (RoomMode.Running, StartSimulationCommand or PlacePartCommand or RotatePartCommand or RemovePartCommand) => CommandStatus.WrongMode,
+            (RoomMode.Building, RetryCommand) => CommandStatus.WrongMode,
             _ => CommandStatus.UnknownKind
         };
     }

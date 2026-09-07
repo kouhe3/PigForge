@@ -75,6 +75,7 @@ public sealed class GameRoom : IDisposable
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
     private readonly List<uint> _entityOrder = new();
     private LevelContentDocument? _level;
+    private readonly List<(uint EntityValue, uint PartTypeId, float PositionX, float PositionY, float Angle, float Scale)> _retryLayout = new();
     private bool _disposed;
 
     public GameRoom(GameRoomOptions options)
@@ -242,9 +243,12 @@ public sealed class GameRoom : IDisposable
                 }
 
                 return (CommandStatus.Accepted, ConstructionError.None, 0);
-
             case EnterBuildModeCommand enterBuild:
                 EnterBuildMode(enterBuild.Policy);
+                return (CommandStatus.Accepted, ConstructionError.None, 0);
+
+            case RetryCommand:
+                Retry();
                 return (CommandStatus.Accepted, ConstructionError.None, 0);
 
             default:
@@ -254,9 +258,30 @@ public sealed class GameRoom : IDisposable
 
     private void RegisterPlacedRole(EntityId entity, uint partTypeId)
     {
-        if (string.Equals(_content.GetPart(partTypeId).Name, "pig", StringComparison.Ordinal))
+        PartCapabilities? capabilities = _content.GetPart(partTypeId).Capabilities;
+        if (capabilities is null)
+        {
+            return;
+        }
+
+        if (capabilities.IsPig)
         {
             _rules.AddPig(entity);
+        }
+
+        if (capabilities.HasMotor)
+        {
+            _rules.AddMotor(entity, capabilities.MotorThrustPerTick!.Value, capabilities.MotorDirectionX ?? 1f);
+        }
+
+        if (capabilities.IsWheel)
+        {
+            _rules.AddWheel(entity);
+        }
+
+        if (capabilities.TntFuseTicks is ushort fuse)
+        {
+            _rules.AddTnt(entity, fuse);
         }
     }
 
@@ -281,6 +306,20 @@ public sealed class GameRoom : IDisposable
         }
 
         entities.Sort((left, right) => left.Value.CompareTo(right.Value));
+        _retryLayout.Clear();
+        foreach (uint entityValue in _construction.PlacedEntities)
+        {
+            EntityId entity = new(entityValue);
+            if (!_parts.TryGet(entity, out PartLink partLink) || !_transforms.TryGet(entity, out EntityTransform transform))
+            {
+                continue;
+            }
+
+            _retryLayout.Add((entityValue, partLink.PartTypeId, transform.Position.X, transform.Position.Y, PlanarAngle(transform.Rotation), transform.Scale));
+        }
+
+        _retryLayout.Sort((left, right) => left.Item1.CompareTo(right.Item1));
+
         List<CompoundCluster> clusters = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in clusters)
         {
@@ -360,6 +399,80 @@ public sealed class GameRoom : IDisposable
                 SetupFromLevel(_level);
             }
         }
+    }
+
+    /// <summary>
+    /// Returns a running room to the pre-play build state (command Retry). All
+    /// authoritative bodies are destroyed; the player's construction layout captured at
+    /// the last Start is restored at its build poses with its gameplay roles, and the
+    /// configured level actors are re-spawned. Unlike Keep/Clear this never leaves a
+    /// second vehicle in the field, so the room is a single-vehicle rebuild loop.
+    /// </summary>
+    public void Retry()
+    {
+        ThrowIfDisposed();
+        if (Mode != RoomMode.Running)
+        {
+            throw new InvalidOperationException("Only a running room can retry.");
+        }
+
+        _output.Clear();
+        uint[] entityValues = _bodyByEntity.Keys.ToArray();
+        Array.Sort(entityValues);
+        HashSet<uint> destroyedBodies = new();
+        foreach (uint entityValue in entityValues)
+        {
+            PhysicsBodyId body = _bodyByEntity[entityValue];
+            if (destroyedBodies.Add(body.Value))
+            {
+                _world.DestroyBody(body);
+            }
+        }
+
+        _bodyByEntity.Clear();
+        _entityByBody.Clear();
+        _entitiesByBody.Clear();
+        _compoundLocalByEntity.Clear();
+        _liveCompounds.Clear();
+
+        Mode = RoomMode.Building;
+        _construction.ResetAll();
+        _rules.ResetAll();
+        var parts = _parts.GetEnumerator();
+        while (parts.MoveNext())
+        {
+            // Runtime rules may have destroyed an entity (TNT blast, detached member)
+            // leaving a stale entry in the part/transform stores. Only destroy handles
+            // that are still alive; dead ones are removed to keep the stores clean.
+            if (_entities.IsAlive(parts.CurrentId))
+            {
+                _entities.Destroy(parts.CurrentId);
+            }
+            _parts.Remove(parts.CurrentId);
+            _transforms.Remove(parts.CurrentId);
+        }
+
+        if (_level is not null)
+        {
+            SetupFromLevel(_level);
+        }
+
+        foreach ((uint _, uint partTypeId, float positionX, float positionY, float angle, float scale) in _retryLayout)
+        {
+            ConstructionResult placed = _construction.Place(partTypeId, positionX, positionY, angle, scale);
+            if (placed.IsSuccess)
+            {
+                RegisterPlacedRole(placed.Entity, partTypeId);
+            }
+        }
+    }
+
+    private static float PlanarAngle(PhysicsQuaternion rotation)
+    {
+        // Construction places parts at Z-axis rotations only, so the yaw is atan2 of
+        // the Z components of the quaternion (2*z, up to sign in the W-projection).
+        float angle = 2f * MathF.Atan2(rotation.Z, rotation.W);
+        return float.IsFinite(angle) ? angle : 0f;
     }
 
     private Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> CapturePoses()

@@ -26,7 +26,7 @@ public static class PlayHost
 
     public static async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
-        using GameRoom room = CreateSlopeRoom();
+        using GameRoom room = CreateLevelRoom("terrain-v1.json");
         using HttpListener listener = new();
         listener.Prefixes.Add(Prefix);
         listener.Start();
@@ -40,11 +40,15 @@ public static class PlayHost
         return 0;
     }
 
-    public static GameRoom CreateSlopeRoom()
+    public static GameRoom CreateSlopeRoom() => CreateLevelRoom("slope-v1.json");
+
+    public static GameRoom CreateTerrainRoom() => CreateLevelRoom("terrain-v1.json");
+
+    public static GameRoom CreateLevelRoom(string levelFile)
     {
         string root = FindRepositoryRoot();
         PartContentLibrary parts = PartContentLibrary.Load(Path.Combine(root, "content", "parts.json"));
-        LevelContentDocument level = LevelContentLibrary.Parse(File.ReadAllText(Path.Combine(root, "content", "levels", "slope-v1.json")));
+        LevelContentDocument level = LevelContentLibrary.Parse(File.ReadAllText(Path.Combine(root, "content", "levels", levelFile)));
         GameplayConfig config = new(
             level.GoalZone,
             level.MapBounds,

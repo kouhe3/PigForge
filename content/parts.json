@@ -45,10 +45,24 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
       "shapes": [
         {
           "kind": "box",
           "halfExtents": [0.4, 0.4, 0.4]
+        }
+      ]
+    },
+    {
+      "partTypeId": 5,
+      "name": "terrain-box",
+      "mode": "static",
+      "mass": 0.0,
+      "material": { "restitution": 0.0, "friction": 0.9 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.0, 1.0, 1.0]
         }
       ]
     },
@@ -62,6 +76,46 @@
         {
           "kind": "box",
           "halfExtents": [6.0, 0.25, 1.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 7,
+      "name": "wheel",
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.4
+        }
+      ]
+    },
+    {
+      "partTypeId": 8,
+      "name": "engine",
+      "mode": "dynamic",
+      "mass": 1.2,
+      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.3, 0.4]
+        }
+      ]
+    },
+    {
+      "partTypeId": 9,
+      "name": "tnt",
+      "mode": "dynamic",
+      "mass": 1.0,
+      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.35, 0.35]
         }
       ]
     }

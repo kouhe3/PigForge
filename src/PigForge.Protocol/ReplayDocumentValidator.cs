@@ -155,6 +155,7 @@ public static class ReplayDocumentValidator
                 RotatePartCommand => ClientCommandKind.RotatePart,
                 StartSimulationCommand => ClientCommandKind.StartSimulation,
                 EnterBuildModeCommand => ClientCommandKind.EnterBuildMode,
+                RetryCommand => ClientCommandKind.Retry,
                 _ => null
             };
 

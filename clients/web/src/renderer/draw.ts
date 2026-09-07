@@ -44,11 +44,25 @@ export function drawFrame(
       ctx.arc(0, 0, radius, 0, Math.PI * 2);
       ctx.fillStyle = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
       ctx.fill();
+      ctx.strokeStyle = part?.mode === "static" ? "#8a9a7a" : "#d8b880";
+      ctx.lineWidth = 1;
+      ctx.stroke();
     } else {
       const hx = (shape?.halfExtents?.[0] ?? 0.5) * entity.scale * camera.scale;
       const hy = (shape?.halfExtents?.[1] ?? 0.5) * entity.scale * camera.scale;
       ctx.fillStyle = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
       ctx.fillRect(-hx, -hy, hx * 2, hy * 2);
+      ctx.strokeStyle = part?.mode === "static" ? "#8a9a7a" : "#d8b880";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-hx, -hy, hx * 2, hy * 2);
+    }
+    // Placeholder texture: the type name is stamped at the part's collision centre.
+    if (part && part.name) {
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.font = "10px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(part.name, 0, 0);
     }
     if (selectedId === entity.entityId) {
       ctx.strokeStyle = SELECT_STROKE;

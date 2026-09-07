@@ -14,6 +14,7 @@ export function attachCanvasGestures(
   let lastY = 0;
   let downX = 0;
   let downY = 0;
+  let hitEntityThisDown: number | null = null;
 
   const onPointerDown = (event: PointerEvent): void => {
     dragging = true;
@@ -33,6 +34,7 @@ export function attachCanvasGestures(
         hit = entity.entityId;
       }
     }
+    hitEntityThisDown = hit;
     onMessage({ kind: "SelectEntity", entityId: hit });
   };
 
@@ -59,11 +61,14 @@ export function attachCanvasGestures(
   const onPointerUp = (event: PointerEvent): void => {
     dragging = false;
     canvas.releasePointerCapture(event.pointerId);
-    if (!moved && options?.building?.()) {
+    // A release over an existing part is a selection, never a placement; only an
+    // empty-space tap places a new part.
+    if (!moved && options?.building?.() && hitEntityThisDown === null) {
       const point = pointerCss(canvas, event);
       const world = screenToWorld(camera, point.x, point.y, canvas.clientWidth, canvas.clientHeight);
       onMessage({ kind: "PlaceRequested", x: world.x, y: world.y });
     }
+    hitEntityThisDown = null;
   };
 
   const onWheel = (event: WheelEvent): void => {

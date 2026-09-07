@@ -18,7 +18,24 @@ public sealed record PartDefinition(
     float Mass,
     float Restitution,
     float Friction,
-    IReadOnlyList<PartShapeDefinition> Shapes);
+    IReadOnlyList<PartShapeDefinition> Shapes,
+    PartCapabilities? Capabilities = null);
+
+/// <summary>
+/// Gameplay capabilities a part carries (ADR-002): a pig is indestructible bouncy
+/// cargo, a wheel gates motor thrust to ground contact, a motor pushes the body each
+/// tick, and TNT is a pure momentum source with a fuse. Absence of a flag means the
+/// part has no such role; capabilities are content, not code constants.
+/// </summary>
+public sealed record PartCapabilities(
+    bool IsPig = false,
+    bool IsWheel = false,
+    float? MotorThrustPerTick = null,
+    float? MotorDirectionX = null,
+    ushort? TntFuseTicks = null)
+{
+    public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
+}
 
 public sealed record PartShapeDefinition(
     PhysicsShapeKind Kind,

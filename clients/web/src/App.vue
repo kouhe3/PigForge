@@ -16,6 +16,7 @@ const entitiesRef = { current: viewState.entities };
 const placeAngle = ref(0);
 const placeScale = ref(1);
 const selectedPart = ref(4);
+const activeTab = ref<"replay" | "live">("replay");
 const sequence = ref(1);
 let clock: PlaybackClock | null = null;
 let detachGestures: (() => void) | null = null;
@@ -40,6 +41,11 @@ const outcome = computed(() => {
   return session.mode;
 });
 
+const canRetry = computed(() => session.mode === "live" && session.liveTick > 0 && !building.value);
+
+function retrySimulation(): void {
+  sendCommand?.({ kind: 5, sequence: nextSequence(), playerId: 1, tick: session.liveTick });
+}
 function paint(): void {
   const node = canvas.value;
   if (!node) {
@@ -166,13 +172,15 @@ function onKey(event: KeyboardEvent): void {
   } else if (event.key === "r" || event.key === "R") {
     const entity = selectedEntity();
     if (entity && building.value) {
+      // Rotate the selected part a visible increment; a fresh placeAngle of 0 would
+      // produce no visible change, so accumulate from the part's current yaw.
       sendCommand?.({
         kind: 2,
         sequence: nextSequence(),
         playerId: 1,
         tick: 0,
         entityId: entity.entityId,
-        angle: placeAngle.value,
+        angle: entity.yaw + Math.PI / 12,
       });
     }
   } else if (event.key === "Delete" || event.key === "Backspace") {
@@ -236,58 +244,83 @@ onUnmounted(() => {
   window.removeEventListener("keydown", onKey);
 });
 </script>
-
 <template>
   <div class="layout">
     <header class="toolbar">
-      <label>
-        部件内容
-        <input type="file" accept="application/json,.json" aria-label="加载 part-content JSON" @change="onContent" />
-      </label>
-      <label>
-        回放
-        <input type="file" accept="application/json,.json" aria-label="加载 physics-replay-v2 JSON" @change="onReplay" />
-      </label>
-      <button type="button" :disabled="!session.replay" @click="togglePlay">
-        {{ session.playing ? "暂停" : "播放" }}
-      </button>
-      <button type="button" :disabled="!session.replay" @click="step(-1)">上一帧</button>
-      <button type="button" :disabled="!session.replay" @click="step(1)">下一帧</button>
-      <label>
-        倍速
-        <select v-model.number="session.speed" aria-label="播放倍速">
-          <option :value="0.25">0.25×</option>
-          <option :value="0.5">0.5×</option>
-          <option :value="1">1×</option>
-          <option :value="2">2×</option>
-          <option :value="4">4×</option>
-        </select>
-      </label>
-      <label>
-        房间
-        <input v-model="session.liveUrl" aria-label="快照 WebSocket 地址" />
-      </label>
-      <button type="button" @click="connectLive">连接房间</button>
-      <button type="button" :disabled="!building" @click="startSimulation">Start</button>
-      <span class="meta">{{ outcome }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }}</span>
+      <nav class="tabs" role="tablist" aria-label="视图切换">
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="activeTab === 'replay'"
+          :class="{ active: activeTab === 'replay' }"
+          @click="activeTab = 'replay'"
+        >回放查看器</button>
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="activeTab === 'live'"
+          :class="{ active: activeTab === 'live' }"
+          @click="activeTab = 'live'"
+        >建造</button>
+      </nav>
+
+      <template v-if="activeTab === 'replay'">
+        <label>
+          部件内容
+          <input type="file" accept="application/json,.json" aria-label="加载 part-content JSON" @change="onContent" />
+        </label>
+        <label>
+          回放
+          <input type="file" accept="application/json,.json" aria-label="加载 physics-replay-v2 JSON" @change="onReplay" />
+        </label>
+        <button type="button" :disabled="!session.replay" @click="togglePlay">
+          {{ session.playing ? "暂停" : "播放" }}
+        </button>
+        <button type="button" :disabled="!session.replay" @click="step(-1)">上一帧</button>
+        <button type="button" :disabled="!session.replay" @click="step(1)">下一帧</button>
+        <label>
+          倍速
+          <select v-model.number="session.speed" aria-label="播放倍速">
+            <option :value="0.25">0.25×</option>
+            <option :value="0.5">0.5×</option>
+            <option :value="1">1×</option>
+            <option :value="2">2×</option>
+            <option :value="4">4×</option>
+          </select>
+        </label>
+      </template>
+
+      <template v-else>
+        <label>
+          房间
+          <input v-model="session.liveUrl" aria-label="快照 WebSocket 地址" />
+        </label>
+        <button type="button" @click="connectLive">连接房间</button>
+        <button type="button" :disabled="!building" @click="startSimulation">Start</button>
+        <button type="button" :disabled="!canRetry" @click="retrySimulation">RETRY</button>
+        <span class="meta">{{ outcome }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }}</span>
+      </template>
     </header>
+
     <main class="stage">
       <canvas ref="canvas" role="img" aria-label="物理快照画布，拖拽平移，滚轮缩放，点击放置"></canvas>
     </main>
+
     <aside class="side">
-      <h1>零件</h1>
-      <p class="meta">点击画布放置。Q/E 转角，Alt+滚轮缩放，R 旋转选中，Delete 删除。不提交位姿。</p>
-      <div class="palette">
-        <button
-          v-for="part in PALETTE"
-          :key="part.partTypeId"
-          type="button"
-          :class="{ selected: selectedPart === part.partTypeId }"
-          @click="selectedPart = part.partTypeId"
-        >
-          {{ part.label }}
-        </button>
-      </div>
+      <template v-if="activeTab === 'live'">
+        <h1>零件</h1>
+        <p class="meta">点击画布放置。Q/E 转角，Alt+滚轮缩放，R 旋转选中，Delete 删除。不提交位姿。</p>
+        <div class="palette">
+          <button
+            v-for="part in PALETTE"
+            :key="part.partTypeId"
+            type="button"
+            :class="{ selected: selectedPart === part.partTypeId }"
+            @click="selectedPart = part.partTypeId"
+          >{{ part.label }}</button>
+        </div>
+      </template>
+
       <h1>检查器</h1>
       <p v-if="!selectedEntity()" class="meta">点击实体查看位姿。</p>
       <dl v-else>
@@ -312,7 +345,8 @@ onUnmounted(() => {
         <li v-for="(error, index) in session.errors" :key="index">{{ error }}</li>
       </ul>
     </aside>
-    <footer class="timeline">
+
+    <footer class="timeline" v-if="activeTab === 'replay'">
       <label>
         进度
         <input

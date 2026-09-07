@@ -45,6 +45,24 @@ label {
   color: #c5c0b0;
 }
 
+.toolbar .tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-right: 0.5rem;
+  align-items: stretch;
+}
+
+.toolbar .tabs button {
+  border-radius: 4px 4px 0 0;
+  border-bottom: 2px solid transparent;
+}
+
+.toolbar .tabs button.active {
+  border-bottom-color: #d7b36a;
+  background: #2e362c;
+  color: #ece6d6;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 1fr 260px;

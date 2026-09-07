@@ -11,11 +11,19 @@ export interface PartShape {
   radius?: number;
 }
 
+export interface PartCapabilities {
+  pig?: boolean;
+  wheel?: boolean;
+  motor?: { thrustPerTick: number; directionX: -1 | 0 | 1 };
+  tnt?: { fuseTicks: number };
+}
+
 export interface PartDefinition {
   partTypeId: number;
   name: string;
   mode: "static" | "dynamic";
   mass: number;
+  capabilities?: PartCapabilities;
   shapes: PartShape[];
 }
 
@@ -100,7 +108,8 @@ export type ClientCommand =
   | { kind: 0; sequence: number; playerId: number; tick: number; partTypeId: number; x: number; y: number; angle: number; scale: number }
   | { kind: 1; sequence: number; playerId: number; tick: number; entityId: number }
   | { kind: 2; sequence: number; playerId: number; tick: number; entityId: number; angle: number }
-  | { kind: 3; sequence: number; playerId: number; tick: number };
+  | { kind: 3; sequence: number; playerId: number; tick: number }
+  | { kind: 5; sequence: number; playerId: number; tick: number };
 
 export type GestureMessage =
   | { kind: "CameraChanged"; panX: number; panY: number; scale: number }

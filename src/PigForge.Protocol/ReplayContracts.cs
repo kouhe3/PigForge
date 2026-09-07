@@ -129,6 +129,16 @@ public sealed record EnterBuildModeCommand(
     uint PlayerId,
     BuildModePolicy Policy) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.EnterBuildMode);
 
+/// <summary>
+/// Returns a running room to the pre-play build state: bodies are destroyed and the
+/// player's construction layout (parts, poses, roles) is restored instead of kept
+/// frozen or cleared. Unlike Keep/Clear this never creates a second vehicle.
+/// </summary>
+public sealed record RetryCommand(
+    uint Tick,
+    uint Sequence,
+    uint PlayerId) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.Retry);
+
 public sealed record ReplayEvent(
     ReplayEventKind Kind,
     uint? BodyA = null,

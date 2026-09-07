@@ -25,7 +25,7 @@ public static class CommandFrame
             PlacePartCommand => PlaceByteCount,
             RemovePartCommand => RemoveByteCount,
             RotatePartCommand => RotateByteCount,
-            StartSimulationCommand => StartByteCount,
+            StartSimulationCommand or RetryCommand => StartByteCount,
             _ => 0
         };
         if (size == 0 || destination.Length < size)
@@ -93,7 +93,7 @@ public static class CommandFrame
             return false;
         }
 
-        if (kindByte > (byte)ClientCommandKind.StartSimulation)
+        if (kindByte > (byte)ClientCommandKind.Retry)
         {
             error = "Unknown command kind.";
             return false;
@@ -164,6 +164,9 @@ public static class CommandFrame
             }
             case ClientCommandKind.StartSimulation:
                 command = new StartSimulationCommand(tick, sequence, playerId);
+                return true;
+            case ClientCommandKind.Retry:
+                command = new RetryCommand(tick, sequence, playerId);
                 return true;
             default:
                 error = "Unknown command kind.";

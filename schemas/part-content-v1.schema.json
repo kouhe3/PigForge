@@ -53,6 +53,7 @@
         "mode": { "enum": ["static", "dynamic"] },
         "mass": { "$ref": "#/$defs/finiteNumber" },
         "material": { "$ref": "#/$defs/material" },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
         "shapes": {
           "type": "array",
           "minItems": 1,
@@ -60,13 +61,31 @@
         }
       }
     },
-    "material": {
+    "capabilities": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["restitution", "friction"],
       "properties": {
-        "restitution": { "type": "number", "minimum": 0, "maximum": 1 },
-        "friction": { "type": "number", "minimum": 0, "maximum": 4 }
+        "pig": { "type": "boolean" },
+        "wheel": { "type": "boolean" },
+        "motor": { "$ref": "#/$defs/motorCapability" },
+        "tnt": { "$ref": "#/$defs/tntCapability" }
+      }
+    },
+    "motorCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["thrustPerTick", "directionX"],
+      "properties": {
+        "thrustPerTick": { "type": "number" },
+        "directionX": { "enum": [-1, 0, 1] }
+      }
+    },
+    "tntCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fuseTicks"],
+      "properties": {
+        "fuseTicks": { "type": "integer", "minimum": 0, "maximum": 65535 }
       }
     },
     "shapeDefinition": {

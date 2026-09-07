@@ -113,9 +113,8 @@ public static class PartContentParser
             }
         }
 
-        RequireExactly(seen, new[] { "partTypeId", "name", "mode", "mass", "shapes" }, path, errors, optionalProperty: "material");
+        RequireExactly(seen, new[] { "partTypeId", "name", "mode", "mass", "shapes" }, path, errors, "material", "capabilities");
         RejectEngineAssetReferences(seen, path, errors);
-
         uint partTypeId = 0;
         if (seen.Contains("partTypeId") && element.TryGetProperty("partTypeId", out JsonElement idElement))
         {
@@ -185,6 +184,8 @@ public static class PartContentParser
             }
         }
 
+        PartCapabilities? capabilities = ParseCapabilities(element, seen, path, errors);
+
         List<PartShapeDefinition> shapes = new();
         if (seen.Contains("shapes") && element.TryGetProperty("shapes", out JsonElement shapesElement))
         {
@@ -219,7 +220,146 @@ public static class PartContentParser
                 : 0f,
             restitution,
             friction,
-            shapes));
+            shapes,
+            capabilities));
+    }
+    private static PartCapabilities? ParseCapabilities(JsonElement element, HashSet<string> seen, string path, List<string> errors)
+    {
+        if (!seen.Contains("capabilities") || !element.TryGetProperty("capabilities", out JsonElement capabilitiesElement))
+        {
+            return null;
+        }
+
+        if (capabilitiesElement.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}.capabilities: must be an object.");
+            return null;
+        }
+
+        bool isPig = false;
+        bool isWheel = false;
+        float? motorThrust = null;
+        float? motorDirection = null;
+        ushort? tntFuse = null;
+        bool hasError = false;
+
+        HashSet<string> seenKeys = new();
+        foreach (JsonProperty property in capabilitiesElement.EnumerateObject())
+        {
+            if (!seenKeys.Add(property.Name))
+            {
+                errors.Add($"{path}.capabilities: duplicate property '{property.Name}'.");
+            }
+        }
+
+        if (seenKeys.Contains("pig"))
+        {
+            if (!capabilitiesElement.TryGetProperty("pig", out JsonElement pigElement) || pigElement.ValueKind != JsonValueKind.True && pigElement.ValueKind != JsonValueKind.False)
+            {
+                errors.Add($"{path}.capabilities.pig: must be a boolean.");
+                hasError = true;
+            }
+            else
+            {
+                isPig = pigElement.GetBoolean();
+            }
+        }
+
+        if (seenKeys.Contains("wheel"))
+        {
+            if (!capabilitiesElement.TryGetProperty("wheel", out JsonElement wheelElement) || wheelElement.ValueKind != JsonValueKind.True && wheelElement.ValueKind != JsonValueKind.False)
+            {
+                errors.Add($"{path}.capabilities.wheel: must be a boolean.");
+                hasError = true;
+            }
+            else
+            {
+                isWheel = wheelElement.GetBoolean();
+            }
+        }
+
+        if (seenKeys.Contains("motor"))
+        {
+            if (!capabilitiesElement.TryGetProperty("motor", out JsonElement motorElement) || !TryReadMotor(motorElement, path, out motorThrust, out motorDirection))
+            {
+                errors.Add($"{path}.capabilities.motor: must be an object with a finite thrustPerTick and a directionX in the set -1, 0, 1.");
+                hasError = true;
+            }
+        }
+
+        if (seenKeys.Contains("tnt"))
+        {
+            if (!capabilitiesElement.TryGetProperty("tnt", out JsonElement tntElement) || !TryReadTnt(tntElement, path, out tntFuse))
+            {
+                errors.Add($"{path}.capabilities.tnt: must be an object with a fuseTicks integer in [0, 65535].");
+                hasError = true;
+            }
+        }
+
+        foreach (string key in seenKeys)
+        {
+            if (key is not ("pig" or "wheel" or "motor" or "tnt"))
+            {
+                errors.Add($"{path}.capabilities: unknown property '{key}'.");
+                hasError = true;
+            }
+        }
+
+        if (hasError)
+        {
+            return null;
+        }
+
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse);
+    }
+
+    private static bool TryReadMotor(JsonElement element, string path, out float? thrust, out float? direction)
+    {
+        thrust = null;
+        direction = null;
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("thrustPerTick", out JsonElement thrustElement)
+            || thrustElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(thrustElement)
+            || !thrustElement.TryGetSingle(out float thrustValue))
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("directionX", out JsonElement directionElement)
+            || directionElement.ValueKind != JsonValueKind.Number
+            || !directionElement.TryGetInt32(out int directionValue)
+            || directionValue is not (-1 or 0 or 1))
+        {
+            return false;
+        }
+
+        thrust = thrustValue;
+        direction = directionValue;
+        return true;
+    }
+
+    private static bool TryReadTnt(JsonElement element, string path, out ushort? fuse)
+    {
+        fuse = null;
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("fuseTicks", out JsonElement fuseElement)
+            || fuseElement.ValueKind != JsonValueKind.Number
+            || !fuseElement.TryGetUInt16(out ushort fuseValue))
+        {
+            return false;
+        }
+
+        fuse = fuseValue;
+        return true;
     }
 
     private static void ParseShape(JsonElement element, string path, List<PartShapeDefinition> shapes, List<string> errors)
@@ -486,7 +626,7 @@ public static class PartContentParser
         }
     }
 
-    private static void RequireExactly(HashSet<string> seen, string[] required, string path, List<string> errors, string? optionalProperty = null)
+    private static void RequireExactly(HashSet<string> seen, string[] required, string path, List<string> errors, params string[] optionalProperties)
     {
         foreach (string name in required)
         {
@@ -498,7 +638,7 @@ public static class PartContentParser
 
         foreach (string name in seen)
         {
-            if (!required.Contains(name) && name != optionalProperty)
+            if (!required.Contains(name) && !optionalProperties.Contains(name))
             {
                 errors.Add($"{path}: unknown property '{name}'.");
             }
