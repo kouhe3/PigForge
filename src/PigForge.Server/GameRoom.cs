@@ -15,7 +15,8 @@ public sealed record RoomSpawnSpec(
     ushort TntFuseTicks = 1,
     float MotorImpulsePerTick = 0f,
     float MotorDirectionX = 0f,
-    bool IsWheel = false);
+    bool IsWheel = false,
+    float Angle = 0f);
 
 public enum RoomActorRole
 {
@@ -117,7 +118,7 @@ public sealed class GameRoom : IDisposable
 
         EntityId entity = _entities.Create();
         _parts.Set(entity, new PartLink(spec.PartTypeId));
-        _transforms.Set(entity, new EntityTransform(spec.Position, PhysicsQuaternion.Identity));
+        _transforms.Set(entity, new EntityTransform(spec.Position, PhysicsQuaternion.FromZAngle(spec.Angle)));
 
         switch (spec.Role)
         {
@@ -162,7 +163,8 @@ public sealed class GameRoom : IDisposable
                 spawn.TntFuseTicks,
                 spawn.MotorImpulsePerTick,
                 spawn.MotorDirectionX,
-                spawn.IsWheel));
+                spawn.IsWheel,
+                spawn.Angle));
         }
     }
 
@@ -178,17 +180,18 @@ public sealed class GameRoom : IDisposable
 
         CommandStatus status = _validator.Validate(command, Mode, CurrentTick);
         ConstructionError ruleError = ConstructionError.None;
+        uint entityId = 0;
         if (status == CommandStatus.Accepted)
         {
-            (status, ruleError) = ExecuteCommand(command);
+            (status, ruleError, entityId) = ExecuteCommand(command);
         }
 
-        CommandOutcome outcome = new(command, status, ruleError);
+        CommandOutcome outcome = new(command, status, ruleError, entityId);
         _outcomeLog.Add(outcome);
         return outcome;
     }
 
-    private (CommandStatus, ConstructionError) ExecuteCommand(ReplayCommand command)
+    private (CommandStatus Status, ConstructionError Error, uint EntityId) ExecuteCommand(ReplayCommand command)
     {
         switch (command)
         {
@@ -196,17 +199,21 @@ public sealed class GameRoom : IDisposable
             {
                 ConstructionResult placed = _construction.Place(
                     place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale);
-                return placed.IsSuccess
-                    ? (CommandStatus.Accepted, ConstructionError.None)
-                    : (CommandStatus.RuleRejected, placed.Error);
+                if (!placed.IsSuccess)
+                {
+                    return (CommandStatus.RuleRejected, placed.Error, 0);
+                }
+
+                RegisterPlacedRole(placed.Entity, place.PartTypeId);
+                return (CommandStatus.Accepted, ConstructionError.None, placed.Entity.Value);
             }
 
             case RotatePartCommand rotate:
             {
                 ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle);
                 return rotated.IsSuccess
-                    ? (CommandStatus.Accepted, ConstructionError.None)
-                    : (CommandStatus.RuleRejected, rotated.Error);
+                    ? (CommandStatus.Accepted, ConstructionError.None, rotate.EntityId)
+                    : (CommandStatus.RuleRejected, rotated.Error, 0);
             }
 
             case RemovePartCommand remove:
@@ -220,20 +227,36 @@ public sealed class GameRoom : IDisposable
                 }
 
                 return removed.IsSuccess
-                    ? (CommandStatus.Accepted, ConstructionError.None)
-                    : (CommandStatus.RuleRejected, removed.Error);
+                    ? (CommandStatus.Accepted, ConstructionError.None, remove.EntityId)
+                    : (CommandStatus.RuleRejected, removed.Error, 0);
             }
 
             case StartSimulationCommand:
-                Start();
-                return (CommandStatus.Accepted, ConstructionError.None);
+                try
+                {
+                    Start();
+                }
+                catch (NotSupportedException)
+                {
+                    return (CommandStatus.RuleRejected, ConstructionError.UnsupportedShape, 0);
+                }
+
+                return (CommandStatus.Accepted, ConstructionError.None, 0);
 
             case EnterBuildModeCommand enterBuild:
                 EnterBuildMode(enterBuild.Policy);
-                return (CommandStatus.Accepted, ConstructionError.None);
+                return (CommandStatus.Accepted, ConstructionError.None, 0);
 
             default:
-                return (CommandStatus.UnknownKind, ConstructionError.None);
+                return (CommandStatus.UnknownKind, ConstructionError.None, 0);
+        }
+    }
+
+    private void RegisterPlacedRole(EntityId entity, uint partTypeId)
+    {
+        if (string.Equals(_content.GetPart(partTypeId).Name, "pig", StringComparison.Ordinal))
+        {
+            _rules.AddPig(entity);
         }
     }
 
@@ -388,7 +411,6 @@ public sealed class GameRoom : IDisposable
             UnbindEntity(destroyed, destroyBodyIfOrphan: true);
         }
 
-        // Phase 5.5: ADR-002 seam split from the impulses that just landed.
         SplitFromAppliedCommands(snapshotCount);
     }
 
@@ -407,6 +429,11 @@ public sealed class GameRoom : IDisposable
     public bool TryPublishSnapshot(Span<byte> destination, out int bytesWritten)
     {
         ThrowIfDisposed();
+        if (Mode == RoomMode.Building)
+        {
+            return TryPublishBuildingSnapshot(destination, out bytesWritten);
+        }
+
         if (!SnapshotFrame.TryEncodeHeader(
                 destination,
                 new SnapshotFrameHeader(ProtocolVersion.Current, CurrentTick, (byte)Phase, (uint)_bodyByEntity.Count),
@@ -439,6 +466,48 @@ public sealed class GameRoom : IDisposable
                     ToReplay(snapshot.LinearVelocity),
                     ToReplay(snapshot.AngularVelocity),
                     _transforms.TryGet(new EntityId(entityValue), out EntityTransform transform) ? transform.Scale : 1f)))
+            {
+                bytesWritten = 0;
+                return false;
+            }
+        }
+
+        bytesWritten = writer.WrittenBytes;
+        return true;
+    }
+
+    private bool TryPublishBuildingSnapshot(Span<byte> destination, out int bytesWritten)
+    {
+        FillConstructionOrder();
+        if (!SnapshotFrame.TryEncodeHeader(
+                destination,
+                new SnapshotFrameHeader(ProtocolVersion.Current, CurrentTick, SnapshotFrame.BuildingPhase, (uint)_entityOrder.Count),
+                out SnapshotFrameWriter writer))
+        {
+            bytesWritten = 0;
+            return false;
+        }
+
+        ReplayVector3 zero = ReplayVector3.Zero;
+        for (int index = 0; index < _entityOrder.Count; index++)
+        {
+            uint entityValue = _entityOrder[index];
+            EntityId entity = new(entityValue);
+            if (!_parts.TryGet(entity, out PartLink part) || !_transforms.TryGet(entity, out EntityTransform transform))
+            {
+                bytesWritten = 0;
+                return false;
+            }
+
+            if (!writer.WriteEntity(new SnapshotEntity(
+                    entityValue,
+                    0,
+                    part.PartTypeId,
+                    ToReplay(transform.Position),
+                    ToReplay(transform.Rotation),
+                    zero,
+                    zero,
+                    transform.Scale)))
             {
                 bytesWritten = 0;
                 return false;
@@ -638,6 +707,18 @@ public sealed class GameRoom : IDisposable
 
         snapshot = default;
         return false;
+    }
+
+    private void FillConstructionOrder()
+    {
+        _entityOrder.Clear();
+        var parts = _parts.GetEnumerator();
+        while (parts.MoveNext())
+        {
+            _entityOrder.Add(parts.CurrentId.Value);
+        }
+
+        _entityOrder.Sort();
     }
 
     private void FillEntityOrder()

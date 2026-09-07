@@ -105,6 +105,12 @@ public readonly record struct PhysicsQuaternion(float X, float Y, float Z, float
 {
 	public static PhysicsQuaternion Identity => new(0, 0, 0, 1);
 
+	public static PhysicsQuaternion FromZAngle(float radians)
+	{
+		float half = radians * 0.5f;
+		return new(0f, 0f, MathF.Sin(half), MathF.Cos(half));
+	}
+
 	public bool IsFinite => float.IsFinite(X) && float.IsFinite(Y) && float.IsFinite(Z) && float.IsFinite(W);
 
 	/// <summary>Conjugate; for the unit quaternions used here this is the inverse rotation.</summary>
@@ -171,6 +177,23 @@ public sealed record BoxShapeDefinition : ShapeDefinition
 		}
 	}
 }
+
+public sealed record SphereShapeDefinition : ShapeDefinition
+{
+	public SphereShapeDefinition(float radius)
+		: base(PhysicsShapeKind.Sphere)
+	{
+		if (!float.IsFinite(radius) || radius <= 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(radius), radius, "A sphere radius must be finite and positive.");
+		}
+
+		Radius = radius;
+	}
+
+	public float Radius { get; }
+}
+
 
 /// <summary>One child of a compound shape: a leaf shape at a fixed offset from the body origin.</summary>
 public sealed record CompoundChild(ShapeDefinition Shape, PhysicsVector3 Offset, PhysicsQuaternion Rotation)

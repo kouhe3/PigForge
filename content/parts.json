@@ -38,6 +38,32 @@
           "radius": 0.4
         }
       ]
+    },
+    {
+      "partTypeId": 4,
+      "name": "pig",
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.4, 0.4]
+        }
+      ]
+    },
+    {
+      "partTypeId": 6,
+      "name": "ramp-plank",
+      "mode": "static",
+      "mass": 0.0,
+      "material": { "restitution": 0.0, "friction": 0.9 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [6.0, 0.25, 1.0]
+        }
+      ]
     }
   ]
 }

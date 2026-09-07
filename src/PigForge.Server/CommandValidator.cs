@@ -14,7 +14,7 @@ public enum CommandStatus
     UnknownKind
 }
 
-public readonly record struct CommandOutcome(ReplayCommand Command, CommandStatus Status, ConstructionError Error)
+public readonly record struct CommandOutcome(ReplayCommand Command, CommandStatus Status, ConstructionError Error, uint EntityId = 0)
 {
     public bool IsAccepted => Status == CommandStatus.Accepted;
 }

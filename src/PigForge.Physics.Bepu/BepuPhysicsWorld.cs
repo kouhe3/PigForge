@@ -67,6 +67,13 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             inertia = physicsShape.ComputeInertia(definition.Mass);
             activity = BodyDescription.GetDefaultActivity(physicsShape);
         }
+        else if (definition.Shapes.Count == 1 && definition.Shapes[0] is SphereShapeDefinition sphere)
+        {
+            Sphere physicsShape = new(sphere.Radius);
+            shapeIndex = _simulation.Shapes.Add(physicsShape);
+            inertia = physicsShape.ComputeInertia(definition.Mass);
+            activity = BodyDescription.GetDefaultActivity(physicsShape);
+        }
         else if (definition.Shapes.Count == 1 && definition.Shapes[0] is CompoundShapeDefinition compound)
         {
             if (definition.Mode == PhysicsBodyMode.Static)
@@ -79,7 +86,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         }
         else
         {
-            throw new NotSupportedException("BepuPhysics backend supports exactly one box or compound shape per body.");
+            throw new NotSupportedException("BepuPhysics backend supports exactly one box, sphere, or compound shape per body.");
         }
 
         if (definition.Mode == PhysicsBodyMode.Static)

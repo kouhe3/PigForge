@@ -6,17 +6,25 @@ export function attachCanvasGestures(
   camera: Camera,
   entities: { current: readonly DrawEntity[] },
   onMessage: (message: GestureMessage) => void,
+  options?: { building?: () => boolean },
 ): () => void {
   let dragging = false;
+  let moved = false;
   let lastX = 0;
   let lastY = 0;
+  let downX = 0;
+  let downY = 0;
 
   const onPointerDown = (event: PointerEvent): void => {
     dragging = true;
-    lastX = event.offsetX;
-    lastY = event.offsetY;
+    moved = false;
+    const point = pointerCss(canvas, event);
+    lastX = point.x;
+    lastY = point.y;
+    downX = point.x;
+    downY = point.y;
     canvas.setPointerCapture(event.pointerId);
-    const world = screenToWorld(camera, event.offsetX, event.offsetY, canvas.clientWidth, canvas.clientHeight);
+    const world = screenToWorld(camera, point.x, point.y, canvas.clientWidth, canvas.clientHeight);
     let hit: number | null = null;
     for (const entity of entities.current) {
       const dx = world.x - entity.x;
@@ -32,10 +40,17 @@ export function attachCanvasGestures(
     if (!dragging) {
       return;
     }
-    const dx = event.offsetX - lastX;
-    const dy = event.offsetY - lastY;
-    lastX = event.offsetX;
-    lastY = event.offsetY;
+    const point = pointerCss(canvas, event);
+    const dx = point.x - lastX;
+    const dy = point.y - lastY;
+    lastX = point.x;
+    lastY = point.y;
+    if (Math.abs(point.x - downX) + Math.abs(point.y - downY) > 4) {
+      moved = true;
+    }
+    if (!moved) {
+      return;
+    }
     camera.x -= dx / camera.scale;
     camera.y += dy / camera.scale;
     onMessage({ kind: "CameraChanged", panX: camera.x, panY: camera.y, scale: camera.scale });
@@ -44,10 +59,20 @@ export function attachCanvasGestures(
   const onPointerUp = (event: PointerEvent): void => {
     dragging = false;
     canvas.releasePointerCapture(event.pointerId);
+    if (!moved && options?.building?.()) {
+      const point = pointerCss(canvas, event);
+      const world = screenToWorld(camera, point.x, point.y, canvas.clientWidth, canvas.clientHeight);
+      onMessage({ kind: "PlaceRequested", x: world.x, y: world.y });
+    }
   };
 
   const onWheel = (event: WheelEvent): void => {
     event.preventDefault();
+    if (event.altKey) {
+      const factor = event.deltaY < 0 ? 1.1 : 0.9;
+      onMessage({ kind: "PartScaleChanged", scale: factor });
+      return;
+    }
     const factor = event.deltaY < 0 ? 1.1 : 0.9;
     camera.scale = Math.min(160, Math.max(8, camera.scale * factor));
     onMessage({ kind: "CameraChanged", panX: camera.x, panY: camera.y, scale: camera.scale });
@@ -63,4 +88,9 @@ export function attachCanvasGestures(
     canvas.removeEventListener("pointerup", onPointerUp);
     canvas.removeEventListener("wheel", onWheel);
   };
+}
+
+function pointerCss(canvas: HTMLCanvasElement, event: PointerEvent): { x: number; y: number } {
+  const rect = canvas.getBoundingClientRect();
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }

@@ -16,8 +16,9 @@ export const useSessionStore = defineStore("session", () => {
   const tick = ref(1);
   const playing = ref(false);
   const speed = ref(1);
-  const liveUrl = ref("ws://127.0.0.1:5088/snapshots");
+  const liveUrl = ref("ws://127.0.0.1:5088/play");
   const liveTick = ref(0);
+  const livePhase = ref(0);
   const events = ref<ReplayEvent[]>([]);
 
   function loadContent(value: unknown): boolean {
@@ -59,9 +60,10 @@ export const useSessionStore = defineStore("session", () => {
     viewState.entities = toDrawEntities(frame.snapshots);
   }
 
-  function applyLiveEntities(nextTick: number, entities: DrawEntity[]): void {
+  function applyLiveEntities(nextTick: number, entities: DrawEntity[], phase = 0): void {
     mode.value = "live";
     liveTick.value = nextTick;
+    livePhase.value = phase;
     tick.value = nextTick;
     viewState.entities = entities;
   }
@@ -80,6 +82,7 @@ export const useSessionStore = defineStore("session", () => {
     speed,
     liveUrl,
     liveTick,
+    livePhase,
     events,
     loadContent,
     loadReplay,

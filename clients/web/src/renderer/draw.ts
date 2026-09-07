@@ -11,13 +11,19 @@ export function drawFrame(
   entities: readonly DrawEntity[],
   content: PartContentDocument | null,
   selectedId: number | null,
+  goal?: { minX: number; minY: number; maxX: number; maxY: number },
 ): void {
-  const width = ctx.canvas.width;
-  const height = ctx.canvas.height;
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
   ctx.fillStyle = "#1c211c";
   ctx.fillRect(0, 0, width, height);
   drawGrid(ctx, camera, width, height);
-
+  if (goal) {
+    const a = worldToScreen(camera, goal.minX, goal.maxY, width, height);
+    const b = worldToScreen(camera, goal.maxX, goal.minY, width, height);
+    ctx.fillStyle = "rgba(80, 160, 90, 0.25)";
+    ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  }
   const parts = new Map<number, PartDefinition>();
   if (content) {
     for (const part of content.parts) {

@@ -1,19 +1,44 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { GOAL_ZONE, PALETTE, PLAY_PARTS } from "./builder/slope";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
+import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
 import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
 import { drawFrame } from "./renderer/draw";
+import { SNAPSHOT_BUILDING_PHASE } from "./schema/decodeSnapshot";
 import { useSessionStore } from "./stores/session";
 import { viewState } from "./viewState";
 
 const session = useSessionStore();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const entitiesRef = { current: viewState.entities };
+const placeAngle = ref(0);
+const placeScale = ref(1);
+const selectedPart = ref(4);
+const sequence = ref(1);
 let clock: PlaybackClock | null = null;
 let detachGestures: (() => void) | null = null;
 let disconnectLive: (() => void) | null = null;
+let sendCommand: ((command: Parameters<ReturnType<typeof connectPlaySocket>["send"]>[0]) => void) | null = null;
 let raf = 0;
+
+const building = computed(() => session.mode === "live" && session.livePhase === SNAPSHOT_BUILDING_PHASE);
+const outcome = computed(() => {
+  if (session.livePhase === SNAPSHOT_BUILDING_PHASE) {
+    return "建造";
+  }
+  if (session.livePhase === 1) {
+    return "过关";
+  }
+  if (session.livePhase === 2) {
+    return "失败：出界或超时";
+  }
+  if (session.mode === "live") {
+    return "运行";
+  }
+  return session.mode;
+});
 
 function paint(): void {
   const node = canvas.value;
@@ -33,7 +58,7 @@ function paint(): void {
   }
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   entitiesRef.current = viewState.entities;
-  drawFrame(ctx, viewState.camera, viewState.entities, session.content, viewState.selectedId);
+  drawFrame(ctx, viewState.camera, viewState.entities, session.content, viewState.selectedId, GOAL_ZONE);
   raf = requestAnimationFrame(paint);
 }
 
@@ -91,19 +116,71 @@ function step(delta: number): void {
   clock?.step(delta);
 }
 
+function nextSequence(): number {
+  const value = sequence.value;
+  sequence.value = value + 1;
+  return value;
+}
+
 function connectLive(): void {
   disconnectLive?.();
+  sendCommand = null;
   session.setErrors([]);
-  disconnectLive = connectSnapshotSocket(
+  session.loadContent(PLAY_PARTS);
+  if (session.liveUrl.includes("/snapshots")) {
+    disconnectLive = connectSnapshotSocket(
+      session.liveUrl,
+      (snapshot) => session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase),
+      (message) => session.setErrors([message]),
+    );
+    return;
+  }
+  const play = connectPlaySocket(
     session.liveUrl,
-    (snapshot) => session.applyLiveEntities(snapshot.tick, snapshot.entities),
+    (snapshot) => session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase),
+    (ack) => {
+      if (ack.status !== 0) {
+        session.setErrors([`命令 ${ack.sequence} 被拒绝 status=${ack.status} error=${ack.error}`]);
+      }
+    },
     (message) => session.setErrors([message]),
   );
+  sendCommand = play.send;
+  disconnectLive = play.close;
+}
+
+function startSimulation(): void {
+  sendCommand?.({ kind: 3, sequence: nextSequence(), playerId: 1, tick: 0 });
 }
 
 function selectedEntity() {
   const id = viewState.selectedId;
   return viewState.entities.find((entity) => entity.entityId === id) ?? null;
+}
+
+function onKey(event: KeyboardEvent): void {
+  if (event.key === "q" || event.key === "Q") {
+    placeAngle.value -= Math.PI / 12;
+  } else if (event.key === "e" || event.key === "E") {
+    placeAngle.value += Math.PI / 12;
+  } else if (event.key === "r" || event.key === "R") {
+    const entity = selectedEntity();
+    if (entity && building.value) {
+      sendCommand?.({
+        kind: 2,
+        sequence: nextSequence(),
+        playerId: 1,
+        tick: 0,
+        entityId: entity.entityId,
+        angle: placeAngle.value,
+      });
+    }
+  } else if (event.key === "Delete" || event.key === "Backspace") {
+    const entity = selectedEntity();
+    if (entity && building.value) {
+      sendCommand?.({ kind: 1, sequence: nextSequence(), playerId: 1, tick: 0, entityId: entity.entityId });
+    }
+  }
 }
 
 watch(
@@ -116,14 +193,38 @@ watch(
 );
 
 onMounted(() => {
+  session.loadContent(PLAY_PARTS);
   const node = canvas.value;
   if (node) {
-    detachGestures = attachCanvasGestures(node, viewState.camera, entitiesRef, (message) => {
-      if (message.kind === "SelectEntity") {
-        viewState.selectedId = message.entityId;
-      }
-    });
+    detachGestures = attachCanvasGestures(
+      node,
+      viewState.camera,
+      entitiesRef,
+      (message) => {
+        if (message.kind === "SelectEntity") {
+          viewState.selectedId = message.entityId;
+        }
+        if (message.kind === "PlaceRequested" && building.value) {
+          sendCommand?.({
+            kind: 0,
+            sequence: nextSequence(),
+            playerId: 1,
+            tick: 0,
+            partTypeId: selectedPart.value,
+            x: message.x,
+            y: message.y,
+            angle: placeAngle.value,
+            scale: placeScale.value,
+          });
+        }
+        if (message.kind === "PartScaleChanged") {
+          placeScale.value = Math.min(4, Math.max(0.25, placeScale.value * message.scale));
+        }
+      },
+      { building: () => building.value },
+    );
   }
+  window.addEventListener("keydown", onKey);
   raf = requestAnimationFrame(paint);
 });
 
@@ -132,6 +233,7 @@ onUnmounted(() => {
   clock?.dispose();
   detachGestures?.();
   disconnectLive?.();
+  window.removeEventListener("keydown", onKey);
 });
 </script>
 
@@ -162,18 +264,32 @@ onUnmounted(() => {
         </select>
       </label>
       <label>
-        实时快照
+        房间
         <input v-model="session.liveUrl" aria-label="快照 WebSocket 地址" />
       </label>
       <button type="button" @click="connectLive">连接房间</button>
-      <span class="meta">模式 {{ session.mode }} · tick {{ session.tick }}</span>
+      <button type="button" :disabled="!building" @click="startSimulation">Start</button>
+      <span class="meta">{{ outcome }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }}</span>
     </header>
     <main class="stage">
-      <canvas ref="canvas" role="img" aria-label="物理快照画布，拖拽平移，滚轮缩放"></canvas>
+      <canvas ref="canvas" role="img" aria-label="物理快照画布，拖拽平移，滚轮缩放，点击放置"></canvas>
     </main>
     <aside class="side">
+      <h1>零件</h1>
+      <p class="meta">点击画布放置。Q/E 转角，Alt+滚轮缩放，R 旋转选中，Delete 删除。不提交位姿。</p>
+      <div class="palette">
+        <button
+          v-for="part in PALETTE"
+          :key="part.partTypeId"
+          type="button"
+          :class="{ selected: selectedPart === part.partTypeId }"
+          @click="selectedPart = part.partTypeId"
+        >
+          {{ part.label }}
+        </button>
+      </div>
       <h1>检查器</h1>
-      <p v-if="!selectedEntity()" class="meta">点击实体查看位姿。客户端不提交位置、断裂或胜负。</p>
+      <p v-if="!selectedEntity()" class="meta">点击实体查看位姿。</p>
       <dl v-else>
         <dt>entityId</dt>
         <dd>{{ selectedEntity()?.entityId }}</dd>
@@ -191,7 +307,7 @@ onUnmounted(() => {
         <li v-for="(event, index) in session.events" :key="index">{{ event.kind }}</li>
       </ul>
       <p v-else class="meta">本 tick 无事件</p>
-      <h2 v-if="session.errors.length">加载错误</h2>
+      <h2 v-if="session.errors.length">错误</h2>
       <ul v-if="session.errors.length" class="errors" role="alert">
         <li v-for="(error, index) in session.errors" :key="index">{{ error }}</li>
       </ul>

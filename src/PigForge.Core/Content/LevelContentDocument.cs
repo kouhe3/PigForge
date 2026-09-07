@@ -16,7 +16,8 @@ public sealed record LevelSpawnDefinition(
     ushort TntFuseTicks = 1,
     float MotorImpulsePerTick = 0f,
     float MotorDirectionX = 0f,
-    bool IsWheel = false);
+    bool IsWheel = false,
+    float Angle = 0f);
 
 /// <summary>Engine-agnostic level definition: spawns, goal trigger zone and map bounds (ADR-002).</summary>
 public sealed record LevelContentDocument(

@@ -66,11 +66,14 @@ public sealed class PartContentLibrary
             throw new NotSupportedException($"Part type {partTypeId} uses shape offsets, which the physics contract does not support yet.");
         }
 
-        ShapeDefinition[] shapes = part.Shapes.Select(shape => shape.Kind switch
+        ShapeDefinition[] shapes = part.Shapes.Select<PartShapeDefinition, ShapeDefinition>(shape => shape.Kind switch
         {
             PhysicsShapeKind.Box when shape.BoxHalfExtents is { Length: 3 } halfExtents
                 => new BoxShapeDefinition(halfExtents[0] * scale, halfExtents[1] * scale, halfExtents[2] * scale),
             PhysicsShapeKind.Box => throw new InvalidOperationException($"Part type {partTypeId} has a box shape without half extents."),
+            PhysicsShapeKind.Sphere when shape.Radius is float radius
+                => new SphereShapeDefinition(radius * scale),
+            PhysicsShapeKind.Sphere => throw new InvalidOperationException($"Part type {partTypeId} has a sphere shape without radius."),
             _ => throw new NotSupportedException($"Part type {partTypeId} uses shape kind {shape.Kind}, which has no physics shape definition yet.")
         }).ToArray();
 

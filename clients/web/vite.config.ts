@@ -16,6 +16,10 @@ export default defineConfig({
         target: "ws://127.0.0.1:5088",
         ws: true,
       },
+      "/play": {
+        target: "ws://127.0.0.1:5088",
+        ws: true,
+      },
     },
   },
 });

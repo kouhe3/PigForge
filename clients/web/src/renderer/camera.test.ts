@@ -14,6 +14,24 @@ describe("camera", () => {
     expect(world.y).toBeCloseTo(3);
   });
 
+  it("click CSS pixels round-trip only when mapping uses CSS size not backing size", () => {
+    const camera = createCamera();
+    camera.x = 0;
+    camera.y = 0;
+    camera.scale = 40;
+    const cssWidth = 800;
+    const cssHeight = 600;
+    const dpr = 2;
+    const clickX = 200;
+    const clickY = 150;
+    const world = screenToWorld(camera, clickX, clickY, cssWidth, cssHeight);
+    const drawnOnBacking = worldToScreen(camera, world.x, world.y, cssWidth * dpr, cssHeight * dpr);
+    expect(drawnOnBacking.x).not.toBeCloseTo(clickX);
+    const drawnOnCss = worldToScreen(camera, world.x, world.y, cssWidth, cssHeight);
+    expect(drawnOnCss.x).toBeCloseTo(clickX);
+    expect(drawnOnCss.y).toBeCloseTo(clickY);
+  });
+
   it("reads identity quaternion as zero yaw", () => {
     expect(yawFromQuaternion([0, 0, 0, 1])).toBeCloseTo(0);
   });

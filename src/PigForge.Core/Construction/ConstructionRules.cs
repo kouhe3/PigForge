@@ -26,7 +26,8 @@ public enum ConstructionError
     EntityNotFound,
     NotAConstructionEntity,
     RotationBlocked,
-    FrozenEntity
+    FrozenEntity,
+    UnsupportedShape
 }
 
 public readonly record struct ConstructionResult(EntityId Entity, ConstructionError Error)

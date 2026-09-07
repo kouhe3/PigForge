@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeSnapshotFrame, SNAPSHOT_ENTITY_BYTES, SNAPSHOT_HEADER_BYTES } from "./decodeSnapshot";
+import { decodeSnapshotFrame, SNAPSHOT_BUILDING_PHASE, SNAPSHOT_ENTITY_BYTES, SNAPSHOT_HEADER_BYTES } from "./decodeSnapshot";
 
 function writeFrame(): Uint8Array {
   const bytes = new Uint8Array(SNAPSHOT_HEADER_BYTES + SNAPSHOT_ENTITY_BYTES);
@@ -43,6 +43,10 @@ describe("decodeSnapshotFrame", () => {
     expect(decoded.entities[0].position[0]).toBeCloseTo(1.5);
     expect(decoded.entities[0].position[1]).toBeCloseTo(2.25);
     expect(decoded.entities[0].scale).toBeCloseTo(1);
+  });
+
+  it("exposes building phase 0x10", () => {
+    expect(SNAPSHOT_BUILDING_PHASE).toBe(0x10);
   });
 
   it("rejects v1 magic or version", () => {

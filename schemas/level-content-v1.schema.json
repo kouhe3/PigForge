@@ -56,6 +56,7 @@
       "properties": {
         "partTypeId": { "$ref": "#/$defs/positiveUInt" },
         "position": { "$ref": "#/$defs/vector3" },
+        "angle": { "$ref": "#/$defs/finiteNumber" },
         "role": { "enum": ["part", "pig", "tnt"] },
         "tntFuseTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
         "motorImpulsePerTick": { "$ref": "#/$defs/finiteNumber" },

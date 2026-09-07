@@ -14,7 +14,7 @@ public sealed class PartContentTests
         PartContentLibrary library = PartContentLibrary.Load(path);
 
         Assert.Equal("pigforge-base-content-v1", library.Document.ContentVersion);
-        Assert.Equal(3, library.Document.Parts.Count);
+        Assert.Equal(5, library.Document.Parts.Count);
         Assert.NotNull(library.GetPart(1));
     }
 
@@ -214,10 +214,9 @@ public sealed class PartContentTests
             PhysicsVector3.Zero,
             PhysicsQuaternion.Identity,
             linearVelocity: new PhysicsVector3(1, 0, 0)));
-        Assert.Throws<NotSupportedException>(() => library.CreateBodyDefinition(
-            3,
-            PhysicsVector3.Zero,
-            PhysicsQuaternion.Identity));
+        BodyDefinition ball = library.CreateBodyDefinition(3, PhysicsVector3.Zero, PhysicsQuaternion.Identity);
+        SphereShapeDefinition sphere = Assert.IsType<SphereShapeDefinition>(Assert.Single(ball.Shapes));
+        Assert.Equal(0.4f, sphere.Radius);
     }
 
     private const string SinglePartJson = """

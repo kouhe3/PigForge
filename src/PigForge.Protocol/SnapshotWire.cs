@@ -25,6 +25,8 @@ public static class SnapshotFrame
 {
 	public const ushort CurrentVersion = 2;
 
+	public const byte BuildingPhase = 0x10;
+
 	public const int HeaderByteCount = 15;
 
 	public const int EntityByteCount = 12 + (4 * 14);

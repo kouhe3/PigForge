@@ -1,6 +1,7 @@
 import type { SnapshotEntity, SnapshotFrame, Vec3, Quat } from "./types";
 
 export const SNAPSHOT_VERSION = 2;
+export const SNAPSHOT_BUILDING_PHASE = 0x10;
 export const SNAPSHOT_HEADER_BYTES = 15;
 export const SNAPSHOT_ENTITY_BYTES = 68;
 

@@ -1,0 +1,15 @@
+{
+  "format": "pigforge.level-content",
+  "schemaVersion": 1,
+  "contentVersion": "slope-v1",
+  "goalZone": { "min": [4.5, -0.5, -2], "max": [7.5, 2.5, 2] },
+  "bounds": { "min": [-20, -8, -8], "max": [20, 20, 8] },
+  "spawns": [
+    {
+      "partTypeId": 6,
+      "position": [0, 2, 0],
+      "angle": -0.35,
+      "role": "part"
+    }
+  ]
+}

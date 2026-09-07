@@ -122,7 +122,7 @@ public static class LevelContentParser
             }
         }
 
-        string[] allowed = { "partTypeId", "position", "role", "tntFuseTicks", "motorImpulsePerTick", "motorDirectionX", "wheel" };
+        string[] allowed = { "partTypeId", "position", "role", "tntFuseTicks", "motorImpulsePerTick", "motorDirectionX", "wheel", "angle" };
         RequireExactly(seen, new[] { "partTypeId", "position" }, path, errors);
         foreach (string property in seen)
         {
@@ -207,6 +207,19 @@ public static class LevelContentParser
             }
         }
 
+        float angle = 0f;
+        if (seen.Contains("angle") && element.TryGetProperty("angle", out JsonElement angleElement))
+        {
+            if (angleElement.ValueKind != JsonValueKind.Number || !IsFinite(angleElement))
+            {
+                errors.Add($"{path}.angle: must be a finite number.");
+            }
+            else
+            {
+                angle = angleElement.GetSingle();
+            }
+        }
+
         spawns.Add(new LevelSpawnDefinition(
             partTypeId,
             position ?? default,
@@ -214,7 +227,8 @@ public static class LevelContentParser
             role == LevelActorRole.Tnt ? fuse : (ushort)1,
             motorImpulse,
             motorDirection,
-            wheel));
+            wheel,
+            angle));
     }
 
     private static GameplayZone ReadZone(JsonElement element, string path, List<string> errors)

@@ -27,7 +27,8 @@ public sealed record GameplayConfig(
     float TntBlastRadius,
     float TntBlastImpulse,
     float TntIgniteImpactSpeed,
-    float SeamBreakImpulse = 10f)
+    float SeamBreakImpulse = 10f,
+    uint MaxTicks = 0)
 {
     public static GameplayConfig Default { get; } = new(
         GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
@@ -35,7 +36,9 @@ public sealed record GameplayConfig(
         TntBlastRadius: 4f,
         TntBlastImpulse: 25f,
         TntIgniteImpactSpeed: 5f,
-        SeamBreakImpulse: 10f);
+        SeamBreakImpulse: 10f,
+        MaxTicks: 0);
+
 }
 
 /// <summary>Per-tick rule output; the caller owns and reuses the instance to keep the tick path allocation-free.</summary>
@@ -144,7 +147,7 @@ public sealed class GameplayRules
         RunMotors(output);
         RunTntFuses(output);
         DropCommandsForDestroyedBodies(output);
-        CheckObjectives();
+        CheckObjectives(tick);
         StorePreviousVelocities();
     }
 
@@ -332,7 +335,7 @@ public sealed class GameplayRules
         }
     }
 
-    private void CheckObjectives()
+    private void CheckObjectives(uint tick)
     {
         var pigs = _pigs.GetEnumerator();
         while (pigs.MoveNext())
@@ -355,6 +358,11 @@ public sealed class GameplayRules
                 RestartRequested = true;
                 return;
             }
+        }
+
+        if (_config.MaxTicks > 0 && tick >= _config.MaxTicks)
+        {
+            Phase = GameplayPhase.Failed;
         }
     }
 

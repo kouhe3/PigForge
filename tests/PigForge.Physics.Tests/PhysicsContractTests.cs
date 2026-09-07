@@ -228,6 +228,25 @@ public sealed class PhysicsContractTests
     }
 
     [Fact]
+    public void BepuWorldCreatesDynamicSphere()
+    {
+        using BepuPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));
+        PhysicsBodyId body = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 2, 0),
+            PhysicsQuaternion.Identity,
+            1,
+            new ShapeDefinition[] { new SphereShapeDefinition(0.4f) }));
+        world.Step(FixedTimeStep.FromSeconds(1f / 60f));
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[1];
+        Assert.Equal(1, world.CopySnapshots(snapshots));
+        Assert.Equal(body, snapshots[0].Body);
+        Assert.True(snapshots[0].Position.Y < 2f);
+        world.DestroyBody(body);
+    }
+
+
+    [Fact]
     public void BepuWorldCreatesCompoundDropsItAndReleasesShapes()
     {
         using BepuPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));

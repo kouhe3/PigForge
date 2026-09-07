@@ -96,6 +96,14 @@ export interface DrawEntity {
   vy: number;
 }
 
+export type ClientCommand =
+  | { kind: 0; sequence: number; playerId: number; tick: number; partTypeId: number; x: number; y: number; angle: number; scale: number }
+  | { kind: 1; sequence: number; playerId: number; tick: number; entityId: number }
+  | { kind: 2; sequence: number; playerId: number; tick: number; entityId: number; angle: number }
+  | { kind: 3; sequence: number; playerId: number; tick: number };
+
 export type GestureMessage =
   | { kind: "CameraChanged"; panX: number; panY: number; scale: number }
-  | { kind: "SelectEntity"; entityId: number | null };
+  | { kind: "SelectEntity"; entityId: number | null }
+  | { kind: "PlaceRequested"; x: number; y: number }
+  | { kind: "PartScaleChanged"; scale: number };

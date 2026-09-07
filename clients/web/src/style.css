@@ -101,6 +101,17 @@ label {
   font-size: 0.8rem;
 }
 
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.palette button.selected {
+  outline: 2px solid #f0d090;
+}
+
 @media (max-width: 768px) {
   .layout {
     grid-template-columns: 1fr;
