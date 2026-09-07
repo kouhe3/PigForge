@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { GOAL_ZONE, PALETTE, PLAY_PARTS } from "./builder/slope";
+import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
 import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
@@ -63,8 +63,7 @@ function paint(): void {
     node.height = Math.floor(height * ratio);
   }
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  entitiesRef.current = viewState.entities;
-  drawFrame(ctx, viewState.camera, viewState.entities, session.content, viewState.selectedId, GOAL_ZONE);
+  drawFrame(ctx, viewState.camera, viewState.entities, session.content, viewState.selectedId, GOAL_ZONE, MAP_BOUNDS);
   raf = requestAnimationFrame(paint);
 }
 

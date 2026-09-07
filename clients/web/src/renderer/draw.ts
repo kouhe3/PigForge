@@ -12,6 +12,7 @@ export function drawFrame(
   content: PartContentDocument | null,
   selectedId: number | null,
   goal?: { minX: number; minY: number; maxX: number; maxY: number },
+  bounds?: { minX: number; minY: number; maxX: number; maxY: number },
 ): void {
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
@@ -23,6 +24,15 @@ export function drawFrame(
     const b = worldToScreen(camera, goal.maxX, goal.minY, width, height);
     ctx.fillStyle = "rgba(80, 160, 90, 0.25)";
     ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  }
+  if (bounds) {
+    const a = worldToScreen(camera, bounds.minX, bounds.maxY, width, height);
+    const b = worldToScreen(camera, bounds.maxX, bounds.minY, width, height);
+    ctx.strokeStyle = "rgba(220, 100, 90, 0.85)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    ctx.setLineDash([]);
   }
   const parts = new Map<number, PartDefinition>();
   if (content) {

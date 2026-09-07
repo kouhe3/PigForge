@@ -25,3 +25,4 @@ export const PALETTE = [
 ] as const;
 
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };
+export const MAP_BOUNDS = { minX: -30, minY: -12, maxX: 30, maxY: 30 };
