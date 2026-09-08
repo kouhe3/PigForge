@@ -164,6 +164,9 @@ public sealed class FrozenContraptionTests
         new WheelStore(entities),
         new PigStore(entities),
         new EggStore(entities),
+        new WingStore(entities),
+        new TailStore(entities),
+        new UmbrellaStore(entities),
         bodies,
         GameplayConfig.Default);
 

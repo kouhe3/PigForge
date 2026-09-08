@@ -32,6 +32,14 @@ export const PLAY_PARTS: PartContentDocument = {
     { partTypeId: 28, name: "boxing-glove", mode: "dynamic", mass: 0.8, capabilities: { spring: 25 }, shapes: [{ kind: "box", halfExtents: [0.35, 0.35, 0.35] }] },
     { partTypeId: 29, name: "firework-blue", mode: "dynamic", mass: 0.9, capabilities: { rocket: { thrustPerTick: 4, directionX: 0, directionY: 1, durationTicks: 45, explodeRadius: 3, explodeImpulse: 14 } }, shapes: [{ kind: "box", halfExtents: [0.25, 0.45, 0.25] }] },
     { partTypeId: 30, name: "firework-red", mode: "dynamic", mass: 0.9, capabilities: { rocket: { thrustPerTick: 6, directionX: 0, directionY: 1, durationTicks: 30, explodeRadius: 4, explodeImpulse: 20 } }, shapes: [{ kind: "box", halfExtents: [0.25, 0.45, 0.25] }] },
+    { partTypeId: 31, name: "wooden-glider-wing", mode: "dynamic", mass: 0.6, capabilities: { wing: { liftCoef: 0.05, maxLift: 6 } }, shapes: [{ kind: "box", halfExtents: [0.9, 0.12, 0.3] }] },
+    { partTypeId: 32, name: "metal-glider-wing", mode: "dynamic", mass: 0.9, capabilities: { wing: { liftCoef: 0.08, maxLift: 10 } }, shapes: [{ kind: "box", halfExtents: [0.9, 0.12, 0.3] }] },
+    { partTypeId: 33, name: "wooden-tail-wing", mode: "dynamic", mass: 0.5, capabilities: { tail: 0.03 }, shapes: [{ kind: "box", halfExtents: [0.5, 0.1, 0.2] }] },
+    { partTypeId: 34, name: "metal-tail-wing", mode: "dynamic", mass: 0.7, capabilities: { tail: 0.05 }, shapes: [{ kind: "box", halfExtents: [0.5, 0.1, 0.2] }] },
+    { partTypeId: 35, name: "black-umbrella", mode: "dynamic", mass: 0.5, capabilities: { umbrella: 0.2 }, shapes: [{ kind: "box", halfExtents: [0.4, 0.2, 0.4] }] },
+    { partTypeId: 36, name: "electric-umbrella", mode: "dynamic", mass: 0.7, capabilities: { umbrella: 0.35 }, shapes: [{ kind: "box", halfExtents: [0.4, 0.2, 0.4] }] },
+    { partTypeId: 37, name: "rotor", mode: "dynamic", mass: 0.7, capabilities: { balloon: 3.5 }, shapes: [{ kind: "sphere", radius: 0.4 }] },
+    { partTypeId: 38, name: "propeller", mode: "dynamic", mass: 0.9, capabilities: { wheel: true, motor: { thrustPerTick: 2.5, directionX: 1 } }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.2] }] },
     { partTypeId: 6, name: "ramp-plank", mode: "static", mass: 0, shapes: [{ kind: "box", halfExtents: [6, 0.25, 1] }] },
   ],
 };
@@ -64,6 +72,14 @@ export const PALETTE = [
   { partTypeId: 28, label: "拳套" },
   { partTypeId: 29, label: "蓝烟花" },
   { partTypeId: 30, label: "红烟花" },
+  { partTypeId: 31, label: "木滑翔翼" },
+  { partTypeId: 32, label: "金属滑翔翼" },
+  { partTypeId: 33, label: "木尾翼" },
+  { partTypeId: 34, label: "金属尾翼" },
+  { partTypeId: 35, label: "黑伞" },
+  { partTypeId: 36, label: "电伞" },
+  { partTypeId: 37, label: "旋翼" },
+  { partTypeId: 38, label: "螺旋桨" },
 ] as const;
 
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };

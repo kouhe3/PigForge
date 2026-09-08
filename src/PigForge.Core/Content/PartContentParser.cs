@@ -253,6 +253,10 @@ public static class PartContentParser
         float? rocketExplodeRadius = null;
         float? rocketExplodeImpulse = null;
         bool isEgg = false;
+        float? wingLiftCoef = null;
+        float? wingMaxLift = null;
+        float? tailDragCoef = null;
+        float? umbrellaDragCoef = null;
         bool hasError = false;
 
         HashSet<string> seenKeys = new();
@@ -369,9 +373,48 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("wing"))
+        {
+            if (!capabilitiesElement.TryGetProperty("wing", out JsonElement wingElement) || !TryReadWing(wingElement, path, out wingLiftCoef, out wingMaxLift))
+            {
+                errors.Add($"{path}.capabilities.wing: must be an object with a finite liftCoef and optional finite maxLift.");
+                hasError = true;
+            }
+        }
+
+        if (seenKeys.Contains("tail"))
+        {
+            if (!capabilitiesElement.TryGetProperty("tail", out JsonElement tailElement)
+                || tailElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(tailElement))
+            {
+                errors.Add($"{path}.capabilities.tail: must be a finite dragCoef number.");
+                hasError = true;
+            }
+            else
+            {
+                tailDragCoef = tailElement.GetSingle();
+            }
+        }
+
+        if (seenKeys.Contains("umbrella"))
+        {
+            if (!capabilitiesElement.TryGetProperty("umbrella", out JsonElement umbrellaElement)
+                || umbrellaElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(umbrellaElement))
+            {
+                errors.Add($"{path}.capabilities.umbrella: must be a finite dragCoef number.");
+                hasError = true;
+            }
+            else
+            {
+                umbrellaDragCoef = umbrellaElement.GetSingle();
+            }
+        }
+
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -383,7 +426,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef);
     }
 
     private static bool TryReadMotor(JsonElement element, string path, out float? thrust, out float? direction)
@@ -470,6 +513,40 @@ public static class PartContentParser
         }
 
         return hasX || hasY;
+    }
+
+    private static bool TryReadWing(JsonElement element, string path, out float? liftCoef, out float? maxLift)
+    {
+        liftCoef = null;
+        maxLift = null;
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("liftCoef", out JsonElement liftElement)
+            || liftElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(liftElement)
+            || !liftElement.TryGetSingle(out float liftValue))
+        {
+            return false;
+        }
+
+        if (element.TryGetProperty("maxLift", out JsonElement maxElement))
+        {
+            if (maxElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(maxElement)
+                || !maxElement.TryGetSingle(out float maxValue)
+                || maxValue < 0f)
+            {
+                return false;
+            }
+
+            maxLift = maxValue;
+        }
+
+        liftCoef = liftValue;
+        return true;
     }
 
     private static bool TryReadTnt(JsonElement element, string path, out ushort? fuse)

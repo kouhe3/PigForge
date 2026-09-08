@@ -74,6 +74,9 @@ public sealed class GameplayRules
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
     private readonly EggStore _eggs;
+    private readonly WingStore _wings;
+    private readonly TailStore _tails;
+    private readonly UmbrellaStore _umbrellas;
     private readonly PhysicsBodyStore _bodies;
     private readonly GameplayConfig _config;
 
@@ -96,6 +99,9 @@ public sealed class GameplayRules
         WheelStore wheels,
         PigStore pigs,
         EggStore eggs,
+        WingStore wings,
+        TailStore tails,
+        UmbrellaStore umbrellas,
         PhysicsBodyStore bodies,
         GameplayConfig config)
     {
@@ -109,6 +115,9 @@ public sealed class GameplayRules
         _eggs = eggs ?? throw new ArgumentNullException(nameof(eggs));
         _wheels = wheels ?? throw new ArgumentNullException(nameof(wheels));
         _pigs = pigs ?? throw new ArgumentNullException(nameof(pigs));
+        _wings = wings ?? throw new ArgumentNullException(nameof(wings));
+        _tails = tails ?? throw new ArgumentNullException(nameof(tails));
+        _umbrellas = umbrellas ?? throw new ArgumentNullException(nameof(umbrellas));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
@@ -161,8 +170,16 @@ public sealed class GameplayRules
 
     public void AddEgg(EntityId entity) => _eggs.Set(entity, default);
 
-    public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
+    public void AddWing(EntityId entity, float liftCoef, float maxLift) =>
+        _wings.Set(entity, new WingState(liftCoef, maxLift));
 
+    public void AddTail(EntityId entity, float dragCoef) =>
+        _tails.Set(entity, new TailState(dragCoef));
+
+    public void AddUmbrella(EntityId entity, float dragCoef) =>
+        _umbrellas.Set(entity, new UmbrellaState(dragCoef));
+
+    public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
     public void Tick(uint tick, ReadOnlySpan<PhysicsEvent> events, ReadOnlySpan<PhysicsBodySnapshot> snapshots, GameplayTickOutput output)
     {
         if (Phase != GameplayPhase.Playing)
@@ -177,6 +194,7 @@ public sealed class GameplayRules
         RunMotors(output);
         RunBalloons(output);
         RunFans(output);
+        RunAerodynamics(output);
         RunSprings(output);
         RunRockets(output);
         RunTntFuses(output);
@@ -347,6 +365,83 @@ public sealed class GameplayRules
                 link.Body,
                 direction * fan.ImpulsePerTick,
                 _kinematicsByBody[link.Body.Value].Position));
+        }
+    }
+
+    private void RunAerodynamics(GameplayTickOutput output)
+    {
+        RunWings(output);
+        RunTails(output);
+        RunUmbrellas(output);
+    }
+
+    private void RunWings(GameplayTickOutput output)
+    {
+        var wings = _wings.GetEnumerator();
+        while (wings.MoveNext())
+        {
+            if (!_bodies.TryGet(wings.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            WingState wing = wings.CurrentValue;
+            // Lift grows with the square of horizontal speed (a glider only flies
+            // while moving forward), capped so a single wing cannot hover.
+            float lift = MathF.Min(wing.LiftCoef * kinematics.Velocity.X * kinematics.Velocity.X, wing.MaxLift);
+            if (lift > float.Epsilon)
+            {
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    link.Body,
+                    new PhysicsVector3(0f, lift, 0f),
+                    kinematics.Position));
+            }
+        }
+    }
+
+    private void RunTails(GameplayTickOutput output)
+    {
+        var tails = _tails.GetEnumerator();
+        while (tails.MoveNext())
+        {
+            if (!_bodies.TryGet(tails.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            TailState tail = tails.CurrentValue;
+            // A tail damps velocity proportionally (no spin-down thrust, just
+            // air resistance to keep a loaded glider stable).
+            output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                link.Body,
+                kinematics.Velocity * -tail.DragCoef,
+                kinematics.Position));
+        }
+    }
+
+    private void RunUmbrellas(GameplayTickOutput output)
+    {
+        var umbrellas = _umbrellas.GetEnumerator();
+        while (umbrellas.MoveNext())
+        {
+            if (!_bodies.TryGet(umbrellas.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            UmbrellaState umbrella = umbrellas.CurrentValue;
+            // Only while descending: the fall damper slows the drop as an upward
+            // impulse; rising bodies are unaffected.
+            if (kinematics.Velocity.Y < 0f)
+            {
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    link.Body,
+                    new PhysicsVector3(0f, -kinematics.Velocity.Y * umbrella.DragCoef, 0f),
+                    kinematics.Position));
+            }
         }
     }
 
@@ -602,6 +697,9 @@ public sealed class GameplayRules
         _wheels.Remove(entity);
         _pigs.Remove(entity);
         _eggs.Remove(entity);
+        _wings.Remove(entity);
+        _tails.Remove(entity);
+        _umbrellas.Remove(entity);
         _bodies.Remove(entity);
     }
 
@@ -653,6 +751,9 @@ public sealed class GameplayRules
         _wheels.Clear();
         _pigs.Clear();
         _eggs.Clear();
+        _wings.Clear();
+        _tails.Clear();
+        _umbrellas.Clear();
         _bodies.Clear();
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
@@ -681,6 +782,9 @@ public sealed class GameplayRules
         _wheels.Remove(entity);
         _pigs.Remove(entity);
         _eggs.Remove(entity);
+        _wings.Remove(entity);
+        _tails.Remove(entity);
+        _umbrellas.Remove(entity);
         _bodies.Remove(entity);
         _entities.Destroy(entity);
         output.DestroyedEntities.Add(entity);

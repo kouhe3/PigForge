@@ -188,6 +188,9 @@ public sealed class GameplayRulesTests
                 new WheelStore(entities),
                 new PigStore(entities),
                 new EggStore(entities),
+                new WingStore(entities),
+                new TailStore(entities),
+                new UmbrellaStore(entities),
                 _bodies,
                 config);
         }
@@ -242,6 +245,9 @@ public sealed class GameplayRulesTests
                 new WheelStore(_entities),
                 new PigStore(_entities),
                 new EggStore(_entities),
+                new WingStore(_entities),
+                new TailStore(_entities),
+                new UmbrellaStore(_entities),
                 _bodies,
                 new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
             foreach (LevelSpawnDefinition spawn in level.Spawns)
@@ -665,5 +671,61 @@ public sealed class GameplayRulesTests
         harness.Tick(2, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands);
         Assert.Contains(rocket, harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
+    public void WingLiftGrowsWithHorizontalSpeedSquared()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId wing = entities.Create();
+        harness.Rules.AddWing(wing, liftCoef: 0.05f, maxLift: 6f);
+        harness.Link(wing, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(10, 0, 0));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), command.Body);
+        Assert.Equal(5f, command.Impulse.Y, 5); // 0.05 * 10^2 = 5
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(10, 0, 0));
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        command = Assert.Single(harness.Output.Commands);
+        Assert.True(command.Impulse.Y <= 6f); // capped at maxLift
+    }
+
+    [Fact]
+    public void TailDampsVelocityOppositeToMotion()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId tail = entities.Create();
+        harness.Rules.AddTail(tail, dragCoef: 0.03f);
+        harness.Link(tail, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(4, 3, 0));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(-0.12f, command.Impulse.X, 5); // -0.03 * 4
+        Assert.Equal(-0.09f, command.Impulse.Y, 5); // -0.03 * 3
+    }
+
+    [Fact]
+    public void UmbrellaSlowsOnlyDescendingBodies()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId umbrella = entities.Create();
+        harness.Rules.AddUmbrella(umbrella, dragCoef: 0.2f);
+        harness.Link(umbrella, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -4, 0));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(0.8f, command.Impulse.Y, 5); // -(-4) * 0.2 upward
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, 4, 0));
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands); // rising bodies untouched
     }
 }

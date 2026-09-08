@@ -141,4 +141,18 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.egg !== undefined && typeof value.egg !== "boolean") {
     errors.push(`Part ${partTypeId} capabilities.egg must be a boolean.`);
   }
+  if (value.wing !== undefined) {
+    const wing = value.wing as { liftCoef?: unknown; maxLift?: unknown } | null;
+    if (typeof wing !== "object" || wing === null
+      || typeof wing.liftCoef !== "number" || !Number.isFinite(wing.liftCoef)
+      || wing.maxLift !== undefined && (typeof wing.maxLift !== "number" || !Number.isFinite(wing.maxLift) || wing.maxLift < 0)) {
+      errors.push(`Part ${partTypeId} capabilities.wing needs finite liftCoef and optional non-negative maxLift.`);
+    }
+  }
+  if (value.tail !== undefined && (typeof value.tail !== "number" || !Number.isFinite(value.tail))) {
+    errors.push(`Part ${partTypeId} capabilities.tail must be a finite dragCoef number.`);
+  }
+  if (value.umbrella !== undefined && (typeof value.umbrella !== "number" || !Number.isFinite(value.umbrella))) {
+    errors.push(`Part ${partTypeId} capabilities.umbrella must be a finite dragCoef number.`);
+  }
 }

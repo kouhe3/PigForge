@@ -73,8 +73,26 @@
         "fan": { "$ref": "#/$defs/fanCapability" },
         "spring": { "$ref": "#/$defs/springCapability" },
         "rocket": { "$ref": "#/$defs/rocketCapability" },
-        "egg": { "type": "boolean" }
+        "egg": { "type": "boolean" },
+        "wing": { "$ref": "#/$defs/wingCapability" },
+        "tail": { "$ref": "#/$defs/tailCapability" },
+        "umbrella": { "$ref": "#/$defs/umbrellaCapability" }
     }
+  },
+  "wingCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["liftCoef"],
+    "properties": {
+      "liftCoef": { "type": "number" },
+      "maxLift": { "type": "number", "minimum": 0 }
+    }
+  },
+  "tailCapability": {
+    "type": "number"
+  },
+  "umbrellaCapability": {
+    "type": "number"
   },
   "springCapability": {
     "type": "number"

@@ -44,7 +44,11 @@ public sealed record PartCapabilities(
     ushort? RocketDurationTicks = null,
     float? RocketExplodeRadius = null,
     float? RocketExplodeImpulse = null,
-    bool IsEgg = false)
+    bool IsEgg = false,
+    float? WingLiftCoef = null,
+    float? WingMaxLift = null,
+    float? TailDragCoef = null,
+    float? UmbrellaDragCoef = null)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 
@@ -55,6 +59,12 @@ public sealed record PartCapabilities(
     public bool HasSpring => SpringBounceImpulsePerTick is float bounce && bounce != 0f;
 
     public bool HasRocket => RocketThrustPerTick is float thrust && thrust != 0f;
+
+    public bool HasWing => WingLiftCoef is float lift && lift != 0f;
+
+    public bool HasTail => TailDragCoef is float drag && drag != 0f;
+
+    public bool HasUmbrella => UmbrellaDragCoef is float drag && drag != 0f;
 }
 
 public sealed record PartShapeDefinition(

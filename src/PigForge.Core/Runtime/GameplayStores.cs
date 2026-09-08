@@ -39,6 +39,21 @@ public readonly record struct RocketState(
 /// eggBreakImpactSpeed) destroys the egg and requests a replay.</summary>
 public readonly record struct EggMarker;
 
+/// <summary>Aerodynamic lift: a wing generates vertical lift proportional to the
+/// square of the body's horizontal speed, capped at <paramref name="MaxLift"/>.
+/// A glider stays airborne once it is moving fast enough sideways.</summary>
+public readonly record struct WingState(float LiftCoef, float MaxLift);
+
+/// <summary>Velocity damper (tailplane stability): a tail applies a linear
+/// drag impulse opposite the body velocity so the glider does not spin or
+/// accelerate out of control.</summary>
+public readonly record struct TailState(float DragCoef);
+
+/// <summary>Falling damper (umbrella): while the body descends (vy &lt; 0) an
+/// upward impulse proportional to fall speed slows the drop; a black umbrella
+/// makes a controlled leaping landing.</summary>
+public readonly record struct UmbrellaState(float DragCoef);
+
 public sealed class MotorStore(EntityStore entities) : ComponentStore<MotorState>(entities);
 
 public sealed class BalloonStore(EntityStore entities) : ComponentStore<BalloonState>(entities);
@@ -49,10 +64,16 @@ public sealed class SpringStore(EntityStore entities) : ComponentStore<SpringSta
 
 public sealed class RocketStore(EntityStore entities) : ComponentStore<RocketState>(entities);
 
-public sealed class EggStore(EntityStore entities) : ComponentStore<EggMarker>(entities);
-
 public sealed class TntStore(EntityStore entities) : ComponentStore<TntState>(entities);
 
 public sealed class WheelStore(EntityStore entities) : ComponentStore<WheelMarker>(entities);
 
 public sealed class PigStore(EntityStore entities) : ComponentStore<PigMarker>(entities);
+
+public sealed class EggStore(EntityStore entities) : ComponentStore<EggMarker>(entities);
+
+public sealed class WingStore(EntityStore entities) : ComponentStore<WingState>(entities);
+
+public sealed class TailStore(EntityStore entities) : ComponentStore<TailState>(entities);
+
+public sealed class UmbrellaStore(EntityStore entities) : ComponentStore<UmbrellaState>(entities);

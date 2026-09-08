@@ -64,6 +64,9 @@ public sealed class GameRoom : IDisposable
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
     private readonly EggStore _eggs;
+    private readonly WingStore _wings;
+    private readonly TailStore _tails;
+    private readonly UmbrellaStore _umbrellas;
     private readonly ConstructionRules _construction;
     private readonly GameplayRules _rules;
     private readonly CommandValidator _validator = new();
@@ -102,9 +105,12 @@ public sealed class GameRoom : IDisposable
         _wheels = new WheelStore(_entities);
         _pigs = new PigStore(_entities);
         _eggs = new EggStore(_entities);
+        _wings = new WingStore(_entities);
+        _tails = new TailStore(_entities);
+        _umbrellas = new UmbrellaStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         _rules = new GameplayRules(
-            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _eggs, _bodies, options.GameplayConfig);
+            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _bodies, options.GameplayConfig);
     }
 
     public RoomMode Mode { get; private set; } = RoomMode.Building;
@@ -317,6 +323,21 @@ public sealed class GameRoom : IDisposable
         if (capabilities.IsEgg)
         {
             _rules.AddEgg(entity);
+        }
+
+        if (capabilities.HasWing)
+        {
+            _rules.AddWing(entity, capabilities.WingLiftCoef!.Value, capabilities.WingMaxLift ?? 0f);
+        }
+
+        if (capabilities.HasTail)
+        {
+            _rules.AddTail(entity, capabilities.TailDragCoef!.Value);
+        }
+
+        if (capabilities.HasUmbrella)
+        {
+            _rules.AddUmbrella(entity, capabilities.UmbrellaDragCoef!.Value);
         }
     }
 

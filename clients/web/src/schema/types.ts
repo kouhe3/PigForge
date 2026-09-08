@@ -21,6 +21,9 @@ export interface PartCapabilities {
   spring?: number;
   rocket?: { thrustPerTick: number; directionX: -1 | 0 | 1; directionY?: -1 | 0 | 1; durationTicks: number; explodeRadius?: number; explodeImpulse?: number };
   egg?: boolean;
+  wing?: { liftCoef: number; maxLift?: number };
+  tail?: number;
+  umbrella?: number;
 }
 
 export interface PartDefinition {
