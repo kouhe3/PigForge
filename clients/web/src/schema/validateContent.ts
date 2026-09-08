@@ -127,13 +127,15 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
     }
   }
   if (value.rocket !== undefined) {
-    const rocket = value.rocket as { thrustPerTick?: unknown; directionX?: unknown; directionY?: unknown; durationTicks?: unknown } | null;
+    const rocket = value.rocket as { thrustPerTick?: unknown; directionX?: unknown; directionY?: unknown; durationTicks?: unknown; explodeRadius?: unknown; explodeImpulse?: unknown } | null;
     if (typeof rocket !== "object" || rocket === null
       || typeof rocket.thrustPerTick !== "number" || !Number.isFinite(rocket.thrustPerTick)
       || rocket.directionX !== -1 && rocket.directionX !== 0 && rocket.directionX !== 1
       || rocket.directionY !== undefined && rocket.directionY !== -1 && rocket.directionY !== 0 && rocket.directionY !== 1
-      || typeof rocket.durationTicks !== "number" || !Number.isInteger(rocket.durationTicks) || rocket.durationTicks < 0) {
-      errors.push(`Part ${partTypeId} capabilities.rocket needs finite thrustPerTick, directionX/directionY in -1, 0, 1, non-negative integer durationTicks.`);
+      || typeof rocket.durationTicks !== "number" || !Number.isInteger(rocket.durationTicks) || rocket.durationTicks < 0
+      || rocket.explodeRadius !== undefined && (typeof rocket.explodeRadius !== "number" || !Number.isFinite(rocket.explodeRadius) || rocket.explodeRadius < 0)
+      || rocket.explodeImpulse !== undefined && (typeof rocket.explodeImpulse !== "number" || !Number.isFinite(rocket.explodeImpulse) || rocket.explodeImpulse < 0)) {
+      errors.push(`Part ${partTypeId} capabilities.rocket needs finite thrustPerTick, directionX/directionY in -1, 0, 1, non-negative integer durationTicks, optional non-negative explodeRadius/explodeImpulse.`);
     }
   }
   if (value.egg !== undefined && typeof value.egg !== "boolean") {

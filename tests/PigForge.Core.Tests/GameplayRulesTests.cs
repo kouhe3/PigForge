@@ -624,4 +624,46 @@ public sealed class GameplayRulesTests
         Assert.Equal(6f / normalization, command.Impulse.Y, 5);
         Assert.Equal(0f, command.Impulse.Z);
     }
+
+    [Fact]
+    public void RocketEndsWithRadialBlastAndSelfDestructs()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        EntityId neighbour = entities.Create();
+        harness.Rules.AddRocket(rocket, 4f, 0f, 1f, durationTicks: 1, explodeRadius: 3f, explodeImpulse: 10f);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.Link(neighbour, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand push = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), push.Body);
+
+        // Next tick the rocket is spent: it blasts its neighbour outward and self-destructs.
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Contains(rocket, harness.Output.DestroyedEntities);
+        PhysicsCommand blast = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(2), blast.Body);
+        Assert.True(blast.Impulse.X > 0f);
+    }
+
+    [Fact]
+    public void RocketWithoutBlastRadiusBurnsOutQuietly()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 2f, 1f, 0f, durationTicks: 1);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Single(harness.Output.Commands);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+        Assert.Contains(rocket, harness.Output.DestroyedEntities);
+    }
 }

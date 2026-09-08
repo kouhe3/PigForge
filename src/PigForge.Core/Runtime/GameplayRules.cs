@@ -156,8 +156,8 @@ public sealed class GameplayRules
     public void AddSpring(EntityId entity, float bounceImpulsePerTick) =>
         _springs.Set(entity, new SpringState(bounceImpulsePerTick, BouncedRecently: false));
 
-    public void AddRocket(EntityId entity, float thrustPerTick, float directionX, float directionY, ushort durationTicks) =>
-        _rockets.Set(entity, new RocketState(thrustPerTick, directionX, directionY, durationTicks, Ignited: false));
+    public void AddRocket(EntityId entity, float thrustPerTick, float directionX, float directionY, ushort durationTicks, float explodeRadius = 0f, float explodeImpulse = 0f) =>
+        _rockets.Set(entity, new RocketState(thrustPerTick, directionX, directionY, durationTicks, Ignited: false, explodeRadius, explodeImpulse));
 
     public void AddEgg(EntityId entity) => _eggs.Set(entity, default);
 
@@ -380,7 +380,7 @@ public sealed class GameplayRules
 
     private void RunRockets(GameplayTickOutput output)
     {
-        List<uint> spent = null!;
+        List<(EntityId Entity, float Radius, float Impulse)> spent = null!;
         var rockets = _rockets.GetEnumerator();
         while (rockets.MoveNext())
         {
@@ -394,7 +394,7 @@ public sealed class GameplayRules
             rocket = rocket with { Ignited = true };
             if (rocket.DurationTicks == 0)
             {
-                (spent ??= new List<uint>()).Add(rockets.CurrentId.Value);
+                (spent ??= new List<(EntityId, float, float)>()).Add((rockets.CurrentId, rocket.ExplodeRadius, rocket.ExplodeImpulse));
                 _rockets.Remove(rockets.CurrentId);
                 continue;
             }
@@ -419,9 +419,48 @@ public sealed class GameplayRules
             return;
         }
 
-        foreach (uint entityValue in spent)
+        foreach ((EntityId entity, float radius, float impulse) in spent)
         {
-            output.DestroyedEntities.Add(new EntityId(entityValue));
+            if (radius > 0f && impulse > 0f
+                && _bodies.TryGet(entity, out PhysicsBodyLink link)
+                && _kinematicsByBody.TryGetValue(link.Body.Value, out var center))
+            {
+                RadialBlast(center.Position, radius, impulse, link.Body, output);
+            }
+
+            output.DestroyedEntities.Add(entity);
+        }
+    }
+
+    /// <summary>Radial outward impulse on every dynamic body within range (TNT blast
+    /// and firework bursts share this); the originator body is excluded.</summary>
+    private void RadialBlast(PhysicsVector3 center, float radius, float impulse, PhysicsBodyId source, GameplayTickOutput output)
+    {
+        uint[] bodyIds = _kinematicsByBody.Keys.ToArray();
+        Array.Sort(bodyIds);
+        foreach (uint bodyId in bodyIds)
+        {
+            if (bodyId == source.Value
+                || !_dynamicBodies.Contains(bodyId)
+                || !_kinematicsByBody.TryGetValue(bodyId, out var kinematics))
+            {
+                continue;
+            }
+
+            float distance = PhysicsVector3.Distance(kinematics.Position, center);
+            if (distance >= radius)
+            {
+                continue;
+            }
+
+            float falloff = 1f - (distance / radius);
+            PhysicsVector3 direction = distance > float.Epsilon
+                ? PhysicsVector3.Normalize(kinematics.Position - center)
+                : new PhysicsVector3(0f, 1f, 0f);
+            output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                new PhysicsBodyId(bodyId),
+                direction * (impulse * falloff),
+                kinematics.Position));
         }
     }
 

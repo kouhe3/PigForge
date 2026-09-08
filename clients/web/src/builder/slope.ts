@@ -29,6 +29,9 @@ export const PLAY_PARTS: PartContentDocument = {
     { partTypeId: 25, name: "soda-bottle-black", mode: "dynamic", mass: 0.8, capabilities: { rocket: { thrustPerTick: 8, directionX: 1, directionY: 0, durationTicks: 30 } }, shapes: [{ kind: "box", halfExtents: [0.2, 0.4, 0.2] }] },
     { partTypeId: 26, name: "soda-bottle-green", mode: "dynamic", mass: 0.8, capabilities: { rocket: { thrustPerTick: 6, directionX: 0, directionY: 1, durationTicks: 40 } }, shapes: [{ kind: "box", halfExtents: [0.2, 0.4, 0.2] }] },
     { partTypeId: 27, name: "egg", mode: "dynamic", mass: 0.4, capabilities: { egg: true }, shapes: [{ kind: "sphere", radius: 0.3 }] },
+    { partTypeId: 28, name: "boxing-glove", mode: "dynamic", mass: 0.8, capabilities: { spring: 25 }, shapes: [{ kind: "box", halfExtents: [0.35, 0.35, 0.35] }] },
+    { partTypeId: 29, name: "firework-blue", mode: "dynamic", mass: 0.9, capabilities: { rocket: { thrustPerTick: 4, directionX: 0, directionY: 1, durationTicks: 45, explodeRadius: 3, explodeImpulse: 14 } }, shapes: [{ kind: "box", halfExtents: [0.25, 0.45, 0.25] }] },
+    { partTypeId: 30, name: "firework-red", mode: "dynamic", mass: 0.9, capabilities: { rocket: { thrustPerTick: 6, directionX: 0, directionY: 1, durationTicks: 30, explodeRadius: 4, explodeImpulse: 20 } }, shapes: [{ kind: "box", halfExtents: [0.25, 0.45, 0.25] }] },
     { partTypeId: 6, name: "ramp-plank", mode: "static", mass: 0, shapes: [{ kind: "box", halfExtents: [6, 0.25, 1] }] },
   ],
 };
@@ -58,6 +61,9 @@ export const PALETTE = [
   { partTypeId: 25, label: "黑汽水" },
   { partTypeId: 26, label: "绿汽水" },
   { partTypeId: 27, label: "蛋" },
+  { partTypeId: 28, label: "拳套" },
+  { partTypeId: 29, label: "蓝烟花" },
+  { partTypeId: 30, label: "红烟花" },
 ] as const;
 
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };

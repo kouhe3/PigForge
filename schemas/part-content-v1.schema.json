@@ -87,7 +87,9 @@
       "thrustPerTick": { "type": "number" },
       "directionX": { "enum": [-1, 0, 1] },
       "directionY": { "enum": [-1, 0, 1] },
-      "durationTicks": { "type": "integer", "minimum": 0, "maximum": 65535 }
+      "durationTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
+      "explodeRadius": { "type": "number", "minimum": 0 },
+      "explodeImpulse": { "type": "number", "minimum": 0 }
     }
   },
   "balloonCapability": {

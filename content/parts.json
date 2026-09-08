@@ -364,6 +364,48 @@
           "radius": 0.3
         }
       ]
+    },
+    {
+      "partTypeId": 28,
+      "name": "boxing-glove",
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.9, "friction": 0.3 },
+      "capabilities": { "spring": 25.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.35, 0.35]
+        }
+      ]
+    },
+    {
+      "partTypeId": 29,
+      "name": "firework-blue",
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 0, "directionY": 1, "durationTicks": 45, "explodeRadius": 3.0, "explodeImpulse": 14.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.25, 0.45, 0.25]
+        }
+      ]
+    },
+    {
+      "partTypeId": 30,
+      "name": "firework-red",
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.25, 0.45, 0.25]
+        }
+      ]
     }
   ]
 }

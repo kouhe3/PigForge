@@ -23,8 +23,17 @@ public readonly record struct SpringState(float BounceImpulsePerTick, bool Bounc
 /// <summary>Rocket thrust: auto-ignites on simulation start, applies
 /// <paramref name="ThrustPerTick"/> along the normalized planar
 /// (<paramref name="DirectionX"/>, <paramref name="DirectionY"/>) direction for
-/// <paramref name="DurationTicks"/>, then the part self-destructs.</summary>
-public readonly record struct RocketState(float ThrustPerTick, float DirectionX, float DirectionY, ushort DurationTicks, bool Ignited);
+/// <paramref name="DurationTicks"/>, then self-destructs — exploding with
+/// <paramref name="ExplodeRadius"/>/<paramref name="ExplodeImpulse"/> when either is
+/// positive (fireworks semantics; 0/0 = plain burn-out).</summary>
+public readonly record struct RocketState(
+    float ThrustPerTick,
+    float DirectionX,
+    float DirectionY,
+    ushort DurationTicks,
+    bool Ignited,
+    float ExplodeRadius = 0f,
+    float ExplodeImpulse = 0f);
 
 /// <summary>Fragile cargo marker: a hard impact (velocity change above the level's
 /// eggBreakImpactSpeed) destroys the egg and requests a replay.</summary>
