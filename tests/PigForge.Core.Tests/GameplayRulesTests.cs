@@ -193,9 +193,11 @@ public sealed class GameplayRulesTests
                 new UmbrellaStore(entities),
                 new GearboxStore(entities),
                 new BellowsStore(entities),
+                new DetacherStore(entities),
                 _bodies,
                 config);
         }
+
 
         public void Link(EntityId entity, PhysicsBodyId body)
         {
@@ -252,6 +254,7 @@ public sealed class GameplayRulesTests
                 new UmbrellaStore(_entities),
                 new GearboxStore(_entities),
                 new BellowsStore(_entities),
+                new DetacherStore(_entities),
                 _bodies,
                 new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
             foreach (LevelSpawnDefinition spawn in level.Spawns)
@@ -768,5 +771,40 @@ public sealed class GameplayRulesTests
         // Still grounded: no second boost until airborne.
         harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         Assert.Empty(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void DetacherRequestsSeparationOnHardImpact()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId detacher = entities.Create();
+        harness.Rules.AddDetacher(detacher);
+        harness.Link(detacher, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, 10, 0));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(0, -9, 0));
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+
+        Assert.Contains(detacher, harness.Output.DetachedEntities);
+        Assert.DoesNotContain(detacher, harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
+    public void DetacherStaysAttachedOnGentleContact()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId detacher = entities.Create();
+        harness.Rules.AddDetacher(detacher);
+        harness.Link(detacher, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -1, 0));
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+
+        Assert.Empty(harness.Output.DetachedEntities);
     }
 }

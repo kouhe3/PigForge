@@ -158,6 +158,9 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.gearbox !== undefined && typeof value.gearbox !== "boolean") {
     errors.push(`Part ${partTypeId} capabilities.gearbox must be a boolean.`);
   }
+  if (value.detacher !== undefined && typeof value.detacher !== "boolean") {
+    errors.push(`Part ${partTypeId} capabilities.detacher must be a boolean.`);
+  }
   if (value.bellows !== undefined && (typeof value.bellows !== "number" || !Number.isFinite(value.bellows))) {
     errors.push(`Part ${partTypeId} capabilities.bellows must be a finite boostImpulse number.`);
   }

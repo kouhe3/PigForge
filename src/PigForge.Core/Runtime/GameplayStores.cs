@@ -89,3 +89,9 @@ public readonly record struct BellowsState(float BoostImpulse, bool BoostedRecen
 public sealed class GearboxStore(EntityStore entities) : ComponentStore<GearboxMarker>(entities);
 
 public sealed class BellowsStore(EntityStore entities) : ComponentStore<BellowsState>(entities);
+
+/// <summary>Detachar marker: when the rig carrying it takes a hard impact the part
+/// detaches from the compound (original detacher part, seam split on impact).</summary>
+public readonly record struct DetacherMarker;
+
+public sealed class DetacherStore(EntityStore entities) : ComponentStore<DetacherMarker>(entities);

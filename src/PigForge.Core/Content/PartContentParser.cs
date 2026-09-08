@@ -258,6 +258,7 @@ public static class PartContentParser
         float? tailDragCoef = null;
         float? umbrellaDragCoef = null;
         bool isGearbox = false;
+        bool isDetacher = false;
         float? bellowsBoost = null;
         bool hasError = false;
 
@@ -442,9 +443,22 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("detacher"))
+        {
+            if (!capabilitiesElement.TryGetProperty("detacher", out JsonElement detacherElement) || detacherElement.ValueKind != JsonValueKind.True && detacherElement.ValueKind != JsonValueKind.False)
+            {
+                errors.Add($"{path}.capabilities.detacher: must be a boolean.");
+                hasError = true;
+            }
+            else
+            {
+                isDetacher = detacherElement.GetBoolean();
+            }
+        }
+
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -456,7 +470,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, bellowsBoost);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost);
     }
 
     private static bool TryReadMotor(JsonElement element, string path, out float? thrust, out float? direction)

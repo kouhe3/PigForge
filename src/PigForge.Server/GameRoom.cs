@@ -69,6 +69,7 @@ public sealed class GameRoom : IDisposable
     private readonly UmbrellaStore _umbrellas;
     private readonly GearboxStore _gearboxes;
     private readonly BellowsStore _bellows;
+    private readonly DetacherStore _detachers;
     private readonly ConstructionRules _construction;
     private readonly GameplayRules _rules;
     private readonly CommandValidator _validator = new();
@@ -112,9 +113,10 @@ public sealed class GameRoom : IDisposable
         _umbrellas = new UmbrellaStore(_entities);
         _gearboxes = new GearboxStore(_entities);
         _bellows = new BellowsStore(_entities);
+        _detachers = new DetacherStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         _rules = new GameplayRules(
-            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _bodies, options.GameplayConfig);
+            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _bodies, options.GameplayConfig);
     }
 
     public RoomMode Mode { get; private set; } = RoomMode.Building;
@@ -594,6 +596,12 @@ public sealed class GameRoom : IDisposable
             UnbindEntity(destroyed, destroyBodyIfOrphan: true);
         }
 
+        // Detachers fired this tick: split their compound so the part flies free.
+        foreach (EntityId detached in _output.DetachedEntities)
+        {
+            DetachFromCompound(detached, snapshotCount);
+        }
+
         SplitFromAppliedCommands(snapshotCount);
     }
 
@@ -867,6 +875,56 @@ public sealed class GameRoom : IDisposable
         }
     }
 
+    /// <summary>Splits the compound carrying <paramref name="entity"/> at the seam
+    /// nearest that part's own pose, so a fired detacher leaves the rig as its own
+    /// body (original detacher part). No-op when the body is already single-piece.</summary>
+    private void DetachFromCompound(EntityId entity, int snapshotCount)
+    {
+        if (!_bodies.TryGet(entity, out PhysicsBodyLink link)
+            || !TryFindSnapshot(link.Body, snapshotCount, out PhysicsBodySnapshot snapshot))
+        {
+            return;
+        }
+
+        int liveIndex = _liveCompounds.FindIndex(candidate => candidate.Body == link.Body);
+        if (liveIndex < 0)
+        {
+            return;
+        }
+
+        (PhysicsVector3 position, PhysicsQuaternion rotation) = WorldPose(entity.Value, snapshot);
+        LiveCompound live = _liveCompounds[liveIndex];
+        live.Cluster.WorldPosition = snapshot.Position;
+        live.Cluster.WorldRotation = snapshot.Rotation;
+        CompoundSeam? seam = CompoundAssembler.NearestSeam(live.Cluster, position);
+        if (seam is null)
+        {
+            return;
+        }
+
+        IReadOnlyList<CompoundCluster> pieces = CompoundAssembler.SplitAlongSeam(live.Cluster, seam.Value);
+        if (pieces.Count == 1)
+        {
+            live.Cluster = pieces[0];
+            return;
+        }
+
+        List<uint> members = _entitiesByBody.TryGetValue(link.Body.Value, out List<uint>? bound)
+            ? new List<uint>(bound)
+            : new List<uint>();
+        foreach (uint entityValue in members)
+        {
+            UnbindEntity(new EntityId(entityValue), destroyBodyIfOrphan: false);
+        }
+
+        _world.DestroyBody(link.Body);
+        foreach (CompoundCluster piece in pieces)
+        {
+            BindCluster(piece, piece.CreateBodyDefinition(_content, snapshot.LinearVelocity, snapshot.AngularVelocity));
+        }
+
+        EnsureBuffers();
+    }
     private (PhysicsVector3 Position, PhysicsQuaternion Rotation) WorldPose(uint entityValue, PhysicsBodySnapshot snapshot)
     {
         if (!_compoundLocalByEntity.TryGetValue(entityValue, out (PhysicsVector3 Offset, PhysicsQuaternion Rotation) local))

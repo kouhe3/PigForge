@@ -78,6 +78,7 @@
         "tail": { "$ref": "#/$defs/tailCapability" },
         "umbrella": { "$ref": "#/$defs/umbrellaCapability" },
         "gearbox": { "type": "boolean" },
+        "detacher": { "type": "boolean" },
         "bellows": { "type": "number" }
     }
   },

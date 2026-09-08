@@ -49,10 +49,16 @@ public sealed class GameplayTickOutput
 
     public List<EntityId> DestroyedEntities { get; } = new();
 
+    /// <summary>Entities that must be pulled out of their compound body (a detacher
+    /// fired on impact): the room splits the cluster at the nearest seam so the part
+    /// becomes its own body.</summary>
+    public List<EntityId> DetachedEntities { get; } = new();
+
     public void Clear()
     {
         Commands.Clear();
         DestroyedEntities.Clear();
+        DetachedEntities.Clear();
     }
 }
 
@@ -79,6 +85,7 @@ public sealed class GameplayRules
     private readonly UmbrellaStore _umbrellas;
     private readonly GearboxStore _gearboxes;
     private readonly BellowsStore _bellows;
+    private readonly DetacherStore _detachers;
     private readonly PhysicsBodyStore _bodies;
     private readonly GameplayConfig _config;
 
@@ -106,6 +113,7 @@ public sealed class GameplayRules
         UmbrellaStore umbrellas,
         GearboxStore gearboxes,
         BellowsStore bellows,
+        DetacherStore detachers,
         PhysicsBodyStore bodies,
         GameplayConfig config)
     {
@@ -124,6 +132,7 @@ public sealed class GameplayRules
         _umbrellas = umbrellas ?? throw new ArgumentNullException(nameof(umbrellas));
         _gearboxes = gearboxes ?? throw new ArgumentNullException(nameof(gearboxes));
         _bellows = bellows ?? throw new ArgumentNullException(nameof(bellows));
+        _detachers = detachers ?? throw new ArgumentNullException(nameof(detachers));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
@@ -189,6 +198,9 @@ public sealed class GameplayRules
 
     public void AddBellows(EntityId entity, float boostImpulse) =>
         _bellows.Set(entity, new BellowsState(boostImpulse, BoostedRecently: false));
+
+    public void AddDetacher(EntityId entity) => _detachers.Set(entity, default);
+
     public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
     public void Tick(uint tick, ReadOnlySpan<PhysicsEvent> events, ReadOnlySpan<PhysicsBodySnapshot> snapshots, GameplayTickOutput output)
     {
@@ -260,6 +272,8 @@ public sealed class GameplayRules
                         IgniteTntOnBody(physicsEvent.BodyB, pairImpact);
                         ChallengeEggsOnImpact(physicsEvent.BodyA, pairImpact, output);
                         ChallengeEggsOnImpact(physicsEvent.BodyB, pairImpact, output);
+                        DetachOnImpact(physicsEvent.BodyA, pairImpact, output);
+                        DetachOnImpact(physicsEvent.BodyB, pairImpact, output);
                     }
 
                     break;
@@ -354,6 +368,21 @@ public sealed class GameplayRules
         DestroyEntity(entity, output);
         RestartRequested = true;
     }
+
+    private void DetachOnImpact(PhysicsBodyId body, float impactSpeed, GameplayTickOutput output)
+    {
+        if (impactSpeed < _config.TntIgniteImpactSpeed
+            || !_entitiesByBody.TryGetValue(body.Value, out EntityId entity)
+            || !_detachers.TryGet(entity, out _))
+        {
+            return;
+        }
+
+        // A hard impact fires the detacher: the room splits the compound at the
+        // nearest seam so this part leaves the rig (original detacher part).
+        output.DetachedEntities.Add(entity);
+    }
+
     private void RunBalloons(GameplayTickOutput output)
     {
         var balloons = _balloons.GetEnumerator();
@@ -766,6 +795,7 @@ public sealed class GameplayRules
         _umbrellas.Remove(entity);
         _gearboxes.Remove(entity);
         _bellows.Remove(entity);
+        _detachers.Remove(entity);
     }
 
     /// <summary>
@@ -821,9 +851,10 @@ public sealed class GameplayRules
         _umbrellas.Clear();
         _gearboxes.Clear();
         _bellows.Clear();
+        _detachers.Clear();
+        _bodies.Clear();
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
-        RestartRequested = false;
     }
 
     private void DestroyEntity(EntityId entity, GameplayTickOutput output)
@@ -853,7 +884,7 @@ public sealed class GameplayRules
         _umbrellas.Remove(entity);
         _gearboxes.Remove(entity);
         _bellows.Remove(entity);
-        _entities.Destroy(entity);
+        _detachers.Remove(entity);
         output.DestroyedEntities.Add(entity);
     }
 }

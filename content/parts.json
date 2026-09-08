@@ -573,6 +573,20 @@
           "halfExtents": [0.3, 0.3, 0.3]
         }
       ]
+    },
+    {
+      "partTypeId": 43,
+      "name": "detacher",
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "detacher": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.3, 0.3]
+        }
+      ]
     }
   ]
 }

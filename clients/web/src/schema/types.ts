@@ -25,6 +25,7 @@ export interface PartCapabilities {
   tail?: number;
   umbrella?: number;
   gearbox?: boolean;
+  detacher?: boolean;
   bellows?: number;
 }
 
