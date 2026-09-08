@@ -172,6 +172,62 @@
           "halfExtents": [0.3, 0.3, 0.3]
         }
       ]
+    },
+    {
+      "partTypeId": 14,
+      "name": "small-wheel",
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.2
+        }
+      ]
+    },
+    {
+      "partTypeId": 15,
+      "name": "cart-wheel",
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.6
+        }
+      ]
+    },
+    {
+      "partTypeId": 16,
+      "name": "sticky-wheel",
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.05, "friction": 2.5 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 17,
+      "name": "motor-wheel",
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 } },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.4
+        }
+      ]
     }
   ]
 }
