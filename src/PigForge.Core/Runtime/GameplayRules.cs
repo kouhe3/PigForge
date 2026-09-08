@@ -67,6 +67,8 @@ public sealed class GameplayRules
     private readonly MotorStore _motors;
     private readonly BalloonStore _balloons;
     private readonly FanStore _fans;
+    private readonly SpringStore _springs;
+    private readonly RocketStore _rockets;
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
@@ -86,6 +88,8 @@ public sealed class GameplayRules
         MotorStore motors,
         BalloonStore balloons,
         FanStore fans,
+        SpringStore springs,
+        RocketStore rockets,
         TntStore tnt,
         WheelStore wheels,
         PigStore pigs,
@@ -96,6 +100,8 @@ public sealed class GameplayRules
         _motors = motors ?? throw new ArgumentNullException(nameof(motors));
         _balloons = balloons ?? throw new ArgumentNullException(nameof(balloons));
         _fans = fans ?? throw new ArgumentNullException(nameof(fans));
+        _springs = springs ?? throw new ArgumentNullException(nameof(springs));
+        _rockets = rockets ?? throw new ArgumentNullException(nameof(rockets));
         _tnt = tnt ?? throw new ArgumentNullException(nameof(tnt));
         _wheels = wheels ?? throw new ArgumentNullException(nameof(wheels));
         _pigs = pigs ?? throw new ArgumentNullException(nameof(pigs));
@@ -143,6 +149,12 @@ public sealed class GameplayRules
     public void AddFan(EntityId entity, float impulsePerTick, float directionX, float directionY) =>
         _fans.Set(entity, new FanState(impulsePerTick, directionX, directionY));
 
+    public void AddSpring(EntityId entity, float bounceImpulsePerTick) =>
+        _springs.Set(entity, new SpringState(bounceImpulsePerTick, BouncedRecently: false));
+
+    public void AddRocket(EntityId entity, float thrustPerTick, float directionX, ushort durationTicks) =>
+        _rockets.Set(entity, new RocketState(thrustPerTick, directionX, durationTicks, Ignited: false));
+
     public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
 
     public void Tick(uint tick, ReadOnlySpan<PhysicsEvent> events, ReadOnlySpan<PhysicsBodySnapshot> snapshots, GameplayTickOutput output)
@@ -159,6 +171,8 @@ public sealed class GameplayRules
         RunMotors(output);
         RunBalloons(output);
         RunFans(output);
+        RunSprings(output);
+        RunRockets(output);
         RunTntFuses(output);
         DropCommandsForDestroyedBodies(output);
         CheckObjectives(tick);
@@ -316,6 +330,73 @@ public sealed class GameplayRules
         }
     }
 
+    private void RunSprings(GameplayTickOutput output)
+    {
+        var springs = _springs.GetEnumerator();
+        while (springs.MoveNext())
+        {
+            if (!_bodies.TryGet(springs.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.ContainsKey(link.Body.Value))
+            {
+                continue;
+            }
+
+            SpringState spring = springs.CurrentValue;
+            bool touched = _touchedBodies.Contains(link.Body.Value);
+            if (touched && !spring.BouncedRecently)
+            {
+                _springs.Set(springs.CurrentId, spring with { BouncedRecently = true });
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    link.Body,
+                    new PhysicsVector3(0f, spring.BounceImpulsePerTick, 0f),
+                    _kinematicsByBody[link.Body.Value].Position));
+            }
+            else if (!touched && spring.BouncedRecently)
+            {
+                _springs.Set(springs.CurrentId, spring with { BouncedRecently = false });
+            }
+        }
+    }
+
+    private void RunRockets(GameplayTickOutput output)
+    {
+        List<uint> spent = null!;
+        var rockets = _rockets.GetEnumerator();
+        while (rockets.MoveNext())
+        {
+            if (!_bodies.TryGet(rockets.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.ContainsKey(link.Body.Value))
+            {
+                continue;
+            }
+
+            RocketState rocket = rockets.CurrentValue;
+            rocket = rocket with { Ignited = true };
+            if (rocket.DurationTicks == 0)
+            {
+                (spent ??= new List<uint>()).Add(rockets.CurrentId.Value);
+                _rockets.Remove(rockets.CurrentId);
+                continue;
+            }
+
+            _rockets.Set(rockets.CurrentId, rocket with { DurationTicks = checked((ushort)(rocket.DurationTicks - 1)) });
+            output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                link.Body,
+                new PhysicsVector3(rocket.ThrustPerTick * rocket.DirectionX, 0f, 0f),
+                _kinematicsByBody[link.Body.Value].Position));
+        }
+
+        if (spent is null)
+        {
+            return;
+        }
+
+        foreach (uint entityValue in spent)
+        {
+            output.DestroyedEntities.Add(new EntityId(entityValue));
+        }
+    }
+
     private void RunTntFuses(GameplayTickOutput output)
     {
         List<uint> exploded = null!;
@@ -448,6 +529,8 @@ public sealed class GameplayRules
         _motors.Remove(entity);
         _balloons.Remove(entity);
         _fans.Remove(entity);
+        _springs.Remove(entity);
+        _rockets.Remove(entity);
         _tnt.Remove(entity);
         _wheels.Remove(entity);
         _pigs.Remove(entity);
@@ -474,6 +557,12 @@ public sealed class GameplayRules
             _tnt.Set(tntComponents.CurrentId, tntComponents.CurrentValue with { Ignited = false });
         }
 
+        var rockets = _rockets.GetEnumerator();
+        while (rockets.MoveNext())
+        {
+            _rockets.Set(rockets.CurrentId, rockets.CurrentValue with { Ignited = false });
+        }
+
         Phase = GameplayPhase.Playing;
         RestartRequested = false;
     }
@@ -490,6 +579,8 @@ public sealed class GameplayRules
         _motors.Clear();
         _balloons.Clear();
         _fans.Clear();
+        _springs.Clear();
+        _rockets.Clear();
         _tnt.Clear();
         _wheels.Clear();
         _pigs.Clear();
@@ -515,6 +606,8 @@ public sealed class GameplayRules
         _motors.Remove(entity);
         _balloons.Remove(entity);
         _fans.Remove(entity);
+        _springs.Remove(entity);
+        _rockets.Remove(entity);
         _tnt.Remove(entity);
         _wheels.Remove(entity);
         _pigs.Remove(entity);

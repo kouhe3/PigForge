@@ -245,6 +245,10 @@ public static class PartContentParser
         float? fanThrust = null;
         float? fanDirectionX = null;
         float? fanDirectionY = null;
+        float? springBounce = null;
+        float? rocketThrust = null;
+        float? rocketDirectionX = null;
+        ushort? rocketDuration = null;
         bool hasError = false;
 
         HashSet<string> seenKeys = new();
@@ -324,9 +328,33 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("spring"))
+        {
+            if (!capabilitiesElement.TryGetProperty("spring", out JsonElement springElement)
+                || springElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(springElement))
+            {
+                errors.Add($"{path}.capabilities.spring: must be a finite bounceImpulsePerTick number.");
+                hasError = true;
+            }
+            else
+            {
+                springBounce = springElement.GetSingle();
+            }
+        }
+
+        if (seenKeys.Contains("rocket"))
+        {
+            if (!capabilitiesElement.TryGetProperty("rocket", out JsonElement rocketElement) || !TryReadRocket(rocketElement, path, out rocketThrust, out rocketDirectionX, out rocketDuration))
+            {
+                errors.Add($"{path}.capabilities.rocket: must be an object with a finite thrustPerTick, a directionX in -1, 0, 1, and a durationTicks integer in [0, 65535].");
+                hasError = true;
+            }
+        }
+
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -338,7 +366,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDuration);
     }
 
     private static bool TryReadMotor(JsonElement element, string path, out float? thrust, out float? direction)
@@ -443,6 +471,45 @@ public static class PartContentParser
         }
 
         fuse = fuseValue;
+        return true;
+    }
+
+    private static bool TryReadRocket(JsonElement element, string path, out float? thrust, out float? directionX, out ushort? duration)
+    {
+        thrust = null;
+        directionX = null;
+        duration = null;
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("thrustPerTick", out JsonElement thrustElement)
+            || thrustElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(thrustElement)
+            || !thrustElement.TryGetSingle(out float thrustValue))
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("directionX", out JsonElement directionElement)
+            || directionElement.ValueKind != JsonValueKind.Number
+            || !directionElement.TryGetInt32(out int directionValue)
+            || directionValue is not (-1 or 0 or 1))
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("durationTicks", out JsonElement durationElement)
+            || durationElement.ValueKind != JsonValueKind.Number
+            || !durationElement.TryGetUInt16(out ushort durationValue))
+        {
+            return false;
+        }
+
+        thrust = thrustValue;
+        directionX = directionValue;
+        duration = durationValue;
         return true;
     }
 

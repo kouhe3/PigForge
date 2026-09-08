@@ -70,7 +70,22 @@
         "motor": { "$ref": "#/$defs/motorCapability" },
         "tnt": { "$ref": "#/$defs/tntCapability" },
         "balloon": { "$ref": "#/$defs/balloonCapability" },
-        "fan": { "$ref": "#/$defs/fanCapability" }
+        "fan": { "$ref": "#/$defs/fanCapability" },
+        "spring": { "$ref": "#/$defs/springCapability" },
+        "rocket": { "$ref": "#/$defs/rocketCapability" }
+    }
+  },
+  "springCapability": {
+    "type": "number"
+  },
+  "rocketCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["thrustPerTick", "directionX", "durationTicks"],
+    "properties": {
+      "thrustPerTick": { "type": "number" },
+      "directionX": { "enum": [-1, 0, 1] },
+      "durationTicks": { "type": "integer", "minimum": 0, "maximum": 65535 }
     }
   },
   "balloonCapability": {

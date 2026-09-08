@@ -145,6 +145,33 @@
           "halfExtents": [0.35, 0.35, 0.2]
         }
       ]
+    },
+    {
+      "partTypeId": 12,
+      "name": "spring",
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.9, "friction": 0.2 },
+      "capabilities": { "spring": 12.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.4, 0.4]
+        }
+      ]
+    },
+    {
+      "partTypeId": 13,
+      "name": "rocket",
+      "mode": "dynamic",
+      "mass": 0.9,
+      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.3, 0.3]
+        }
+      ]
     }
   ]
 }

@@ -121,4 +121,18 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
       errors.push(`Part ${partTypeId} capabilities.fan needs a finite thrustPerTick.`);
     }
   }
+  if (value.spring !== undefined) {
+    if (typeof value.spring !== "number" || !Number.isFinite(value.spring)) {
+      errors.push(`Part ${partTypeId} capabilities.spring must be a finite bounceImpulsePerTick number.`);
+    }
+  }
+  if (value.rocket !== undefined) {
+    const rocket = value.rocket as { thrustPerTick?: unknown; directionX?: unknown; durationTicks?: unknown } | null;
+    if (typeof rocket !== "object" || rocket === null
+      || typeof rocket.thrustPerTick !== "number" || !Number.isFinite(rocket.thrustPerTick)
+      || rocket.directionX !== -1 && rocket.directionX !== 0 && rocket.directionX !== 1
+      || typeof rocket.durationTicks !== "number" || !Number.isInteger(rocket.durationTicks) || rocket.durationTicks < 0) {
+      errors.push(`Part ${partTypeId} capabilities.rocket needs finite thrustPerTick, directionX in -1, 0, 1, non-negative integer durationTicks.`);
+    }
+  }
 }

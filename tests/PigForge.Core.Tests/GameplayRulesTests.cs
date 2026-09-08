@@ -182,6 +182,8 @@ public sealed class GameplayRulesTests
                 new MotorStore(entities),
                 new BalloonStore(entities),
                 new FanStore(entities),
+                new SpringStore(entities),
+                new RocketStore(entities),
                 new TntStore(entities),
                 new WheelStore(entities),
                 new PigStore(entities),
@@ -233,6 +235,8 @@ public sealed class GameplayRulesTests
                 new MotorStore(_entities),
                 new BalloonStore(_entities),
                 new FanStore(_entities),
+                new SpringStore(_entities),
+                new RocketStore(_entities),
                 new TntStore(_entities),
                 new WheelStore(_entities),
                 new PigStore(_entities),
@@ -493,5 +497,72 @@ public sealed class GameplayRulesTests
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void SpringLaunchesOncePerTouchdown()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId spring = entities.Create();
+        harness.Rules.AddSpring(spring, 12f);
+        harness.Link(spring, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        // First grounded tick: one launch impulse.
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), command.Body);
+        Assert.Equal(12f, command.Impulse.Y);
+
+        // Still grounded next tick: no second launch (BouncedRecently holds).
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Empty(harness.Output.Commands);
+
+        // Leaves ground, lands again: second launch.
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Single(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void RocketThrustsThenSelfDestructsAfterDuration()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 4f, 1f, durationTicks: 2);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), command.Body);
+        Assert.Equal(4f, command.Impulse.X);
+        Assert.Empty(harness.Output.DestroyedEntities);
+
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Single(harness.Output.Commands);
+        Assert.Empty(harness.Output.DestroyedEntities);
+
+        // Duration exhausted: the rocket self-destructs (destroyed entity surfaced).
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+        Assert.Contains(rocket, harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
+    public void RocketWithZeroRemainingTicksSpendsImmediately()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 2f, 1f, durationTicks: 0);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+        Assert.Contains(rocket, harness.Output.DestroyedEntities);
     }
 }

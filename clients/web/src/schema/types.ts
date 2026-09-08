@@ -18,6 +18,8 @@ export interface PartCapabilities {
   tnt?: { fuseTicks: number };
   balloon?: number;
   fan?: { thrustPerTick: number; directionX: number; directionY: number };
+  spring?: number;
+  rocket?: { thrustPerTick: number; directionX: -1 | 0 | 1; durationTicks: number };
 }
 
 export interface PartDefinition {

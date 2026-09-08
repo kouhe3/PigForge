@@ -36,13 +36,21 @@ public sealed record PartCapabilities(
     float? BalloonLiftPerTick = null,
     float? FanThrustPerTick = null,
     float? FanDirectionX = null,
-    float? FanDirectionY = null)
+    float? FanDirectionY = null,
+    float? SpringBounceImpulsePerTick = null,
+    float? RocketThrustPerTick = null,
+    float? RocketDirectionX = null,
+    ushort? RocketDurationTicks = null)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 
     public bool HasBalloon => BalloonLiftPerTick is float lift && lift != 0f;
 
     public bool HasFan => FanThrustPerTick is float thrust && thrust != 0f;
+
+    public bool HasSpring => SpringBounceImpulsePerTick is float bounce && bounce != 0f;
+
+    public bool HasRocket => RocketThrustPerTick is float thrust && thrust != 0f;
 }
 
 public sealed record PartShapeDefinition(
