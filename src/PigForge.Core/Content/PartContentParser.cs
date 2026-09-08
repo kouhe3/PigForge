@@ -241,6 +241,10 @@ public static class PartContentParser
         float? motorThrust = null;
         float? motorDirection = null;
         ushort? tntFuse = null;
+        float? balloonLift = null;
+        float? fanThrust = null;
+        float? fanDirectionX = null;
+        float? fanDirectionY = null;
         bool hasError = false;
 
         HashSet<string> seenKeys = new();
@@ -296,9 +300,33 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("balloon"))
+        {
+            if (!capabilitiesElement.TryGetProperty("balloon", out JsonElement balloonElement)
+                || balloonElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(balloonElement))
+            {
+                errors.Add($"{path}.capabilities.balloon: must be a finite liftPerTick number.");
+                hasError = true;
+            }
+            else
+            {
+                balloonLift = balloonElement.GetSingle();
+            }
+        }
+
+        if (seenKeys.Contains("fan"))
+        {
+            if (!capabilitiesElement.TryGetProperty("fan", out JsonElement fanElement) || !TryReadFan(fanElement, path, out fanThrust, out fanDirectionX, out fanDirectionY))
+            {
+                errors.Add($"{path}.capabilities.fan: must be an object with a finite thrustPerTick and finite directionX/directionY (at least one non-zero).");
+                hasError = true;
+            }
+        }
+
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -310,7 +338,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY);
     }
 
     private static bool TryReadMotor(JsonElement element, string path, out float? thrust, out float? direction)
@@ -341,6 +369,62 @@ public static class PartContentParser
         thrust = thrustValue;
         direction = directionValue;
         return true;
+    }
+
+    private static bool TryReadFan(JsonElement element, string path, out float? thrust, out float? directionX, out float? directionY)
+    {
+        thrust = null;
+        directionX = null;
+        directionY = null;
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("thrustPerTick", out JsonElement thrustElement)
+            || thrustElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(thrustElement)
+            || !thrustElement.TryGetSingle(out float thrustValue))
+        {
+            return false;
+        }
+
+        if (!TryReadFanDirection(element, out float directionXValue, out float directionYValue))
+        {
+            return false;
+        }
+
+        thrust = thrustValue;
+        directionX = directionXValue;
+        directionY = directionYValue;
+        return true;
+    }
+
+    private static bool TryReadFanDirection(JsonElement element, out float directionX, out float directionY)
+    {
+        directionX = 1f;
+        directionY = 0f;
+        bool hasX = false;
+        bool hasY = false;
+        if (element.TryGetProperty("directionX", out JsonElement xElement))
+        {
+            if (xElement.ValueKind == JsonValueKind.Number && IsFiniteNumber(xElement) && xElement.TryGetSingle(out float x))
+            {
+                hasX = true;
+                directionX = x;
+            }
+        }
+
+        if (element.TryGetProperty("directionY", out JsonElement yElement))
+        {
+            if (yElement.ValueKind == JsonValueKind.Number && IsFiniteNumber(yElement) && yElement.TryGetSingle(out float y))
+            {
+                hasY = true;
+                directionY = y;
+            }
+        }
+
+        return hasX || hasY;
     }
 
     private static bool TryReadTnt(JsonElement element, string path, out ushort? fuse)

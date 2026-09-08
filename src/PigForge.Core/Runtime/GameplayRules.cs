@@ -65,6 +65,8 @@ public sealed class GameplayRules
 {
     private readonly EntityStore _entities;
     private readonly MotorStore _motors;
+    private readonly BalloonStore _balloons;
+    private readonly FanStore _fans;
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
@@ -82,6 +84,8 @@ public sealed class GameplayRules
     public GameplayRules(
         EntityStore entities,
         MotorStore motors,
+        BalloonStore balloons,
+        FanStore fans,
         TntStore tnt,
         WheelStore wheels,
         PigStore pigs,
@@ -90,6 +94,8 @@ public sealed class GameplayRules
     {
         _entities = entities ?? throw new ArgumentNullException(nameof(entities));
         _motors = motors ?? throw new ArgumentNullException(nameof(motors));
+        _balloons = balloons ?? throw new ArgumentNullException(nameof(balloons));
+        _fans = fans ?? throw new ArgumentNullException(nameof(fans));
         _tnt = tnt ?? throw new ArgumentNullException(nameof(tnt));
         _wheels = wheels ?? throw new ArgumentNullException(nameof(wheels));
         _pigs = pigs ?? throw new ArgumentNullException(nameof(pigs));
@@ -131,6 +137,12 @@ public sealed class GameplayRules
     public void AddMotor(EntityId entity, float impulsePerTick, float directionX) =>
         _motors.Set(entity, new MotorState(impulsePerTick, directionX));
 
+    public void AddBalloon(EntityId entity, float liftPerTick) =>
+        _balloons.Set(entity, new BalloonState(liftPerTick));
+
+    public void AddFan(EntityId entity, float impulsePerTick, float directionX, float directionY) =>
+        _fans.Set(entity, new FanState(impulsePerTick, directionX, directionY));
+
     public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
 
     public void Tick(uint tick, ReadOnlySpan<PhysicsEvent> events, ReadOnlySpan<PhysicsBodySnapshot> snapshots, GameplayTickOutput output)
@@ -145,6 +157,8 @@ public sealed class GameplayRules
         IngestSnapshots(snapshots);
         ProcessEvents(events);
         RunMotors(output);
+        RunBalloons(output);
+        RunFans(output);
         RunTntFuses(output);
         DropCommandsForDestroyedBodies(output);
         CheckObjectives(tick);
@@ -250,6 +264,54 @@ public sealed class GameplayRules
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
                 new PhysicsVector3(motor.ImpulsePerTick * motor.DirectionX, 0f, 0f),
+                _kinematicsByBody[link.Body.Value].Position));
+        }
+    }
+
+    private void RunBalloons(GameplayTickOutput output)
+    {
+        var balloons = _balloons.GetEnumerator();
+        while (balloons.MoveNext())
+        {
+            if (!_bodies.TryGet(balloons.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.ContainsKey(link.Body.Value))
+            {
+                continue;
+            }
+
+            // A balloon supplies buoyancy every tick it stays attached and able to
+            // lift; it does not require ground contact (pure vertical lift).
+            BalloonState balloon = balloons.CurrentValue;
+            output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                link.Body,
+                new PhysicsVector3(0f, balloon.LiftPerTick, 0f),
+                _kinematicsByBody[link.Body.Value].Position));
+        }
+    }
+
+    private void RunFans(GameplayTickOutput output)
+    {
+        var fans = _fans.GetEnumerator();
+        while (fans.MoveNext())
+        {
+            if (!_bodies.TryGet(fans.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.ContainsKey(link.Body.Value))
+            {
+                continue;
+            }
+
+            FanState fan = fans.CurrentValue;
+            float magnitude = PhysicsVector3.Distance(
+                new PhysicsVector3(fan.DirectionX, fan.DirectionY, 0f), PhysicsVector3.Zero);
+            if (magnitude <= float.Epsilon)
+            {
+                continue;
+            }
+
+            PhysicsVector3 direction = new(fan.DirectionX / magnitude, fan.DirectionY / magnitude, 0f);
+            output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                link.Body,
+                direction * fan.ImpulsePerTick,
                 _kinematicsByBody[link.Body.Value].Position));
         }
     }
@@ -384,6 +446,8 @@ public sealed class GameplayRules
         }
 
         _motors.Remove(entity);
+        _balloons.Remove(entity);
+        _fans.Remove(entity);
         _tnt.Remove(entity);
         _wheels.Remove(entity);
         _pigs.Remove(entity);
@@ -424,6 +488,8 @@ public sealed class GameplayRules
         _touchedBodies.Clear();
         _brokenJoints.Clear();
         _motors.Clear();
+        _balloons.Clear();
+        _fans.Clear();
         _tnt.Clear();
         _wheels.Clear();
         _pigs.Clear();
@@ -447,6 +513,8 @@ public sealed class GameplayRules
         }
 
         _motors.Remove(entity);
+        _balloons.Remove(entity);
+        _fans.Remove(entity);
         _tnt.Remove(entity);
         _wheels.Remove(entity);
         _pigs.Remove(entity);

@@ -68,7 +68,22 @@
         "pig": { "type": "boolean" },
         "wheel": { "type": "boolean" },
         "motor": { "$ref": "#/$defs/motorCapability" },
-        "tnt": { "$ref": "#/$defs/tntCapability" }
+        "tnt": { "$ref": "#/$defs/tntCapability" },
+        "balloon": { "$ref": "#/$defs/balloonCapability" },
+        "fan": { "$ref": "#/$defs/fanCapability" }
+    }
+  },
+  "balloonCapability": {
+      "type": "number"
+    },
+    "fanCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["thrustPerTick"],
+      "properties": {
+        "thrustPerTick": { "type": "number" },
+        "directionX": { "type": "number" },
+        "directionY": { "type": "number" }
       }
     },
     "motorCapability": {

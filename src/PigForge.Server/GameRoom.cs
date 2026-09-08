@@ -56,6 +56,8 @@ public sealed class GameRoom : IDisposable
     private readonly TransformStore _transforms;
     private readonly PhysicsBodyStore _bodies;
     private readonly MotorStore _motors;
+    private readonly BalloonStore _balloons;
+    private readonly FanStore _fans;
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
@@ -89,12 +91,14 @@ public sealed class GameRoom : IDisposable
         _transforms = new TransformStore(_entities);
         _bodies = new PhysicsBodyStore(_entities);
         _motors = new MotorStore(_entities);
+        _balloons = new BalloonStore(_entities);
+        _fans = new FanStore(_entities);
         _tnt = new TntStore(_entities);
         _wheels = new WheelStore(_entities);
         _pigs = new PigStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         _rules = new GameplayRules(
-            _entities, _motors, _tnt, _wheels, _pigs, _bodies, options.GameplayConfig);
+            _entities, _motors, _balloons, _fans, _tnt, _wheels, _pigs, _bodies, options.GameplayConfig);
     }
 
     public RoomMode Mode { get; private set; } = RoomMode.Building;
@@ -282,6 +286,16 @@ public sealed class GameRoom : IDisposable
         if (capabilities.TntFuseTicks is ushort fuse)
         {
             _rules.AddTnt(entity, fuse);
+        }
+
+        if (capabilities.HasBalloon)
+        {
+            _rules.AddBalloon(entity, capabilities.BalloonLiftPerTick!.Value);
+        }
+
+        if (capabilities.HasFan)
+        {
+            _rules.AddFan(entity, capabilities.FanThrustPerTick!.Value, capabilities.FanDirectionX ?? 1f, capabilities.FanDirectionY ?? 0f);
         }
     }
 

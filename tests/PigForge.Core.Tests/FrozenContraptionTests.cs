@@ -156,6 +156,8 @@ public sealed class FrozenContraptionTests
     private static GameplayRules CreateGameplayRules(EntityStore entities, PhysicsBodyStore bodies) => new(
         entities,
         new MotorStore(entities),
+        new BalloonStore(entities),
+        new FanStore(entities),
         new TntStore(entities),
         new WheelStore(entities),
         new PigStore(entities),

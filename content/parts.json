@@ -118,6 +118,33 @@
           "halfExtents": [0.35, 0.35, 0.35]
         }
       ]
+    },
+    {
+      "partTypeId": 10,
+      "name": "balloon",
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.6
+        }
+      ]
+    },
+    {
+      "partTypeId": 11,
+      "name": "fan",
+      "mode": "dynamic",
+      "mass": 0.8,
+      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.35, 0.2]
+        }
+      ]
     }
   ]
 }

@@ -32,9 +32,17 @@ public sealed record PartCapabilities(
     bool IsWheel = false,
     float? MotorThrustPerTick = null,
     float? MotorDirectionX = null,
-    ushort? TntFuseTicks = null)
+    ushort? TntFuseTicks = null,
+    float? BalloonLiftPerTick = null,
+    float? FanThrustPerTick = null,
+    float? FanDirectionX = null,
+    float? FanDirectionY = null)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
+
+    public bool HasBalloon => BalloonLiftPerTick is float lift && lift != 0f;
+
+    public bool HasFan => FanThrustPerTick is float thrust && thrust != 0f;
 }
 
 public sealed record PartShapeDefinition(

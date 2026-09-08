@@ -109,4 +109,16 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
       errors.push(`Part ${partTypeId} capabilities.tnt needs a non-negative integer fuseTicks.`);
     }
   }
+  if (value.balloon !== undefined) {
+    if (typeof value.balloon !== "number" || !Number.isFinite(value.balloon)) {
+      errors.push(`Part ${partTypeId} capabilities.balloon must be a finite liftPerTick number.`);
+    }
+  }
+  if (value.fan !== undefined) {
+    const fan = value.fan as { thrustPerTick?: unknown; directionX?: unknown; directionY?: unknown } | null;
+    if (typeof fan !== "object" || fan === null
+      || typeof fan.thrustPerTick !== "number" || !Number.isFinite(fan.thrustPerTick)) {
+      errors.push(`Part ${partTypeId} capabilities.fan needs a finite thrustPerTick.`);
+    }
+  }
 }

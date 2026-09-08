@@ -180,6 +180,8 @@ public sealed class GameplayRulesTests
             Rules = new GameplayRules(
                 entities,
                 new MotorStore(entities),
+                new BalloonStore(entities),
+                new FanStore(entities),
                 new TntStore(entities),
                 new WheelStore(entities),
                 new PigStore(entities),
@@ -229,12 +231,13 @@ public sealed class GameplayRulesTests
             _rules = new GameplayRules(
                 _entities,
                 new MotorStore(_entities),
+                new BalloonStore(_entities),
+                new FanStore(_entities),
                 new TntStore(_entities),
                 new WheelStore(_entities),
                 new PigStore(_entities),
                 _bodies,
                 new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
-
             foreach (LevelSpawnDefinition spawn in level.Spawns)
             {
                 Spawn(spawn);
@@ -438,4 +441,57 @@ public sealed class GameplayRulesTests
         ]
     }
     """;
+
+    [Fact]
+    public void BalloonAppliesPureVerticalLiftEveryTick()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId balloon = entities.Create();
+        harness.Rules.AddBalloon(balloon, 1.5f);
+        harness.Link(balloon, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), command.Body);
+        Assert.Equal(0f, command.Impulse.X);
+        Assert.Equal(1.5f, command.Impulse.Y);
+        Assert.Equal(0f, command.Impulse.Z);
+
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Single(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void FanPushesAlongNormalizedPlanarDirection()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId fan = entities.Create();
+        harness.Rules.AddFan(fan, 2f, 1f, 1f);
+        harness.Link(fan, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), command.Body);
+        float normalization = MathF.Sqrt(2f);
+        Assert.Equal(2f / normalization, command.Impulse.X, 5);
+        Assert.Equal(2f / normalization, command.Impulse.Y, 5);
+        Assert.Equal(0f, command.Impulse.Z);
+    }
+
+    [Fact]
+    public void FanWithZeroDirectionProducesNoImpulse()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId fan = entities.Create();
+        harness.Rules.AddFan(fan, 2f, 0f, 0f);
+        harness.Link(fan, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+    }
 }
