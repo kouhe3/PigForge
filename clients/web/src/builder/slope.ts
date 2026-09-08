@@ -40,6 +40,10 @@ export const PLAY_PARTS: PartContentDocument = {
     { partTypeId: 36, name: "electric-umbrella", mode: "dynamic", mass: 0.7, capabilities: { umbrella: 0.35 }, shapes: [{ kind: "box", halfExtents: [0.4, 0.2, 0.4] }] },
     { partTypeId: 37, name: "rotor", mode: "dynamic", mass: 0.7, capabilities: { balloon: 3.5 }, shapes: [{ kind: "sphere", radius: 0.4 }] },
     { partTypeId: 38, name: "propeller", mode: "dynamic", mass: 0.9, capabilities: { wheel: true, motor: { thrustPerTick: 2.5, directionX: 1 } }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.2] }] },
+    { partTypeId: 39, name: "gearbox-lever", mode: "dynamic", mass: 0.7, capabilities: { gearbox: true }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.3] }] },
+    { partTypeId: 40, name: "bellows", mode: "dynamic", mass: 0.6, capabilities: { bellows: 8 }, shapes: [{ kind: "box", halfExtents: [0.35, 0.3, 0.3] }] },
+    { partTypeId: 41, name: "rope", mode: "dynamic", mass: 0.3, shapes: [{ kind: "box", halfExtents: [1.5, 0.06, 0.06] }] },
+    { partTypeId: 42, name: "dynamite", mode: "dynamic", mass: 1, capabilities: { tnt: { fuseTicks: 1 } }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.3] }] },
     { partTypeId: 6, name: "ramp-plank", mode: "static", mass: 0, shapes: [{ kind: "box", halfExtents: [6, 0.25, 1] }] },
   ],
 };
@@ -78,8 +82,11 @@ export const PALETTE = [
   { partTypeId: 34, label: "金属尾翼" },
   { partTypeId: 35, label: "黑伞" },
   { partTypeId: 36, label: "电伞" },
-  { partTypeId: 37, label: "旋翼" },
   { partTypeId: 38, label: "螺旋桨" },
+  { partTypeId: 39, label: "齿轮杆" },
+  { partTypeId: 40, label: "风箱" },
+  { partTypeId: 41, label: "绳索" },
+  { partTypeId: 42, label: "炸药" },
 ] as const;
 
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };

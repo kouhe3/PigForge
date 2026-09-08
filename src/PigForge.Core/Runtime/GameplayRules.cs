@@ -77,6 +77,8 @@ public sealed class GameplayRules
     private readonly WingStore _wings;
     private readonly TailStore _tails;
     private readonly UmbrellaStore _umbrellas;
+    private readonly GearboxStore _gearboxes;
+    private readonly BellowsStore _bellows;
     private readonly PhysicsBodyStore _bodies;
     private readonly GameplayConfig _config;
 
@@ -102,6 +104,8 @@ public sealed class GameplayRules
         WingStore wings,
         TailStore tails,
         UmbrellaStore umbrellas,
+        GearboxStore gearboxes,
+        BellowsStore bellows,
         PhysicsBodyStore bodies,
         GameplayConfig config)
     {
@@ -118,6 +122,8 @@ public sealed class GameplayRules
         _wings = wings ?? throw new ArgumentNullException(nameof(wings));
         _tails = tails ?? throw new ArgumentNullException(nameof(tails));
         _umbrellas = umbrellas ?? throw new ArgumentNullException(nameof(umbrellas));
+        _gearboxes = gearboxes ?? throw new ArgumentNullException(nameof(gearboxes));
+        _bellows = bellows ?? throw new ArgumentNullException(nameof(bellows));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
@@ -179,6 +185,10 @@ public sealed class GameplayRules
     public void AddUmbrella(EntityId entity, float dragCoef) =>
         _umbrellas.Set(entity, new UmbrellaState(dragCoef));
 
+    public void AddGearbox(EntityId entity) => _gearboxes.Set(entity, default);
+
+    public void AddBellows(EntityId entity, float boostImpulse) =>
+        _bellows.Set(entity, new BellowsState(boostImpulse, BoostedRecently: false));
     public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
     public void Tick(uint tick, ReadOnlySpan<PhysicsEvent> events, ReadOnlySpan<PhysicsBodySnapshot> snapshots, GameplayTickOutput output)
     {
@@ -196,6 +206,7 @@ public sealed class GameplayRules
         RunFans(output);
         RunAerodynamics(output);
         RunSprings(output);
+        RunBellows(output);
         RunRockets(output);
         RunTntFuses(output);
         DropCommandsForDestroyedBodies(output);
@@ -284,6 +295,7 @@ public sealed class GameplayRules
     }
     private void RunMotors(GameplayTickOutput output)
     {
+        HashSet<uint> reverseBodies = CollectGearboxBodies();
         var motors = _motors.GetEnumerator();
         while (motors.MoveNext())
         {
@@ -300,11 +312,33 @@ public sealed class GameplayRules
             }
 
             MotorState motor = motors.CurrentValue;
+            float directionX = motor.DirectionX;
+            // A gearbox on the same body flips the drive (reverse gear).
+            if (reverseBodies.Contains(link.Body.Value))
+            {
+                directionX = -directionX;
+            }
+
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                new PhysicsVector3(motor.ImpulsePerTick * motor.DirectionX, 0f, 0f),
+                new PhysicsVector3(motor.ImpulsePerTick * directionX, 0f, 0f),
                 _kinematicsByBody[link.Body.Value].Position));
         }
+    }
+
+    private HashSet<uint> CollectGearboxBodies()
+    {
+        HashSet<uint> bodies = new();
+        var gearboxes = _gearboxes.GetEnumerator();
+        while (gearboxes.MoveNext())
+        {
+            if (_bodies.TryGet(gearboxes.CurrentId, out PhysicsBodyLink link))
+            {
+                bodies.Add(link.Body.Value);
+            }
+        }
+
+        return bodies;
     }
 
     private void ChallengeEggsOnImpact(PhysicsBodyId body, float impactSpeed, GameplayTickOutput output)
@@ -469,6 +503,36 @@ public sealed class GameplayRules
             else if (!touched && spring.BouncedRecently)
             {
                 _springs.Set(springs.CurrentId, spring with { BouncedRecently = false });
+            }
+        }
+    }
+
+    private void RunBellows(GameplayTickOutput output)
+    {
+        var bellows = _bellows.GetEnumerator();
+        while (bellows.MoveNext())
+        {
+            if (!_bodies.TryGet(bellows.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.ContainsKey(link.Body.Value))
+            {
+                continue;
+            }
+
+            BellowsState state = bellows.CurrentValue;
+            bool touched = _touchedBodies.Contains(link.Body.Value);
+            if (touched && !state.BoostedRecently)
+            {
+                // A landing ignites the jet: one forward boost along facing +X
+                // (original bellows m_boostForce one-shot) until the rig lifts off.
+                _bellows.Set(bellows.CurrentId, state with { BoostedRecently = true });
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    link.Body,
+                    new PhysicsVector3(state.BoostImpulse, 0f, 0f),
+                    _kinematicsByBody[link.Body.Value].Position));
+            }
+            else if (!touched && state.BoostedRecently)
+            {
+                _bellows.Set(bellows.CurrentId, state with { BoostedRecently = false });
             }
         }
     }
@@ -700,7 +764,8 @@ public sealed class GameplayRules
         _wings.Remove(entity);
         _tails.Remove(entity);
         _umbrellas.Remove(entity);
-        _bodies.Remove(entity);
+        _gearboxes.Remove(entity);
+        _bellows.Remove(entity);
     }
 
     /// <summary>
@@ -754,7 +819,8 @@ public sealed class GameplayRules
         _wings.Clear();
         _tails.Clear();
         _umbrellas.Clear();
-        _bodies.Clear();
+        _gearboxes.Clear();
+        _bellows.Clear();
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
         RestartRequested = false;
@@ -785,7 +851,8 @@ public sealed class GameplayRules
         _wings.Remove(entity);
         _tails.Remove(entity);
         _umbrellas.Remove(entity);
-        _bodies.Remove(entity);
+        _gearboxes.Remove(entity);
+        _bellows.Remove(entity);
         _entities.Destroy(entity);
         output.DestroyedEntities.Add(entity);
     }

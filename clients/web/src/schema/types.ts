@@ -24,6 +24,8 @@ export interface PartCapabilities {
   wing?: { liftCoef: number; maxLift?: number };
   tail?: number;
   umbrella?: number;
+  gearbox?: boolean;
+  bellows?: number;
 }
 
 export interface PartDefinition {

@@ -155,4 +155,10 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.umbrella !== undefined && (typeof value.umbrella !== "number" || !Number.isFinite(value.umbrella))) {
     errors.push(`Part ${partTypeId} capabilities.umbrella must be a finite dragCoef number.`);
   }
+  if (value.gearbox !== undefined && typeof value.gearbox !== "boolean") {
+    errors.push(`Part ${partTypeId} capabilities.gearbox must be a boolean.`);
+  }
+  if (value.bellows !== undefined && (typeof value.bellows !== "number" || !Number.isFinite(value.bellows))) {
+    errors.push(`Part ${partTypeId} capabilities.bellows must be a finite boostImpulse number.`);
+  }
 }

@@ -191,6 +191,8 @@ public sealed class GameplayRulesTests
                 new WingStore(entities),
                 new TailStore(entities),
                 new UmbrellaStore(entities),
+                new GearboxStore(entities),
+                new BellowsStore(entities),
                 _bodies,
                 config);
         }
@@ -248,6 +250,8 @@ public sealed class GameplayRulesTests
                 new WingStore(_entities),
                 new TailStore(_entities),
                 new UmbrellaStore(_entities),
+                new GearboxStore(_entities),
+                new BellowsStore(_entities),
                 _bodies,
                 new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
             foreach (LevelSpawnDefinition spawn in level.Spawns)
@@ -727,5 +731,42 @@ public sealed class GameplayRulesTests
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, 4, 0));
         harness.Tick(2, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands); // rising bodies untouched
+    }
+
+    [Fact]
+    public void GearboxReversesMotorDirectionOnSameBody()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId motor = entities.Create();
+        EntityId gearbox = entities.Create();
+        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Rules.AddGearbox(gearbox);
+        harness.Link(motor, new PhysicsBodyId(1));
+        harness.Link(gearbox, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(-2f, command.Impulse.X, 5); // reversed
+    }
+
+    [Fact]
+    public void BellowsPushesForwardOncePerTouchdown()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId bellows = entities.Create();
+        harness.Rules.AddBellows(bellows, boostImpulse: 8f);
+        harness.Link(bellows, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(8f, command.Impulse.X, 5);
+
+        // Still grounded: no second boost until airborne.
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Empty(harness.Output.Commands);
     }
 }

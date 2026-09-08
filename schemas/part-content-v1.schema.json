@@ -76,7 +76,9 @@
         "egg": { "type": "boolean" },
         "wing": { "$ref": "#/$defs/wingCapability" },
         "tail": { "$ref": "#/$defs/tailCapability" },
-        "umbrella": { "$ref": "#/$defs/umbrellaCapability" }
+        "umbrella": { "$ref": "#/$defs/umbrellaCapability" },
+        "gearbox": { "type": "boolean" },
+        "bellows": { "type": "number" }
     }
   },
   "wingCapability": {

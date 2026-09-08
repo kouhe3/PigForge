@@ -167,6 +167,8 @@ public sealed class FrozenContraptionTests
         new WingStore(entities),
         new TailStore(entities),
         new UmbrellaStore(entities),
+        new GearboxStore(entities),
+        new BellowsStore(entities),
         bodies,
         GameplayConfig.Default);
 

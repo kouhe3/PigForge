@@ -77,3 +77,15 @@ public sealed class WingStore(EntityStore entities) : ComponentStore<WingState>(
 public sealed class TailStore(EntityStore entities) : ComponentStore<TailState>(entities);
 
 public sealed class UmbrellaStore(EntityStore entities) : ComponentStore<UmbrellaState>(entities);
+
+/// <summary>Reverse-gear marker: a gearbox on a body makes every motor on that
+/// body push the opposite way (original gearbox lever direction switch).</summary>
+public readonly record struct GearboxMarker;
+
+/// <summary>Forward boost: a bellows emits a one-shot impulse along its facing
+/// direction each time the rig lands (original m_boostForce jet).</summary>
+public readonly record struct BellowsState(float BoostImpulse, bool BoostedRecently);
+
+public sealed class GearboxStore(EntityStore entities) : ComponentStore<GearboxMarker>(entities);
+
+public sealed class BellowsStore(EntityStore entities) : ComponentStore<BellowsState>(entities);

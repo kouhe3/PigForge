@@ -518,6 +518,61 @@
           "halfExtents": [0.3, 0.3, 0.2]
         }
       ]
+    },
+    {
+      "partTypeId": 39,
+      "name": "gearbox-lever",
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "gearbox": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.3, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 40,
+      "name": "bellows",
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.4, "friction": 0.6 },
+      "capabilities": { "bellows": 8.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 41,
+      "name": "rope",
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.2, "friction": 0.9 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.5, 0.06, 0.06]
+        }
+      ]
+    },
+    {
+      "partTypeId": 42,
+      "name": "dynamite",
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.15, "friction": 0.6 },
+      "capabilities": { "tnt": { "fuseTicks": 1 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.3, 0.3]
+        }
+      ]
     }
   ]
 }

@@ -257,6 +257,8 @@ public static class PartContentParser
         float? wingMaxLift = null;
         float? tailDragCoef = null;
         float? umbrellaDragCoef = null;
+        bool isGearbox = false;
+        float? bellowsBoost = null;
         bool hasError = false;
 
         HashSet<string> seenKeys = new();
@@ -412,9 +414,37 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("gearbox"))
+        {
+            if (!capabilitiesElement.TryGetProperty("gearbox", out JsonElement gearboxElement) || gearboxElement.ValueKind != JsonValueKind.True && gearboxElement.ValueKind != JsonValueKind.False)
+            {
+                errors.Add($"{path}.capabilities.gearbox: must be a boolean.");
+                hasError = true;
+            }
+            else
+            {
+                isGearbox = gearboxElement.GetBoolean();
+            }
+        }
+
+        if (seenKeys.Contains("bellows"))
+        {
+            if (!capabilitiesElement.TryGetProperty("bellows", out JsonElement bellowsElement)
+                || bellowsElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(bellowsElement))
+            {
+                errors.Add($"{path}.capabilities.bellows: must be a finite boostImpulse number.");
+                hasError = true;
+            }
+            else
+            {
+                bellowsBoost = bellowsElement.GetSingle();
+            }
+        }
+
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -426,7 +456,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, bellowsBoost);
     }
 
     private static bool TryReadMotor(JsonElement element, string path, out float? thrust, out float? direction)
