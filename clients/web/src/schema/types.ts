@@ -19,7 +19,8 @@ export interface PartCapabilities {
   balloon?: number;
   fan?: { thrustPerTick: number; directionX: number; directionY: number };
   spring?: number;
-  rocket?: { thrustPerTick: number; directionX: -1 | 0 | 1; durationTicks: number };
+  rocket?: { thrustPerTick: number; directionX: -1 | 0 | 1; directionY?: -1 | 0 | 1; durationTicks: number };
+  egg?: boolean;
 }
 
 export interface PartDefinition {

@@ -27,6 +27,7 @@ public sealed record GameplayConfig(
     float TntBlastRadius,
     float TntBlastImpulse,
     float TntIgniteImpactSpeed,
+    float EggBreakImpactSpeed = 6f,
     float SeamBreakImpulse = 10f,
     uint MaxTicks = 0)
 {
@@ -72,6 +73,7 @@ public sealed class GameplayRules
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
+    private readonly EggStore _eggs;
     private readonly PhysicsBodyStore _bodies;
     private readonly GameplayConfig _config;
 
@@ -93,6 +95,7 @@ public sealed class GameplayRules
         TntStore tnt,
         WheelStore wheels,
         PigStore pigs,
+        EggStore eggs,
         PhysicsBodyStore bodies,
         GameplayConfig config)
     {
@@ -103,6 +106,7 @@ public sealed class GameplayRules
         _springs = springs ?? throw new ArgumentNullException(nameof(springs));
         _rockets = rockets ?? throw new ArgumentNullException(nameof(rockets));
         _tnt = tnt ?? throw new ArgumentNullException(nameof(tnt));
+        _eggs = eggs ?? throw new ArgumentNullException(nameof(eggs));
         _wheels = wheels ?? throw new ArgumentNullException(nameof(wheels));
         _pigs = pigs ?? throw new ArgumentNullException(nameof(pigs));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
@@ -152,8 +156,10 @@ public sealed class GameplayRules
     public void AddSpring(EntityId entity, float bounceImpulsePerTick) =>
         _springs.Set(entity, new SpringState(bounceImpulsePerTick, BouncedRecently: false));
 
-    public void AddRocket(EntityId entity, float thrustPerTick, float directionX, ushort durationTicks) =>
-        _rockets.Set(entity, new RocketState(thrustPerTick, directionX, durationTicks, Ignited: false));
+    public void AddRocket(EntityId entity, float thrustPerTick, float directionX, float directionY, ushort durationTicks) =>
+        _rockets.Set(entity, new RocketState(thrustPerTick, directionX, directionY, durationTicks, Ignited: false));
+
+    public void AddEgg(EntityId entity) => _eggs.Set(entity, default);
 
     public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
 
@@ -167,7 +173,7 @@ public sealed class GameplayRules
         output.Clear();
         _touchedBodies.Clear();
         IngestSnapshots(snapshots);
-        ProcessEvents(events);
+        ProcessEvents(events, output);
         RunMotors(output);
         RunBalloons(output);
         RunFans(output);
@@ -202,7 +208,7 @@ public sealed class GameplayRules
         }
     }
 
-    private void ProcessEvents(ReadOnlySpan<PhysicsEvent> events)
+    private void ProcessEvents(ReadOnlySpan<PhysicsEvent> events, GameplayTickOutput output)
     {
         for (int index = 0; index < events.Length; index++)
         {
@@ -223,6 +229,8 @@ public sealed class GameplayRules
                         float pairImpact = MathF.Max(VelocityChange(physicsEvent.BodyA), VelocityChange(physicsEvent.BodyB));
                         IgniteTntOnBody(physicsEvent.BodyA, pairImpact);
                         IgniteTntOnBody(physicsEvent.BodyB, pairImpact);
+                        ChallengeEggsOnImpact(physicsEvent.BodyA, pairImpact, output);
+                        ChallengeEggsOnImpact(physicsEvent.BodyB, pairImpact, output);
                     }
 
                     break;
@@ -256,7 +264,6 @@ public sealed class GameplayRules
 
         _tnt.Set(entity, tnt with { Ignited = true });
     }
-
     private void RunMotors(GameplayTickOutput output)
     {
         var motors = _motors.GetEnumerator();
@@ -282,6 +289,19 @@ public sealed class GameplayRules
         }
     }
 
+    private void ChallengeEggsOnImpact(PhysicsBodyId body, float impactSpeed, GameplayTickOutput output)
+    {
+        if (impactSpeed < _config.EggBreakImpactSpeed
+            || !_entitiesByBody.TryGetValue(body.Value, out EntityId entity)
+            || !_eggs.TryGet(entity, out _))
+        {
+            return;
+        }
+
+        // A fragile egg cannot survive a hard landing: destroy it and demand a replay.
+        DestroyEntity(entity, output);
+        RestartRequested = true;
+    }
     private void RunBalloons(GameplayTickOutput output)
     {
         var balloons = _balloons.GetEnumerator();
@@ -380,9 +400,17 @@ public sealed class GameplayRules
             }
 
             _rockets.Set(rockets.CurrentId, rocket with { DurationTicks = checked((ushort)(rocket.DurationTicks - 1)) });
+            float magnitude = PhysicsVector3.Distance(
+                new PhysicsVector3(rocket.DirectionX, rocket.DirectionY, 0f), PhysicsVector3.Zero);
+            if (magnitude <= float.Epsilon)
+            {
+                continue;
+            }
+
+            PhysicsVector3 direction = new(rocket.DirectionX / magnitude, rocket.DirectionY / magnitude, 0f);
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                new PhysicsVector3(rocket.ThrustPerTick * rocket.DirectionX, 0f, 0f),
+                direction * rocket.ThrustPerTick,
                 _kinematicsByBody[link.Body.Value].Position));
         }
 
@@ -534,6 +562,7 @@ public sealed class GameplayRules
         _tnt.Remove(entity);
         _wheels.Remove(entity);
         _pigs.Remove(entity);
+        _eggs.Remove(entity);
         _bodies.Remove(entity);
     }
 
@@ -584,6 +613,7 @@ public sealed class GameplayRules
         _tnt.Clear();
         _wheels.Clear();
         _pigs.Clear();
+        _eggs.Clear();
         _bodies.Clear();
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
@@ -611,6 +641,7 @@ public sealed class GameplayRules
         _tnt.Remove(entity);
         _wheels.Remove(entity);
         _pigs.Remove(entity);
+        _eggs.Remove(entity);
         _bodies.Remove(entity);
         _entities.Destroy(entity);
         output.DestroyedEntities.Add(entity);

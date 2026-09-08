@@ -40,7 +40,9 @@ public sealed record PartCapabilities(
     float? SpringBounceImpulsePerTick = null,
     float? RocketThrustPerTick = null,
     float? RocketDirectionX = null,
-    ushort? RocketDurationTicks = null)
+    float? RocketDirectionY = null,
+    ushort? RocketDurationTicks = null,
+    bool IsEgg = false)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 

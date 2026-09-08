@@ -63,6 +63,7 @@ public sealed class GameRoom : IDisposable
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
+    private readonly EggStore _eggs;
     private readonly ConstructionRules _construction;
     private readonly GameplayRules _rules;
     private readonly CommandValidator _validator = new();
@@ -100,9 +101,10 @@ public sealed class GameRoom : IDisposable
         _tnt = new TntStore(_entities);
         _wheels = new WheelStore(_entities);
         _pigs = new PigStore(_entities);
+        _eggs = new EggStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         _rules = new GameplayRules(
-            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _bodies, options.GameplayConfig);
+            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _eggs, _bodies, options.GameplayConfig);
     }
 
     public RoomMode Mode { get; private set; } = RoomMode.Building;
@@ -309,7 +311,12 @@ public sealed class GameRoom : IDisposable
 
         if (capabilities.HasRocket)
         {
-            _rules.AddRocket(entity, capabilities.RocketThrustPerTick!.Value, capabilities.RocketDirectionX ?? 1f, capabilities.RocketDurationTicks!.Value);
+            _rules.AddRocket(entity, capabilities.RocketThrustPerTick!.Value, capabilities.RocketDirectionX ?? 1f, capabilities.RocketDirectionY ?? 0f, capabilities.RocketDurationTicks!.Value);
+        }
+
+        if (capabilities.IsEgg)
+        {
+            _rules.AddEgg(entity);
         }
     }
 

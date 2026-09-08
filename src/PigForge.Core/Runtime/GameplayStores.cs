@@ -21,9 +21,14 @@ public readonly record struct FanState(float ImpulsePerTick, float DirectionX, f
 public readonly record struct SpringState(float BounceImpulsePerTick, bool BouncedRecently);
 
 /// <summary>Rocket thrust: auto-ignites on simulation start, applies
-/// <paramref name="ThrustPerTick"/> along <paramref name="DirectionX"/> for
+/// <paramref name="ThrustPerTick"/> along the normalized planar
+/// (<paramref name="DirectionX"/>, <paramref name="DirectionY"/>) direction for
 /// <paramref name="DurationTicks"/>, then the part self-destructs.</summary>
-public readonly record struct RocketState(float ThrustPerTick, float DirectionX, ushort DurationTicks, bool Ignited);
+public readonly record struct RocketState(float ThrustPerTick, float DirectionX, float DirectionY, ushort DurationTicks, bool Ignited);
+
+/// <summary>Fragile cargo marker: a hard impact (velocity change above the level's
+/// eggBreakImpactSpeed) destroys the egg and requests a replay.</summary>
+public readonly record struct EggMarker;
 
 public sealed class MotorStore(EntityStore entities) : ComponentStore<MotorState>(entities);
 
@@ -34,6 +39,8 @@ public sealed class FanStore(EntityStore entities) : ComponentStore<FanState>(en
 public sealed class SpringStore(EntityStore entities) : ComponentStore<SpringState>(entities);
 
 public sealed class RocketStore(EntityStore entities) : ComponentStore<RocketState>(entities);
+
+public sealed class EggStore(EntityStore entities) : ComponentStore<EggMarker>(entities);
 
 public sealed class TntStore(EntityStore entities) : ComponentStore<TntState>(entities);
 

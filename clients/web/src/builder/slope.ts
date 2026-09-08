@@ -19,6 +19,16 @@ export const PLAY_PARTS: PartContentDocument = {
     { partTypeId: 15, name: "cart-wheel", mode: "dynamic", mass: 1.2, capabilities: { wheel: true }, shapes: [{ kind: "sphere", radius: 0.6 }] },
     { partTypeId: 16, name: "sticky-wheel", mode: "dynamic", mass: 0.6, capabilities: { wheel: true }, shapes: [{ kind: "sphere", radius: 0.45 }] },
     { partTypeId: 17, name: "motor-wheel", mode: "dynamic", mass: 0.8, capabilities: { wheel: true, motor: { thrustPerTick: 2.2, directionX: 1 } }, shapes: [{ kind: "sphere", radius: 0.4 }] },
+    { partTypeId: 18, name: "metal-box", mode: "dynamic", mass: 2, capabilities: {}, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
+    { partTypeId: 19, name: "balloon-double", mode: "dynamic", mass: 0.6, capabilities: { balloon: 3 }, shapes: [{ kind: "sphere", radius: 0.6 }] },
+    { partTypeId: 20, name: "balloon-triple", mode: "dynamic", mass: 0.9, capabilities: { balloon: 4.5 }, shapes: [{ kind: "sphere", radius: 0.75 }] },
+    { partTypeId: 21, name: "sandbag", mode: "dynamic", mass: 3, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.3] }] },
+    { partTypeId: 22, name: "sandbag-double", mode: "dynamic", mass: 6, shapes: [{ kind: "box", halfExtents: [0.4, 0.4, 0.3] }] },
+    { partTypeId: 23, name: "sandbag-triple", mode: "dynamic", mass: 9, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.3] }] },
+    { partTypeId: 24, name: "king-pig", mode: "dynamic", mass: 1.2, capabilities: { pig: true }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
+    { partTypeId: 25, name: "soda-bottle-black", mode: "dynamic", mass: 0.8, capabilities: { rocket: { thrustPerTick: 8, directionX: 1, directionY: 0, durationTicks: 30 } }, shapes: [{ kind: "box", halfExtents: [0.2, 0.4, 0.2] }] },
+    { partTypeId: 26, name: "soda-bottle-green", mode: "dynamic", mass: 0.8, capabilities: { rocket: { thrustPerTick: 6, directionX: 0, directionY: 1, durationTicks: 40 } }, shapes: [{ kind: "box", halfExtents: [0.2, 0.4, 0.2] }] },
+    { partTypeId: 27, name: "egg", mode: "dynamic", mass: 0.4, capabilities: { egg: true }, shapes: [{ kind: "sphere", radius: 0.3 }] },
     { partTypeId: 6, name: "ramp-plank", mode: "static", mass: 0, shapes: [{ kind: "box", halfExtents: [6, 0.25, 1] }] },
   ],
 };
@@ -38,6 +48,16 @@ export const PALETTE = [
   { partTypeId: 15, label: "大轮" },
   { partTypeId: 16, label: "粘性轮" },
   { partTypeId: 17, label: "马达轮" },
+  { partTypeId: 18, label: "金属箱" },
+  { partTypeId: 19, label: "双气球" },
+  { partTypeId: 20, label: "三气球" },
+  { partTypeId: 21, label: "沙袋" },
+  { partTypeId: 22, label: "双沙袋" },
+  { partTypeId: 23, label: "三沙袋" },
+  { partTypeId: 24, label: "猪王" },
+  { partTypeId: 25, label: "黑汽水" },
+  { partTypeId: 26, label: "绿汽水" },
+  { partTypeId: 27, label: "蛋" },
 ] as const;
 
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };

@@ -163,6 +163,7 @@ public sealed class FrozenContraptionTests
         new TntStore(entities),
         new WheelStore(entities),
         new PigStore(entities),
+        new EggStore(entities),
         bodies,
         GameplayConfig.Default);
 

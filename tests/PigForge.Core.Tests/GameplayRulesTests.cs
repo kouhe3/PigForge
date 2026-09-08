@@ -187,6 +187,7 @@ public sealed class GameplayRulesTests
                 new TntStore(entities),
                 new WheelStore(entities),
                 new PigStore(entities),
+                new EggStore(entities),
                 _bodies,
                 config);
         }
@@ -240,6 +241,7 @@ public sealed class GameplayRulesTests
                 new TntStore(_entities),
                 new WheelStore(_entities),
                 new PigStore(_entities),
+                new EggStore(_entities),
                 _bodies,
                 new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
             foreach (LevelSpawnDefinition spawn in level.Spawns)
@@ -531,7 +533,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 4f, 1f, durationTicks: 2);
+        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
@@ -557,12 +559,69 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 2f, 1f, durationTicks: 0);
+        harness.Rules.AddRocket(rocket, 2f, 1f, 0f, durationTicks: 0);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands);
         Assert.Contains(rocket, harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
+    public void EggBreaksOnHardImpactAndRequestsReplay()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId egg = entities.Create();
+        harness.Rules.AddEgg(egg);
+        harness.Link(egg, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, 10, 0));
+
+        // First tick just stores kinematics; a hard impact next tick breaks the egg.
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(0, -9, 0));
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+
+        Assert.Contains(egg, harness.Output.DestroyedEntities);
+        Assert.True(harness.Rules.RestartRequested);
+    }
+
+    [Fact]
+    public void EggSurvivesGentleContact()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId egg = entities.Create();
+        harness.Rules.AddEgg(egg);
+        harness.Link(egg, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -1, 0));
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+
+        Assert.Empty(harness.Output.DestroyedEntities);
+        Assert.False(harness.Rules.RestartRequested);
+    }
+
+    [Fact]
+    public void RocketPushesAlongNormalizedPlanarDirection()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        // 45-degree lift (1, 1) must be normalized and push up-right.
+        harness.Rules.AddRocket(rocket, 6f, 1f, 1f, durationTicks: 2);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), command.Body);
+        float normalization = MathF.Sqrt(2f);
+        Assert.Equal(6f / normalization, command.Impulse.X, 5);
+        Assert.Equal(6f / normalization, command.Impulse.Y, 5);
+        Assert.Equal(0f, command.Impulse.Z);
     }
 }

@@ -228,6 +228,142 @@
           "radius": 0.4
         }
       ]
+    },
+    {
+      "partTypeId": 18,
+      "name": "metal-box",
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 19,
+      "name": "balloon-double",
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 3.0 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.6
+        }
+      ]
+    },
+    {
+      "partTypeId": 20,
+      "name": "balloon-triple",
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 4.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.75
+        }
+      ]
+    },
+    {
+      "partTypeId": 21,
+      "name": "sandbag",
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.3, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 22,
+      "name": "sandbag-double",
+      "mode": "dynamic",
+      "mass": 6.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.4, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 23,
+      "name": "sandbag-triple",
+      "mode": "dynamic",
+      "mass": 9.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 24,
+      "name": "king-pig",
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 25,
+      "name": "soda-bottle-black",
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.2, 0.4, 0.2]
+        }
+      ]
+    },
+    {
+      "partTypeId": 26,
+      "name": "soda-bottle-green",
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.2, 0.4, 0.2]
+        }
+      ]
+    },
+    {
+      "partTypeId": 27,
+      "name": "egg",
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "egg": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.3
+        }
+      ]
     }
   ]
 }
