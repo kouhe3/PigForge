@@ -47,6 +47,7 @@ export const PLAY_PARTS: PartContentDocument = {
     { partTypeId: 43, name: "detacher", mode: "dynamic", mass: 0.5, capabilities: { detacher: true }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.3] }] },
     { partTypeId: 44, name: "flashlight", mode: "dynamic", mass: 0.4, capabilities: { light: 3 }, shapes: [{ kind: "box", halfExtents: [0.2, 0.2, 0.2] }] },
     { partTypeId: 45, name: "spotlight", mode: "dynamic", mass: 0.8, capabilities: { light: 5 }, shapes: [{ kind: "box", halfExtents: [0.3, 0.2, 0.2] }] },
+    { partTypeId: 46, name: "grappling-hook", mode: "dynamic", mass: 0.7, capabilities: { grapple: { impulse: 22, directionX: 0.70710678, directionY: 0.70710678 } }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.3] }] },
     { partTypeId: 6, name: "ramp-plank", mode: "static", mass: 0, shapes: [{ kind: "box", halfExtents: [6, 0.25, 1] }] },
   ],
 };
@@ -85,14 +86,15 @@ export const PALETTE = [
   { partTypeId: 34, label: "金属尾翼" },
   { partTypeId: 35, label: "黑伞" },
   { partTypeId: 36, label: "电伞" },
+  { partTypeId: 37, label: "旋翼" },
   { partTypeId: 38, label: "螺旋桨" },
   { partTypeId: 39, label: "齿轮杆" },
   { partTypeId: 40, label: "风箱" },
   { partTypeId: 41, label: "绳索" },
-  { partTypeId: 42, label: "炸药" },
   { partTypeId: 43, label: "拆卸器" },
   { partTypeId: 44, label: "手电筒" },
   { partTypeId: 45, label: "探照灯" },
+  { partTypeId: 46, label: "抓钩" },
 ] as const;
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };
 export const MAP_BOUNDS = { minX: -30, minY: -12, maxX: 30, maxY: 30 };

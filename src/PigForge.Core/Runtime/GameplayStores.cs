@@ -95,3 +95,11 @@ public sealed class BellowsStore(EntityStore entities) : ComponentStore<BellowsS
 public readonly record struct DetacherMarker;
 
 public sealed class DetacherStore(EntityStore entities) : ComponentStore<DetacherMarker>(entities);
+
+/// <summary>Grappling-hook launch: on touchdown the hook fires along the normalized
+/// planar (<paramref name="DirectionX"/>, <paramref name="DirectionY"/>) direction
+/// with a strong one-shot <paramref name="Impulse"/> (hook cast + pull merged);
+/// re-arms when airborne.</summary>
+public readonly record struct GrappleState(float Impulse, float DirectionX, float DirectionY, bool FiredRecently);
+
+public sealed class GrappleStore(EntityStore entities) : ComponentStore<GrappleState>(entities);

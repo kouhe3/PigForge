@@ -261,6 +261,9 @@ public static class PartContentParser
         bool isDetacher = false;
         float? bellowsBoost = null;
         float? lightRadius = null;
+        float? grappleImpulse = null;
+        float? grappleDirectionX = null;
+        float? grappleDirectionY = null;
         bool hasError = false;
 
         HashSet<string> seenKeys = new();
@@ -472,9 +475,18 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("grapple"))
+        {
+            if (!capabilitiesElement.TryGetProperty("grapple", out JsonElement grappleElement) || !TryReadGrapple(grappleElement, path, out grappleImpulse, out grappleDirectionX, out grappleDirectionY))
+            {
+                errors.Add($"{path}.capabilities.grapple: must be an object with a finite impulse and finite directionX/directionY (at least one non-zero).");
+                hasError = true;
+            }
+        }
+
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -486,7 +498,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY);
     }
 
     private static bool TryReadMotor(JsonElement element, string path, out float? thrust, out float? direction)
@@ -552,6 +564,62 @@ public static class PartContentParser
     {
         directionX = 1f;
         directionY = 0f;
+        bool hasX = false;
+        bool hasY = false;
+        if (element.TryGetProperty("directionX", out JsonElement xElement))
+        {
+            if (xElement.ValueKind == JsonValueKind.Number && IsFiniteNumber(xElement) && xElement.TryGetSingle(out float x))
+            {
+                hasX = true;
+                directionX = x;
+            }
+        }
+
+        if (element.TryGetProperty("directionY", out JsonElement yElement))
+        {
+            if (yElement.ValueKind == JsonValueKind.Number && IsFiniteNumber(yElement) && yElement.TryGetSingle(out float y))
+            {
+                hasY = true;
+                directionY = y;
+            }
+        }
+
+        return hasX || hasY;
+    }
+
+    private static bool TryReadGrapple(JsonElement element, string path, out float? impulse, out float? directionX, out float? directionY)
+    {
+        impulse = null;
+        directionX = null;
+        directionY = null;
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("impulse", out JsonElement impulseElement)
+            || impulseElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(impulseElement)
+            || !impulseElement.TryGetSingle(out float impulseValue))
+        {
+            return false;
+        }
+
+        if (!TryReadGrappleDirection(element, out float directionXValue, out float directionYValue))
+        {
+            return false;
+        }
+
+        impulse = impulseValue;
+        directionX = directionXValue;
+        directionY = directionYValue;
+        return true;
+    }
+
+    private static bool TryReadGrappleDirection(JsonElement element, out float directionX, out float directionY)
+    {
+        directionX = 0.70710678f;
+        directionY = 0.70710678f;
         bool hasX = false;
         bool hasY = false;
         if (element.TryGetProperty("directionX", out JsonElement xElement))

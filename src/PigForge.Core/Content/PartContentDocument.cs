@@ -52,7 +52,10 @@ public sealed record PartCapabilities(
     bool IsGearbox = false,
     bool IsDetacher = false,
     float? BellowsBoostImpulse = null,
-    float? LightRadius = null)
+    float? LightRadius = null,
+    float? GrappleImpulse = null,
+    float? GrappleDirectionX = null,
+    float? GrappleDirectionY = null)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 
@@ -71,6 +74,8 @@ public sealed record PartCapabilities(
 
 
     public bool HasBellows => BellowsBoostImpulse is float boost && boost != 0f;
+
+    public bool HasGrapple => GrappleImpulse is float impulse && impulse != 0f;
 }
 
 public sealed record PartShapeDefinition(

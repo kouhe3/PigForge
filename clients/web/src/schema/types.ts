@@ -28,6 +28,7 @@ export interface PartCapabilities {
   detacher?: boolean;
   bellows?: number;
   light?: number;
+  grapple?: { impulse: number; directionX?: number; directionY?: number };
 }
 
 export interface PartDefinition {

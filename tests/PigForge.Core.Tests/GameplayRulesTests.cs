@@ -194,6 +194,7 @@ public sealed class GameplayRulesTests
                 new GearboxStore(entities),
                 new BellowsStore(entities),
                 new DetacherStore(entities),
+                new GrappleStore(entities),
                 _bodies,
                 config);
         }
@@ -255,6 +256,7 @@ public sealed class GameplayRulesTests
                 new GearboxStore(_entities),
                 new BellowsStore(_entities),
                 new DetacherStore(_entities),
+                new GrappleStore(_entities),
                 _bodies,
                 new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
             foreach (LevelSpawnDefinition spawn in level.Spawns)
@@ -806,5 +808,31 @@ public sealed class GameplayRulesTests
         harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
 
         Assert.Empty(harness.Output.DetachedEntities);
+    }
+
+    [Fact]
+    public void GrapplePullsOncePerTouchdownAlongNormalizedDirection()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId hook = entities.Create();
+        harness.Rules.AddGrapple(hook, 22f, 0.70710678f, 0.70710678f);
+        harness.Link(hook, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        float normalization = MathF.Sqrt(2f);
+        Assert.Equal(22f / normalization, command.Impulse.X, 5);
+        Assert.Equal(22f / normalization, command.Impulse.Y, 5);
+
+        // Still grounded: no second pull until airborne.
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Empty(harness.Output.Commands);
+
+        // Airborne resets; next touchdown fires again.
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Single(harness.Output.Commands);
     }
 }

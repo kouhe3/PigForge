@@ -170,6 +170,7 @@ public sealed class FrozenContraptionTests
         new GearboxStore(entities),
         new BellowsStore(entities),
         new DetacherStore(entities),
+        new GrappleStore(entities),
         bodies,
         GameplayConfig.Default);
 

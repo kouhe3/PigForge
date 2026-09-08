@@ -14,7 +14,7 @@ public sealed class PartContentTests
         PartContentLibrary library = PartContentLibrary.Load(path);
 
         Assert.Equal("pigforge-base-content-v1", library.Document.ContentVersion);
-        Assert.Equal(45, library.Document.Parts.Count);
+        Assert.Equal(46, library.Document.Parts.Count);
         Assert.NotNull(library.GetPart(1));
     }
 

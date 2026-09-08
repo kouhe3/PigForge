@@ -70,6 +70,7 @@ public sealed class GameRoom : IDisposable
     private readonly GearboxStore _gearboxes;
     private readonly BellowsStore _bellows;
     private readonly DetacherStore _detachers;
+    private readonly GrappleStore _grapples;
     private readonly ConstructionRules _construction;
     private readonly GameplayRules _rules;
     private readonly CommandValidator _validator = new();
@@ -114,9 +115,10 @@ public sealed class GameRoom : IDisposable
         _gearboxes = new GearboxStore(_entities);
         _bellows = new BellowsStore(_entities);
         _detachers = new DetacherStore(_entities);
+        _grapples = new GrappleStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         _rules = new GameplayRules(
-            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _bodies, options.GameplayConfig);
+            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _bodies, options.GameplayConfig);
     }
 
     public RoomMode Mode { get; private set; } = RoomMode.Building;
@@ -354,6 +356,11 @@ public sealed class GameRoom : IDisposable
         if (capabilities.HasBellows)
         {
             _rules.AddBellows(entity, capabilities.BellowsBoostImpulse!.Value);
+        }
+
+        if (capabilities.HasGrapple)
+        {
+            _rules.AddGrapple(entity, capabilities.GrappleImpulse!.Value, capabilities.GrappleDirectionX ?? 1f, capabilities.GrappleDirectionY ?? 0f);
         }
     }
 

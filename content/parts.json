@@ -615,6 +615,20 @@
           "halfExtents": [0.3, 0.2, 0.2]
         }
       ]
+    },
+    {
+      "partTypeId": 46,
+      "name": "grappling-hook",
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0.70710678, "directionY": 0.70710678 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.3, 0.3]
+        }
+      ]
     }
   ]
 }

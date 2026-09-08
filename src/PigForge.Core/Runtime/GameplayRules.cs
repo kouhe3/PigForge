@@ -86,6 +86,7 @@ public sealed class GameplayRules
     private readonly GearboxStore _gearboxes;
     private readonly BellowsStore _bellows;
     private readonly DetacherStore _detachers;
+    private readonly GrappleStore _grapples;
     private readonly PhysicsBodyStore _bodies;
     private readonly GameplayConfig _config;
 
@@ -114,6 +115,7 @@ public sealed class GameplayRules
         GearboxStore gearboxes,
         BellowsStore bellows,
         DetacherStore detachers,
+        GrappleStore grapples,
         PhysicsBodyStore bodies,
         GameplayConfig config)
     {
@@ -133,6 +135,7 @@ public sealed class GameplayRules
         _gearboxes = gearboxes ?? throw new ArgumentNullException(nameof(gearboxes));
         _bellows = bellows ?? throw new ArgumentNullException(nameof(bellows));
         _detachers = detachers ?? throw new ArgumentNullException(nameof(detachers));
+        _grapples = grapples ?? throw new ArgumentNullException(nameof(grapples));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
@@ -201,6 +204,9 @@ public sealed class GameplayRules
 
     public void AddDetacher(EntityId entity) => _detachers.Set(entity, default);
 
+    public void AddGrapple(EntityId entity, float impulse, float directionX, float directionY) =>
+        _grapples.Set(entity, new GrappleState(impulse, directionX, directionY, FiredRecently: false));
+
     public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
     public void Tick(uint tick, ReadOnlySpan<PhysicsEvent> events, ReadOnlySpan<PhysicsBodySnapshot> snapshots, GameplayTickOutput output)
     {
@@ -219,6 +225,7 @@ public sealed class GameplayRules
         RunAerodynamics(output);
         RunSprings(output);
         RunBellows(output);
+        RunGrapples(output);
         RunRockets(output);
         RunTntFuses(output);
         DropCommandsForDestroyedBodies(output);
@@ -566,6 +573,39 @@ public sealed class GameplayRules
         }
     }
 
+    private void RunGrapples(GameplayTickOutput output)
+    {
+        var grapples = _grapples.GetEnumerator();
+        while (grapples.MoveNext())
+        {
+            if (!_bodies.TryGet(grapples.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            GrappleState grapple = grapples.CurrentValue;
+            float magnitude = PhysicsVector3.Distance(
+                new PhysicsVector3(grapple.DirectionX, grapple.DirectionY, 0f), PhysicsVector3.Zero);
+            bool touched = _touchedBodies.Contains(link.Body.Value);
+            if (touched && !grapple.FiredRecently && magnitude > float.Epsilon)
+            {
+                // Touchdown fires the hook toward its direction: one strong pull
+                // impulse (cast + drag merged) until the rig lifts off again.
+                _grapples.Set(grapples.CurrentId, grapple with { FiredRecently = true });
+                PhysicsVector3 direction = new(grapple.DirectionX / magnitude, grapple.DirectionY / magnitude, 0f);
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    link.Body,
+                    direction * grapple.Impulse,
+                    kinematics.Position));
+            }
+            else if (!touched && grapple.FiredRecently)
+            {
+                _grapples.Set(grapples.CurrentId, grapple with { FiredRecently = false });
+            }
+        }
+    }
+
     private void RunRockets(GameplayTickOutput output)
     {
         List<(EntityId Entity, float Radius, float Impulse)> spent = null!;
@@ -796,6 +836,7 @@ public sealed class GameplayRules
         _gearboxes.Remove(entity);
         _bellows.Remove(entity);
         _detachers.Remove(entity);
+        _grapples.Remove(entity);
     }
 
     /// <summary>
@@ -852,6 +893,7 @@ public sealed class GameplayRules
         _gearboxes.Clear();
         _bellows.Clear();
         _detachers.Clear();
+        _grapples.Clear();
         _bodies.Clear();
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
@@ -885,6 +927,9 @@ public sealed class GameplayRules
         _gearboxes.Remove(entity);
         _bellows.Remove(entity);
         _detachers.Remove(entity);
+        _grapples.Remove(entity);
+        _bodies.Remove(entity);
+        _entities.Destroy(entity);
         output.DestroyedEntities.Add(entity);
     }
 }

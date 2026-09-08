@@ -167,4 +167,13 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.light !== undefined && (typeof value.light !== "number" || !Number.isFinite(value.light) || value.light < 0)) {
     errors.push(`Part ${partTypeId} capabilities.light must be a non-negative radius number.`);
   }
+  if (value.grapple !== undefined) {
+    const grapple = value.grapple as { impulse?: unknown; directionX?: unknown; directionY?: unknown } | null;
+    if (typeof grapple !== "object" || grapple === null
+      || typeof grapple.impulse !== "number" || !Number.isFinite(grapple.impulse)
+      || grapple.directionX !== undefined && (typeof grapple.directionX !== "number" || !Number.isFinite(grapple.directionX))
+      || grapple.directionY !== undefined && (typeof grapple.directionY !== "number" || !Number.isFinite(grapple.directionY))) {
+      errors.push(`Part ${partTypeId} capabilities.grapple needs finite impulse and optional finite directionX/directionY.`);
+    }
+  }
 }

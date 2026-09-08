@@ -80,7 +80,18 @@
         "gearbox": { "type": "boolean" },
         "detacher": { "type": "boolean" },
         "bellows": { "type": "number" },
-        "light": { "type": "number", "minimum": 0 }
+        "light": { "type": "number", "minimum": 0 },
+        "grapple": { "$ref": "#/$defs/grappleCapability" }
+    }
+  },
+  "grappleCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["impulse"],
+    "properties": {
+      "impulse": { "type": "number" },
+      "directionX": { "type": "number" },
+      "directionY": { "type": "number" }
     }
   },
   "wingCapability": {
