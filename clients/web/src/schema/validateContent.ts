@@ -164,4 +164,7 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.bellows !== undefined && (typeof value.bellows !== "number" || !Number.isFinite(value.bellows))) {
     errors.push(`Part ${partTypeId} capabilities.bellows must be a finite boostImpulse number.`);
   }
+  if (value.light !== undefined && (typeof value.light !== "number" || !Number.isFinite(value.light) || value.light < 0)) {
+    errors.push(`Part ${partTypeId} capabilities.light must be a non-negative radius number.`);
+  }
 }

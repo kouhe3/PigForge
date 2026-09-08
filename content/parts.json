@@ -587,6 +587,34 @@
           "halfExtents": [0.3, 0.3, 0.3]
         }
       ]
+    },
+    {
+      "partTypeId": 44,
+      "name": "flashlight",
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 3.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.2, 0.2, 0.2]
+        }
+      ]
+    },
+    {
+      "partTypeId": 45,
+      "name": "spotlight",
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 5.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.2, 0.2]
+        }
+      ]
     }
   ]
 }

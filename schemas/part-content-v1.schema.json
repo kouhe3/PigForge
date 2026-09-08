@@ -79,7 +79,8 @@
         "umbrella": { "$ref": "#/$defs/umbrellaCapability" },
         "gearbox": { "type": "boolean" },
         "detacher": { "type": "boolean" },
-        "bellows": { "type": "number" }
+        "bellows": { "type": "number" },
+        "light": { "type": "number", "minimum": 0 }
     }
   },
   "wingCapability": {

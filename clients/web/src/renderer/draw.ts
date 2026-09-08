@@ -44,8 +44,22 @@ export function drawFrame(
   for (const entity of entities) {
     const part = parts.get(entity.partTypeId);
     const origin = worldToScreen(camera, entity.x, entity.y, width, height);
+    // Light parts cast a radial glow; the radius scales like the world (spatial
+    // light range), so zooming in amplifies the halo like the original game.
+    const lightRadius = part?.capabilities?.light;
+    if (lightRadius !== undefined && lightRadius > 0) {
+      const halo = lightRadius * entity.scale * camera.scale;
+      ctx.save();
+      const glow = ctx.createRadialGradient(origin.x, origin.y, 0, origin.x, origin.y, halo);
+      glow.addColorStop(0, "rgba(255, 240, 180, 0.55)");
+      glow.addColorStop(1, "rgba(255, 240, 180, 0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(origin.x, origin.y, halo, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
     ctx.save();
-    ctx.translate(origin.x, origin.y);
     ctx.rotate(-entity.yaw);
     const shape = part?.shapes[0];
     if (shape?.kind === "sphere" && shape.radius) {

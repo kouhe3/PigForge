@@ -45,6 +45,8 @@ export const PLAY_PARTS: PartContentDocument = {
     { partTypeId: 41, name: "rope", mode: "dynamic", mass: 0.3, shapes: [{ kind: "box", halfExtents: [1.5, 0.06, 0.06] }] },
     { partTypeId: 42, name: "dynamite", mode: "dynamic", mass: 1, capabilities: { tnt: { fuseTicks: 1 } }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.3] }] },
     { partTypeId: 43, name: "detacher", mode: "dynamic", mass: 0.5, capabilities: { detacher: true }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.3] }] },
+    { partTypeId: 44, name: "flashlight", mode: "dynamic", mass: 0.4, capabilities: { light: 3 }, shapes: [{ kind: "box", halfExtents: [0.2, 0.2, 0.2] }] },
+    { partTypeId: 45, name: "spotlight", mode: "dynamic", mass: 0.8, capabilities: { light: 5 }, shapes: [{ kind: "box", halfExtents: [0.3, 0.2, 0.2] }] },
     { partTypeId: 6, name: "ramp-plank", mode: "static", mass: 0, shapes: [{ kind: "box", halfExtents: [6, 0.25, 1] }] },
   ],
 };
@@ -89,6 +91,8 @@ export const PALETTE = [
   { partTypeId: 41, label: "绳索" },
   { partTypeId: 42, label: "炸药" },
   { partTypeId: 43, label: "拆卸器" },
+  { partTypeId: 44, label: "手电筒" },
+  { partTypeId: 45, label: "探照灯" },
 ] as const;
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };
 export const MAP_BOUNDS = { minX: -30, minY: -12, maxX: 30, maxY: 30 };

@@ -27,6 +27,7 @@ export interface PartCapabilities {
   gearbox?: boolean;
   detacher?: boolean;
   bellows?: number;
+  light?: number;
 }
 
 export interface PartDefinition {

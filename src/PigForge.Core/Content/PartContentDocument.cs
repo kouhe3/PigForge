@@ -51,7 +51,8 @@ public sealed record PartCapabilities(
     float? UmbrellaDragCoef = null,
     bool IsGearbox = false,
     bool IsDetacher = false,
-    float? BellowsBoostImpulse = null)
+    float? BellowsBoostImpulse = null,
+    float? LightRadius = null)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 
