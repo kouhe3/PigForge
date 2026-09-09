@@ -168,7 +168,9 @@
         { "$ref": "#/$defs/movePartCommand" },
         { "$ref": "#/$defs/scalePartCommand" },
         { "$ref": "#/$defs/startSimulationCommand" },
-        { "$ref": "#/$defs/enterBuildModeCommand" }
+        { "$ref": "#/$defs/enterBuildModeCommand" },
+        { "$ref": "#/$defs/setPartActiveCommand" },
+        { "$ref": "#/$defs/setPartTypeActiveCommand" }
       ]
     },
     "commandBase": {
@@ -254,6 +256,36 @@
             "kind": { "const": "SCALE_PART" },
             "entityId": { "$ref": "#/$defs/positiveUInt" },
             "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "setPartActiveCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind", "entityId", "active"],
+          "properties": {
+            "kind": { "const": "SET_PART_ACTIVE" },
+            "entityId": { "$ref": "#/$defs/positiveUInt" },
+            "active": { "type": "boolean" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "setPartTypeActiveCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind", "partTypeId", "active"],
+          "properties": {
+            "kind": { "const": "SET_PART_TYPE_ACTIVE" },
+            "partTypeId": { "$ref": "#/$defs/positiveUInt" },
+            "active": { "type": "boolean" }
           }
         }
       ],

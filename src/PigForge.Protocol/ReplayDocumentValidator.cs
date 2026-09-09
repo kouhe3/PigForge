@@ -158,6 +158,8 @@ public static class ReplayDocumentValidator
                 StartSimulationCommand => ClientCommandKind.StartSimulation,
                 EnterBuildModeCommand => ClientCommandKind.EnterBuildMode,
                 RetryCommand => ClientCommandKind.Retry,
+                SetPartActiveCommand => ClientCommandKind.SetPartActive,
+                SetPartTypeActiveCommand => ClientCommandKind.SetPartTypeActive,
                 _ => null
             };
 
@@ -193,6 +195,16 @@ public static class ReplayDocumentValidator
                 || scalePart.Scale is <= 0f or > 4f))
             {
                 errors.Add("ScalePartCommand has invalid entity or scale.");
+            }
+
+            if (command is SetPartActiveCommand setPartActive && setPartActive.EntityId == 0)
+            {
+                errors.Add("SetPartActiveCommand entity ID must be positive.");
+            }
+
+            if (command is SetPartTypeActiveCommand setPartTypeActive && setPartTypeActive.PartTypeId == 0)
+            {
+                errors.Add("SetPartTypeActiveCommand part type ID must be positive.");
             }
 
             if (command is RemovePartCommand removePart && removePart.EntityId == 0)

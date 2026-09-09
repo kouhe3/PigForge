@@ -78,6 +78,9 @@ public sealed class PhysicsReplaySimulation : IReplaySimulation, IDisposable
                 throw new NotSupportedException("PhysicsReplaySimulation does not support MovePartCommand without a pose mutation contract.");
             case ScalePartCommand:
                 throw new NotSupportedException("PhysicsReplaySimulation does not support ScalePartCommand without a pose mutation contract.");
+            case SetPartActiveCommand:
+            case SetPartTypeActiveCommand:
+                throw new NotSupportedException("PhysicsReplaySimulation has no gameplay switch contract.");
             default:
                 throw new ArgumentOutOfRangeException(nameof(command), command.Kind, "Unknown replay command type.");
         }

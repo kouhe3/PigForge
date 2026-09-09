@@ -218,6 +218,26 @@ public sealed class ReplayContractTests
         Assert.Contains(result.Errors, error => error.Contains("MovePartCommand", StringComparison.Ordinal));
         Assert.Contains(result.Errors, error => error.Contains("ScalePartCommand", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void SwitchCommandsValidateAndZeroIdsAreRejected()
+    {
+        ReplayDocument valid = ReplayFixtures.Valid();
+        ReplayCommand[] commands =
+        {
+            new SetPartActiveCommand(Tick: 1, Sequence: 1, PlayerId: 1, EntityId: 9, Active: true),
+            new SetPartTypeActiveCommand(Tick: 1, Sequence: 2, PlayerId: 1, PartTypeId: 11, Active: false)
+        };
+
+        ReplayValidationResult accepted = ReplayDocumentValidator.Validate(valid with { Commands = commands });
+        Assert.True(accepted.IsValid, string.Join(Environment.NewLine, accepted.Errors));
+
+        ReplayValidationResult rejected = ReplayDocumentValidator.Validate(valid with
+        {
+            Commands = new ReplayCommand[] { new SetPartActiveCommand(1, 1, 1, EntityId: 0, Active: true) }
+        });
+        Assert.Contains(rejected.Errors, error => error.Contains("SetPartActive", StringComparison.Ordinal));
+    }
 }
 
 internal static class ReplayFixtures
