@@ -689,6 +689,3235 @@
           "halfExtents": [0.475, 0.475, 0.475]
         }
       ]
+    },
+    {
+      "partTypeId": 53,
+      "name": "balloon-v02",
+      "variantOf": 10,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 54,
+      "name": "balloon-v03",
+      "variantOf": 10,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 55,
+      "name": "balloon-v04",
+      "variantOf": 10,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 56,
+      "name": "balloon-v05",
+      "variantOf": 10,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 57,
+      "name": "balloon-v06",
+      "variantOf": 10,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 58,
+      "name": "balloon-v07",
+      "variantOf": 10,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 59,
+      "name": "balloon-v08",
+      "variantOf": 10,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 60,
+      "name": "balloon-double-v02",
+      "variantOf": 19,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 61,
+      "name": "balloon-double-v03",
+      "variantOf": 19,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 62,
+      "name": "balloon-double-v04",
+      "variantOf": 19,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 63,
+      "name": "balloon-double-v05",
+      "variantOf": 19,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 64,
+      "name": "balloon-double-v06",
+      "variantOf": 19,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 65,
+      "name": "balloon-double-v07",
+      "variantOf": 19,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 66,
+      "name": "balloon-double-v08",
+      "variantOf": 19,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 67,
+      "name": "balloon-triple-v02",
+      "variantOf": 20,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 68,
+      "name": "balloon-triple-v03",
+      "variantOf": 20,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 69,
+      "name": "balloon-triple-v04",
+      "variantOf": 20,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 70,
+      "name": "balloon-triple-v05",
+      "variantOf": 20,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 71,
+      "name": "balloon-triple-v06",
+      "variantOf": 20,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 72,
+      "name": "balloon-triple-v07",
+      "variantOf": 20,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 73,
+      "name": "balloon-triple-v08",
+      "variantOf": 20,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.7, "friction": 0.1 },
+      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.5
+        }
+      ]
+    },
+    {
+      "partTypeId": 74,
+      "name": "fan-v02",
+      "variantOf": 11,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.225, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 75,
+      "name": "fan-v03",
+      "variantOf": 11,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.225, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 76,
+      "name": "fan-v04",
+      "variantOf": 11,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.225, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 77,
+      "name": "fan-v05",
+      "variantOf": 11,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.225, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 78,
+      "name": "fan-v06",
+      "variantOf": 11,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.225, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 79,
+      "name": "wooden-block-v02",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 80,
+      "name": "wooden-block-v03",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 81,
+      "name": "wooden-block-v04",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 82,
+      "name": "wooden-block-v05",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 83,
+      "name": "wooden-block-v06",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 84,
+      "name": "wooden-block-v07",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 85,
+      "name": "wooden-block-v08",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 86,
+      "name": "wooden-block-v09",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 87,
+      "name": "wooden-block-v10",
+      "variantOf": 1,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 88,
+      "name": "bellows-v02",
+      "variantOf": 40,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.4, "friction": 0.6 },
+      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.35, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 89,
+      "name": "bellows-v03",
+      "variantOf": 40,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.4, "friction": 0.6 },
+      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.35, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 90,
+      "name": "bellows-v04",
+      "variantOf": 40,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.4, "friction": 0.6 },
+      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.35, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 91,
+      "name": "bellows-v05",
+      "variantOf": 40,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.4, "friction": 0.6 },
+      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.35, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 92,
+      "name": "bellows-v06",
+      "variantOf": 40,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.4, "friction": 0.6 },
+      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.35, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 93,
+      "name": "bellows-v07",
+      "variantOf": 40,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.4, "friction": 0.6 },
+      "capabilities": { "bellows": 32.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.35, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 94,
+      "name": "bellows-v08",
+      "variantOf": 40,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.4, "friction": 0.6 },
+      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.4, 0.35, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 95,
+      "name": "cart-wheel-v02",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 96,
+      "name": "cart-wheel-v03",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 97,
+      "name": "cart-wheel-v04",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 98,
+      "name": "cart-wheel-v05",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 99,
+      "name": "cart-wheel-v06",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 100,
+      "name": "cart-wheel-v07",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 101,
+      "name": "cart-wheel-v08",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 102,
+      "name": "cart-wheel-v09",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 103,
+      "name": "cart-wheel-v10",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 104,
+      "name": "cart-wheel-v11",
+      "variantOf": 15,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.36
+        }
+      ]
+    },
+    {
+      "partTypeId": 105,
+      "name": "sandbag-v02",
+      "variantOf": 21,
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 106,
+      "name": "sandbag-v03",
+      "variantOf": 21,
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 107,
+      "name": "sandbag-v04",
+      "variantOf": 21,
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 108,
+      "name": "sandbag-v05",
+      "variantOf": 21,
+      "mode": "dynamic",
+      "mass": 13.6364,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 109,
+      "name": "sandbag-v06",
+      "variantOf": 21,
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 110,
+      "name": "pig-v02",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 111,
+      "name": "pig-v03",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 112,
+      "name": "pig-v04",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 113,
+      "name": "pig-v05",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 114,
+      "name": "pig-v06",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 115,
+      "name": "pig-v07",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 116,
+      "name": "pig-v08",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 117,
+      "name": "pig-v09",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 118,
+      "name": "pig-v10",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 119,
+      "name": "pig-v11",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 120,
+      "name": "pig-v13",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 121,
+      "name": "pig-v15",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 122,
+      "name": "pig-v12",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 123,
+      "name": "pig-v16",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 124,
+      "name": "pig-v17",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 125,
+      "name": "pig-v18",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 126,
+      "name": "pig-v19",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 127,
+      "name": "pig-v14",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 128,
+      "name": "pig-v20",
+      "variantOf": 4,
+      "mode": "dynamic",
+      "mass": 1.0,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.42
+        }
+      ]
+    },
+    {
+      "partTypeId": 129,
+      "name": "sandbag-double-v02",
+      "variantOf": 22,
+      "mode": "dynamic",
+      "mass": 6.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 130,
+      "name": "sandbag-double-v03",
+      "variantOf": 22,
+      "mode": "dynamic",
+      "mass": 6.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 131,
+      "name": "sandbag-double-v04",
+      "variantOf": 22,
+      "mode": "dynamic",
+      "mass": 6.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 132,
+      "name": "sandbag-triple-v02",
+      "variantOf": 23,
+      "mode": "dynamic",
+      "mass": 9.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 133,
+      "name": "sandbag-triple-v03",
+      "variantOf": 23,
+      "mode": "dynamic",
+      "mass": 9.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 134,
+      "name": "sandbag-triple-v04",
+      "variantOf": 23,
+      "mode": "dynamic",
+      "mass": 9.0,
+      "material": { "restitution": 0.05, "friction": 1.5 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.13
+        }
+      ]
+    },
+    {
+      "partTypeId": 135,
+      "name": "propeller-v02",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 136,
+      "name": "propeller-v03",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 137,
+      "name": "propeller-v04",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 138,
+      "name": "propeller-v05",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 139,
+      "name": "propeller-v06",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 140,
+      "name": "propeller-v07",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 141,
+      "name": "propeller-v08",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 142,
+      "name": "propeller-v09",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 143,
+      "name": "propeller-v10",
+      "variantOf": 38,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.14, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 144,
+      "name": "wooden-glider-wing-v02",
+      "variantOf": 31,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.2, "friction": 0.3 },
+      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.95, 0.3061, 0.75]
+        }
+      ]
+    },
+    {
+      "partTypeId": 145,
+      "name": "wooden-glider-wing-v03",
+      "variantOf": 31,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.2, "friction": 0.3 },
+      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.95, 0.3061, 0.75]
+        }
+      ]
+    },
+    {
+      "partTypeId": 146,
+      "name": "wooden-glider-wing-v04",
+      "variantOf": 31,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.2, "friction": 0.3 },
+      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.95, 0.3061, 0.75]
+        }
+      ]
+    },
+    {
+      "partTypeId": 147,
+      "name": "wooden-glider-wing-v05",
+      "variantOf": 31,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.2, "friction": 0.3 },
+      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.95, 0.3061, 0.75]
+        }
+      ]
+    },
+    {
+      "partTypeId": 148,
+      "name": "wooden-tail-wing-v02",
+      "variantOf": 33,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.2, "friction": 0.3 },
+      "capabilities": { "tail": 0.03 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.425, 0.375, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 149,
+      "name": "wooden-tail-wing-v03",
+      "variantOf": 33,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.2, "friction": 0.3 },
+      "capabilities": { "tail": 0.03 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.425, 0.375, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 150,
+      "name": "wooden-tail-wing-v04",
+      "variantOf": 33,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.2, "friction": 0.3 },
+      "capabilities": { "tail": 0.03 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.425, 0.375, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 151,
+      "name": "engine-v02",
+      "variantOf": 8,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 152,
+      "name": "engine-v03",
+      "variantOf": 8,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 153,
+      "name": "engine-v04",
+      "variantOf": 8,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 154,
+      "name": "engine-v05",
+      "variantOf": 8,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 155,
+      "name": "engine-v06",
+      "variantOf": 8,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 156,
+      "name": "engine-v07",
+      "variantOf": 8,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 157,
+      "name": "rocket-v02",
+      "variantOf": 13,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.15, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 158,
+      "name": "rocket-v03",
+      "variantOf": 13,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.15, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 159,
+      "name": "rocket-v04",
+      "variantOf": 13,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.15, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 160,
+      "name": "metal-box-v02",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 161,
+      "name": "metal-box-v03",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 162,
+      "name": "metal-box-v04",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 163,
+      "name": "metal-box-v05",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 164,
+      "name": "metal-box-v06",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 165,
+      "name": "metal-box-v07",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 166,
+      "name": "metal-box-v08",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 167,
+      "name": "metal-box-v09",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 168,
+      "name": "metal-box-v10",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 169,
+      "name": "metal-box-v11",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "light": 2.14 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 170,
+      "name": "metal-box-v12",
+      "variantOf": 18,
+      "mode": "dynamic",
+      "mass": 2.0,
+      "material": { "restitution": 0.05, "friction": 0.8 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 171,
+      "name": "small-wheel-v02",
+      "variantOf": 14,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.18
+        }
+      ]
+    },
+    {
+      "partTypeId": 172,
+      "name": "small-wheel-v03",
+      "variantOf": 14,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.18
+        }
+      ]
+    },
+    {
+      "partTypeId": 173,
+      "name": "small-wheel-v04",
+      "variantOf": 14,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.18
+        }
+      ]
+    },
+    {
+      "partTypeId": 174,
+      "name": "small-wheel-v05",
+      "variantOf": 14,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.18
+        }
+      ]
+    },
+    {
+      "partTypeId": 175,
+      "name": "small-wheel-v06",
+      "variantOf": 14,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.18
+        }
+      ]
+    },
+    {
+      "partTypeId": 176,
+      "name": "small-wheel-v07",
+      "variantOf": 14,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.18
+        }
+      ]
+    },
+    {
+      "partTypeId": 177,
+      "name": "small-wheel-v08",
+      "variantOf": 14,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.1, "friction": 1.0 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.18
+        }
+      ]
+    },
+    {
+      "partTypeId": 178,
+      "name": "metal-glider-wing-v02",
+      "variantOf": 32,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.05, "friction": 0.4 },
+      "capabilities": { "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.9, 0.3061, 0.75]
+        }
+      ]
+    },
+    {
+      "partTypeId": 179,
+      "name": "metal-glider-wing-v03",
+      "variantOf": 32,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.05, "friction": 0.4 },
+      "capabilities": { "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.9, 0.3061, 0.75]
+        }
+      ]
+    },
+    {
+      "partTypeId": 180,
+      "name": "metal-glider-wing-v04",
+      "variantOf": 32,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.05, "friction": 0.4 },
+      "capabilities": { "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.9, 0.3061, 0.75]
+        }
+      ]
+    },
+    {
+      "partTypeId": 181,
+      "name": "metal-tail-wing-v02",
+      "variantOf": 34,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.05, "friction": 0.4 },
+      "capabilities": { "tail": 0.05 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.425, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 182,
+      "name": "metal-tail-wing-v03",
+      "variantOf": 34,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.05, "friction": 0.4 },
+      "capabilities": { "tail": 0.05 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.425, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 183,
+      "name": "metal-tail-wing-v04",
+      "variantOf": 34,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.05, "friction": 0.4 },
+      "capabilities": { "tail": 0.05 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.425, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 184,
+      "name": "rotor-v02",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 185,
+      "name": "rotor-v03",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 186,
+      "name": "rotor-v04",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 187,
+      "name": "rotor-v05",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 188,
+      "name": "rotor-v06",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 189,
+      "name": "rotor-v07",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 190,
+      "name": "rotor-v08",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 191,
+      "name": "rotor-v09",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 192,
+      "name": "rotor-v10",
+      "variantOf": 37,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.275, 0.44, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 193,
+      "name": "motor-wheel-v02",
+      "variantOf": 17,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 194,
+      "name": "motor-wheel-v03",
+      "variantOf": 17,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 195,
+      "name": "motor-wheel-v04",
+      "variantOf": 17,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 196,
+      "name": "motor-wheel-v05",
+      "variantOf": 17,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 197,
+      "name": "motor-wheel-v06",
+      "variantOf": 17,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 198,
+      "name": "motor-wheel-v07",
+      "variantOf": 17,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 51,
+      "name": "tnt-v06",
+      "variantOf": 9,
+      "variantName": "Alien TNT",
+      "mode": "dynamic",
+      "mass": 1.0,
+      "capabilities": { "tnt": { "fuseTicks": 5, "igniteOnImpact": false }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.475, 0.475, 0.475]
+        }
+      ]
+    },
+    {
+      "partTypeId": 199,
+      "name": "wheel-v02",
+      "variantOf": 7,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.33
+        }
+      ]
+    },
+    {
+      "partTypeId": 200,
+      "name": "wheel-v03",
+      "variantOf": 7,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.33
+        }
+      ]
+    },
+    {
+      "partTypeId": 201,
+      "name": "wheel-v04",
+      "variantOf": 7,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.33
+        }
+      ]
+    },
+    {
+      "partTypeId": 202,
+      "name": "wheel-v05",
+      "variantOf": 7,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.33
+        }
+      ]
+    },
+    {
+      "partTypeId": 203,
+      "name": "wheel-v06",
+      "variantOf": 7,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.33
+        }
+      ]
+    },
+    {
+      "partTypeId": 204,
+      "name": "wheel-v07",
+      "variantOf": 7,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.33
+        }
+      ]
+    },
+    {
+      "partTypeId": 205,
+      "name": "spring-v02",
+      "variantOf": 12,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.9, "friction": 0.2 },
+      "capabilities": { "spring": 12.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.1, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 206,
+      "name": "spring-v03",
+      "variantOf": 12,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.9, "friction": 0.2 },
+      "capabilities": { "spring": 12.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.1, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 207,
+      "name": "spring-v04",
+      "variantOf": 12,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.9, "friction": 0.2 },
+      "capabilities": { "spring": 12.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.1, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 208,
+      "name": "black-umbrella-v02",
+      "variantOf": 35,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.475, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 209,
+      "name": "black-umbrella-v03",
+      "variantOf": 35,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.475, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 210,
+      "name": "black-umbrella-v04",
+      "variantOf": 35,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.475, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 211,
+      "name": "black-umbrella-v05",
+      "variantOf": 35,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.475, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 212,
+      "name": "black-umbrella-v06",
+      "variantOf": 35,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.475, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 213,
+      "name": "black-umbrella-v07",
+      "variantOf": 35,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.4815, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 214,
+      "name": "rope-v02",
+      "variantOf": 41,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.2, "friction": 0.9 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.5, 0.06, 0.06]
+        }
+      ]
+    },
+    {
+      "partTypeId": 215,
+      "name": "rope-v03",
+      "variantOf": 41,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.2, "friction": 0.9 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.5, 0.06, 0.06]
+        }
+      ]
+    },
+    {
+      "partTypeId": 216,
+      "name": "rope-v04",
+      "variantOf": 41,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0.2, "friction": 0.9 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.5, 0.06, 0.06]
+        }
+      ]
+    },
+    {
+      "partTypeId": 217,
+      "name": "soda-bottle-black-v02",
+      "variantOf": 25,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.375, 0.2, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 218,
+      "name": "soda-bottle-black-v03",
+      "variantOf": 25,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.375, 0.2, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 219,
+      "name": "soda-bottle-black-v04",
+      "variantOf": 25,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.375, 0.2, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 220,
+      "name": "soda-bottle-black-v05",
+      "variantOf": 25,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.375, 0.2, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 221,
+      "name": "king-pig-v02",
+      "variantOf": 24,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.05, 0.9, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 222,
+      "name": "king-pig-v03",
+      "variantOf": 24,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.05, 0.9, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 223,
+      "name": "king-pig-v04",
+      "variantOf": 24,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.05, 0.9, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 224,
+      "name": "king-pig-v05",
+      "variantOf": 24,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.05, 0.9, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 225,
+      "name": "king-pig-v06",
+      "variantOf": 24,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.05, 0.9, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 226,
+      "name": "king-pig-v07",
+      "variantOf": 24,
+      "mode": "dynamic",
+      "mass": 1.2,
+      "material": { "restitution": 0.8, "friction": 0.4 },
+      "capabilities": { "pig": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [1.05, 0.9, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 227,
+      "name": "firework-red-v02",
+      "variantOf": 30,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.15, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 228,
+      "name": "firework-red-v03",
+      "variantOf": 30,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.15, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 229,
+      "name": "firework-red-v04",
+      "variantOf": 30,
+      "mode": "dynamic",
+      "mass": 0.9,
+      "material": { "restitution": 0.2, "friction": 0.4 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.15, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 230,
+      "name": "soda-bottle-green-v02",
+      "variantOf": 26,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.375, 0.2, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 231,
+      "name": "soda-bottle-green-v03",
+      "variantOf": 26,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.375, 0.2, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 232,
+      "name": "soda-bottle-green-v04",
+      "variantOf": 26,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.375, 0.2, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 233,
+      "name": "soda-bottle-green-v05",
+      "variantOf": 26,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.3, "friction": 0.6 },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.375, 0.2, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 234,
+      "name": "electric-umbrella-v02",
+      "variantOf": 36,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.35, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.475, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 235,
+      "name": "electric-umbrella-v03",
+      "variantOf": 36,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.35, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.475, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 236,
+      "name": "electric-umbrella-v04",
+      "variantOf": 36,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.5 },
+      "capabilities": { "umbrella": 0.35, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.475, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 237,
+      "name": "egg-v02",
+      "variantOf": 27,
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "egg": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.425, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 238,
+      "name": "egg-v03",
+      "variantOf": 27,
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "egg": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.425, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 239,
+      "name": "egg-v04",
+      "variantOf": 27,
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "egg": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.425, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 240,
+      "name": "egg-v05",
+      "variantOf": 27,
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "egg": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.425, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 241,
+      "name": "egg-v06",
+      "variantOf": 27,
+      "variantName": "Alien Egg",
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "egg": true, "glue": true },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.425, 0.3]
+        }
+      ]
+    },
+    {
+      "partTypeId": 242,
+      "name": "boxing-glove-v02",
+      "variantOf": 28,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.9, "friction": 0.3 },
+      "capabilities": { "spring": 25.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 243,
+      "name": "boxing-glove-v03",
+      "variantOf": 28,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.9, "friction": 0.3 },
+      "capabilities": { "spring": 25.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 244,
+      "name": "boxing-glove-v04",
+      "variantOf": 28,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.9, "friction": 0.3 },
+      "capabilities": { "spring": 25.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 245,
+      "name": "boxing-glove-v05",
+      "variantOf": 28,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.9, "friction": 0.3 },
+      "capabilities": { "spring": 25.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.5, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 246,
+      "name": "sticky-wheel-v02",
+      "variantOf": 16,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.05, "friction": 2.5 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 247,
+      "name": "sticky-wheel-v03",
+      "variantOf": 16,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.05, "friction": 2.5 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 248,
+      "name": "sticky-wheel-v04",
+      "variantOf": 16,
+      "mode": "dynamic",
+      "mass": 0.6,
+      "material": { "restitution": 0.05, "friction": 2.5 },
+      "capabilities": { "wheel": true },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.45
+        }
+      ]
+    },
+    {
+      "partTypeId": 249,
+      "name": "grappling-hook-v02",
+      "variantOf": 46,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.24, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 250,
+      "name": "grappling-hook-v03",
+      "variantOf": 46,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.24, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 251,
+      "name": "grappling-hook-v04",
+      "variantOf": 46,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.24, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 252,
+      "name": "grappling-hook-v05",
+      "variantOf": 46,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.24, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 253,
+      "name": "grappling-hook-v06",
+      "variantOf": 46,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.24, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 254,
+      "name": "detacher-v2",
+      "variantOf": 43,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "detacher": true, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5305, 0.5297, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 255,
+      "name": "detacher-v3",
+      "variantOf": 43,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "detacher": true, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5305, 0.5297, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 256,
+      "name": "detacher-v4",
+      "variantOf": 43,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5305, 0.5297, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 257,
+      "name": "detacher-v5",
+      "variantOf": 43,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "detacher": true, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5305, 0.5297, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 258,
+      "name": "gearbox-lever-v02",
+      "variantOf": 39,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 259,
+      "name": "gearbox-lever-v03",
+      "variantOf": 39,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 260,
+      "name": "gearbox-lever-v04",
+      "variantOf": 39,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 261,
+      "name": "gearbox-lever-v05",
+      "variantOf": 39,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 262,
+      "name": "gearbox-lever-v06",
+      "variantOf": 39,
+      "mode": "dynamic",
+      "mass": 0.7,
+      "material": { "restitution": 0.3, "friction": 0.7 },
+      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.45, 0.45, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 263,
+      "name": "flashlight-v02",
+      "variantOf": 44,
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 3.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.335, 0.42, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 264,
+      "name": "flashlight-v03",
+      "variantOf": 44,
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 3.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.335, 0.42, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 265,
+      "name": "flashlight-v04",
+      "variantOf": 44,
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 3.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.335, 0.42, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 266,
+      "name": "flashlight-v05",
+      "variantOf": 44,
+      "mode": "dynamic",
+      "mass": 0.4,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 3.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.335, 0.42, 0.5]
+        }
+      ]
+    },
+    {
+      "partTypeId": 267,
+      "name": "spotlight-v02",
+      "variantOf": 45,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 5.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.2, 0.2]
+        }
+      ]
+    },
+    {
+      "partTypeId": 268,
+      "name": "spotlight-v03",
+      "variantOf": 45,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 5.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.2, 0.2]
+        }
+      ]
+    },
+    {
+      "partTypeId": 269,
+      "name": "spotlight-v04",
+      "variantOf": 45,
+      "mode": "dynamic",
+      "mass": 0.8,
+      "material": { "restitution": 0.2, "friction": 0.6 },
+      "capabilities": { "light": 5.0 },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.2, 0.2]
+        }
+      ]
+    },
+    {
+      "partTypeId": 52,
+      "name": "tnt-blaster",
+      "variantOf": 9,
+      "variantName": "Blaster TNT",
+      "mode": "dynamic",
+      "mass": 2.0,
+      "capabilities": { "blaster": { "radius": 3.5, "impulse": 30.0, "chainRadius": 8.0 }, "activation": "trigger" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.475, 0.475, 0.475]
+        }
+      ]
     }
   ]
 }

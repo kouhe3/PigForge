@@ -72,6 +72,8 @@ public sealed class GameRoom : IDisposable
     private readonly BellowsStore _bellows;
     private readonly DetacherStore _detachers;
     private readonly GrappleStore _grapples;
+    private readonly BlasterStore _blasters;
+    private readonly GlueStore _glues;
     private readonly ActivationStore _activations;
     private readonly ConstructionRules _construction;
     private readonly GameplayRules _rules;
@@ -123,10 +125,12 @@ public sealed class GameRoom : IDisposable
         _bellows = new BellowsStore(_entities);
         _detachers = new DetacherStore(_entities);
         _grapples = new GrappleStore(_entities);
+        _blasters = new BlasterStore(_entities);
+        _glues = new GlueStore(_entities);
         _activations = new ActivationStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         _rules = new GameplayRules(
-            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _activations, _bodies, options.GameplayConfig);
+            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _blasters, _glues, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _activations, _bodies, options.GameplayConfig);
     }
 
     public RoomMode Mode { get; private set; } = RoomMode.Building;
@@ -357,7 +361,17 @@ public sealed class GameRoom : IDisposable
 
         if (capabilities.TntFuseTicks is ushort fuse)
         {
-            _rules.AddTnt(entity, fuse);
+            _rules.AddTnt(entity, fuse, capabilities.TntChainDetonate, capabilities.TntIgniteOnImpact);
+        }
+
+        if (capabilities.HasBlaster)
+        {
+            _rules.AddBlaster(entity, capabilities.BlasterRadius!.Value, capabilities.BlasterImpulse ?? 0f, capabilities.BlasterChainRadius ?? 0f);
+        }
+
+        if (capabilities.IsGlue)
+        {
+            _rules.AddGlue(entity);
         }
 
         if (capabilities.HasBalloon)
@@ -1302,7 +1316,7 @@ public sealed class GameRoom : IDisposable
             live.Cluster.WorldPosition = snapshot.Position;
             live.Cluster.WorldRotation = snapshot.Rotation;
             CompoundSeam? seam = CompoundAssembler.NearestSeam(live.Cluster, command.WorldPoint);
-            if (seam is null || magnitude <= seam.Value.BreakImpulse)
+            if (seam is null || magnitude <= seam.Value.BreakImpulse || IsGluedCompound(live.Body))
             {
                 continue;
             }
@@ -1330,6 +1344,26 @@ public sealed class GameRoom : IDisposable
 
             EnsureBuffers();
         }
+    }
+
+    /// <summary>Super glue (original AlienEgg): a compound holding a glue part never splits
+    /// along a seam, however large the applied impulse.</summary>
+    private bool IsGluedCompound(PhysicsBodyId body)
+    {
+        if (!_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
+        {
+            return false;
+        }
+
+        foreach (uint entityValue in members)
+        {
+            if (_rules.HasGlue(new EntityId(entityValue)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Splits the compound carrying <paramref name="entity"/> at the seam

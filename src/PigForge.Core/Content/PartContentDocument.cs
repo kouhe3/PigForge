@@ -66,7 +66,13 @@ public sealed record PartCapabilities(
     float? GrappleImpulse = null,
     float? GrappleDirectionX = null,
     float? GrappleDirectionY = null,
-    PartActivation Activation = PartActivation.None)
+    PartActivation Activation = PartActivation.None,
+    bool TntChainDetonate = true,
+    bool TntIgniteOnImpact = true,
+    float? BlasterRadius = null,
+    float? BlasterImpulse = null,
+    float? BlasterChainRadius = null,
+    bool IsGlue = false)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 
@@ -87,6 +93,8 @@ public sealed record PartCapabilities(
     public bool HasBellows => BellowsBoostImpulse is float boost && boost != 0f;
 
     public bool HasGrapple => GrappleImpulse is float impulse && impulse != 0f;
+
+    public bool HasBlaster => BlasterRadius is float radius && radius != 0f;
 }
 
 public sealed record PartShapeDefinition(

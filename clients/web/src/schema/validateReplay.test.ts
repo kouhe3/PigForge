@@ -69,4 +69,26 @@ describe("validatePartContent variants", () => {
     const part = { ...base, capabilities: { tnt: { fuseTicks: 5 }, activation: "latch" } };
     expect(validatePartContent(document([part])).some((error) => error.includes("activation"))).toBe(true);
   });
+
+  it("accepts the original-effect capabilities", () => {
+    const part = {
+      ...base,
+      capabilities: {
+        tnt: { fuseTicks: 5, chainDetonate: true, igniteOnImpact: false },
+        blaster: { radius: 3.5, impulse: 30, chainRadius: 8 },
+        glue: true,
+      },
+    };
+    expect(validatePartContent(document([part]))).toEqual([]);
+  });
+
+  it("rejects a blaster without a positive radius", () => {
+    const part = { ...base, capabilities: { blaster: { radius: 0, impulse: 30 } } };
+    expect(validatePartContent(document([part])).some((error) => error.includes("blaster"))).toBe(true);
+  });
+
+  it("rejects non-boolean tnt chain flags", () => {
+    const part = { ...base, capabilities: { tnt: { fuseTicks: 5, igniteOnImpact: 1 } } };
+    expect(validatePartContent(document([part])).some((error) => error.includes("chainDetonate/igniteOnImpact"))).toBe(true);
+  });
 });

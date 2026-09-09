@@ -14,8 +14,33 @@ public sealed class PartContentTests
         PartContentLibrary library = PartContentLibrary.Load(path);
 
         Assert.Equal("pigforge-base-content-v1", library.Document.ContentVersion);
-        Assert.Equal(50, library.Document.Parts.Count);
+        Assert.Equal(269, library.Document.Parts.Count);
         Assert.NotNull(library.GetPart(1));
+    }
+
+    [Fact]
+    public void ImportedOriginalVariantsCarryTheirCuratedOverrides()
+    {
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        // Skins copy their base entry: the balloon group is one example of many.
+        PartDefinition balloonVariant = library.Document.Parts.Single(part => part.Name == "balloon-v02");
+        Assert.Equal(10u, balloonVariant.VariantOf);
+        Assert.Equal(library.GetPart(10).Mass, balloonVariant.Mass);
+        Assert.Equal(library.GetPart(10).Capabilities, balloonVariant.Capabilities);
+
+        // Curated parameter variants: heavy sandbag (original 5 vs 1.1), motorised small
+        // wheel (MotorWheel prefab), light-bearing metal frame, alien bellows.
+        Assert.Equal(13.6364f, library.Document.Parts.Single(part => part.Name == "sandbag-v05").Mass);
+        PartCapabilities smallMotorWheel = library.Document.Parts.Single(part => part.Name == "small-wheel-v08").Capabilities!;
+        Assert.True(smallMotorWheel.IsWheel);
+        Assert.Equal(2.2f, smallMotorWheel.MotorThrustPerTick);
+        Assert.Equal(PartActivation.Toggle, smallMotorWheel.Activation);
+        Assert.Equal(2.14f, library.Document.Parts.Single(part => part.Name == "metal-box-v11").Capabilities!.LightRadius);
+        Assert.Equal(32f, library.Document.Parts.Single(part => part.Name == "bellows-v07").Capabilities!.BellowsBoostImpulse);
+
+        // The marker kicker (original customPartIndex 3) is inert: no detacher capability.
+        Assert.Null(library.Document.Parts.Single(part => part.Name == "detacher-v4").Capabilities);
     }
 
     [Fact]

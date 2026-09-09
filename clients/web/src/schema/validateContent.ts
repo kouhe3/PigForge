@@ -129,10 +129,12 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
     }
   }
   if (value.tnt !== undefined) {
-    const tnt = value.tnt as { fuseTicks?: unknown } | null;
+    const tnt = value.tnt as { fuseTicks?: unknown; chainDetonate?: unknown; igniteOnImpact?: unknown } | null;
     if (typeof tnt !== "object" || tnt === null
-      || typeof tnt.fuseTicks !== "number" || !Number.isInteger(tnt.fuseTicks) || tnt.fuseTicks < 0) {
-      errors.push(`Part ${partTypeId} capabilities.tnt needs a non-negative integer fuseTicks.`);
+      || typeof tnt.fuseTicks !== "number" || !Number.isInteger(tnt.fuseTicks) || tnt.fuseTicks < 0
+      || tnt.chainDetonate !== undefined && typeof tnt.chainDetonate !== "boolean"
+      || tnt.igniteOnImpact !== undefined && typeof tnt.igniteOnImpact !== "boolean") {
+      errors.push(`Part ${partTypeId} capabilities.tnt needs a non-negative integer fuseTicks and optional boolean chainDetonate/igniteOnImpact.`);
     }
   }
   if (value.balloon !== undefined) {
@@ -201,6 +203,18 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
       || grapple.directionY !== undefined && (typeof grapple.directionY !== "number" || !Number.isFinite(grapple.directionY))) {
       errors.push(`Part ${partTypeId} capabilities.grapple needs finite impulse and optional finite directionX/directionY.`);
     }
+  }
+  if (value.blaster !== undefined) {
+    const blaster = value.blaster as { radius?: unknown; impulse?: unknown; chainRadius?: unknown } | null;
+    if (typeof blaster !== "object" || blaster === null
+      || typeof blaster.radius !== "number" || !Number.isFinite(blaster.radius) || blaster.radius <= 0
+      || typeof blaster.impulse !== "number" || !Number.isFinite(blaster.impulse) || blaster.impulse < 0
+      || blaster.chainRadius !== undefined && (typeof blaster.chainRadius !== "number" || !Number.isFinite(blaster.chainRadius) || blaster.chainRadius < 0)) {
+      errors.push(`Part ${partTypeId} capabilities.blaster needs a positive finite radius, a non-negative finite impulse, and an optional non-negative finite chainRadius.`);
+    }
+  }
+  if (value.glue !== undefined && typeof value.glue !== "boolean") {
+    errors.push(`Part ${partTypeId} capabilities.glue must be a boolean.`);
   }
   if (value.activation !== undefined && value.activation !== "toggle" && value.activation !== "trigger") {
     errors.push(`Part ${partTypeId} capabilities.activation must be 'toggle' or 'trigger'.`);

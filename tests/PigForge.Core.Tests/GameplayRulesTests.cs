@@ -86,6 +86,112 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
+    public void TntSwitchIgnitesAndChainsIntoNeighbouringCharges()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId first = entities.Create();
+        EntityId second = entities.Create();
+        harness.Rules.AddTnt(first, fuseTicks: 0);
+        harness.Rules.AddTnt(second, fuseTicks: 1);
+        harness.Rules.AddActivation(first);
+        harness.Link(first, new PhysicsBodyId(1));
+        harness.Link(second, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(2, 0, 0), PhysicsVector3.Zero);
+
+        harness.Rules.SetActive(first, true);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Contains(first, harness.Output.DestroyedEntities);
+        Assert.DoesNotContain(second, harness.Output.DestroyedEntities);
+
+        // The chain lights the neighbour: its own fuse runs from the next tick.
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.DoesNotContain(second, harness.Output.DestroyedEntities);
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        Assert.Contains(second, harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
+    public void ChargeWithIgniteOnImpactDisabledOnlyFiresFromItsSwitch()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId charge = entities.Create();
+        EntityId striker = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 0, igniteOnImpact: false);
+        harness.Link(charge, new PhysicsBodyId(1));
+        harness.Link(striker, new PhysicsBodyId(2));
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), new PhysicsVector3(10, 0, 0));
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(6, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), PhysicsVector3.Zero);
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+
+        Assert.Empty(harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
+    public void BlasterFiresOnceAndPushesBodiesInsideItsRadius()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId blaster = entities.Create();
+        EntityId neighbour = entities.Create();
+        harness.Rules.AddBlaster(blaster, radius: 3.5f, impulse: 30f, chainRadius: 0f);
+        harness.Rules.AddActivation(blaster);
+        harness.Link(blaster, new PhysicsBodyId(1));
+        harness.Link(neighbour, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(2, 0, 0), PhysicsVector3.Zero);
+
+        harness.Rules.SetActive(blaster, true);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PhysicsCommand push = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(2), push.Body);
+        Assert.True(push.Impulse.X > 0, "The shockwave pushes bodies away from the blaster.");
+        Assert.Empty(harness.Output.DestroyedEntities);
+
+        // Spent: the part survives but never fires again in the same run.
+        harness.Rules.SetActive(blaster, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void BlasterChainFiresNeighbouringBlastersInTheSameTick()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId first = entities.Create();
+        EntityId second = entities.Create();
+        EntityId target = entities.Create();
+        harness.Rules.AddBlaster(first, radius: 3.5f, impulse: 30f, chainRadius: 8f);
+        harness.Rules.AddBlaster(second, radius: 3.5f, impulse: 30f, chainRadius: 0f);
+        harness.Rules.AddActivation(first);
+        harness.Rules.AddActivation(second);
+        harness.Link(first, new PhysicsBodyId(1));
+        harness.Link(second, new PhysicsBodyId(2));
+        harness.Link(target, new PhysicsBodyId(3));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(5, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(3), new PhysicsVector3(6, 0, 0), PhysicsVector3.Zero);
+
+        harness.Rules.SetActive(first, true);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PhysicsCommand push = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(3), push.Body);
+        Assert.False(harness.Rules.IsPartActive(second), "The chained blaster's switch is consumed too.");
+    }
+
+    [Fact]
     public void PigEnteringGoalZoneWins()
     {
         EntityStore entities = new();
@@ -246,6 +352,8 @@ public sealed class GameplayRulesTests
                 new SpringStore(entities),
                 new RocketStore(entities),
                 new TntStore(entities),
+                new BlasterStore(entities),
+                new GlueStore(entities),
                 new WheelStore(entities),
                 new PigStore(entities),
                 new EggStore(entities),
@@ -309,6 +417,8 @@ public sealed class GameplayRulesTests
                 new SpringStore(_entities),
                 new RocketStore(_entities),
                 new TntStore(_entities),
+                new BlasterStore(_entities),
+                new GlueStore(_entities),
                 new WheelStore(_entities),
                 new PigStore(_entities),
                 new EggStore(_entities),

@@ -15,7 +15,7 @@ export interface PartCapabilities {
   pig?: boolean;
   wheel?: boolean;
   motor?: { thrustPerTick: number; directionX: -1 | 0 | 1 };
-  tnt?: { fuseTicks: number };
+  tnt?: { fuseTicks: number; chainDetonate?: boolean; igniteOnImpact?: boolean };
   balloon?: number;
   fan?: { thrustPerTick: number; directionX: number; directionY: number };
   spring?: number;
@@ -29,6 +29,8 @@ export interface PartCapabilities {
   bellows?: number;
   light?: number;
   grapple?: { impulse: number; directionX?: number; directionY?: number };
+  blaster?: { radius: number; impulse: number; chainRadius?: number };
+  glue?: boolean;
   /** "toggle" keeps a persistent effect on/off; "trigger" is a one-shot action. */
   activation?: "toggle" | "trigger";
 }

@@ -1,0 +1,59 @@
+{
+  "format": "pigforge.bple-variant-overrides",
+  "schemaVersion": 1,
+  "note": "Curated exceptions for tools/bple-variants/import-variants.mjs. `variants` keys are BPLE prefab names inside GameData.m_customParts; absent prefabs are pure skins that copy their PigForge base entry. `extras` are IN extension variants the original adds outside the registry. `defer` keeps a prefab in the texture map but out of content. See docs/specs/part-variant-catalog.md.",
+  "variants": {
+    "Part_Sandbag_05_SET": {
+      "massFactor": 4.545454545454545,
+      "note": "Original sibling mass 1.1, this one 5 (same script/fields); scale the PigForge base mass by 5/1.1."
+    },
+    "Part_SmallWheel_08_SET": {
+      "capabilities": {
+        "motor": { "thrustPerTick": 2.2, "directionX": 1 },
+        "activation": "toggle"
+      },
+      "note": "Original prefab runs MotorWheel (force 50, power 100); siblings run CartWheel. Motor value matches PigForge motor-wheel."
+    },
+    "Part_MetalFrame_11_SET": {
+      "capabilities": { "light": 2.14 },
+      "note": "Original prefab carries an always-on PointLightSource size 5; PigForge flashlight size 7 -> light 3.0, so 3 * 5/7 = 2.14."
+    },
+    "Part_Bellows_07_SET": {
+      "capabilities": { "bellows": 32.0 },
+      "note": "Original m_alienBellow=1, m_boostForce=120 vs 30 for siblings; PigForge bellows 8.0 * (120/30) = 32.0."
+    },
+    "Part_Kicker_4": {
+      "clearCapabilities": true,
+      "note": "Original customPartIndex 3 is the marker separator: not triggerable (PartExtensions.IsMarker). Inert box, no detacher capability."
+    },
+    "Part_TNT_06_SET": {
+      "variantName": "Alien TNT",
+      "capabilities": {
+        "tnt": { "fuseTicks": 5, "igniteOnImpact": false },
+        "activation": "trigger"
+      },
+      "note": "AlienTNT: collisions never light it (AlienTNT.cs:48-50), only its switch does; chaining stays on like every charge. Radius/impulse are identical to the base charge in the original data."
+    },
+    "Part_Egg_06_SET": {
+      "variantName": "Alien Egg",
+      "capabilities": { "egg": true, "glue": true },
+      "note": "AlienEgg: alien super glue (AlienEgg.cs:12-19,49-66) makes the frames in its connected component unbreakable; PigForge models that as glue (the compound never seam-splits)."
+    }
+  },
+  "extras": [
+    {
+      "partTypeId": 52,
+      "prefab": "Part_TNT_07_SET",
+      "base": 9,
+      "name": "tnt-blaster",
+      "variantName": "Blaster TNT",
+      "massFactor": 2.0,
+      "clearCapabilities": true,
+      "capabilities": {
+        "blaster": { "radius": 3.5, "impulse": 30.0, "chainRadius": 8.0 },
+        "activation": "trigger"
+      },
+      "note": "BlasterTNT is an IN extension part (not in GameData.m_customParts). Original: mass 2 vs 1, armed by its switch, one-shot 2 s expanding shockwave (BlasterTNT.cs:123-157, 159-212), chain radius 8 (dist^2 < 64). PigForge approximates the wave with one radial impulse; radius/impulse are calibrated to the original near-field envelope (~36 impulse at 1 unit)."
+    }
+  ]
+}

@@ -78,6 +78,8 @@ public sealed class GameplayRules
     private readonly SpringStore _springs;
     private readonly RocketStore _rockets;
     private readonly TntStore _tnt;
+    private readonly BlasterStore _blasters;
+    private readonly GlueStore _glues;
     private readonly WheelStore _wheels;
     private readonly PigStore _pigs;
     private readonly EggStore _eggs;
@@ -108,6 +110,8 @@ public sealed class GameplayRules
         SpringStore springs,
         RocketStore rockets,
         TntStore tnt,
+        BlasterStore blasters,
+        GlueStore glues,
         WheelStore wheels,
         PigStore pigs,
         EggStore eggs,
@@ -129,6 +133,8 @@ public sealed class GameplayRules
         _springs = springs ?? throw new ArgumentNullException(nameof(springs));
         _rockets = rockets ?? throw new ArgumentNullException(nameof(rockets));
         _tnt = tnt ?? throw new ArgumentNullException(nameof(tnt));
+        _blasters = blasters ?? throw new ArgumentNullException(nameof(blasters));
+        _glues = glues ?? throw new ArgumentNullException(nameof(glues));
         _eggs = eggs ?? throw new ArgumentNullException(nameof(eggs));
         _wheels = wheels ?? throw new ArgumentNullException(nameof(wheels));
         _pigs = pigs ?? throw new ArgumentNullException(nameof(pigs));
@@ -172,8 +178,16 @@ public sealed class GameplayRules
         _alivePigs++;
     }
 
-    public void AddTnt(EntityId entity, ushort fuseTicks) =>
-        _tnt.Set(entity, new TntState(fuseTicks, Ignited: false));
+    public void AddTnt(EntityId entity, ushort fuseTicks, bool chainDetonate = true, bool igniteOnImpact = true) =>
+        _tnt.Set(entity, new TntState(fuseTicks, Ignited: false, chainDetonate, igniteOnImpact));
+
+    public void AddBlaster(EntityId entity, float radius, float impulse, float chainRadius) =>
+        _blasters.Set(entity, new BlasterState(radius, impulse, chainRadius));
+
+    /// <summary>Marks a part as super glue: its compound cluster never splits along a seam.</summary>
+    public void AddGlue(EntityId entity) => _glues.Set(entity, default);
+
+    public bool HasGlue(EntityId entity) => _glues.TryGet(entity, out _);
 
     public void AddMotor(EntityId entity, float impulsePerTick, float directionX) =>
         _motors.Set(entity, new MotorState(impulsePerTick, directionX));
@@ -291,6 +305,7 @@ public sealed class GameplayRules
         RunDetachers(output);
         RunRockets(output);
         RunTntFuses(output);
+        RunBlasters(output);
         DropCommandsForDestroyedBodies(output);
         CheckObjectives(tick);
         StorePreviousVelocities();
@@ -370,7 +385,8 @@ public sealed class GameplayRules
         if (impactSpeed < _config.TntIgniteImpactSpeed
             || !_entitiesByBody.TryGetValue(body.Value, out EntityId entity)
             || !_tnt.TryGet(entity, out TntState tnt)
-            || tnt.Ignited)
+            || tnt.Ignited
+            || !tnt.IgniteOnImpact)
         {
             return;
         }
@@ -834,6 +850,14 @@ public sealed class GameplayRules
         while (tntComponents.MoveNext())
         {
             TntState state = tntComponents.CurrentValue;
+            if (!state.Ignited && HasSwitch(tntComponents.CurrentId) && TryConsumeTrigger(tntComponents.CurrentId))
+            {
+                // The switch is the player's lighter (original OnTouch -> Explode);
+                // impact ignition stays available unless content disabled it.
+                state = state with { Ignited = true };
+                _tnt.Set(tntComponents.CurrentId, state);
+            }
+
             if (!state.Ignited)
             {
                 continue;
@@ -856,7 +880,136 @@ public sealed class GameplayRules
         exploded.Sort();
         foreach (uint entityValue in exploded)
         {
-            Explode(new EntityId(entityValue), output);
+            EntityId entity = new(entityValue);
+            bool chain = _tnt.TryGet(entity, out TntState state) && state.ChainDetonate;
+            // The source's body link disappears when it explodes, so the chain needs the
+            // blast centre captured up front.
+            PhysicsVector3 blastCenter = default;
+            bool hasCenter = false;
+            if (_bodies.TryGet(entity, out PhysicsBodyLink link)
+                && _kinematicsByBody.TryGetValue(link.Body.Value, out var center))
+            {
+                blastCenter = center.Position;
+                hasCenter = true;
+            }
+            Explode(entity, output);
+            if (chain && hasCenter)
+            {
+                IgniteChargesInRadius(entity, blastCenter);
+            }
+        }
+    }
+
+    /// <summary>Original TNT chain: every other charge inside the blast radius lights up
+    /// (its own fuse runs from the next tick). Sorted entity ids keep it deterministic;
+    /// the chain never recurses inside the same tick.</summary>
+    private void IgniteChargesInRadius(EntityId source, PhysicsVector3 center)
+    {
+
+        List<uint> ignited = null!;
+        var charges = _tnt.GetEnumerator();
+        while (charges.MoveNext())
+        {
+            if (charges.CurrentId == source || charges.CurrentValue.Ignited)
+            {
+                continue;
+            }
+
+            if (!_bodies.TryGet(charges.CurrentId, out PhysicsBodyLink chargeLink)
+                || !_kinematicsByBody.TryGetValue(chargeLink.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            if (PhysicsVector3.Distance(kinematics.Position, center) < _config.TntBlastRadius)
+            {
+                (ignited ??= new List<uint>()).Add(charges.CurrentId.Value);
+            }
+        }
+
+        if (ignited is null)
+        {
+            return;
+        }
+
+        ignited.Sort();
+        foreach (uint entityValue in ignited)
+        {
+            EntityId entity = new(entityValue);
+            if (_tnt.TryGet(entity, out TntState state))
+            {
+                _tnt.Set(entity, state with { Ignited = true });
+            }
+        }
+    }
+
+    /// <summary>One-shot shockwave: a triggered blaster pushes every dynamic body inside its
+    /// radius once, keeps itself alive (spent), and sets off blasters inside its chain radius.
+    /// Worklist is sorted per hop so replay order is deterministic.</summary>
+    private void RunBlasters(GameplayTickOutput output)
+    {
+        List<EntityId> fired = null!;
+        var blasters = _blasters.GetEnumerator();
+        while (blasters.MoveNext())
+        {
+            if (!blasters.CurrentValue.Spent && TryConsumeTrigger(blasters.CurrentId))
+            {
+                (fired ??= new List<EntityId>()).Add(blasters.CurrentId);
+            }
+        }
+
+        if (fired is null)
+        {
+            return;
+        }
+
+        HashSet<uint> handled = new();
+        while (fired.Count > 0)
+        {
+            List<EntityId> next = new();
+            foreach (EntityId entity in fired.OrderBy(candidate => candidate.Value))
+            {
+                if (!handled.Add(entity.Value)
+                    || !_blasters.TryGet(entity, out BlasterState blaster)
+                    || blaster.Spent)
+                {
+                    continue;
+                }
+
+                // The charge survives as a spent husk (original BlasterTNT keeps its part).
+                _blasters.Set(entity, blaster with { Spent = true });
+                TryConsumeTrigger(entity);
+                if (!_bodies.TryGet(entity, out PhysicsBodyLink link)
+                    || !_kinematicsByBody.TryGetValue(link.Body.Value, out var center))
+                {
+                    continue;
+                }
+
+                RadialBlast(center.Position, blaster.Radius, blaster.Impulse, link.Body, output);
+
+                if (blaster.ChainRadius <= 0f)
+                {
+                    continue;
+                }
+
+                var neighbours = _blasters.GetEnumerator();
+                while (neighbours.MoveNext())
+                {
+                    if (neighbours.CurrentValue.Spent
+                        || !_bodies.TryGet(neighbours.CurrentId, out PhysicsBodyLink neighbourLink)
+                        || !_kinematicsByBody.TryGetValue(neighbourLink.Body.Value, out var neighbour))
+                    {
+                        continue;
+                    }
+
+                    if (PhysicsVector3.Distance(neighbour.Position, center.Position) < blaster.ChainRadius)
+                    {
+                        next.Add(neighbours.CurrentId);
+                    }
+                }
+            }
+
+            fired = next;
         }
     }
 
@@ -977,6 +1130,8 @@ public sealed class GameplayRules
         _bellows.Remove(entity);
         _detachers.Remove(entity);
         _grapples.Remove(entity);
+        _blasters.Remove(entity);
+        _glues.Remove(entity);
         _activations.Remove(entity);
     }
 
@@ -1004,6 +1159,15 @@ public sealed class GameplayRules
         while (rockets.MoveNext())
         {
             _rockets.Set(rockets.CurrentId, rockets.CurrentValue with { Ignited = false });
+        }
+
+        var blasters = _blasters.GetEnumerator();
+        while (blasters.MoveNext())
+        {
+            if (blasters.CurrentValue.Spent)
+            {
+                _blasters.Set(blasters.CurrentId, blasters.CurrentValue with { Spent = false });
+            }
         }
 
         var activations = _activations.GetEnumerator();
@@ -1071,6 +1235,8 @@ public sealed class GameplayRules
         _bellows.Clear();
         _detachers.Clear();
         _grapples.Clear();
+        _blasters.Clear();
+        _glues.Clear();
         _activations.Clear();
         _bodies.Clear();
         _alivePigs = 0;
@@ -1106,6 +1272,8 @@ public sealed class GameplayRules
         _bellows.Remove(entity);
         _detachers.Remove(entity);
         _grapples.Remove(entity);
+        _blasters.Remove(entity);
+        _glues.Remove(entity);
         _activations.Remove(entity);
         _bodies.Remove(entity);
         _entities.Destroy(entity);

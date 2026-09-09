@@ -39,6 +39,15 @@
       "minItems": 3,
       "maxItems": 3
     },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["restitution", "friction"],
+      "properties": {
+        "restitution": { "type": "number", "minimum": 0, "maximum": 1 },
+        "friction": { "type": "number", "minimum": 0, "maximum": 4 }
+      }
+    },
     "partDefinition": {
       "type": "object",
       "additionalProperties": false,
@@ -92,6 +101,8 @@
         "bellows": { "type": "number" },
         "light": { "type": "number", "minimum": 0 },
         "grapple": { "$ref": "#/$defs/grappleCapability" },
+        "blaster": { "$ref": "#/$defs/blasterCapability" },
+        "glue": { "type": "boolean" },
         "activation": { "enum": ["toggle", "trigger"] }
     }
   },
@@ -163,7 +174,19 @@
       "additionalProperties": false,
       "required": ["fuseTicks"],
       "properties": {
-        "fuseTicks": { "type": "integer", "minimum": 0, "maximum": 65535 }
+        "fuseTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "chainDetonate": { "type": "boolean", "description": "When it explodes, ignites other charges inside the blast radius. Defaults to true (original TNT chains)." },
+        "igniteOnImpact": { "type": "boolean", "description": "False = only the part switch can light it (original AlienTNT ignores collisions). Defaults to true." }
+      }
+    },
+    "blasterCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["radius", "impulse"],
+      "properties": {
+        "radius": { "type": "number", "exclusiveMinimum": 0 },
+        "impulse": { "type": "number", "minimum": 0 },
+        "chainRadius": { "type": "number", "minimum": 0, "description": "Blasters inside this radius fire in the same tick (original BlasterTNT chain)." }
       }
     },
     "shapeDefinition": {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
+import { variantLabel, variantsOf } from "./builder/palette";
 import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
 import { MOVE_SNAP, TOOLS, type ToolId, toolByHotkey } from "./editor/tools";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
@@ -10,7 +11,7 @@ import { createPlayerSession, type CommandKind } from "./live/playerSession";
 import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
 import { loadPartTextures, type PartTextureSet } from "./renderer/atlas";
 import { drawFrame } from "./renderer/draw";
-import type { ClientCommand, DrawEntity, PartDefinition } from "./schema/types";
+import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
 import { viewState } from "./viewState";
 
@@ -58,11 +59,6 @@ const gadgets = computed<GadgetGroup[]>(() => {
   return gadgetGroups(viewState.entities, player.ownEntityIds, session.content);
 });
 const canSwitch = computed(() => activeTab.value === "live" && playerPhase.value === "materialized" && gadgets.value.length > 0);
-
-/** Skins of a base part, declared by content (variantOf). */
-function variantsOf(basePartTypeId: number): PartDefinition[] {
-  return session.content?.parts.filter((part) => part.variantOf === basePartTypeId) ?? [];
-}
 
 /** The base part of the current selection: variant rows hang off their base entry. */
 const selectedBaseId = computed(() => {
@@ -569,14 +565,14 @@ onUnmounted(() => {
               :class="{ selected: selectedPart === part.partTypeId }"
               @click="selectPalettePart(part.partTypeId)"
             >{{ part.label }}</button>
-            <div v-if="selectedBaseId === part.partTypeId && variantsOf(part.partTypeId).length" class="variants">
+            <div v-if="selectedBaseId === part.partTypeId && variantsOf(session.content, part.partTypeId).length" class="variants">
               <button
-                v-for="variant in variantsOf(part.partTypeId)"
+                v-for="(variant, index) in variantsOf(session.content, part.partTypeId)"
                 :key="variant.partTypeId"
                 type="button"
                 :class="{ selected: selectedPart === variant.partTypeId }"
                 @click="selectPalettePart(variant.partTypeId)"
-              >{{ variant.variantName ?? variant.name }}</button>
+              >{{ variantLabel(part.label, index + 1, variant) }}</button>
             </div>
           </template>
         </div>

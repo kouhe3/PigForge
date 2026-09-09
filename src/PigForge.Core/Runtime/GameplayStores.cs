@@ -2,7 +2,10 @@ namespace PigForge.Core;
 
 public readonly record struct MotorState(float ImpulsePerTick, float DirectionX);
 
-public readonly record struct TntState(ushort FuseTicks, bool Ignited);
+/// <summary>Charge state: <paramref name="ChainDetonate"/> ignites other charges inside
+/// the blast radius (original TNT chains), <paramref name="IgniteOnImpact"/> false means
+/// only the part switch can light it (original AlienTNT ignores collisions).</summary>
+public readonly record struct TntState(ushort FuseTicks, bool Ignited, bool ChainDetonate = true, bool IgniteOnImpact = true);
 
 public readonly record struct WheelMarker;
 
@@ -103,6 +106,19 @@ public sealed class DetacherStore(EntityStore entities) : ComponentStore<Detache
 public readonly record struct GrappleState(float Impulse, float DirectionX, float DirectionY, bool FiredRecently);
 
 public sealed class GrappleStore(EntityStore entities) : ComponentStore<GrappleState>(entities);
+
+/// <summary>One-shot shockwave (original BlasterTNT): the switch fires a single radial
+/// impulse inside <paramref name="Radius"/> and sets off other blasters within
+/// <paramref name="ChainRadius"/>; the part itself survives, spent.</summary>
+public readonly record struct BlasterState(float Radius, float Impulse, float ChainRadius, bool Spent = false);
+
+public sealed class BlasterStore(EntityStore entities) : ComponentStore<BlasterState>(entities);
+
+/// <summary>Super-glue marker (original AlienEgg): the compound cluster holding this part
+/// never splits along a seam while the part exists.</summary>
+public readonly record struct GlueMarker;
+
+public sealed class GlueStore(EntityStore entities) : ComponentStore<GlueMarker>(entities);
 
 /// <summary>Switch state for a part whose content declares an activation. Absent = no switch.</summary>
 public readonly record struct ActivationState(bool Active);

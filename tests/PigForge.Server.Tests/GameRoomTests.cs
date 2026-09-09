@@ -64,6 +64,18 @@ public sealed class GameRoomTests
     }
 
     [Fact]
+    public void GluePartPreventsSeamSplitUnderAnOverThresholdImpulse()
+    {
+        ScriptedPhysicsWorld gluedWorld = new();
+        CreateMotorRoom(() => gluedWorld, withGlue: true).RunTicks(2);
+        Assert.Empty(gluedWorld.DestroyedBodies);
+
+        ScriptedPhysicsWorld plainWorld = new();
+        CreateMotorRoom(() => plainWorld, withGlue: false).RunTicks(2);
+        Assert.NotEmpty(plainWorld.DestroyedBodies);
+    }
+
+    [Fact]
     public void DisposeReleasesTheWorldAndRejectsFurtherUse()
     {
         ScriptedPhysicsWorld world = new();
@@ -422,6 +434,55 @@ public sealed class GameRoomTests
             PositionY: gridY + 0.5f,
             Angle: rotation * (MathF.PI / 2f),
             Scale: 1f);
+
+    /// <summary>Motor + block (+ glue) placed adjacent so they weld into one compound; the
+    /// motor's 30 impulse exceeds the default 10 seam threshold from the first tick.</summary>
+    private static GameRoom CreateMotorRoom(Func<IPhysicsWorld> factory, bool withGlue)
+    {
+        PartContentLibrary content = new(PartContentParser.Parse(MotorContentJson));
+        GameRoom room = new(GameRoomOptions.Create(
+            content,
+            factory,
+            new GameplayConfig(
+                GoalZone: new GameplayZone(new PhysicsVector3(500f, 500f, 500f), new PhysicsVector3(501f, 501f, 501f)),
+                MapBounds: new GameplayZone(new PhysicsVector3(-1000f, -1000f, -1000f), new PhysicsVector3(1000f, 1000f, 1000f)),
+                TntBlastRadius: 4f,
+                TntBlastImpulse: 12f,
+                TntIgniteImpactSpeed: 5f)));
+        room.Submit(PlacePart(1, partTypeId: 2, gridX: 0, gridY: 0));
+        room.Submit(PlacePart(2, partTypeId: 1, gridX: 1, gridY: 0));
+        if (withGlue)
+        {
+            room.Submit(PlacePart(3, partTypeId: 3, gridX: 2, gridY: 0));
+        }
+
+        room.Start();
+        return room;
+    }
+
+    private static PlacePartCommand PlacePart(uint sequence, uint partTypeId, int gridX, int gridY) =>
+        new(
+            Tick: 0,
+            Sequence: sequence,
+            PlayerId: PlayerOne,
+            PartTypeId: partTypeId,
+            PositionX: gridX + 0.5f,
+            PositionY: gridY + 0.5f,
+            Angle: 0f,
+            Scale: 1f);
+
+    private const string MotorContentJson = """
+    {
+        "format": "pigforge.part-content",
+        "schemaVersion": 1,
+        "contentVersion": "server-glue-test-v1",
+        "parts": [
+            { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+            { "partTypeId": 2, "name": "motor", "mode": "dynamic", "mass": 1, "capabilities": { "motor": { "thrustPerTick": 30, "directionX": 1 } }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+            { "partTypeId": 3, "name": "glue", "mode": "dynamic", "mass": 1, "capabilities": { "glue": true }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
+        ]
+    }
+    """;
 
     private const string LevelContentJson = """
     {

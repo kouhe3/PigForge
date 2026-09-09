@@ -161,6 +161,8 @@ public sealed class FrozenContraptionTests
         new SpringStore(entities),
         new RocketStore(entities),
         new TntStore(entities),
+        new BlasterStore(entities),
+        new GlueStore(entities),
         new WheelStore(entities),
         new PigStore(entities),
         new EggStore(entities),

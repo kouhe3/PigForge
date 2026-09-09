@@ -321,6 +321,12 @@ public static class PartContentParser
         float? motorThrust = null;
         float? motorDirection = null;
         ushort? tntFuse = null;
+        bool tntChainDetonate = true;
+        bool tntIgniteOnImpact = true;
+        float? blasterRadius = null;
+        float? blasterImpulse = null;
+        float? blasterChainRadius = null;
+        bool isGlue = false;
         float? balloonLift = null;
         float? fanThrust = null;
         float? fanDirectionX = null;
@@ -393,9 +399,10 @@ public static class PartContentParser
 
         if (seenKeys.Contains("tnt"))
         {
-            if (!capabilitiesElement.TryGetProperty("tnt", out JsonElement tntElement) || !TryReadTnt(tntElement, path, out tntFuse))
+            if (!capabilitiesElement.TryGetProperty("tnt", out JsonElement tntElement)
+                || !TryReadTnt(tntElement, path, out tntFuse, out tntChainDetonate, out tntIgniteOnImpact))
             {
-                errors.Add($"{path}.capabilities.tnt: must be an object with a fuseTicks integer in [0, 65535].");
+                errors.Add($"{path}.capabilities.tnt: must be an object with a fuseTicks integer in [0, 65535] and optional boolean chainDetonate/igniteOnImpact.");
                 hasError = true;
             }
         }
@@ -565,6 +572,28 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("blaster"))
+        {
+            if (!capabilitiesElement.TryGetProperty("blaster", out JsonElement blasterElement) || !TryReadBlaster(blasterElement, path, out blasterRadius, out blasterImpulse, out blasterChainRadius))
+            {
+                errors.Add($"{path}.capabilities.blaster: must be an object with a finite radius and impulse, and an optional finite chainRadius.");
+                hasError = true;
+            }
+        }
+
+        if (seenKeys.Contains("glue"))
+        {
+            if (!capabilitiesElement.TryGetProperty("glue", out JsonElement glueElement) || glueElement.ValueKind != JsonValueKind.True && glueElement.ValueKind != JsonValueKind.False)
+            {
+                errors.Add($"{path}.capabilities.glue: must be a boolean.");
+                hasError = true;
+            }
+            else
+            {
+                isGlue = glueElement.GetBoolean();
+            }
+        }
+
         if (seenKeys.Contains("activation"))
         {
             if (!capabilitiesElement.TryGetProperty("activation", out JsonElement activationElement)
@@ -576,9 +605,15 @@ public static class PartContentParser
             }
         }
 
+        if (blasterRadius is not null && activation != PartActivation.Trigger)
+        {
+            errors.Add($"{path}.capabilities.blaster: requires activation \"trigger\" (the blaster fires from its switch).");
+            hasError = true;
+        }
+
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "activation"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -590,7 +625,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue);
     }
 
     private static bool TryReadActivation(string? value, out PartActivation activation)
@@ -785,9 +820,11 @@ public static class PartContentParser
         return true;
     }
 
-    private static bool TryReadTnt(JsonElement element, string path, out ushort? fuse)
+    private static bool TryReadTnt(JsonElement element, string path, out ushort? fuse, out bool chainDetonate, out bool igniteOnImpact)
     {
         fuse = null;
+        chainDetonate = true;
+        igniteOnImpact = true;
         if (element.ValueKind != JsonValueKind.Object)
         {
             return false;
@@ -800,7 +837,69 @@ public static class PartContentParser
             return false;
         }
 
+        if (element.TryGetProperty("chainDetonate", out JsonElement chainElement)
+            && chainElement.ValueKind != JsonValueKind.True
+            && chainElement.ValueKind != JsonValueKind.False)
+        {
+            return false;
+        }
+
+        if (element.TryGetProperty("igniteOnImpact", out JsonElement igniteElement)
+            && igniteElement.ValueKind != JsonValueKind.True
+            && igniteElement.ValueKind != JsonValueKind.False)
+        {
+            return false;
+        }
+
         fuse = fuseValue;
+        chainDetonate = chainElement.ValueKind == JsonValueKind.True;
+        igniteOnImpact = !element.TryGetProperty("igniteOnImpact", out igniteElement) || igniteElement.GetBoolean();
+        return true;
+    }
+
+    private static bool TryReadBlaster(JsonElement element, string path, out float? radius, out float? impulse, out float? chainRadius)
+    {
+        radius = null;
+        impulse = null;
+        chainRadius = null;
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("radius", out JsonElement radiusElement)
+            || radiusElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(radiusElement)
+            || !radiusElement.TryGetSingle(out float radiusValue)
+            || radiusValue <= 0f)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("impulse", out JsonElement impulseElement)
+            || impulseElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(impulseElement)
+            || !impulseElement.TryGetSingle(out float impulseValue)
+            || impulseValue < 0f)
+        {
+            return false;
+        }
+
+        if (element.TryGetProperty("chainRadius", out JsonElement chainElement))
+        {
+            if (chainElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(chainElement)
+                || !chainElement.TryGetSingle(out float chainValue)
+                || chainValue < 0f)
+            {
+                return false;
+            }
+
+            chainRadius = chainValue;
+        }
+
+        radius = radiusValue;
+        impulse = impulseValue;
         return true;
     }
 
