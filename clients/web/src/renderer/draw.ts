@@ -4,6 +4,7 @@ import { type Camera, worldToScreen } from "./camera";
 const STATIC_FILL = "#5c6b52";
 const DYNAMIC_FILL = "#c4a574";
 const SELECT_STROKE = "#f0d090";
+const PREVIEW_ALPHA = 0.45;
 
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -44,10 +45,13 @@ export function drawFrame(
   for (const entity of entities) {
     const part = parts.get(entity.partTypeId);
     const origin = worldToScreen(camera, entity.x, entity.y, width, height);
+    // The sandbox broadcasts previews with physicsBodyId 0: they are not physical
+    // bodies yet, so they render translucent and without a halo or name label.
+    const preview = entity.bodyId === 0;
     // Light parts cast a radial glow; the radius scales like the world (spatial
     // light range), so zooming in amplifies the halo like the original game.
     const lightRadius = part?.capabilities?.light;
-    if (lightRadius !== undefined && lightRadius > 0) {
+    if (!preview && lightRadius !== undefined && lightRadius > 0) {
       const halo = lightRadius * entity.scale * camera.scale;
       ctx.save();
       const glow = ctx.createRadialGradient(origin.x, origin.y, 0, origin.x, origin.y, halo);
@@ -60,6 +64,10 @@ export function drawFrame(
       ctx.restore();
     }
     ctx.save();
+    if (preview) {
+      ctx.globalAlpha = PREVIEW_ALPHA;
+    }
+    ctx.translate(origin.x, origin.y);
     ctx.rotate(-entity.yaw);
     const shape = part?.shapes[0];
     if (shape?.kind === "sphere" && shape.radius) {
@@ -81,7 +89,7 @@ export function drawFrame(
       ctx.strokeRect(-hx, -hy, hx * 2, hy * 2);
     }
     // Placeholder texture: the type name is stamped at the part's collision centre.
-    if (part && part.name) {
+    if (!preview && part && part.name) {
       ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
       ctx.font = "10px system-ui, sans-serif";
       ctx.textAlign = "center";

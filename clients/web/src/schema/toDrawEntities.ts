@@ -11,5 +11,6 @@ export function toDrawEntities(entities: readonly ReplayEntityState[] | readonly
     scale: entity.scale,
     vx: entity.linearVelocity[0],
     vy: entity.linearVelocity[1],
+    bodyId: entity.physicsBodyId,
   }));
 }

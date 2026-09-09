@@ -6,11 +6,21 @@ import type { DrawEntity, PartContentDocument } from "@/schema/types";
 
 function makeCtx() {
   const calls: Record<string, number> = {};
+  const alphas: number[] = [];
+  const translations: Array<[number, number]> = [];
+  const alpha = { value: 1 };
   const gradient: CanvasGradient = { addColorStop: () => {} } as unknown as CanvasGradient;
   const ctx = {
     canvas: { clientWidth: 800, clientHeight: 600, width: 800, height: 600 },
+    get globalAlpha(): number {
+      return alpha.value;
+    },
+    set globalAlpha(value: number) {
+      alpha.value = value;
+    },
     fillRect: () => {
       calls.fillRect = (calls.fillRect ?? 0) + 1;
+      alphas.push(alpha.value);
     },
     strokeRect: () => {
       calls.strokeRect = (calls.strokeRect ?? 0) + 1;
@@ -27,12 +37,16 @@ function makeCtx() {
     stroke: () => {
       calls.stroke = (calls.stroke ?? 0) + 1;
     },
-    fillText: () => {},
+    fillText: () => {
+      calls.fillText = (calls.fillText ?? 0) + 1;
+    },
     moveTo: () => {},
     lineTo: () => {},
     save: () => {},
     restore: () => {},
-    translate: () => {},
+    translate: (x: number, y: number) => {
+      translations.push([x, y]);
+    },
     rotate: () => {},
     setLineDash: () => {},
     createRadialGradient: () => {
@@ -46,7 +60,7 @@ function makeCtx() {
     textAlign: "",
     textBaseline: "",
   };
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations };
 }
 
 const content: PartContentDocument = {
@@ -59,8 +73,9 @@ const content: PartContentDocument = {
   ],
 };
 
-const light: DrawEntity = { entityId: 1, partTypeId: 44, x: 2, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0 };
-const block: DrawEntity = { entityId: 2, partTypeId: 1, x: 4, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0 };
+const light: DrawEntity = { entityId: 1, partTypeId: 44, x: 2, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 11 };
+const block: DrawEntity = { entityId: 2, partTypeId: 1, x: 4, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 12 };
+const preview: DrawEntity = { ...light, entityId: 3, bodyId: 0 };
 
 describe("drawFrame light halo", () => {
   it("casts a radial glow for light parts", () => {
@@ -74,5 +89,37 @@ describe("drawFrame light halo", () => {
     const { ctx, calls } = makeCtx();
     drawFrame(ctx, createCamera(), [block], content, null);
     expect(calls.createRadialGradient).toBeUndefined();
+  });
+});
+
+describe("drawFrame previews", () => {
+  it("renders bodyId 0 translucent, without a halo or name label", () => {
+    const { ctx, calls, alphas } = makeCtx();
+    drawFrame(ctx, createCamera(), [preview], content, null);
+    expect(calls.createRadialGradient).toBeUndefined();
+    expect(calls.fillRect).toBe(2); // background + the part shape
+    expect(alphas[alphas.length - 1]).toBeCloseTo(0.45);
+    expect(calls.fillText).toBeUndefined();
+  });
+
+  it("keeps the halo, full alpha, and the label for a live body", () => {
+    const { ctx, calls, alphas } = makeCtx();
+    drawFrame(ctx, createCamera(), [light], content, null);
+    expect(calls.createRadialGradient).toBe(1);
+    expect(alphas[alphas.length - 1]).toBe(1);
+    expect(calls.fillText).toBe(1);
+  });
+});
+
+describe("drawFrame entity placement", () => {
+  it("translates each entity to its own screen position before drawing", () => {
+    const { ctx, translations } = makeCtx();
+    drawFrame(ctx, createCamera(), [light, block], content, null);
+    // camera { x: 4, y: 2, scale: 36 } over an 800x600 canvas:
+    // world (2,2) -> (328,300), world (4,2) -> (400,300).
+    expect(translations).toEqual([
+      [328, 300],
+      [400, 300],
+    ]);
   });
 });

@@ -1,0 +1,32 @@
+import { describe, expect, it } from "vitest";
+import { toDrawEntities } from "./toDrawEntities";
+import type { SnapshotEntity } from "./types";
+
+function snapshot(physicsBodyId: number): SnapshotEntity {
+  return {
+    entityId: 7,
+    physicsBodyId,
+    partTypeId: 1,
+    position: [1, 2, 0],
+    rotation: [0, 0, 0, 1],
+    linearVelocity: [0.5, 0, 0],
+    angularVelocity: [0, 0, 1],
+    scale: 1.5,
+  };
+}
+
+describe("toDrawEntities", () => {
+  it("keeps physicsBodyId 0 as a preview bodyId", () => {
+    const [entity] = toDrawEntities([snapshot(0)]);
+    expect(entity.bodyId).toBe(0);
+    expect(entity.x).toBe(1);
+    expect(entity.y).toBe(2);
+    expect(entity.vx).toBe(0.5);
+    expect(entity.scale).toBe(1.5);
+  });
+
+  it("keeps a non-zero physicsBodyId as bodyId", () => {
+    const [entity] = toDrawEntities([snapshot(19)]);
+    expect(entity.bodyId).toBe(19);
+  });
+});

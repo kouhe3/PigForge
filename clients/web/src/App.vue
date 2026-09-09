@@ -4,48 +4,102 @@ import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
 import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
+import { createPlayerSession, type CommandKind } from "./live/playerSession";
 import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
 import { drawFrame } from "./renderer/draw";
-import { SNAPSHOT_BUILDING_PHASE } from "./schema/decodeSnapshot";
+import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
 import { viewState } from "./viewState";
 
 const session = useSessionStore();
 const canvas = ref<HTMLCanvasElement | null>(null);
-const entitiesRef = { current: viewState.entities };
+// viewState.entities is replaced wholesale on every snapshot; the getter keeps gesture
+// hit-testing pointed at the live array instead of a captured (stale) reference.
+const entitiesRef = {
+  get current(): readonly DrawEntity[] {
+    return viewState.entities;
+  },
+};
 const placeAngle = ref(0);
 const placeScale = ref(1);
 const selectedPart = ref(4);
 const activeTab = ref<"replay" | "live">("replay");
-const sequence = ref(1);
+// The session module is Vue-free; mirror the gating inputs it exposes into refs.
+const player = createPlayerSession();
+const playerPhase = ref(player.phase);
+const ownCount = ref(player.ownEntityIds.size);
 let clock: PlaybackClock | null = null;
 let detachGestures: (() => void) | null = null;
 let disconnectLive: (() => void) | null = null;
-let sendCommand: ((command: Parameters<ReturnType<typeof connectPlaySocket>["send"]>[0]) => void) | null = null;
+let sendCommand: ((command: ClientCommand) => void) | null = null;
 let raf = 0;
 
-const building = computed(() => session.mode === "live" && session.livePhase === SNAPSHOT_BUILDING_PHASE);
-const outcome = computed(() => {
-  if (session.livePhase === SNAPSHOT_BUILDING_PHASE) {
-    return "建造";
-  }
-  if (session.livePhase === 1) {
-    return "过关";
-  }
-  if (session.livePhase === 2) {
-    return "失败：出界或超时";
-  }
-  if (session.mode === "live") {
-    return "运行";
-  }
-  return session.mode;
-});
+const canEdit = computed(() => playerPhase.value === "editing");
+const canStart = computed(() => canEdit.value && ownCount.value > 0);
+const canReset = computed(() => playerPhase.value === "materialized" || ownCount.value > 0);
+const canPlace = computed(() => activeTab.value === "live" && session.mode === "live" && canEdit.value);
+const phaseLabel = computed(() => (playerPhase.value === "materialized" ? "运行中" : "编辑中"));
 
-const canRetry = computed(() => session.mode === "live" && session.liveTick > 0 && !building.value);
-
-function retrySimulation(): void {
-  sendCommand?.({ kind: 5, sequence: nextSequence(), playerId: 1, tick: session.liveTick });
+function syncPlayer(): void {
+  playerPhase.value = player.phase;
+  ownCount.value = player.ownEntityIds.size;
 }
+
+/** Records the command for its PGFA, then sends it; the server owns identity and validation. */
+function dispatch(build: (sequence: number) => ClientCommand, kind: CommandKind, entityId?: number): void {
+  if (!sendCommand) {
+    return;
+  }
+  sendCommand(build(player.noteSent(kind, entityId)));
+}
+
+function startSimulation(): void {
+  dispatch((sequence) => ({ kind: 3, sequence, playerId: 0, tick: 0 }), 3);
+}
+
+function resetSimulation(): void {
+  dispatch((sequence) => ({ kind: 5, sequence, playerId: 0, tick: session.liveTick }), 5);
+}
+
+function placePart(x: number, y: number): void {
+  dispatch(
+    (sequence) => ({
+      kind: 0,
+      sequence,
+      playerId: 0,
+      tick: 0,
+      partTypeId: selectedPart.value,
+      x,
+      y,
+      angle: placeAngle.value,
+      scale: placeScale.value,
+    }),
+    0,
+  );
+}
+
+function rotatePart(entity: DrawEntity): void {
+  dispatch(
+    (sequence) => ({
+      kind: 2,
+      sequence,
+      playerId: 0,
+      tick: 0,
+      entityId: entity.entityId,
+      angle: entity.yaw + Math.PI / 12,
+    }),
+    2,
+  );
+}
+
+function removePart(entity: DrawEntity): void {
+  dispatch(
+    (sequence) => ({ kind: 1, sequence, playerId: 0, tick: 0, entityId: entity.entityId }),
+    1,
+    entity.entityId,
+  );
+}
+
 function paint(): void {
   const node = canvas.value;
   if (!node) {
@@ -63,7 +117,16 @@ function paint(): void {
     node.height = Math.floor(height * ratio);
   }
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  drawFrame(ctx, viewState.camera, viewState.entities, session.content, viewState.selectedId, GOAL_ZONE, MAP_BOUNDS);
+  // The sandbox has no goal semantics, so the live view omits the local GOAL_ZONE.
+  drawFrame(
+    ctx,
+    viewState.camera,
+    viewState.entities,
+    session.content,
+    viewState.selectedId,
+    activeTab.value === "live" ? undefined : GOAL_ZONE,
+    MAP_BOUNDS,
+  );
   raf = requestAnimationFrame(paint);
 }
 
@@ -121,17 +184,13 @@ function step(delta: number): void {
   clock?.step(delta);
 }
 
-function nextSequence(): number {
-  const value = sequence.value;
-  sequence.value = value + 1;
-  return value;
-}
-
 function connectLive(): void {
   disconnectLive?.();
   sendCommand = null;
   session.setErrors([]);
   session.loadContent(PLAY_PARTS);
+  player.reset();
+  syncPlayer();
   if (session.liveUrl.includes("/snapshots")) {
     disconnectLive = connectSnapshotSocket(
       session.liveUrl,
@@ -144,18 +203,20 @@ function connectLive(): void {
     session.liveUrl,
     (snapshot) => session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase),
     (ack) => {
-      if (ack.status !== 0) {
-        session.setErrors([`命令 ${ack.sequence} 被拒绝 status=${ack.status} error=${ack.error}`]);
+      const error = player.applyAck(ack);
+      syncPlayer();
+      if (error !== null) {
+        session.setErrors([error]);
       }
     },
     (message) => session.setErrors([message]),
+    () => {
+      player.reset();
+      syncPlayer();
+    },
   );
   sendCommand = play.send;
   disconnectLive = play.close;
-}
-
-function startSimulation(): void {
-  sendCommand?.({ kind: 3, sequence: nextSequence(), playerId: 1, tick: 0 });
 }
 
 function selectedEntity() {
@@ -170,22 +231,15 @@ function onKey(event: KeyboardEvent): void {
     placeAngle.value += Math.PI / 12;
   } else if (event.key === "r" || event.key === "R") {
     const entity = selectedEntity();
-    if (entity && building.value) {
+    if (entity && canEdit.value && player.ownEntityIds.has(entity.entityId)) {
       // Rotate the selected part a visible increment; a fresh placeAngle of 0 would
       // produce no visible change, so accumulate from the part's current yaw.
-      sendCommand?.({
-        kind: 2,
-        sequence: nextSequence(),
-        playerId: 1,
-        tick: 0,
-        entityId: entity.entityId,
-        angle: entity.yaw + Math.PI / 12,
-      });
+      rotatePart(entity);
     }
   } else if (event.key === "Delete" || event.key === "Backspace") {
     const entity = selectedEntity();
-    if (entity && building.value) {
-      sendCommand?.({ kind: 1, sequence: nextSequence(), playerId: 1, tick: 0, entityId: entity.entityId });
+    if (entity && canEdit.value && player.ownEntityIds.has(entity.entityId)) {
+      removePart(entity);
     }
   }
 }
@@ -211,24 +265,14 @@ onMounted(() => {
         if (message.kind === "SelectEntity") {
           viewState.selectedId = message.entityId;
         }
-        if (message.kind === "PlaceRequested" && building.value) {
-          sendCommand?.({
-            kind: 0,
-            sequence: nextSequence(),
-            playerId: 1,
-            tick: 0,
-            partTypeId: selectedPart.value,
-            x: message.x,
-            y: message.y,
-            angle: placeAngle.value,
-            scale: placeScale.value,
-          });
+        if (message.kind === "PlaceRequested" && canPlace.value) {
+          placePart(message.x, message.y);
         }
         if (message.kind === "PartScaleChanged") {
           placeScale.value = Math.min(4, Math.max(0.25, placeScale.value * message.scale));
         }
       },
-      { building: () => building.value },
+      { building: () => canPlace.value },
     );
   }
   window.addEventListener("keydown", onKey);
@@ -295,9 +339,9 @@ onUnmounted(() => {
           <input v-model="session.liveUrl" aria-label="快照 WebSocket 地址" />
         </label>
         <button type="button" @click="connectLive">连接房间</button>
-        <button type="button" :disabled="!building" @click="startSimulation">Start</button>
-        <button type="button" :disabled="!canRetry" @click="retrySimulation">RETRY</button>
-        <span class="meta">{{ outcome }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }}</span>
+        <button type="button" :disabled="!canStart" @click="startSimulation">Start</button>
+        <button type="button" :disabled="!canReset" @click="resetSimulation">RESET</button>
+        <span class="meta">{{ phaseLabel }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }}</span>
       </template>
     </header>
 

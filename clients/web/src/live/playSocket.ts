@@ -14,9 +14,19 @@ export function connectPlaySocket(
   onSnapshot: (snapshot: PlaySnapshot) => void,
   onAck: (ack: { sequence: number; status: number; error: number; entityId: number }) => void,
   onError: (message: string) => void,
+  onDisconnect: () => void,
 ): { send(command: ClientCommand): void; close(): void } {
   const socket = new WebSocket(url);
   socket.binaryType = "arraybuffer";
+  // A deliberate close (reconnect/unmount) must not report an error or reset the
+  // session the caller is about to replace.
+  let closing = false;
+  const disconnect = (message: string): void => {
+    if (!closing) {
+      onError(message);
+      onDisconnect();
+    }
+  };
   socket.addEventListener("message", (event) => {
     if (!(event.data instanceof ArrayBuffer)) {
       onError("Live socket received a non-binary frame; the client ignores authoritative text.");
@@ -43,8 +53,8 @@ export function connectPlaySocket(
     }
     onAck(ack);
   });
-  socket.addEventListener("error", () => onError("Play socket failed."));
-  socket.addEventListener("close", () => onError("Play socket closed."));
+  socket.addEventListener("error", () => disconnect("Play socket failed."));
+  socket.addEventListener("close", () => disconnect("Play socket closed."));
   return {
     send(command: ClientCommand): void {
       if (socket.readyState === WebSocket.OPEN) {
@@ -52,6 +62,7 @@ export function connectPlaySocket(
       }
     },
     close(): void {
+      closing = true;
       socket.close();
     },
   };

@@ -34,7 +34,7 @@ function worldToCss(worldX: number, worldY: number): [number, number] {
   return [(worldX - 4) * 36 + width * 0.5, height * 0.5 - (worldY - 2) * 36];
 }
 
-const blocker: DrawEntity = { entityId: 7, partTypeId: 1, x: 0.5, y: 0.5, yaw: 0, scale: 1, vx: 0, vy: 0 };
+const blocker: DrawEntity = { entityId: 7, partTypeId: 1, x: 0.5, y: 0.5, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 7 };
 
 describe("attachCanvasGestures selection vs placement", () => {
   it("tap on empty space emits PlaceRequested", () => {

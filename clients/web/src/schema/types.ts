@@ -115,6 +115,8 @@ export interface DrawEntity {
   scale: number;
   vx: number;
   vy: number;
+  /** Wire physicsBodyId: 0 = preview (no physics body), non-zero = live body. */
+  bodyId: number;
 }
 
 export type ClientCommand =
