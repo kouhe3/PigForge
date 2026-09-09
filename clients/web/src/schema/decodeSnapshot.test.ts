@@ -5,7 +5,7 @@ function writeFrame(): Uint8Array {
   const bytes = new Uint8Array(SNAPSHOT_HEADER_BYTES + SNAPSHOT_ENTITY_BYTES);
   const view = new DataView(bytes.buffer);
   bytes.set([0x50, 0x47, 0x46, 0x53], 0);
-  view.setUint16(4, 2, true);
+  view.setUint16(4, 3, true);
   view.setUint32(6, 7, true);
   view.setUint8(10, 1);
   view.setUint32(11, 1, true);
@@ -26,11 +26,12 @@ function writeFrame(): Uint8Array {
   view.setFloat32(71, 0, true);
   view.setFloat32(75, 0, true);
   view.setFloat32(79, 1, true);
+  view.setUint8(83, 1);
   return bytes;
 }
 
 describe("decodeSnapshotFrame", () => {
-  it("decodes a v2 PGFS frame", () => {
+  it("decodes a v3 PGFS frame", () => {
     const decoded = decodeSnapshotFrame(writeFrame());
     expect(typeof decoded).not.toBe("string");
     if (typeof decoded === "string") {
@@ -43,6 +44,7 @@ describe("decodeSnapshotFrame", () => {
     expect(decoded.entities[0].position[0]).toBeCloseTo(1.5);
     expect(decoded.entities[0].position[1]).toBeCloseTo(2.25);
     expect(decoded.entities[0].scale).toBeCloseTo(1);
+    expect(decoded.entities[0].active).toBe(true);
   });
 
   it("exposes building phase 0x10", () => {
@@ -56,5 +58,8 @@ describe("decodeSnapshotFrame", () => {
     const versioned = writeFrame();
     new DataView(versioned.buffer).setUint16(4, 1, true);
     expect(decodeSnapshotFrame(versioned)).toBe("Snapshot version 1 is unsupported.");
+    const previous = writeFrame();
+    new DataView(previous.buffer).setUint16(4, 2, true);
+    expect(decodeSnapshotFrame(previous)).toBe("Snapshot version 2 is unsupported.");
   });
 });

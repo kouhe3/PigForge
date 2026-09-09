@@ -45,7 +45,7 @@ function attach(entities: DrawEntity[], options: CanvasGestureOptions) {
   return { listeners, messages, detach };
 }
 
-const part: DrawEntity = { entityId: 7, partTypeId: 1, x: 0.5, y: 0.5, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 0 };
+const part: DrawEntity = { entityId: 7, partTypeId: 1, x: 0.5, y: 0.5, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 0, active: false };
 
 describe("canvas gestures: place and select", () => {
   it("places on an empty tap with the place tool", () => {

@@ -37,7 +37,7 @@ describe("playerSession", () => {
     expect(session.ownEntityIds.has(42)).toBe(false);
   });
 
-  it("keeps ownership and phase for accepted move and scale acks", () => {
+  it("keeps ownership and phase for accepted move, scale and switch acks", () => {
     const session = createPlayerSession();
     const place = session.noteSent(0);
     session.applyAck({ sequence: place, status: 0, error: 0, entityId: 42 });
@@ -45,6 +45,10 @@ describe("playerSession", () => {
     session.applyAck({ sequence: move, status: 0, error: 0, entityId: 0 });
     const scale = session.noteSent(7, 42);
     session.applyAck({ sequence: scale, status: 0, error: 0, entityId: 0 });
+    const setPart = session.noteSent(8, 42);
+    session.applyAck({ sequence: setPart, status: 0, error: 0, entityId: 42 });
+    const setType = session.noteSent(9);
+    session.applyAck({ sequence: setType, status: 0, error: 0, entityId: 0 });
     expect(session.ownEntityIds.has(42)).toBe(true);
     expect(session.phase).toBe("editing");
   });

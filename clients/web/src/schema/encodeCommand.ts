@@ -3,7 +3,7 @@ import type { ClientCommand } from "./types";
 export const COMMAND_VERSION = 2;
 export const COMMAND_HEADER_BYTES = 19;
 
-const PAYLOAD_BYTES: Record<ClientCommand["kind"], number> = { 0: 20, 1: 4, 2: 8, 3: 0, 5: 0, 6: 12, 7: 8 };
+const PAYLOAD_BYTES: Record<ClientCommand["kind"], number> = { 0: 20, 1: 4, 2: 8, 3: 0, 5: 0, 6: 12, 7: 8, 8: 5, 9: 5 };
 
 export function encodeCommand(command: ClientCommand): Uint8Array {
   const bytes = new Uint8Array(COMMAND_HEADER_BYTES + PAYLOAD_BYTES[command.kind]);
@@ -32,6 +32,12 @@ export function encodeCommand(command: ClientCommand): Uint8Array {
   } else if (command.kind === 7) {
     view.setUint32(19, command.entityId, true);
     view.setFloat32(23, command.scale, true);
+  } else if (command.kind === 8) {
+    view.setUint32(19, command.entityId, true);
+    view.setUint8(23, command.active ? 1 : 0);
+  } else if (command.kind === 9) {
+    view.setUint32(19, command.partTypeId, true);
+    view.setUint8(23, command.active ? 1 : 0);
   }
   return bytes;
 }

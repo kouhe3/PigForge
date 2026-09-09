@@ -78,8 +78,8 @@ const content: PartContentDocument = {
   ],
 };
 
-const light: DrawEntity = { entityId: 1, partTypeId: 44, x: 2, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 11 };
-const block: DrawEntity = { entityId: 2, partTypeId: 1, x: 4, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 12 };
+const light: DrawEntity = { entityId: 1, partTypeId: 44, x: 2, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 11, active: false };
+const block: DrawEntity = { entityId: 2, partTypeId: 1, x: 4, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 12, active: false };
 const preview: DrawEntity = { ...light, entityId: 3, bodyId: 0 };
 
 describe("drawFrame light halo", () => {

@@ -12,6 +12,7 @@ function snapshot(physicsBodyId: number): SnapshotEntity {
     linearVelocity: [0.5, 0, 0],
     angularVelocity: [0, 0, 1],
     scale: 1.5,
+    active: false,
   };
 }
 
@@ -23,10 +24,16 @@ describe("toDrawEntities", () => {
     expect(entity.y).toBe(2);
     expect(entity.vx).toBe(0.5);
     expect(entity.scale).toBe(1.5);
+    expect(entity.active).toBe(false);
   });
 
   it("keeps a non-zero physicsBodyId as bodyId", () => {
     const [entity] = toDrawEntities([snapshot(19)]);
     expect(entity.bodyId).toBe(19);
+  });
+
+  it("carries the switch flag through", () => {
+    const [entity] = toDrawEntities([{ ...snapshot(19), active: true }]);
+    expect(entity.active).toBe(true);
   });
 });

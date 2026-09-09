@@ -103,6 +103,8 @@ export interface SnapshotEntity {
   linearVelocity: Vec3;
   angularVelocity: Vec3;
   scale: number;
+  /** Per-entity snapshot flags bit0: the part's switch is on. */
+  active: boolean;
 }
 
 export interface SnapshotFrame {
@@ -123,6 +125,8 @@ export interface DrawEntity {
   vy: number;
   /** Wire physicsBodyId: 0 = preview (no physics body), non-zero = live body. */
   bodyId: number;
+  /** Switch state from the snapshot (false for parts without a switch). */
+  active: boolean;
 }
 
 export type ClientCommand =
@@ -132,7 +136,9 @@ export type ClientCommand =
   | { kind: 3; sequence: number; playerId: number; tick: number }
   | { kind: 5; sequence: number; playerId: number; tick: number }
   | { kind: 6; sequence: number; playerId: number; tick: number; entityId: number; x: number; y: number }
-  | { kind: 7; sequence: number; playerId: number; tick: number; entityId: number; scale: number };
+  | { kind: 7; sequence: number; playerId: number; tick: number; entityId: number; scale: number }
+  | { kind: 8; sequence: number; playerId: number; tick: number; entityId: number; active: boolean }
+  | { kind: 9; sequence: number; playerId: number; tick: number; partTypeId: number; active: boolean };
 
 /** A locally previewed build pose during a move/rotate/scale drag (never authoritative). */
 export interface ToolPreviewPose {

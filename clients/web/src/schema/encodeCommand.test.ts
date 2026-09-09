@@ -41,6 +41,22 @@ describe("encodeCommand", () => {
     expect(scaleView.getFloat32(23, true)).toBeCloseTo(2.5);
   });
 
+  it("encodes SetPartActive and SetPartTypeActive matching the PGFC layout", () => {
+    const setPart = encodeCommand({ kind: 8, sequence: 4, playerId: 1, tick: 0, entityId: 7, active: true });
+    expect(setPart.byteLength).toBe(24);
+    const partView = new DataView(setPart.buffer);
+    expect(partView.getUint8(6)).toBe(8);
+    expect(partView.getUint32(19, true)).toBe(7);
+    expect(partView.getUint8(23)).toBe(1);
+
+    const setType = encodeCommand({ kind: 9, sequence: 5, playerId: 1, tick: 0, partTypeId: 11, active: false });
+    expect(setType.byteLength).toBe(24);
+    const typeView = new DataView(setType.buffer);
+    expect(typeView.getUint8(6)).toBe(9);
+    expect(typeView.getUint32(19, true)).toBe(11);
+    expect(typeView.getUint8(23)).toBe(0);
+  });
+
   it("decodes PGFA ack", () => {
     const bytes = new Uint8Array(16);
     const view = new DataView(bytes.buffer);
