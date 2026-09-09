@@ -22,3 +22,5 @@ replays/
 /tasks/
 **/node_modules/
 clients/web/dist/
+# Original Rovio art extracted locally by tools/bple-textures/extract.mjs (copyrighted, never committed).
+clients/web/public/assets/original/
