@@ -16,7 +16,7 @@ Build order: `transform-commands` → `sandbox-transform`；`web-editor-tools` �
 
 ## Assumptions（写进规格，实现不得另猜）
 
-1. **单选 v1**：点击选中 / 点空取消；多选、Shift 加选、框选不在本切片。
+1. **单选 v1**（框选/多选已由 `docs/specs/multi-select.md` 取代）：点击选中 / 点空取消；多选、Shift 加选、框选见多选切片。
 2. 工具集固定为 **放置 / 选择 / 移动 / 旋转 / 缩放**，快捷键 `1`–`5`，默认「放置」（保持现有手感）。工具只在「建造」标签页出现。
 3. 移动/旋转/缩放只对**自己且 Editing** 的零件生效；服务器仍最终校验（`NotOwnedByPlayer` / `WrongMode`）。选择工具可以选中任何零件（只读检查）。
 4. 吸附：移动 0.5 m、旋转 15°、缩放 0.25；按住 `Alt` 不吸附（缩放仍钳制在 `[0.25, 4]`）。
@@ -136,7 +136,7 @@ clients/web/src/App.vue                # 工具面板、快捷键、命令派发
 
 ### 不做
 
-- 多选/框选/镜像/复制/撤销重做、数值输入面板、拖拽中连续发命令、客户端预测。
+- 镜像/复制/撤销重做、数值输入面板、拖拽中连续发命令、客户端预测（框选/多选见 `docs/specs/multi-select.md`）。
 
 ## Code Style
 
@@ -187,7 +187,7 @@ clients/web/src/App.vue                # 工具面板、快捷键、命令派发
 **Ask first**
 
 - 改 PGFS 布局或协议版本（本切片只追加 PGFC kind）。
-- 多选/框选/镜像/复制/对称、数值输入面板、撤销重做。
+- 镜像/复制/对称、数值面板、撤销重做（框选/多选见 `docs/specs/multi-select.md`）。
 - 在 wire 上加 owner/playerId 字段或位姿流。
 
 **Never**

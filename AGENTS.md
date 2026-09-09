@@ -49,7 +49,7 @@ Building mode manipulates pure `ConstructionRules` state (no physics bodies); `S
 - `src/PigForge.Server` — `GameRoom` (authoritative room), `PlayHost`/`DemoSnapshotHost`, `Program.cs` entry
 - `src/PigForge.Benchmarks` — custom perf harness (no BenchmarkDotNet)
 - `tests/` — 5 xUnit projects (Core, Protocol, Replay, Physics, Server Tests)
-- `clients/web` — Vue 3 + TS + Vite + Pinia SPA (pnpm); build-mode tools (place/select/move/rotate/scale) in `src/editor/tools.ts` + `src/gesture/canvasGestures.ts`; play-mode switch bar in `src/live/gadgets.ts` + `App.vue`
+- `clients/web` — Vue 3 + TS + Vite + Pinia SPA (pnpm); build-mode tools (place/select/move/rotate/scale) in `src/editor/tools.ts` + `src/gesture/canvasGestures.ts` (marquee selection included); play-mode switch bar in `src/live/gadgets.ts` + `App.vue`
 - `unity/PigForge.UnityReference` — Unity 6000.5.6f1 reference exporter, isolated
 - `content/` — `parts.json` (50 entries, partTypeId 1–50; 47–50 are TNT variants; `capabilities.activation` declares part switches), `levels/slope-v1.json`, `levels/terrain-v1.json`
 - `schemas/` — cross-runtime JSON Schema contracts: `part-content-v1`, `level-content-v1`, `physics-replay-v2`, `client-command-v1`
@@ -101,7 +101,7 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 - `src/PigForge.Protocol/SnapshotWire.cs`, `CommandWire.cs` — wire codecs (fixed sizes: 15-byte header, 69-byte entity)
 - `Directory.Build.props` — net10.0, ImplicitUsings, Nullable, LangVersion latest, TreatWarningsAsErrors
 - `docs/decisions/ADR-001-*.md` — net10 physics boundary; `ADR-002-*.md` — no-damage runtime semantics (**binding** for any gameplay change)
-- `docs/intent/*.md` + `docs/specs/*.md` — confirmed intent and the authoritative per-slice spec (e.g. `advanced-building.md` for build-mode move/rotate/scale, `play-part-switches.md` for part switches)
+- `docs/intent/*.md` + `docs/specs/*.md` — confirmed intent and the authoritative per-slice spec (e.g. `advanced-building.md` for build-mode move/rotate/scale, `multi-select.md` for marquee selection and PGFA error messages, `play-part-switches.md` for part switches)
 - `clients/web/vite.config.ts` — dev server port 5173 + WS proxy; `clients/web/src/schema/decodeSnapshot.ts`/`encodeCommand.ts` — client wire codecs; `clients/web/src/editor/tools.ts` — tool math/snaps; `clients/web/src/live/gadgets.ts` — switch-bar grouping/hotkeys
 
 ## Runtime/Tooling Preferences
@@ -120,5 +120,5 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 - **Assertions**: xUnit `Assert.*` only, expected-before-actual; physics outcomes via `Assert.InRange`/`precision:`; allocation checks via `GC.GetAllocatedBytesForCurrentThread()` delta == 0.
 - **Fixture files**: JSON as C# raw string literals, or repo-relative paths resolved by walking up from `AppContext.BaseDirectory` (`FindRepositoryFile`/`FindRepositoryRoot`); never embedded resources.
 - **Coverage**: `coverlet.collector` is referenced but unconfigured — no gate; can run `dotnet test PigForge.slnx --collect:"XPlat Code Coverage"`.
-- **Web tests**: Vitest `environment: "node"` (not jsdom, despite jsdom dependency), colocated `*.test.ts` (75 cases).
+- **Web tests**: Vitest `environment: "node"` (not jsdom, despite jsdom dependency), colocated `*.test.ts` (85 cases).
 - Known staleness: `tests/PigForge.Core.Tests` pins older xunit 2.5.3/SDK 17.8.0 than siblings; `Protocol.Tests`/`Replay.Tests` csproj missing `<IsTestProject>`; Unity reference exporter still emits replay v1 vs .NET v2.
