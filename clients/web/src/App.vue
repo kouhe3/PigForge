@@ -137,6 +137,20 @@ function removePart(entity: DrawEntity): void {
   );
 }
 
+/**
+ * Selected entities this client may edit: own, Editing phase, ascending by id. Batch
+ * actions send one command per part; the server validates each and nothing rolls back.
+ */
+function editableSelectedEntities(): DrawEntity[] {
+  if (!canEdit.value) {
+    return [];
+  }
+
+  return viewState.entities
+    .filter((entity) => viewState.selectedIds.includes(entity.entityId) && player.ownEntityIds.has(entity.entityId))
+    .sort((left, right) => left.entityId - right.entityId);
+}
+
 /** PGFC kind 9: toggles every switchable part of one type this player owns. */
 function toggleGadget(group: GadgetGroup): void {
   const active = group.kind === "trigger" ? true : !group.active;
@@ -354,13 +368,15 @@ function onKey(event: KeyboardEvent): void {
       tool.value = hotkeyTool;
       return;
     }
-    const entity = selectedEntity();
-    if (tool.value === "move" && entity && canEdit.value && player.ownEntityIds.has(entity.entityId)) {
+    if (tool.value === "move") {
       const dx = event.key === "ArrowLeft" ? -MOVE_SNAP : event.key === "ArrowRight" ? MOVE_SNAP : 0;
       const dy = event.key === "ArrowUp" ? MOVE_SNAP : event.key === "ArrowDown" ? -MOVE_SNAP : 0;
-      if (dx !== 0 || dy !== 0) {
+      const targets = dx !== 0 || dy !== 0 ? editableSelectedEntities() : [];
+      if (targets.length > 0) {
         event.preventDefault();
-        movePart(entity.entityId, entity.x + dx, entity.y + dy);
+        for (const target of targets) {
+          movePart(target.entityId, target.x + dx, target.y + dy);
+        }
         return;
       }
     }
@@ -370,16 +386,14 @@ function onKey(event: KeyboardEvent): void {
   } else if (event.key === "e" || event.key === "E") {
     placeAngle.value += Math.PI / 12;
   } else if (event.key === "r" || event.key === "R") {
-    const entity = selectedEntity();
-    if (entity && canEdit.value && player.ownEntityIds.has(entity.entityId)) {
-      // Rotate the selected part a visible increment; a fresh placeAngle of 0 would
-      // produce no visible change, so accumulate from the part's current yaw.
-      rotateToAngle(entity.entityId, entity.yaw + Math.PI / 12);
+    // Rotate every selected part a visible increment; a fresh placeAngle of 0 would
+    // produce no visible change, so accumulate from each part's current yaw.
+    for (const target of editableSelectedEntities()) {
+      rotateToAngle(target.entityId, target.yaw + Math.PI / 12);
     }
   } else if (event.key === "Delete" || event.key === "Backspace") {
-    const entity = selectedEntity();
-    if (entity && canEdit.value && player.ownEntityIds.has(entity.entityId)) {
-      removePart(entity);
+    for (const target of editableSelectedEntities()) {
+      removePart(target);
     }
   }
 }
