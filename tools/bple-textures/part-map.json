@@ -49,5 +49,13 @@
     "44": "Part_PointLight_01_SET",
     "45": "Part_SpotLight_01_SET",
     "46": "Part_GrapplingHook_01_SET"
+  },
+  "variants": {
+    "47": "Part_TNT_02_SET",
+    "48": "Part_TNT_03_SET",
+    "49": "Part_TNT_04_SET",
+    "50": "Part_TNT_05_SET",
+    "51": "Part_TNT_06_SET",
+    "52": "Part_TNT_07_SET"
   }
 }

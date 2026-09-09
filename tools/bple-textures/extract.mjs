@@ -63,6 +63,7 @@ function scriptGuid(scriptName) {
 
 const SPRITE_SCRIPT = scriptGuid("Sprite");
 const UNMANAGED_SCRIPT = scriptGuid("UnmanagedSprite");
+const NAMED_SCRIPT = scriptGuid("INSerializedSprite");
 
 // ------------------------------------------------------------ sprite tables
 
@@ -85,6 +86,27 @@ for (const line of readFileSync(join(ASSETS, "Resources", "guisystem", "spritema
   const f = line.split("\t");
   if (f.length < 5 || !f[0]) continue;
   spriteUv.set(f[0], [Number(f[1]), Number(f[2]), Number(f[3]), Number(f[4])]);
+}
+
+/** <Atlas>_TextAsset.txt: header "<atlas> <width> <height>", then "<name> x y w h scaleX scaleY screenHeight" (top-left origin). */
+const namedSprites = new Map();
+for (const file of readdirSync(join(ASSETS, "TextAsset"))) {
+  if (!file.endsWith("_TextAsset.txt")) continue;
+  const lines = readFileSync(join(ASSETS, "TextAsset", file), "utf8").split("\n");
+  const atlasName = lines[0].trim().split(/\s+/)[0];
+  for (const line of lines.slice(1)) {
+    const f = line.trim().split(/\s+/);
+    if (f.length < 8) continue;
+    namedSprites.set(`${atlasName}\0${f[0]}`, {
+      x: Number(f[1]),
+      y: Number(f[2]),
+      w: Number(f[3]),
+      h: Number(f[4]),
+      scaleX: Number(f[5]),
+      scaleY: Number(f[6]),
+      screenHeight: Number(f[7]),
+    });
+  }
 }
 
 // ------------------------------------------------------------- prefab parsing
@@ -130,11 +152,11 @@ function parsePrefab(text) {
   for (const { classId, body } of blocks) {
     if (classId !== 114) continue;
     const script = /m_Script: \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(body)?.[1];
-    if (script !== SPRITE_SCRIPT && script !== UNMANAGED_SCRIPT) continue;
+    if (script !== SPRITE_SCRIPT && script !== UNMANAGED_SCRIPT && script !== NAMED_SCRIPT) continue;
     const gameObject = /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1];
     if (!gameObject) continue;
     sprites.push({
-      kind: script === SPRITE_SCRIPT ? "sprite" : "grid",
+      kind: script === SPRITE_SCRIPT ? "sprite" : script === UNMANAGED_SCRIPT ? "grid" : "named",
       gameObject,
       fields: Object.fromEntries(
         [...body.matchAll(/^\s*(m_[A-Za-z0-9_]+):\s*(.*)$/gm)].map((m) => [m[1], m[2].trim()]),
@@ -211,6 +233,7 @@ function extractSprite(prefab, sprite) {
   let rect;
   let quadW;
   let quadH;
+  let unitsPerPixel = UNITS_PER_PIXEL;
   if (sprite.kind === "grid") {
     const subdivisions = Number(f.m_atlasGridSubdivisions);
     const cellW = size.width / subdivisions;
@@ -222,6 +245,17 @@ function extractSprite(prefab, sprite) {
     rect = { x, y: size.height - yBottom - h, w, h };
     quadW = Number(f.m_spriteWidth);
     quadH = Number(f.m_spriteHeight);
+  } else if (sprite.kind === "named") {
+    // INSerializedSprite: name -> Assets/TextAsset/<Atlas>_TextAsset.txt (top-left origin).
+    const named = namedSprites.get(`${atlas.replace(/\.png$/, "")}\0${f.m_name}`);
+    if (!named) {
+      warnings.push(`named sprite '${f.m_name}' missing from the ${atlas} text asset`);
+      return undefined;
+    }
+    rect = { x: named.x, y: named.y, w: named.w, h: named.h };
+    quadW = named.w * named.scaleX;
+    quadH = named.h * named.scaleY;
+    unitsPerPixel = 10 / named.screenHeight;
   } else {
     const cell = spriteCells.get(f.m_id);
     const uv = spriteUv.get(f.m_id);
@@ -251,8 +285,8 @@ function extractSprite(prefab, sprite) {
     h: rect.h,
     cx: offset.x,
     cy: offset.y,
-    sx: quadW * UNITS_PER_PIXEL,
-    sy: quadH * UNITS_PER_PIXEL,
+    sx: quadW * unitsPerPixel,
+    sy: quadH * unitsPerPixel,
     rot: offset.angle,
     z: offset.z,
   };
@@ -274,13 +308,19 @@ function extractPart(prefabName) {
   // every other sprite in the prefab is part of the visual (body, face, crown,
   // wheel rim, light cone, extra balloons/sandbags) and is kept.
   const seen = new Set();
-  const sprites = found.filter((s) => {
+  const filtered = found.filter((s) => {
     if (/attachment/i.test(s.name)) return false;
     const key = `${s.atlas}|${s.x}|${s.y}|${s.w}|${s.h}|${s.cx}|${s.cy}|${s.rot}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+  if (filtered.length === 0) {
+    // A prefab whose only sprites are attachment markers still has a visual.
+    warnings.push(`${prefabName} has only attachment sprites`);
+    return undefined;
+  }
+  const sprites = filtered;
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -316,9 +356,10 @@ function extractPart(prefabName) {
 // ---------------------------------------------------------------------- main
 
 const map = JSON.parse(readFileSync(join(HERE, "part-map.json"), "utf8"));
+const assignments = { ...map.parts, ...map.variants };
 const parts = {};
 let mapped = 0;
-for (const [partTypeId, prefabName] of Object.entries(map.parts)) {
+for (const [partTypeId, prefabName] of Object.entries(assignments)) {
   if (!prefabName) continue;
   const entry = extractPart(prefabName);
   if (entry) {
@@ -346,7 +387,7 @@ writeFileSync(join(OUT, "part-textures.json"), `${JSON.stringify(manifest, null,
 
 console.log(`bple:   ${BPLE}`);
 console.log(`out:    ${OUT}`);
-console.log(`parts:  ${mapped}/${Object.keys(map.parts).length} mapped, ${Object.keys(parts).length} emitted`);
+console.log(`parts:  ${mapped}/${Object.keys(assignments).length} mapped, ${Object.keys(parts).length} emitted`);
 console.log(`atlas:  ${[...usedAtlases.keys()].join(", ")}`);
 if (warnings.length) {
   console.log(`warnings (${warnings.length}):`);
