@@ -10,10 +10,15 @@
   box-sizing: border-box;
 }
 
+html,
 body,
 #app {
+  height: 100%;
+}
+
+body {
   margin: 0;
-  min-height: 100vh;
+  overflow: hidden;
 }
 
 button,
@@ -66,8 +71,8 @@ label {
 .layout {
   display: grid;
   grid-template-columns: 1fr 260px;
-  grid-template-rows: auto 1fr auto;
-  min-height: 100vh;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
 }
 
 .toolbar {
@@ -84,6 +89,7 @@ label {
 .stage {
   position: relative;
   min-height: 0;
+  overflow: hidden;
   background: #1c211c;
 }
 
@@ -95,6 +101,7 @@ label {
 }
 
 .side {
+  min-height: 0;
   padding: 0.75rem 1rem;
   border-left: 1px solid #323a30;
   background: #181c18;
@@ -133,7 +140,7 @@ label {
 @media (max-width: 768px) {
   .layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 50vh auto auto;
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto;
   }
 
   .side {
