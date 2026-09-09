@@ -23,6 +23,14 @@ public sealed record PartDefinition(
     uint? VariantOf = null,
     string? VariantName = null);
 
+/// <summary>How a part's switch behaves: a persistent on/off effect or a one-shot action.</summary>
+public enum PartActivation
+{
+    None,
+    Toggle,
+    Trigger
+}
+
 /// <summary>
 /// Gameplay capabilities a part carries (ADR-002): a pig is indestructible bouncy
 /// cargo, a wheel gates motor thrust to ground contact, a motor pushes the body each
@@ -57,7 +65,8 @@ public sealed record PartCapabilities(
     float? LightRadius = null,
     float? GrappleImpulse = null,
     float? GrappleDirectionX = null,
-    float? GrappleDirectionY = null)
+    float? GrappleDirectionY = null,
+    PartActivation Activation = PartActivation.None)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 

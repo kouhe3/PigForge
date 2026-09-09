@@ -52,6 +52,46 @@ public sealed class PartContentTests
         Assert.Equal(PhysicsShapeKind.Sphere, document.Parts[1].Shapes[0].Kind);
     }
 
+    [Fact]
+    public void ActivationCapabilityParsesToggleAndTrigger()
+    {
+        PartContentDocument document = PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 8, "name": "engine", "mode": "dynamic", "mass": 1, "capabilities": { "motor": { "thrustPerTick": 2, "directionX": 1 }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] },
+                { "partTypeId": 13, "name": "rocket", "mode": "dynamic", "mass": 1, "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "durationTicks": 30 }, "activation": "trigger" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }
+            ]
+        }
+        """);
+
+        Assert.Equal(PartActivation.Toggle, document.Parts[0].Capabilities!.Activation);
+        Assert.Equal(PartActivation.Trigger, document.Parts[1].Capabilities!.Activation);
+        Assert.Null(PartContentParser.Parse(SinglePartJson).Parts[0].Capabilities);
+    }
+
+    [Fact]
+    public void UnknownActivationValueIsRejected()
+    {
+        AssertRejected(
+            """{ "partTypeId": 8, "name": "engine", "mode": "dynamic", "mass": 1, "capabilities": { "motor": { "thrustPerTick": 2, "directionX": 1 }, "activation": "latch" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }""",
+            "activation");
+    }
+
+    [Fact]
+    public void RepositoryContentMarksSwitchableParts()
+    {
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        Assert.Equal(PartActivation.Toggle, library.GetPart(8).Capabilities!.Activation);
+        Assert.Equal(PartActivation.Toggle, library.GetPart(39).Capabilities!.Activation);
+        Assert.Equal(PartActivation.Trigger, library.GetPart(13).Capabilities!.Activation);
+        Assert.Equal(PartActivation.Trigger, library.GetPart(10).Capabilities!.Activation);
+        Assert.Null(library.GetPart(1).Capabilities);
+    }
+
     [Theory]
     [InlineData("engineAssetGuid", "unknown property")]
     [InlineData("schemaVersion", "only version 1")]

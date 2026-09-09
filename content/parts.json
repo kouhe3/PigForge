@@ -98,7 +98,7 @@
       "name": "engine",
       "mode": "dynamic",
       "mass": 1.2,
-      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 } },
+      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -111,7 +111,7 @@
       "name": "tnt",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -125,7 +125,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5 },
+      "capabilities": { "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -138,7 +138,7 @@
       "name": "fan",
       "mode": "dynamic",
       "mass": 0.8,
-      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 } },
+      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -165,7 +165,7 @@
       "name": "rocket",
       "mode": "dynamic",
       "mass": 0.9,
-      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 } },
+      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -221,7 +221,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 } },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -248,7 +248,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0 },
+      "capabilities": { "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -262,7 +262,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5 },
+      "capabilities": { "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -329,7 +329,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 } },
+      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -343,7 +343,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 } },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -385,7 +385,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 0, "directionY": 1, "durationTicks": 45, "explodeRadius": 3.0, "explodeImpulse": 14.0 } },
+      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 0, "directionY": 1, "durationTicks": 45, "explodeRadius": 3.0, "explodeImpulse": 14.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -399,7 +399,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 } },
+      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -469,7 +469,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.2 },
+      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -483,7 +483,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.35 },
+      "capabilities": { "umbrella": 0.35, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -497,7 +497,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5 },
+      "capabilities": { "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -511,7 +511,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 } },
+      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -525,7 +525,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "gearbox": true },
+      "capabilities": { "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -539,7 +539,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 8.0 },
+      "capabilities": { "bellows": 8.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -566,7 +566,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.15, "friction": 0.6 },
-      "capabilities": { "tnt": { "fuseTicks": 1 } },
+      "capabilities": { "tnt": { "fuseTicks": 1 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -580,7 +580,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "detacher": true },
+      "capabilities": { "detacher": true, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -622,7 +622,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0.70710678, "directionY": 0.70710678 } },
+      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0.70710678, "directionY": 0.70710678 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -637,7 +637,7 @@
       "variantName": "Nitro TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -652,7 +652,7 @@
       "variantName": "Bomb TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -667,7 +667,7 @@
       "variantName": "Gift TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -682,7 +682,7 @@
       "variantName": "Pumpkin TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",

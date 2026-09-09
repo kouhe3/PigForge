@@ -91,7 +91,8 @@
         "detacher": { "type": "boolean" },
         "bellows": { "type": "number" },
         "light": { "type": "number", "minimum": 0 },
-        "grapple": { "$ref": "#/$defs/grappleCapability" }
+        "grapple": { "$ref": "#/$defs/grappleCapability" },
+        "activation": { "enum": ["toggle", "trigger"] }
     }
   },
   "grappleCapability": {

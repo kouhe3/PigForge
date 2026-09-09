@@ -202,4 +202,7 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
       errors.push(`Part ${partTypeId} capabilities.grapple needs finite impulse and optional finite directionX/directionY.`);
     }
   }
+  if (value.activation !== undefined && value.activation !== "toggle" && value.activation !== "trigger") {
+    errors.push(`Part ${partTypeId} capabilities.activation must be 'toggle' or 'trigger'.`);
+  }
 }

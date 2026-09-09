@@ -29,6 +29,8 @@ export interface PartCapabilities {
   bellows?: number;
   light?: number;
   grapple?: { impulse: number; directionX?: number; directionY?: number };
+  /** "toggle" keeps a persistent effect on/off; "trigger" is a one-shot action. */
+  activation?: "toggle" | "trigger";
 }
 
 export interface PartDefinition {

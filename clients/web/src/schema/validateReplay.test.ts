@@ -64,4 +64,9 @@ describe("validatePartContent variants", () => {
     const self = { ...base, partTypeId: 9, variantOf: 9 };
     expect(validatePartContent(document([self])).some((error) => error.includes("variant of itself"))).toBe(true);
   });
+
+  it("rejects an unknown activation value", () => {
+    const part = { ...base, capabilities: { tnt: { fuseTicks: 5 }, activation: "latch" } };
+    expect(validatePartContent(document([part])).some((error) => error.includes("activation"))).toBe(true);
+  });
 });

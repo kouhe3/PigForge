@@ -344,6 +344,7 @@ public static class PartContentParser
         float? grappleImpulse = null;
         float? grappleDirectionX = null;
         float? grappleDirectionY = null;
+        PartActivation activation = PartActivation.None;
         bool hasError = false;
 
         HashSet<string> seenKeys = new();
@@ -564,9 +565,20 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("activation"))
+        {
+            if (!capabilitiesElement.TryGetProperty("activation", out JsonElement activationElement)
+                || activationElement.ValueKind != JsonValueKind.String
+                || !TryReadActivation(activationElement.GetString(), out activation))
+            {
+                errors.Add($"{path}.capabilities.activation: must be \"toggle\" or \"trigger\".");
+                hasError = true;
+            }
+        }
+
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "activation"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -578,7 +590,23 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation);
+    }
+
+    private static bool TryReadActivation(string? value, out PartActivation activation)
+    {
+        switch (value)
+        {
+            case "toggle":
+                activation = PartActivation.Toggle;
+                return true;
+            case "trigger":
+                activation = PartActivation.Trigger;
+                return true;
+            default:
+                activation = PartActivation.None;
+                return false;
+        }
     }
 
     private static bool TryReadMotor(JsonElement element, string path, out float? thrust, out float? direction)
