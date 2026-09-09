@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
 import { MOVE_SNAP, TOOLS, type ToolId, toolByHotkey } from "./editor/tools";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
+import { gadgetGroups, type GadgetGroup } from "./live/gadgets";
 import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
 import { createPlayerSession, type CommandKind } from "./live/playerSession";
@@ -27,6 +28,8 @@ const placeScale = ref(1);
 const selectedPart = ref(4);
 const tool = ref<ToolId>("place");
 const activeTab = ref<"replay" | "live">("replay");
+// Bumped on every snapshot so the switch bar recomputes (viewState is not reactive).
+const liveFrame = ref(0);
 // The session module is Vue-free; mirror the gating inputs it exposes into refs.
 const player = createPlayerSession();
 const playerPhase = ref(player.phase);
@@ -45,6 +48,14 @@ const canReset = computed(() => playerPhase.value === "materialized" || ownCount
 const canPlace = computed(() => activeTab.value === "live" && session.mode === "live" && canEdit.value);
 const phaseLabel = computed(() => (playerPhase.value === "materialized" ? "运行中" : "编辑中"));
 const toolLabel = computed(() => TOOLS.find((entry) => entry.id === tool.value)?.label ?? "放置");
+
+/** Switch-bar groups: own, materialised, switchable parts grouped by type. */
+const gadgets = computed<GadgetGroup[]>(() => {
+  void liveFrame.value;
+  void ownCount.value;
+  return gadgetGroups(viewState.entities, player.ownEntityIds, session.content);
+});
+const canSwitch = computed(() => activeTab.value === "live" && playerPhase.value === "materialized" && gadgets.value.length > 0);
 
 /** Skins of a base part, declared by content (variantOf). */
 function variantsOf(basePartTypeId: number): PartDefinition[] {
@@ -122,6 +133,30 @@ function removePart(entity: DrawEntity): void {
     1,
     entity.entityId,
   );
+}
+
+/** PGFC kind 9: toggles every switchable part of one type this player owns. */
+function toggleGadget(group: GadgetGroup): void {
+  const active = group.kind === "trigger" ? true : !group.active;
+  dispatch((sequence) => ({ kind: 9, sequence, playerId: 0, tick: 0, partTypeId: group.partTypeId, active }), 9);
+}
+
+/** PGFC kind 8: in play mode a tap on an own switchable part flips its switch. */
+function togglePartFromCanvas(entityId: number): void {
+  if (!canSwitch.value || !player.ownEntityIds.has(entityId)) {
+    return;
+  }
+
+  const entity = viewState.entities.find((entry) => entry.entityId === entityId);
+  const kind = entity === undefined
+    ? undefined
+    : session.content?.parts.find((part) => part.partTypeId === entity.partTypeId)?.capabilities?.activation;
+  if (entity === undefined || (kind !== "toggle" && kind !== "trigger")) {
+    return;
+  }
+
+  const active = kind === "trigger" ? true : !entity.active;
+  dispatch((sequence) => ({ kind: 8, sequence, playerId: 0, tick: 0, entityId, active }), 8, entityId);
 }
 
 function paint(): void {
@@ -229,14 +264,20 @@ function connectLive(): void {
   if (session.liveUrl.includes("/snapshots")) {
     disconnectLive = connectSnapshotSocket(
       session.liveUrl,
-      (snapshot) => session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase),
+      (snapshot) => {
+        session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase);
+        liveFrame.value += 1;
+      },
       (message) => session.setErrors([message]),
     );
     return;
   }
   const play = connectPlaySocket(
     session.liveUrl,
-    (snapshot) => session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase),
+    (snapshot) => {
+      session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase);
+      liveFrame.value += 1;
+    },
     (ack) => {
       const error = player.applyAck(ack);
       syncPlayer();
@@ -271,6 +312,15 @@ function onKey(event: KeyboardEvent): void {
     return;
   }
   if (activeTab.value === "live") {
+    if (playerPhase.value === "materialized") {
+      const key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
+      const group = gadgets.value.find((entry) => entry.hotkey === key);
+      if (group !== undefined) {
+        event.preventDefault();
+        toggleGadget(group);
+        return;
+      }
+    }
     const hotkeyTool = toolByHotkey(event.key);
     if (hotkeyTool !== null) {
       tool.value = hotkeyTool;
@@ -335,6 +385,9 @@ onMounted(() => {
       (message) => {
         if (message.kind === "SelectEntity") {
           viewState.selectedId = message.entityId;
+          if (message.entityId !== null) {
+            togglePartFromCanvas(message.entityId);
+          }
         } else if (message.kind === "PlaceRequested" && canPlace.value) {
           placePart(message.x, message.y);
         } else if (message.kind === "PartScaleChanged") {
@@ -444,6 +497,21 @@ onUnmounted(() => {
         :class="activeTab === 'live' ? 'tool-' + tool : undefined"
         aria-label="物理快照画布：拖拽平移，滚轮缩放，工具 1-5 切换放置/选择/移动/旋转/缩放"
       ></canvas>
+      <div v-if="canSwitch" class="gadget-bar" role="toolbar" aria-label="零件开关">
+        <button
+          v-for="group in gadgets"
+          :key="group.partTypeId"
+          type="button"
+          class="gadget-button"
+          :class="{ on: group.active, trigger: group.kind === 'trigger' }"
+          :aria-pressed="group.kind === 'toggle' ? group.active : undefined"
+          @click="toggleGadget(group)"
+        >
+          <span class="gadget-key">{{ group.hotkey }}</span>
+          <span class="gadget-label">{{ group.label }}</span>
+          <span v-if="group.count > 1" class="gadget-count">×{{ group.count }}</span>
+        </button>
+      </div>
     </main>
 
     <aside class="side">
