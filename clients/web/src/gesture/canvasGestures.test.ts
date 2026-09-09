@@ -23,8 +23,8 @@ function makeCanvas() {
   return { canvas: canvas as unknown as HTMLCanvasElement, listeners };
 }
 
-function pointerEvent(type: string, x: number, y: number, altKey = false, pointerId = 1) {
-  return { type, clientX: x, clientY: y, pointerId, altKey } as unknown as PointerEvent;
+function pointerEvent(type: string, x: number, y: number, altKey = false, pointerId = 1, button = 0, shiftKey = false) {
+  return { type, clientX: x, clientY: y, pointerId, altKey, button, shiftKey, preventDefault: () => {} } as unknown as PointerEvent;
 }
 
 /** World -> CSS position on the 800x600 canvas for the default camera {x:4,y:2,scale:36}. */
@@ -61,7 +61,7 @@ describe("canvas gestures: place and select", () => {
     listeners.pointerdown(pointerEvent("pointerdown", 100, 100));
     listeners.pointerup(pointerEvent("pointerup", 100, 100));
     expect(messages.filter((m) => m.kind === "PlaceRequested")).toHaveLength(0);
-    expect(findMessage(messages, "SelectEntity")).toEqual({ kind: "SelectEntity", entityId: null });
+    expect(findMessage(messages, "SelectEntities")).toEqual({ kind: "SelectEntities", entityIds: [], mode: "replace" });
     detach();
   });
 
@@ -71,7 +71,7 @@ describe("canvas gestures: place and select", () => {
     listeners.pointerdown(pointerEvent("pointerdown", x, y));
     listeners.pointerup(pointerEvent("pointerup", x, y));
     expect(messages.filter((m) => m.kind === "PlaceRequested")).toHaveLength(0);
-    expect(findMessage(messages, "SelectEntity")).toEqual({ kind: "SelectEntity", entityId: part.entityId });
+    expect(findMessage(messages, "SelectEntities")).toEqual({ kind: "SelectEntities", entityIds: [part.entityId], mode: "replace" });
     detach();
   });
 });
@@ -137,6 +137,70 @@ describe("canvas gestures: transform tools", () => {
     listeners.pointerdown(pointerEvent("pointerdown", x, y));
     listeners.pointerup(pointerEvent("pointerup", x, y));
     expect(messages.some((m) => m.kind === "MoveRequested")).toBe(false);
+    detach();
+  });
+});
+
+describe("canvas gestures: marquee select", () => {
+  const far: DrawEntity = { ...part, entityId: 9, x: 6, y: 2 };
+
+  it("box-selects entities in ascending order and never pans", () => {
+    const { listeners, messages, detach } = attach([far, part], { tool: () => "select" });
+    const [x0, y0] = worldToCss(-1, -1);
+    const [x1, y1] = worldToCss(8, 4);
+    listeners.pointerdown(pointerEvent("pointerdown", x0, y0));
+    listeners.pointermove(pointerEvent("pointermove", x1, y1));
+    listeners.pointerup(pointerEvent("pointerup", x1, y1));
+
+    expect(findMessage(messages, "SelectEntities")).toEqual({ kind: "SelectEntities", entityIds: [7, 9], mode: "replace" });
+    const marquees = messages.filter((m) => m.kind === "Marquee");
+    expect(marquees[marquees.length - 1]).toEqual({ kind: "Marquee", rect: null });
+    expect(messages.some((m) => m.kind === "CameraChanged")).toBe(false);
+    detach();
+  });
+
+  it("merges into the existing selection while Shift is held", () => {
+    const { listeners, messages, detach } = attach([far, part], { tool: () => "select" });
+    const [x0, y0] = worldToCss(-1, -1);
+    const [x1, y1] = worldToCss(1, 1);
+    listeners.pointerdown(pointerEvent("pointerdown", x0, y0));
+    listeners.pointermove(pointerEvent("pointermove", x1, y1));
+    listeners.pointerup(pointerEvent("pointerup", x1, y1, false, 1, 0, true));
+
+    expect(findMessage(messages, "SelectEntities")).toEqual({ kind: "SelectEntities", entityIds: [7], mode: "add" });
+    detach();
+  });
+
+  it("clears the selection on an empty select-tool tap", () => {
+    const { listeners, messages, detach } = attach([part], { tool: () => "select" });
+    listeners.pointerdown(pointerEvent("pointerdown", 10, 10));
+    listeners.pointerup(pointerEvent("pointerup", 10, 10));
+
+    expect(findMessage(messages, "SelectEntities")).toEqual({ kind: "SelectEntities", entityIds: [], mode: "replace" });
+    detach();
+  });
+
+  it("pans the camera with the middle button without touching the selection", () => {
+    const { listeners, messages, detach } = attach([part], { tool: () => "select" });
+    listeners.pointerdown(pointerEvent("pointerdown", 100, 100, false, 1, 1));
+    listeners.pointermove(pointerEvent("pointermove", 140, 100, false, 1, 1));
+    listeners.pointerup(pointerEvent("pointerup", 140, 100, false, 1, 1));
+
+    expect(messages.some((m) => m.kind === "CameraChanged")).toBe(true);
+    expect(messages.some((m) => m.kind === "SelectEntities")).toBe(false);
+    detach();
+  });
+
+  it("previews the marquee while dragging and clears it on release", () => {
+    const { listeners, messages, detach } = attach([part], { tool: () => "select" });
+    const [x0, y0] = worldToCss(-1, -1);
+    const [x1, y1] = worldToCss(1, 1);
+    listeners.pointerdown(pointerEvent("pointerdown", x0, y0));
+    listeners.pointermove(pointerEvent("pointermove", x1, y1));
+
+    expect(findMessage(messages, "Marquee")?.rect).toEqual({ minX: -1, minY: -1, maxX: 1, maxY: 1 });
+    listeners.pointerup(pointerEvent("pointerup", x1, y1));
+    expect(messages.filter((m) => m.kind === "Marquee")[1]).toEqual({ kind: "Marquee", rect: null });
     detach();
   });
 });

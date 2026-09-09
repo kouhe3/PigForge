@@ -30,6 +30,8 @@ const tool = ref<ToolId>("place");
 const activeTab = ref<"replay" | "live">("replay");
 // Bumped on every snapshot so the switch bar recomputes (viewState is not reactive).
 const liveFrame = ref(0);
+// Selection count mirrored into a ref so the inspector updates without a snapshot.
+const selectedCount = ref(0);
 // The session module is Vue-free; mirror the gating inputs it exposes into refs.
 const player = createPlayerSession();
 const playerPhase = ref(player.phase);
@@ -192,10 +194,11 @@ function paint(): void {
     viewState.camera,
     entities,
     session.content,
-    viewState.selectedId,
+    viewState.selectedIds,
     activeTab.value === "live" ? undefined : GOAL_ZONE,
     MAP_BOUNDS,
     partTextures.value,
+    viewState.marquee,
   );
   raf = requestAnimationFrame(paint);
 }
@@ -296,8 +299,33 @@ function connectLive(): void {
 }
 
 function selectedEntity() {
-  const id = viewState.selectedId;
+  const id = viewState.selectedIds[0];
   return viewState.entities.find((entity) => entity.entityId === id) ?? null;
+}
+
+/** Applies a gesture selection message; the primary is the first id. */
+function applySelection(entityIds: number[], mode: "replace" | "add" | "toggle"): void {
+  if (mode === "replace") {
+    viewState.selectedIds = [...entityIds];
+  } else if (mode === "add") {
+    const merged = new Set(viewState.selectedIds);
+    for (const entityId of entityIds) {
+      merged.add(entityId);
+    }
+    viewState.selectedIds = [...merged];
+  } else {
+    const next = new Set(viewState.selectedIds);
+    for (const entityId of entityIds) {
+      if (next.has(entityId)) {
+        next.delete(entityId);
+      } else {
+        next.add(entityId);
+      }
+    }
+    viewState.selectedIds = [...next];
+  }
+
+  selectedCount.value = viewState.selectedIds.length;
 }
 
 function onKey(event: KeyboardEvent): void {
@@ -383,11 +411,13 @@ onMounted(() => {
       viewState.camera,
       entitiesRef,
       (message) => {
-        if (message.kind === "SelectEntity") {
-          viewState.selectedId = message.entityId;
-          if (message.entityId !== null) {
-            togglePartFromCanvas(message.entityId);
+        if (message.kind === "SelectEntities") {
+          applySelection(message.entityIds, message.mode);
+          if (message.entityIds.length === 1 && message.mode !== "add") {
+            togglePartFromCanvas(message.entityIds[0]);
           }
+        } else if (message.kind === "Marquee") {
+          viewState.marquee = message.rect;
         } else if (message.kind === "PlaceRequested" && canPlace.value) {
           placePart(message.x, message.y);
         } else if (message.kind === "PartScaleChanged") {
@@ -517,7 +547,7 @@ onUnmounted(() => {
     <aside class="side">
       <template v-if="activeTab === 'live'">
         <h1>零件</h1>
-        <p class="meta">工具 1–5：放置/选择/移动/旋转/缩放。拖动选中零件变换，Alt 不吸附，方向键微调移动。Q/E 放置角，Alt+滚轮放置缩放，R 旋转，Delete 删除。不提交位姿。</p>
+        <p class="meta">工具 1–5：放置/选择/移动/旋转/缩放。拖动选中零件变换，Alt 不吸附，方向键微调移动。选择工具左键拖拽空白框选（Shift 加选），中键拖拽平移。Q/E 放置角，Alt+滚轮放置缩放，R 旋转，Delete 删除。不提交位姿。</p>
         <div class="palette">
           <template v-for="part in PALETTE" :key="part.partTypeId">
             <button
@@ -539,7 +569,8 @@ onUnmounted(() => {
       </template>
 
       <h1>检查器</h1>
-      <p v-if="!selectedEntity()" class="meta">点击实体查看位姿。</p>
+      <p v-if="!selectedEntity()" class="meta">点击实体查看位姿；选择工具拖拽空白框选，Shift 加选。</p>
+      <p v-else-if="selectedCount > 1" class="meta">已选中 {{ selectedCount }} 个零件，主选 #{{ selectedEntity()?.entityId }}。</p>
       <dl v-else>
         <dt>entityId</dt>
         <dd>{{ selectedEntity()?.entityId }}</dd>

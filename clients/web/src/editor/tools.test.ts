@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_SCALE,
   MIN_SCALE,
+  entitiesInBox,
   movePose,
   pointerAngle,
   pointerDistance,
@@ -13,6 +14,7 @@ import {
   snapScale,
   toolByHotkey,
 } from "./tools";
+import type { DrawEntity } from "@/schema/types";
 
 describe("editor tools", () => {
   it("maps hotkeys to tool ids", () => {
@@ -72,5 +74,16 @@ describe("editor tools", () => {
     expect(scalePose(start, Number.NaN, true).scale).toBeCloseTo(1.5);
     expect(scalePose(start, 0, true).scale).toBeCloseTo(1.5);
     expect(scalePose(start, 10, false).scale).toBe(MAX_SCALE);
+  });
+
+  it("selects entities whose centre is inside the box, ascending", () => {
+    const entity = (entityId: number, x: number, y: number): DrawEntity => ({
+      entityId, partTypeId: 1, x, y, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 1, active: false,
+    });
+    const entities = [entity(9, 0.5, 0.5), entity(3, -1, 2), entity(5, 4, 0.5)];
+
+    expect(entitiesInBox(entities, -2, -2, 1, 3)).toEqual([3, 9]);
+    expect(entitiesInBox(entities, 0.5, 0.5, 0.5, 0.5)).toEqual([9]); // boundary counts
+    expect(entitiesInBox(entities, 10, 10, 11, 11)).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-import type { DrawEntity, PartContentDocument, PartDefinition, PartShape } from "@/schema/types";
+import type { DrawEntity, MarqueeRect, PartContentDocument, PartDefinition, PartShape } from "@/schema/types";
 import { type Camera, worldToScreen } from "./camera";
 import { layoutSprites, type PartTextureSet } from "./atlas";
 
@@ -13,10 +13,11 @@ export function drawFrame(
   camera: Camera,
   entities: readonly DrawEntity[],
   content: PartContentDocument | null,
-  selectedId: number | null,
+  selectedIds: readonly number[],
   goal?: { minX: number; minY: number; maxX: number; maxY: number },
   bounds?: { minX: number; minY: number; maxX: number; maxY: number },
   textures?: PartTextureSet | null,
+  marquee?: MarqueeRect | null,
 ): void {
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
@@ -130,12 +131,24 @@ export function drawFrame(
       ctx.textBaseline = "middle";
       ctx.fillText(part.name, 0, 0);
     }
-    if (selectedId === entity.entityId) {
+    if (selectedIds.includes(entity.entityId)) {
       ctx.strokeStyle = SELECT_STROKE;
       ctx.lineWidth = 2;
       ctx.strokeRect(-4, -4, 8, 8);
     }
     ctx.restore();
+  }
+
+  if (marquee) {
+    const a = worldToScreen(camera, marquee.minX, marquee.maxY, width, height);
+    const b = worldToScreen(camera, marquee.maxX, marquee.minY, width, height);
+    ctx.fillStyle = "rgba(255, 209, 102, 0.12)";
+    ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    ctx.strokeStyle = SELECT_STROKE;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    ctx.setLineDash([]);
   }
 }
 

@@ -1,3 +1,5 @@
+import type { DrawEntity } from "@/schema/types";
+
 /**
  * Build-mode editing tools (advanced building): the tool set, its snap steps, and the
  * pure pose math the gesture bridge uses. No DOM, no Vue — see docs/specs/advanced-building.md.
@@ -96,4 +98,18 @@ export function rotatePose(start: Pose, accumulatedDelta: number, snap: boolean)
 export function scalePose(start: Pose, ratio: number, snap: boolean): Pose {
   const factor = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
   return { x: start.x, y: start.y, yaw: start.yaw, scale: snapScale(start.scale * factor, snap) };
+}
+
+/** Entity ids whose centre lies inside the world-space box, ascending (marquee hit test). */
+export function entitiesInBox(
+  entities: readonly DrawEntity[],
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+): number[] {
+  return entities
+    .filter((entity) => entity.x >= minX && entity.x <= maxX && entity.y >= minY && entity.y <= maxY)
+    .map((entity) => entity.entityId)
+    .sort((left, right) => left - right);
 }

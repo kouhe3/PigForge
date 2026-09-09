@@ -6,13 +6,14 @@ import {
   type Vec2,
   isTransformTool,
   movePose,
+  entitiesInBox,
   pointerAngle,
   pointerDistance,
   rotatePose,
   scalePose,
   shortestAngleDelta,
 } from "@/editor/tools";
-import type { DrawEntity, GestureMessage } from "@/schema/types";
+import type { DrawEntity, GestureMessage, MarqueeRect } from "@/schema/types";
 
 export interface CanvasGestureOptions {
   /** Current build tool; pointer semantics follow it. Defaults to "place". */
@@ -57,10 +58,18 @@ export function attachCanvasGestures(
   let downY = 0;
   let hitEntityThisDown: number | null = null;
   let drag: TransformDrag | null = null;
+  let panning = false;
+  let marquee: { startWorld: Vec2 } | null = null;
 
   const tool = (): ToolId => options?.tool?.() ?? "place";
   const toWorld = (x: number, y: number): Vec2 =>
     screenToWorld(camera, x, y, canvas.clientWidth, canvas.clientHeight);
+
+  const panCamera = (dx: number, dy: number): void => {
+    camera.x -= dx / camera.scale;
+    camera.y += dy / camera.scale;
+    onMessage({ kind: "CameraChanged", panX: camera.x, panY: camera.y, scale: camera.scale });
+  };
 
   const onPointerDown = (event: PointerEvent): void => {
     dragging = true;
@@ -71,6 +80,17 @@ export function attachCanvasGestures(
     downX = point.x;
     downY = point.y;
     canvas.setPointerCapture(event.pointerId);
+
+    // Middle button pans in every tool; left-drag belongs to the active tool.
+    if (event.button === 1) {
+      event.preventDefault();
+      panning = true;
+      drag = null;
+      marquee = null;
+      hitEntityThisDown = null;
+      return;
+    }
+
     const world = toWorld(point.x, point.y);
     let hit: number | null = null;
     for (const entity of entities.current) {
@@ -81,9 +101,22 @@ export function attachCanvasGestures(
       }
     }
     hitEntityThisDown = hit;
-    onMessage({ kind: "SelectEntity", entityId: hit });
 
     const currentTool = tool();
+    // The select tool drags a marquee from empty space; the box resolves on release so
+    // Shift can merge with the selection that existed when the drag started.
+    if (currentTool === "select" && hit === null) {
+      marquee = { startWorld: world };
+      drag = null;
+      return;
+    }
+
+    onMessage({
+      kind: "SelectEntities",
+      entityIds: hit === null ? [] : [hit],
+      mode: event.shiftKey ? "toggle" : "replace",
+    });
+
     const target = hit === null ? undefined : entities.current.find((entity) => entity.entityId === hit);
     drag = null;
     if (hit !== null && target && isTransformTool(currentTool) && options?.isEditable?.(hit)) {
@@ -114,6 +147,23 @@ export function attachCanvasGestures(
     if (Math.abs(point.x - downX) + Math.abs(point.y - downY) > DRAG_THRESHOLD_PX) {
       moved = true;
     }
+
+    if (panning) {
+      if (moved) {
+        panCamera(dx, dy);
+      }
+
+      return;
+    }
+
+    if (marquee) {
+      if (moved) {
+        onMessage({ kind: "Marquee", rect: marqueeRect(marquee.startWorld, toWorld(point.x, point.y)) });
+      }
+
+      return;
+    }
+
     if (drag && moved) {
       const world = toWorld(point.x, point.y);
       const snap = !event.altKey;
@@ -136,14 +186,40 @@ export function attachCanvasGestures(
     if (!moved) {
       return;
     }
-    camera.x -= dx / camera.scale;
-    camera.y += dy / camera.scale;
-    onMessage({ kind: "CameraChanged", panX: camera.x, panY: camera.y, scale: camera.scale });
+    panCamera(dx, dy);
   };
 
   const onPointerUp = (event: PointerEvent): void => {
     dragging = false;
     canvas.releasePointerCapture(event.pointerId);
+
+    if (panning) {
+      panning = false;
+      hitEntityThisDown = null;
+      return;
+    }
+
+    if (marquee) {
+      const start = marquee;
+      marquee = null;
+      onMessage({ kind: "Marquee", rect: null });
+      if (moved) {
+        const point = pointerCss(canvas, event);
+        const world = toWorld(point.x, point.y);
+        const rect = marqueeRect(start.startWorld, world);
+        onMessage({
+          kind: "SelectEntities",
+          entityIds: entitiesInBox(entities.current, rect.minX, rect.minY, rect.maxX, rect.maxY),
+          mode: event.shiftKey ? "add" : "replace",
+        });
+      } else {
+        onMessage({ kind: "SelectEntities", entityIds: [], mode: "replace" });
+      }
+
+      hitEntityThisDown = null;
+      return;
+    }
+
     if (drag) {
       const finished = drag;
       drag = null;
@@ -175,15 +251,23 @@ export function attachCanvasGestures(
     onMessage({ kind: "CameraChanged", panX: camera.x, panY: camera.y, scale: camera.scale });
   };
 
+  const onMouseDown = (event: MouseEvent): void => {
+    // Middle-button drag pans; stop the browser's autoscroll gesture.
+    if (event.button === 1) {
+      event.preventDefault();
+    }
+  };
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("wheel", onWheel, { passive: false });
+  canvas.addEventListener("mousedown", onMouseDown);
   return () => {
     canvas.removeEventListener("pointerdown", onPointerDown);
     canvas.removeEventListener("pointermove", onPointerMove);
     canvas.removeEventListener("pointerup", onPointerUp);
     canvas.removeEventListener("wheel", onWheel);
+    canvas.removeEventListener("mousedown", onMouseDown);
   };
 }
 
@@ -207,6 +291,15 @@ function poseEquals(left: Pose, right: Pose): boolean {
     Math.abs(left.yaw - right.yaw) < 1e-4 &&
     Math.abs(left.scale - right.scale) < 1e-4
   );
+}
+
+function marqueeRect(start: Vec2, end: Vec2): MarqueeRect {
+  return {
+    minX: Math.min(start.x, end.x),
+    minY: Math.min(start.y, end.y),
+    maxX: Math.max(start.x, end.x),
+    maxY: Math.max(start.y, end.y),
+  };
 }
 
 function pointerCss(canvas: HTMLCanvasElement, event: PointerEvent): { x: number; y: number } {

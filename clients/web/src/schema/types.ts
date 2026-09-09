@@ -149,9 +149,18 @@ export interface ToolPreviewPose {
   scale: number;
 }
 
+/** World-space rectangle drawn by the select tool while dragging. */
+export interface MarqueeRect {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 export type GestureMessage =
   | { kind: "CameraChanged"; panX: number; panY: number; scale: number }
-  | { kind: "SelectEntity"; entityId: number | null }
+  | { kind: "SelectEntities"; entityIds: number[]; mode: "replace" | "add" | "toggle" }
+  | { kind: "Marquee"; rect: MarqueeRect | null }
   | { kind: "PlaceRequested"; x: number; y: number }
   | { kind: "PartScaleChanged"; scale: number }
   | { kind: "ToolPreview"; preview: ToolPreviewPose | null }

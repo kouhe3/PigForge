@@ -87,14 +87,14 @@ const engine: DrawEntity = { ...block, entityId: 4, partTypeId: 8, active: false
 describe("drawFrame light halo", () => {
   it("casts a radial glow for light parts", () => {
     const { ctx, calls } = makeCtx();
-    drawFrame(ctx, createCamera(), [light], content, null);
+    drawFrame(ctx, createCamera(), [light], content, []);
     expect(calls.createRadialGradient).toBe(1);
     expect(calls.arc).toBe(1); // the glow circle; the box part itself is a rect
   });
 
   it("does not glow for plain parts", () => {
     const { ctx, calls } = makeCtx();
-    drawFrame(ctx, createCamera(), [block], content, null);
+    drawFrame(ctx, createCamera(), [block], content, []);
     expect(calls.createRadialGradient).toBeUndefined();
   });
 });
@@ -102,17 +102,17 @@ describe("drawFrame light halo", () => {
 describe("drawFrame switch outline", () => {
   it("outlines a switchable part only while its switch is on", () => {
     const off = makeCtx();
-    drawFrame(off.ctx, createCamera(), [{ ...engine, active: false }], content, null);
+    drawFrame(off.ctx, createCamera(), [{ ...engine, active: false }], content, []);
     expect(off.calls.strokeRect).toBe(1);
 
     const on = makeCtx();
-    drawFrame(on.ctx, createCamera(), [{ ...engine, active: true }], content, null);
+    drawFrame(on.ctx, createCamera(), [{ ...engine, active: true }], content, []);
     expect(on.calls.strokeRect).toBe(2);
   });
 
   it("ignores the flag on a part without a switch", () => {
     const { ctx, calls } = makeCtx();
-    drawFrame(ctx, createCamera(), [{ ...block, active: true }], content, null);
+    drawFrame(ctx, createCamera(), [{ ...block, active: true }], content, []);
     expect(calls.strokeRect).toBe(1);
   });
 });
@@ -120,7 +120,7 @@ describe("drawFrame switch outline", () => {
 describe("drawFrame previews", () => {
   it("renders bodyId 0 translucent, without a halo or name label", () => {
     const { ctx, calls, alphas } = makeCtx();
-    drawFrame(ctx, createCamera(), [preview], content, null);
+    drawFrame(ctx, createCamera(), [preview], content, []);
     expect(calls.createRadialGradient).toBeUndefined();
     expect(calls.fillRect).toBe(2); // background + the part shape
     expect(alphas[alphas.length - 1]).toBeCloseTo(0.45);
@@ -129,7 +129,7 @@ describe("drawFrame previews", () => {
 
   it("keeps the halo, full alpha, and the label for a live body", () => {
     const { ctx, calls, alphas } = makeCtx();
-    drawFrame(ctx, createCamera(), [light], content, null);
+    drawFrame(ctx, createCamera(), [light], content, []);
     expect(calls.createRadialGradient).toBe(1);
     expect(alphas[alphas.length - 1]).toBe(1);
     expect(calls.fillText).toBe(1);
@@ -139,7 +139,7 @@ describe("drawFrame previews", () => {
 describe("drawFrame entity placement", () => {
   it("translates each entity to its own screen position before drawing", () => {
     const { ctx, translations } = makeCtx();
-    drawFrame(ctx, createCamera(), [light, block], content, null);
+    drawFrame(ctx, createCamera(), [light, block], content, []);
     // camera { x: 4, y: 2, scale: 36 } over an 800x600 canvas:
     // world (2,2) -> (328,300), world (4,2) -> (400,300).
     expect(translations).toEqual([
@@ -166,7 +166,7 @@ describe("drawFrame original-art textures", () => {
   it("blits the manifest rect at its original world size and drops the name label", () => {
     const { ctx, calls, draws } = makeCtx();
     const image = {} as CanvasImageSource;
-    drawFrame(ctx, createCamera(), [block], content, null, undefined, undefined, textures(image));
+    drawFrame(ctx, createCamera(), [block], content, [], undefined, undefined, textures(image));
     expect(calls.drawImage).toBe(1);
     // 2x3 world-unit sprite at camera scale 36 -> 72x108, independent of the 1x1 shape.
     expect(draws[0]).toEqual([10, 20, 100, 100, -36, -54, 72, 108]);
@@ -176,8 +176,27 @@ describe("drawFrame original-art textures", () => {
 
   it("falls back to the shape when the atlas image is missing", () => {
     const { ctx, calls } = makeCtx();
-    drawFrame(ctx, createCamera(), [block], content, null, undefined, undefined, textures(undefined));
+    drawFrame(ctx, createCamera(), [block], content, [], undefined, undefined, textures(undefined));
     expect(calls.drawImage).toBeUndefined();
     expect(calls.fillRect).toBe(2); // background + the part shape
+  });
+});
+
+describe("drawFrame selection and marquee", () => {
+  it("draws one selection box per selected entity plus the marquee", () => {
+    const { ctx, calls } = makeCtx();
+    drawFrame(
+      ctx,
+      createCamera(),
+      [light, block],
+      content,
+      [light.entityId, block.entityId],
+      undefined,
+      undefined,
+      undefined,
+      { minX: 1, minY: 1, maxX: 5, maxY: 3 },
+    );
+
+    expect(calls.strokeRect).toBe(5); // 2 part outlines + 2 selection boxes + 1 marquee
   });
 });
