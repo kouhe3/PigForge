@@ -28,18 +28,6 @@
       ]
     },
     {
-      "partTypeId": 3,
-      "name": "ball-weight",
-      "mode": "dynamic",
-      "mass": 2.5,
-      "shapes": [
-        {
-          "kind": "sphere",
-          "radius": 0.4
-        }
-      ]
-    },
-    {
       "partTypeId": 4,
       "name": "pig",
       "mode": "dynamic",
@@ -376,20 +364,6 @@
         {
           "kind": "box",
           "halfExtents": [0.5, 0.5, 0.5]
-        }
-      ]
-    },
-    {
-      "partTypeId": 29,
-      "name": "firework-blue",
-      "mode": "dynamic",
-      "mass": 0.9,
-      "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 0, "directionY": 1, "durationTicks": 45, "explodeRadius": 3.0, "explodeImpulse": 14.0 }, "activation": "trigger" },
-      "shapes": [
-        {
-          "kind": "box",
-          "halfExtents": [0.25, 0.45, 0.25]
         }
       ]
     },

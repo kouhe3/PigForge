@@ -3,7 +3,6 @@ export { PLAY_PARTS } from "./playParts.generated";
 export const PALETTE = [
   { partTypeId: 4, label: "猪" },
   { partTypeId: 1, label: "木块" },
-  { partTypeId: 3, label: "配重球" },
   { partTypeId: 7, label: "轮子" },
   { partTypeId: 8, label: "发动机" },
   { partTypeId: 9, label: "TNT" },
@@ -26,7 +25,6 @@ export const PALETTE = [
   { partTypeId: 26, label: "绿汽水" },
   { partTypeId: 27, label: "蛋" },
   { partTypeId: 28, label: "拳套" },
-  { partTypeId: 29, label: "蓝烟花" },
   { partTypeId: 30, label: "红烟花" },
   { partTypeId: 31, label: "木滑翔翼" },
   { partTypeId: 32, label: "金属滑翔翼" },

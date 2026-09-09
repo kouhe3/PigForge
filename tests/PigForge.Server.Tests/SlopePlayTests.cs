@@ -43,7 +43,7 @@ public sealed class SlopePlayTests
     public void PlacingSphereThenStartDoesNotThrow()
     {
         using GameRoom room = PlayHost.CreateSlopeRoom();
-        Assert.Equal(CommandStatus.Accepted, room.Submit(new PlacePartCommand(0, 1, 1, 3, -5f, 5f, 0f, 1f)).Status);
+        Assert.Equal(CommandStatus.Accepted, room.Submit(new PlacePartCommand(0, 1, 1, 21, -5f, 5f, 0f, 1f)).Status);
         Assert.Equal(CommandStatus.Accepted, room.Submit(new StartSimulationCommand(0, 2, 1)).Status);
         Assert.Equal(RoomMode.Running, room.Mode);
     }
