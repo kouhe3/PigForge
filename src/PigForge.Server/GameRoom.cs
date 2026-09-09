@@ -178,6 +178,11 @@ public sealed class GameRoom : IDisposable
             _rules.AddWheel(entity);
         }
 
+        if (_sandboxMode && IsSwitchable(spec.PartTypeId))
+        {
+            _rules.AddActivation(entity);
+        }
+
         return entity;
     }
 
@@ -297,6 +302,12 @@ public sealed class GameRoom : IDisposable
                     : (CommandStatus.RuleRejected, removed.Error, 0);
             }
 
+            case SetPartActiveCommand activate:
+                return SetPartActive(activate.EntityId, activate.Active, owner: 0);
+
+            case SetPartTypeActiveCommand activateType:
+                return SetPartTypeActive(activateType.PartTypeId, activateType.Active, owner: 0);
+
             case StartSimulationCommand:
                 try
                 {
@@ -402,6 +413,11 @@ public sealed class GameRoom : IDisposable
         if (capabilities.HasGrapple)
         {
             _rules.AddGrapple(entity, capabilities.GrappleImpulse!.Value, capabilities.GrappleDirectionX ?? 1f, capabilities.GrappleDirectionY ?? 0f);
+        }
+
+        if (_sandboxMode && IsSwitchable(partTypeId))
+        {
+            _rules.AddActivation(entity);
         }
     }
 
@@ -642,6 +658,12 @@ public sealed class GameRoom : IDisposable
                     : (CommandStatus.RuleRejected, scaled.Error, 0);
             }
 
+            case SetPartActiveCommand activate:
+                return SetPartActive(activate.EntityId, activate.Active, activate.PlayerId);
+
+            case SetPartTypeActiveCommand activateType:
+                return SetPartTypeActive(activateType.PartTypeId, activateType.Active, activateType.PlayerId);
+
             case RemovePartCommand remove:
             {
                 EntityId entity = new(remove.EntityId);
@@ -680,6 +702,55 @@ public sealed class GameRoom : IDisposable
                 return (CommandStatus.UnknownKind, ConstructionError.None, 0);
         }
     }
+
+    private (CommandStatus Status, ConstructionError Error, uint EntityId) SetPartActive(uint entityValue, bool active, uint owner)
+    {
+        EntityId entity = new(entityValue);
+        if (!_entities.IsAlive(entity) || !_parts.TryGet(entity, out PartLink part))
+        {
+            return (CommandStatus.RuleRejected, ConstructionError.EntityNotFound, 0);
+        }
+
+        if (_construction.OwnerOf(entity) != owner)
+        {
+            return (CommandStatus.RuleRejected, ConstructionError.NotOwnedByPlayer, 0);
+        }
+
+        if (!IsSwitchable(part.PartTypeId) || !_rules.HasSwitch(entity))
+        {
+            return (CommandStatus.RuleRejected, ConstructionError.PartNotSwitchable, 0);
+        }
+
+        _rules.SetActive(entity, active);
+        return (CommandStatus.Accepted, ConstructionError.None, entityValue);
+    }
+
+    /// <summary>Sets the switch for every part of one type the owner has placed, ascending.</summary>
+    private (CommandStatus Status, ConstructionError Error, uint EntityId) SetPartTypeActive(uint partTypeId, bool active, uint owner)
+    {
+        if (!IsSwitchable(partTypeId))
+        {
+            return (CommandStatus.RuleRejected, ConstructionError.PartNotSwitchable, 0);
+        }
+
+        bool any = false;
+        foreach (uint entityValue in _construction.PlacedEntitiesOf(owner))
+        {
+            EntityId entity = new(entityValue);
+            if (_parts.TryGet(entity, out PartLink part) && part.PartTypeId == partTypeId && _rules.HasSwitch(entity))
+            {
+                _rules.SetActive(entity, active);
+                any = true;
+            }
+        }
+
+        return any
+            ? (CommandStatus.Accepted, ConstructionError.None, 0u)
+            : (CommandStatus.RuleRejected, ConstructionError.PartNotSwitchable, 0u);
+    }
+
+    private bool IsSwitchable(uint partTypeId) =>
+        _content.GetPart(partTypeId).Capabilities?.Activation is PartActivation.Toggle or PartActivation.Trigger;
 
     /// <summary>Materialises one sandbox player's layout into authoritative bodies.
     /// Returns false when the player has no placed parts.</summary>
@@ -970,7 +1041,8 @@ public sealed class GameRoom : IDisposable
                     ToReplay(rotation),
                     ToReplay(snapshot.LinearVelocity),
                     ToReplay(snapshot.AngularVelocity),
-                    _transforms.TryGet(new EntityId(entityValue), out EntityTransform transform) ? transform.Scale : 1f)))
+                    _transforms.TryGet(new EntityId(entityValue), out EntityTransform transform) ? transform.Scale : 1f,
+                    _rules.IsPartActive(new EntityId(entityValue)) ? (byte)1 : (byte)0)))
             {
                 bytesWritten = 0;
                 return false;
@@ -1012,7 +1084,8 @@ public sealed class GameRoom : IDisposable
                     ToReplay(transform.Rotation),
                     zero,
                     zero,
-                    transform.Scale)))
+                    transform.Scale,
+                    _rules.IsPartActive(entity) ? (byte)1 : (byte)0)))
             {
                 bytesWritten = 0;
                 return false;
@@ -1080,7 +1153,8 @@ public sealed class GameRoom : IDisposable
                     ToReplay(rotation),
                     linearVelocity,
                     angularVelocity,
-                    transform.Scale)))
+                    transform.Scale,
+                    _rules.IsPartActive(entity) ? (byte)1 : (byte)0)))
             {
                 bytesWritten = 0;
                 return false;
@@ -1120,6 +1194,7 @@ public sealed class GameRoom : IDisposable
             hash = unchecked((hash * 31) + snapshot.AngularVelocity.GetHashCode());
         }
 
+        hash = unchecked((hash * 31) + _rules.ComputeActivationHash());
         return hash;
     }
 

@@ -13,6 +13,7 @@ public sealed class SandboxRoomTests
     private const uint PartPig = 2;
     private const uint PartEgg = 4;
     private const uint PartGround = 5;
+    private const uint PartMotor = 6;
     private const uint PlayerOne = 1;
     private const uint PlayerTwo = 2;
 
@@ -523,6 +524,107 @@ public sealed class SandboxRoomTests
         Assert.Equal(CommandStatus.WrongMode, room.Submit(Scale(5, PlayerOne, entityId, 2f)).Status);
     }
 
+    [Fact]
+    public void SwitchCommandsAreRejectedWhileEditing()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint entityId = room.Submit(PlacePart(1, PlayerOne, PartMotor, 0.5f, 0.5f)).EntityId;
+
+        CommandOutcome outcome = room.Submit(SetActive(2, PlayerOne, entityId, active: true));
+
+        Assert.Equal(CommandStatus.WrongMode, outcome.Status);
+    }
+
+    [Fact]
+    public void MaterialisedPlayerSwitchesOwnPartAndSnapshotCarriesTheFlag()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint entityId = room.Submit(PlacePart(1, PlayerOne, PartMotor, 0.5f, 0.5f)).EntityId;
+        Assert.True(room.Submit(Start(2, PlayerOne)).IsAccepted);
+
+        Assert.Equal((byte)0, Assert.Single(PublishEntities(room, out _)).Flags);
+
+        CommandOutcome outcome = room.Submit(SetActive(3, PlayerOne, entityId, active: true));
+
+        Assert.True(outcome.IsAccepted);
+        Assert.Equal(entityId, outcome.EntityId);
+        Assert.Equal((byte)1, Assert.Single(PublishEntities(room, out _)).Flags);
+    }
+
+    [Fact]
+    public void SwitchingAnotherPlayersPartIsRejected()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint entityId = room.Submit(PlacePart(1, PlayerOne, PartMotor, 0.5f, 0.5f)).EntityId;
+        Assert.True(room.Submit(Start(2, PlayerOne)).IsAccepted);
+        room.Submit(PlacePart(1, PlayerTwo, PartMotor, 6.5f, 0.5f));
+        Assert.True(room.Submit(Start(2, PlayerTwo)).IsAccepted);
+
+        CommandOutcome outcome = room.Submit(SetActive(3, PlayerTwo, entityId, active: true));
+
+        Assert.Equal(CommandStatus.RuleRejected, outcome.Status);
+        Assert.Equal(ConstructionError.NotOwnedByPlayer, outcome.Error);
+    }
+
+    [Fact]
+    public void SwitchingANonSwitchablePartIsRejected()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint entityId = room.Submit(PlacePart(1, PlayerOne, PartBlock, 0.5f, 0.5f)).EntityId;
+        Assert.True(room.Submit(Start(2, PlayerOne)).IsAccepted);
+
+        CommandOutcome outcome = room.Submit(SetActive(3, PlayerOne, entityId, active: true));
+
+        Assert.Equal(CommandStatus.RuleRejected, outcome.Status);
+        Assert.Equal(ConstructionError.PartNotSwitchable, outcome.Error);
+    }
+
+    [Fact]
+    public void SetPartTypeActiveTogglesOnlyTheOwnersParts()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint first = room.Submit(PlacePart(1, PlayerOne, PartMotor, 0.5f, 0.5f)).EntityId;
+        uint second = room.Submit(PlacePart(2, PlayerOne, PartMotor, 3.5f, 0.5f)).EntityId;
+        uint foreign = room.Submit(PlacePart(1, PlayerTwo, PartMotor, 6.5f, 0.5f)).EntityId;
+        Assert.True(room.Submit(Start(3, PlayerOne)).IsAccepted);
+        Assert.True(room.Submit(Start(2, PlayerTwo)).IsAccepted);
+
+        CommandOutcome outcome = room.Submit(SetTypeActive(4, PlayerOne, PartMotor, active: true));
+
+        Assert.True(outcome.IsAccepted);
+        List<SnapshotEntity> entities = PublishEntities(room, out _);
+        Assert.Equal((byte)1, entities.Single(entity => entity.EntityId == first).Flags);
+        Assert.Equal((byte)1, entities.Single(entity => entity.EntityId == second).Flags);
+        Assert.Equal((byte)0, entities.Single(entity => entity.EntityId == foreign).Flags);
+    }
+
+    [Fact]
+    public void LegacyRoomRejectsSwitchCommands()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateLegacyRoom(world);
+        room.SetupFromLevel(Level());
+        uint entityId = room.Submit(PlacePart(1, PlayerOne, PartMotor, 0.5f, 0.5f)).EntityId;
+
+        CommandOutcome building = room.Submit(SetActive(2, PlayerOne, entityId, active: true));
+        Assert.Equal(CommandStatus.WrongMode, building.Status);
+
+        room.Start();
+        CommandOutcome running = room.Submit(SetActive(3, PlayerOne, entityId, active: true));
+        Assert.Equal(CommandStatus.RuleRejected, running.Status);
+        Assert.Equal(ConstructionError.PartNotSwitchable, running.Error);
+    }
+
     private static ResetScriptOutcome RunResetScript()
     {
         ScriptedWorld world = new();
@@ -618,6 +720,12 @@ public sealed class SandboxRoomTests
     private static RemovePartCommand Remove(uint sequence, uint playerId, uint entityId) =>
         new(Tick: 0, Sequence: sequence, PlayerId: playerId, EntityId: entityId);
 
+    private static SetPartActiveCommand SetActive(uint sequence, uint playerId, uint entityId, bool active) =>
+        new(Tick: 0, Sequence: sequence, PlayerId: playerId, EntityId: entityId, Active: active);
+
+    private static SetPartTypeActiveCommand SetTypeActive(uint sequence, uint playerId, uint partTypeId, bool active) =>
+        new(Tick: 0, Sequence: sequence, PlayerId: playerId, PartTypeId: partTypeId, Active: active);
+
     private static PhysicsBodySnapshot Snapshot(uint bodyId, PhysicsVector3 position, PhysicsVector3 velocity) =>
         new(new PhysicsBodyId(bodyId), position, PhysicsQuaternion.Identity, velocity, PhysicsVector3.Zero);
 
@@ -645,7 +753,9 @@ public sealed class SandboxRoomTests
             { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "material": { "restitution": 0.2, "friction": 0.4 }, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "pig": true } },
             { "partTypeId": 3, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "tnt": { "fuseTicks": 1 } } },
             { "partTypeId": 4, "name": "egg", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "egg": true } },
-            { "partTypeId": 5, "name": "ground", "mode": "static", "mass": 0, "material": { "restitution": 0, "friction": 0.8 }, "shapes": [ { "kind": "box", "halfExtents": [40, 0.5, 10] } ] }
+            { "partTypeId": 5, "name": "ground", "mode": "static", "mass": 0, "material": { "restitution": 0, "friction": 0.8 }, "shapes": [ { "kind": "box", "halfExtents": [40, 0.5, 10] } ] },
+            { "partTypeId": 6, "name": "motor", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "motor": { "thrustPerTick": 2, "directionX": 1 }, "activation": "toggle" } },
+            { "partTypeId": 7, "name": "rocket", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "durationTicks": 30 }, "activation": "trigger" } }
         ]
     }
     """;

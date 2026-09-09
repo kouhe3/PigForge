@@ -230,11 +230,26 @@ public sealed class GameplayRules
     public bool IsPartActive(EntityId entity) =>
         _activations.TryGet(entity, out ActivationState state) && state.Active;
 
+    /// <summary>Deterministic hash over switch state (entity id + active) in slot order.</summary>
+    public long ComputeActivationHash()
+    {
+        long hash = 17;
+        var activations = _activations.GetEnumerator();
+        while (activations.MoveNext())
+        {
+            hash = unchecked((hash * 31) + activations.CurrentId.Value.GetHashCode());
+            hash = unchecked((hash * 31) + (activations.CurrentValue.Active ? 1 : 0));
+        }
+
+        return hash;
+    }
+
     /// <summary>No switch means legacy content: the part keeps its always-on behaviour.</summary>
     private bool IsDriven(EntityId entity) =>
         !_activations.TryGet(entity, out ActivationState state) || state.Active;
 
-    private bool HasSwitch(EntityId entity) => _activations.TryGet(entity, out _);
+    /// <summary>True when the part has an activation entry, i.e. its content declared a switch.</summary>
+    public bool HasSwitch(EntityId entity) => _activations.TryGet(entity, out _);
 
     /// <summary>Consumes a one-shot switch: false when the part has no switch (the caller
     /// falls back to its legacy contact rule) or the switch is off.</summary>

@@ -28,7 +28,8 @@ public enum ConstructionError
     TransformBlocked,
     FrozenEntity,
     UnsupportedShape,
-    NotOwnedByPlayer
+    NotOwnedByPlayer,
+    PartNotSwitchable
 }
 
 public readonly record struct ConstructionResult(EntityId Entity, ConstructionError Error)
@@ -91,6 +92,10 @@ public sealed class ConstructionRules
     /// <summary>Placed (player-built) entity ids, including frozen ones; level-authoring
     /// spawns are not construction entities and are excluded.</summary>
     public IReadOnlyCollection<uint> PlacedEntities => (IReadOnlyCollection<uint>)_footprintByEntity.Keys;
+
+    /// <summary>The owner recorded for a placed entity, or null when the registry does not track it.</summary>
+    public uint? OwnerOf(EntityId entity) =>
+        _ownerByEntity.TryGetValue(entity.Value, out uint owner) ? owner : null;
 
     /// <summary>Placed entity ids owned by the given player, ascending.</summary>
     public IReadOnlyCollection<uint> PlacedEntitiesOf(uint owner)

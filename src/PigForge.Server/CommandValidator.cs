@@ -70,6 +70,7 @@ public sealed class CommandValidator
             return command switch
             {
                 RetryCommand => CommandStatus.Accepted,
+                SetPartActiveCommand or SetPartTypeActiveCommand => CommandStatus.Accepted,
                 PlacePartCommand or RemovePartCommand or RotatePartCommand or MovePartCommand or ScalePartCommand or StartSimulationCommand or EnterBuildModeCommand => CommandStatus.WrongMode,
                 _ => CommandStatus.UnknownKind
             };
@@ -79,6 +80,7 @@ public sealed class CommandValidator
         {
             PlacePartCommand or RemovePartCommand or RotatePartCommand or MovePartCommand or ScalePartCommand or StartSimulationCommand or RetryCommand => CommandStatus.Accepted,
             EnterBuildModeCommand => CommandStatus.WrongMode,
+            SetPartActiveCommand or SetPartTypeActiveCommand => CommandStatus.WrongMode,
             _ => CommandStatus.UnknownKind
         };
     }
@@ -106,6 +108,8 @@ public sealed class CommandValidator
             (RoomMode.Running, RetryCommand) => command.Tick <= currentTick
                 ? CommandStatus.Accepted
                 : CommandStatus.StaleTick,
+            (RoomMode.Building, SetPartActiveCommand or SetPartTypeActiveCommand) => CommandStatus.WrongMode,
+            (RoomMode.Running, SetPartActiveCommand or SetPartTypeActiveCommand) => CommandStatus.Accepted,
             (RoomMode.Running, StartSimulationCommand or PlacePartCommand or RotatePartCommand or RemovePartCommand or MovePartCommand or ScalePartCommand) => CommandStatus.WrongMode,
             (RoomMode.Building, RetryCommand) => CommandStatus.WrongMode,
             _ => CommandStatus.UnknownKind
