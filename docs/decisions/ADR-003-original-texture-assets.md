@@ -16,6 +16,7 @@ Accepted
 - `Assets/Resources/guisystem/spritemapping.txt` 的归一化 UV 才是权威裁剪矩形：`像素矩形 = round(uv × 纹理尺寸)`，Unity 原点在下（canvas 用 `y_top = H - y - h`）。已用木箱/TNT/气球三个精灵做像素级视觉核对。
 - 图集 PNG 由精灵所在 GameObject 的 MeshRenderer 材质决定（材质 → `_MainTex` → PNG），`sprites.txt` 的 materialId 列在原工程里无对应资产、运行时不读。
 - `UnmanagedSprite`（网格 UV 部件，如瓶子）的矩形直接写在 prefab 里，按 `m_UVx/UVy/width/height/subdivisions` 计算。
+- `INSerializedSprite`（IN 扩展部件与部分皮肤，如 `BlasterTNT`）用**名字**查图集：`Assets/TextAsset/<Atlas>_TextAsset.txt` 首行是 `<图集名> <宽> <高>`，其后每行 `<名字> x y w h scaleX scaleY screenHeight`，矩形已是左上原点像素，世界尺寸 = `w*scaleX × h*scaleY` 像素 × `10/screenHeight`。
 
 ## 决策
 
