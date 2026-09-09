@@ -137,6 +137,41 @@ label {
   outline: 2px solid #f0d090;
 }
 
+.toolbar .tools {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.toolbar .tools button.active {
+  outline: 2px solid #f0d090;
+  background: #2e362c;
+}
+
+.toolbar .tools button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stage canvas.tool-place {
+  cursor: crosshair;
+}
+
+.stage canvas.tool-select {
+  cursor: pointer;
+}
+
+.stage canvas.tool-move {
+  cursor: move;
+}
+
+.stage canvas.tool-rotate {
+  cursor: grab;
+}
+
+.stage canvas.tool-scale {
+  cursor: nwse-resize;
+}
+
 @media (max-width: 768px) {
   .layout {
     grid-template-columns: 1fr;

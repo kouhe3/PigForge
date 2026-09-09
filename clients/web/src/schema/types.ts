@@ -124,10 +124,25 @@ export type ClientCommand =
   | { kind: 1; sequence: number; playerId: number; tick: number; entityId: number }
   | { kind: 2; sequence: number; playerId: number; tick: number; entityId: number; angle: number }
   | { kind: 3; sequence: number; playerId: number; tick: number }
-  | { kind: 5; sequence: number; playerId: number; tick: number };
+  | { kind: 5; sequence: number; playerId: number; tick: number }
+  | { kind: 6; sequence: number; playerId: number; tick: number; entityId: number; x: number; y: number }
+  | { kind: 7; sequence: number; playerId: number; tick: number; entityId: number; scale: number };
+
+/** A locally previewed build pose during a move/rotate/scale drag (never authoritative). */
+export interface ToolPreviewPose {
+  entityId: number;
+  x: number;
+  y: number;
+  yaw: number;
+  scale: number;
+}
 
 export type GestureMessage =
   | { kind: "CameraChanged"; panX: number; panY: number; scale: number }
   | { kind: "SelectEntity"; entityId: number | null }
   | { kind: "PlaceRequested"; x: number; y: number }
-  | { kind: "PartScaleChanged"; scale: number };
+  | { kind: "PartScaleChanged"; scale: number }
+  | { kind: "ToolPreview"; preview: ToolPreviewPose | null }
+  | { kind: "MoveRequested"; entityId: number; x: number; y: number }
+  | { kind: "RotateRequested"; entityId: number; angle: number }
+  | { kind: "ScaleRequested"; entityId: number; scale: number };

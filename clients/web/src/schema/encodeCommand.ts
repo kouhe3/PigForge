@@ -3,16 +3,10 @@ import type { ClientCommand } from "./types";
 export const COMMAND_VERSION = 2;
 export const COMMAND_HEADER_BYTES = 19;
 
+const PAYLOAD_BYTES: Record<ClientCommand["kind"], number> = { 0: 20, 1: 4, 2: 8, 3: 0, 5: 0, 6: 12, 7: 8 };
+
 export function encodeCommand(command: ClientCommand): Uint8Array {
-  const payload =
-    command.kind === 0
-      ? 20
-      : command.kind === 1
-        ? 4
-        : command.kind === 2
-          ? 8
-          : 0;
-  const bytes = new Uint8Array(COMMAND_HEADER_BYTES + payload);
+  const bytes = new Uint8Array(COMMAND_HEADER_BYTES + PAYLOAD_BYTES[command.kind]);
   const view = new DataView(bytes.buffer);
   bytes.set([0x50, 0x47, 0x46, 0x43], 0);
   view.setUint16(4, COMMAND_VERSION, true);
@@ -31,6 +25,13 @@ export function encodeCommand(command: ClientCommand): Uint8Array {
   } else if (command.kind === 2) {
     view.setUint32(19, command.entityId, true);
     view.setFloat32(23, command.angle, true);
+  } else if (command.kind === 6) {
+    view.setUint32(19, command.entityId, true);
+    view.setFloat32(23, command.x, true);
+    view.setFloat32(27, command.y, true);
+  } else if (command.kind === 7) {
+    view.setUint32(19, command.entityId, true);
+    view.setFloat32(23, command.scale, true);
   }
   return bytes;
 }

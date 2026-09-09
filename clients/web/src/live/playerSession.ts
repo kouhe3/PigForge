@@ -11,7 +11,7 @@
 export type PlayerPhase = "editing" | "materialized";
 
 /** PGFC kinds the sandbox client sends; kind 4 (EnterBuildMode) is not wire-encodable. */
-export type CommandKind = 0 | 1 | 2 | 3 | 5;
+export type CommandKind = 0 | 1 | 2 | 3 | 5 | 6 | 7;
 
 export const ACK_ACCEPTED = 0;
 

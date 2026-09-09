@@ -24,6 +24,23 @@ describe("encodeCommand", () => {
     expect(view.getFloat32(35, true)).toBeCloseTo(1.5);
   });
 
+  it("encodes MovePart and ScalePart matching the PGFC v2 layout", () => {
+    const move = encodeCommand({ kind: 6, sequence: 2, playerId: 1, tick: 0, entityId: 7, x: 1.5, y: -2.25 });
+    expect(move.byteLength).toBe(31);
+    const moveView = new DataView(move.buffer);
+    expect(moveView.getUint8(6)).toBe(6);
+    expect(moveView.getUint32(19, true)).toBe(7);
+    expect(moveView.getFloat32(23, true)).toBeCloseTo(1.5);
+    expect(moveView.getFloat32(27, true)).toBeCloseTo(-2.25);
+
+    const scale = encodeCommand({ kind: 7, sequence: 3, playerId: 1, tick: 0, entityId: 7, scale: 2.5 });
+    expect(scale.byteLength).toBe(27);
+    const scaleView = new DataView(scale.buffer);
+    expect(scaleView.getUint8(6)).toBe(7);
+    expect(scaleView.getUint32(19, true)).toBe(7);
+    expect(scaleView.getFloat32(23, true)).toBeCloseTo(2.5);
+  });
+
   it("decodes PGFA ack", () => {
     const bytes = new Uint8Array(16);
     const view = new DataView(bytes.buffer);

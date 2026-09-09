@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
+import { MOVE_SNAP, TOOLS, type ToolId, toolByHotkey } from "./editor/tools";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
 import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
@@ -23,6 +24,7 @@ const entitiesRef = {
 const placeAngle = ref(0);
 const placeScale = ref(1);
 const selectedPart = ref(4);
+const tool = ref<ToolId>("place");
 const activeTab = ref<"replay" | "live">("replay");
 // The session module is Vue-free; mirror the gating inputs it exposes into refs.
 const player = createPlayerSession();
@@ -39,6 +41,7 @@ const canStart = computed(() => canEdit.value && ownCount.value > 0);
 const canReset = computed(() => playerPhase.value === "materialized" || ownCount.value > 0);
 const canPlace = computed(() => activeTab.value === "live" && session.mode === "live" && canEdit.value);
 const phaseLabel = computed(() => (playerPhase.value === "materialized" ? "运行中" : "编辑中"));
+const toolLabel = computed(() => TOOLS.find((entry) => entry.id === tool.value)?.label ?? "放置");
 
 function syncPlayer(): void {
   playerPhase.value = player.phase;
@@ -51,6 +54,12 @@ function dispatch(build: (sequence: number) => ClientCommand, kind: CommandKind,
     return;
   }
   sendCommand(build(player.noteSent(kind, entityId)));
+}
+
+/** Picking a part starts placement, like a Besiege block pick. */
+function selectPalettePart(partTypeId: number): void {
+  selectedPart.value = partTypeId;
+  tool.value = "place";
 }
 
 function startSimulation(): void {
@@ -78,18 +87,19 @@ function placePart(x: number, y: number): void {
   );
 }
 
-function rotatePart(entity: DrawEntity): void {
-  dispatch(
-    (sequence) => ({
-      kind: 2,
-      sequence,
-      playerId: 0,
-      tick: 0,
-      entityId: entity.entityId,
-      angle: entity.yaw + Math.PI / 12,
-    }),
-    2,
-  );
+/** PGFC kind 6: reposition a placed preview part (world metres). */
+function movePart(entityId: number, x: number, y: number): void {
+  dispatch((sequence) => ({ kind: 6, sequence, playerId: 0, tick: 0, entityId, x, y }), 6, entityId);
+}
+
+/** PGFC kind 2: rotate a placed preview part to an absolute yaw (radians). */
+function rotateToAngle(entityId: number, angle: number): void {
+  dispatch((sequence) => ({ kind: 2, sequence, playerId: 0, tick: 0, entityId, angle }), 2, entityId);
+}
+
+/** PGFC kind 7: rescale a placed preview part (0.25–4). */
+function scalePart(entityId: number, scale: number): void {
+  dispatch((sequence) => ({ kind: 7, sequence, playerId: 0, tick: 0, entityId, scale }), 7, entityId);
 }
 
 function removePart(entity: DrawEntity): void {
@@ -117,11 +127,21 @@ function paint(): void {
     node.height = Math.floor(height * ratio);
   }
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  // A tool drag previews locally: draw the entity at its candidate pose in the ghost
+  // style (bodyId 0) without mutating the authoritative snapshot array.
+  const preview = viewState.preview;
+  const entities = preview
+    ? viewState.entities.map((entity) =>
+        entity.entityId === preview.entityId
+          ? { ...entity, x: preview.x, y: preview.y, yaw: preview.yaw, scale: preview.scale, bodyId: 0 }
+          : entity,
+      )
+    : viewState.entities;
   // The sandbox has no goal semantics, so the live view omits the local GOAL_ZONE.
   drawFrame(
     ctx,
     viewState.camera,
-    viewState.entities,
+    entities,
     session.content,
     viewState.selectedId,
     activeTab.value === "live" ? undefined : GOAL_ZONE,
@@ -225,6 +245,33 @@ function selectedEntity() {
 }
 
 function onKey(event: KeyboardEvent): void {
+  // Never steal keys from the toolbar's inputs/selects.
+  const target = event.target;
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  ) {
+    return;
+  }
+  if (activeTab.value === "live") {
+    const hotkeyTool = toolByHotkey(event.key);
+    if (hotkeyTool !== null) {
+      tool.value = hotkeyTool;
+      return;
+    }
+    const entity = selectedEntity();
+    if (tool.value === "move" && entity && canEdit.value && player.ownEntityIds.has(entity.entityId)) {
+      const dx = event.key === "ArrowLeft" ? -MOVE_SNAP : event.key === "ArrowRight" ? MOVE_SNAP : 0;
+      const dy = event.key === "ArrowUp" ? MOVE_SNAP : event.key === "ArrowDown" ? -MOVE_SNAP : 0;
+      if (dx !== 0 || dy !== 0) {
+        event.preventDefault();
+        movePart(entity.entityId, entity.x + dx, entity.y + dy);
+        return;
+      }
+    }
+  }
   if (event.key === "q" || event.key === "Q") {
     placeAngle.value -= Math.PI / 12;
   } else if (event.key === "e" || event.key === "E") {
@@ -234,7 +281,7 @@ function onKey(event: KeyboardEvent): void {
     if (entity && canEdit.value && player.ownEntityIds.has(entity.entityId)) {
       // Rotate the selected part a visible increment; a fresh placeAngle of 0 would
       // produce no visible change, so accumulate from the part's current yaw.
-      rotatePart(entity);
+      rotateToAngle(entity.entityId, entity.yaw + Math.PI / 12);
     }
   } else if (event.key === "Delete" || event.key === "Backspace") {
     const entity = selectedEntity();
@@ -253,6 +300,12 @@ watch(
   },
 );
 
+watch(canEdit, (editable) => {
+  if (!editable && tool.value !== "select") {
+    tool.value = "select";
+  }
+});
+
 onMounted(() => {
   session.loadContent(PLAY_PARTS);
   const node = canvas.value;
@@ -264,15 +317,25 @@ onMounted(() => {
       (message) => {
         if (message.kind === "SelectEntity") {
           viewState.selectedId = message.entityId;
-        }
-        if (message.kind === "PlaceRequested" && canPlace.value) {
+        } else if (message.kind === "PlaceRequested" && canPlace.value) {
           placePart(message.x, message.y);
-        }
-        if (message.kind === "PartScaleChanged") {
+        } else if (message.kind === "PartScaleChanged") {
           placeScale.value = Math.min(4, Math.max(0.25, placeScale.value * message.scale));
+        } else if (message.kind === "ToolPreview") {
+          viewState.preview = message.preview;
+        } else if (message.kind === "MoveRequested") {
+          movePart(message.entityId, message.x, message.y);
+        } else if (message.kind === "RotateRequested") {
+          rotateToAngle(message.entityId, message.angle);
+        } else if (message.kind === "ScaleRequested") {
+          scalePart(message.entityId, message.scale);
         }
       },
-      { building: () => canPlace.value },
+      {
+        tool: () => tool.value,
+        canPlace: () => canPlace.value,
+        isEditable: (entityId) => canEdit.value && player.ownEntityIds.has(entityId),
+      },
     );
   }
   window.addEventListener("keydown", onKey);
@@ -341,25 +404,41 @@ onUnmounted(() => {
         <button type="button" @click="connectLive">连接房间</button>
         <button type="button" :disabled="!canStart" @click="startSimulation">Start</button>
         <button type="button" :disabled="!canReset" @click="resetSimulation">RESET</button>
-        <span class="meta">{{ phaseLabel }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }}</span>
+        <span class="tools" role="group" aria-label="编辑工具">
+          <button
+            v-for="entry in TOOLS"
+            :key="entry.id"
+            type="button"
+            :class="{ active: tool === entry.id }"
+            :aria-pressed="tool === entry.id"
+            :disabled="entry.id !== 'select' && !canEdit"
+            @click="tool = entry.id"
+          >{{ entry.hotkey }} {{ entry.label }}</button>
+        </span>
+        <span class="meta">{{ toolLabel }} · {{ phaseLabel }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }}</span>
       </template>
     </header>
 
     <main class="stage">
-      <canvas ref="canvas" role="img" aria-label="物理快照画布，拖拽平移，滚轮缩放，点击放置"></canvas>
+      <canvas
+        ref="canvas"
+        role="img"
+        :class="activeTab === 'live' ? 'tool-' + tool : undefined"
+        aria-label="物理快照画布：拖拽平移，滚轮缩放，工具 1-5 切换放置/选择/移动/旋转/缩放"
+      ></canvas>
     </main>
 
     <aside class="side">
       <template v-if="activeTab === 'live'">
         <h1>零件</h1>
-        <p class="meta">点击画布放置。Q/E 转角，Alt+滚轮缩放，R 旋转选中，Delete 删除。不提交位姿。</p>
+        <p class="meta">工具 1–5：放置/选择/移动/旋转/缩放。拖动选中零件变换，Alt 不吸附，方向键微调移动。Q/E 放置角，Alt+滚轮放置缩放，R 旋转，Delete 删除。不提交位姿。</p>
         <div class="palette">
           <button
             v-for="part in PALETTE"
             :key="part.partTypeId"
             type="button"
             :class="{ selected: selectedPart === part.partTypeId }"
-            @click="selectedPart = part.partTypeId"
+            @click="selectPalettePart(part.partTypeId)"
           >{{ part.label }}</button>
         </div>
       </template>

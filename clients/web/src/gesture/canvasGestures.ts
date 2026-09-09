@@ -1,12 +1,53 @@
 import { type Camera, screenToWorld } from "@/renderer/camera";
+import {
+  MIN_POINTER_DISTANCE,
+  type Pose,
+  type ToolId,
+  type Vec2,
+  isTransformTool,
+  movePose,
+  pointerAngle,
+  pointerDistance,
+  rotatePose,
+  scalePose,
+  shortestAngleDelta,
+} from "@/editor/tools";
 import type { DrawEntity, GestureMessage } from "@/schema/types";
 
+export interface CanvasGestureOptions {
+  /** Current build tool; pointer semantics follow it. Defaults to "place". */
+  tool?: () => ToolId;
+  /** Whether a tap on empty space may place the selected part (live + editing). */
+  canPlace?: () => boolean;
+  /** Whether this client may transform the entity (own + editing). */
+  isEditable?: (entityId: number) => boolean;
+}
+
+interface TransformDrag {
+  tool: "move" | "rotate" | "scale";
+  entityId: number;
+  /** Pose when the drag started; every candidate is derived from it, never accumulated. */
+  start: Pose;
+  last: Pose;
+  startWorld: Vec2;
+  lastPointerAngle: number;
+  startDistance: number;
+  accumulatedAngle: number;
+}
+
+const DRAG_THRESHOLD_PX = 4;
+
+/**
+ * The only module that listens to canvas pointer events. It emits typed semantic messages:
+ * camera pan/zoom always, plus placement or a transform request depending on the active
+ * tool. A transform drag only previews locally — the command is emitted once on release.
+ */
 export function attachCanvasGestures(
   canvas: HTMLCanvasElement,
   camera: Camera,
   entities: { current: readonly DrawEntity[] },
   onMessage: (message: GestureMessage) => void,
-  options?: { building?: () => boolean },
+  options?: CanvasGestureOptions,
 ): () => void {
   let dragging = false;
   let moved = false;
@@ -15,6 +56,11 @@ export function attachCanvasGestures(
   let downX = 0;
   let downY = 0;
   let hitEntityThisDown: number | null = null;
+  let drag: TransformDrag | null = null;
+
+  const tool = (): ToolId => options?.tool?.() ?? "place";
+  const toWorld = (x: number, y: number): Vec2 =>
+    screenToWorld(camera, x, y, canvas.clientWidth, canvas.clientHeight);
 
   const onPointerDown = (event: PointerEvent): void => {
     dragging = true;
@@ -25,7 +71,7 @@ export function attachCanvasGestures(
     downX = point.x;
     downY = point.y;
     canvas.setPointerCapture(event.pointerId);
-    const world = screenToWorld(camera, point.x, point.y, canvas.clientWidth, canvas.clientHeight);
+    const world = toWorld(point.x, point.y);
     let hit: number | null = null;
     for (const entity of entities.current) {
       const dx = world.x - entity.x;
@@ -36,6 +82,24 @@ export function attachCanvasGestures(
     }
     hitEntityThisDown = hit;
     onMessage({ kind: "SelectEntity", entityId: hit });
+
+    const currentTool = tool();
+    const target = hit === null ? undefined : entities.current.find((entity) => entity.entityId === hit);
+    drag = null;
+    if (hit !== null && target && isTransformTool(currentTool) && options?.isEditable?.(hit)) {
+      const center = { x: target.x, y: target.y };
+      const startPointerAngle = pointerAngle(center, world);
+      drag = {
+        tool: currentTool,
+        entityId: hit,
+        start: { x: target.x, y: target.y, yaw: target.yaw, scale: target.scale },
+        last: { x: target.x, y: target.y, yaw: target.yaw, scale: target.scale },
+        startWorld: world,
+        lastPointerAngle: startPointerAngle,
+        startDistance: pointerDistance(center, world),
+        accumulatedAngle: 0,
+      };
+    }
   };
 
   const onPointerMove = (event: PointerEvent): void => {
@@ -47,8 +111,27 @@ export function attachCanvasGestures(
     const dy = point.y - lastY;
     lastX = point.x;
     lastY = point.y;
-    if (Math.abs(point.x - downX) + Math.abs(point.y - downY) > 4) {
+    if (Math.abs(point.x - downX) + Math.abs(point.y - downY) > DRAG_THRESHOLD_PX) {
       moved = true;
+    }
+    if (drag && moved) {
+      const world = toWorld(point.x, point.y);
+      const snap = !event.altKey;
+      const center = { x: drag.start.x, y: drag.start.y };
+      if (drag.tool === "move") {
+        drag.last = movePose(drag.start, world.x - drag.startWorld.x, world.y - drag.startWorld.y, snap);
+      } else if (drag.tool === "rotate") {
+        const angleNow = pointerAngle(center, world);
+        drag.accumulatedAngle += shortestAngleDelta(drag.lastPointerAngle, angleNow);
+        drag.lastPointerAngle = angleNow;
+        drag.last = rotatePose(drag.start, drag.accumulatedAngle, snap);
+      } else {
+        const ratio =
+          drag.startDistance < MIN_POINTER_DISTANCE ? 1 : pointerDistance(center, world) / drag.startDistance;
+        drag.last = scalePose(drag.start, ratio, snap);
+      }
+      onMessage({ kind: "ToolPreview", preview: { entityId: drag.entityId, ...drag.last } });
+      return;
     }
     if (!moved) {
       return;
@@ -61,11 +144,21 @@ export function attachCanvasGestures(
   const onPointerUp = (event: PointerEvent): void => {
     dragging = false;
     canvas.releasePointerCapture(event.pointerId);
+    if (drag) {
+      const finished = drag;
+      drag = null;
+      if (moved) {
+        emitTransformRequest(finished, onMessage);
+      }
+      onMessage({ kind: "ToolPreview", preview: null });
+      hitEntityThisDown = null;
+      return;
+    }
     // A release over an existing part is a selection, never a placement; only an
-    // empty-space tap places a new part.
-    if (!moved && options?.building?.() && hitEntityThisDown === null) {
+    // empty-space tap with the place tool places a new part.
+    if (!moved && tool() === "place" && options?.canPlace?.() && hitEntityThisDown === null) {
       const point = pointerCss(canvas, event);
-      const world = screenToWorld(camera, point.x, point.y, canvas.clientWidth, canvas.clientHeight);
+      const world = toWorld(point.x, point.y);
       onMessage({ kind: "PlaceRequested", x: world.x, y: world.y });
     }
     hitEntityThisDown = null;
@@ -73,12 +166,11 @@ export function attachCanvasGestures(
 
   const onWheel = (event: WheelEvent): void => {
     event.preventDefault();
-    if (event.altKey) {
-      const factor = event.deltaY < 0 ? 1.1 : 0.9;
+    const factor = event.deltaY < 0 ? 1.1 : 0.9;
+    if (event.altKey && tool() === "place") {
       onMessage({ kind: "PartScaleChanged", scale: factor });
       return;
     }
-    const factor = event.deltaY < 0 ? 1.1 : 0.9;
     camera.scale = Math.min(160, Math.max(8, camera.scale * factor));
     onMessage({ kind: "CameraChanged", panX: camera.x, panY: camera.y, scale: camera.scale });
   };
@@ -93,6 +185,28 @@ export function attachCanvasGestures(
     canvas.removeEventListener("pointerup", onPointerUp);
     canvas.removeEventListener("wheel", onWheel);
   };
+}
+
+function emitTransformRequest(drag: TransformDrag, onMessage: (message: GestureMessage) => void): void {
+  if (poseEquals(drag.start, drag.last)) {
+    return;
+  }
+  if (drag.tool === "move") {
+    onMessage({ kind: "MoveRequested", entityId: drag.entityId, x: drag.last.x, y: drag.last.y });
+  } else if (drag.tool === "rotate") {
+    onMessage({ kind: "RotateRequested", entityId: drag.entityId, angle: drag.last.yaw });
+  } else {
+    onMessage({ kind: "ScaleRequested", entityId: drag.entityId, scale: drag.last.scale });
+  }
+}
+
+function poseEquals(left: Pose, right: Pose): boolean {
+  return (
+    Math.abs(left.x - right.x) < 1e-4 &&
+    Math.abs(left.y - right.y) < 1e-4 &&
+    Math.abs(left.yaw - right.yaw) < 1e-4 &&
+    Math.abs(left.scale - right.scale) < 1e-4
+  );
 }
 
 function pointerCss(canvas: HTMLCanvasElement, event: PointerEvent): { x: number; y: number } {
