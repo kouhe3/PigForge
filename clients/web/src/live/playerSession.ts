@@ -8,6 +8,8 @@
  * TypeScript with no Vue imports so it can be tested without a component harness.
  */
 
+import { describeRejection } from "./ackMessages";
+
 export type PlayerPhase = "editing" | "materialized";
 
 /** PGFC kinds the sandbox client sends; kind 4 (EnterBuildMode) is not wire-encodable. */
@@ -69,7 +71,7 @@ export function createPlayerSession(): PlayerSession {
       const entry = pending.get(ack.sequence);
       pending.delete(ack.sequence);
       if (ack.status !== ACK_ACCEPTED) {
-        return `命令 ${ack.sequence} 被拒绝 status=${ack.status} error=${ack.error}`;
+        return describeRejection(entry?.kind, ack.status, ack.error, ack.sequence);
       }
       if (entry === undefined) {
         return null;

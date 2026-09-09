@@ -80,8 +80,8 @@ describe("playerSession", () => {
     const place = session.noteSent(0);
     session.applyAck({ sequence: place, status: 0, error: 0, entityId: 5 });
     const remove = session.noteSent(1, 5);
-    const message = session.applyAck({ sequence: remove, status: 5, error: 2, entityId: 0 });
-    expect(message).toBe("命令 2 被拒绝 status=5 error=2");
+    const message = session.applyAck({ sequence: remove, status: 5, error: 9, entityId: 0 });
+    expect(message).toBe("命令 2（删除零件）被拒绝：零件不存在");
     expect(session.phase).toBe("editing");
     expect(session.ownEntityIds.has(5)).toBe(true);
     expect(session.pending.has(remove)).toBe(false);
