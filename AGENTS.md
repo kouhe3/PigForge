@@ -4,7 +4,7 @@
 
 PigForge is a Unity-free, deterministic, server-authoritative multiplayer game core (Bad Piggies-style) built on .NET 10. The server owns all simulation state; clients are display-only consumers that receive binary snapshots (PGFS) and send build/start commands (PGFC). Physics is pluggable behind a port/adapter boundary: BepuPhysics v2 (managed, primary) and JoltPhysicsSharp (native, secondary). Unity 6 exists only as an offline reference runtime that exports replay files — it never references .NET assemblies.
 
-Current state: the "multiplayer persistent sandbox" slice (see `tasks/plan.md` + `tasks/todo.md`, gitignored) is implemented and verified end-to-end: per-connection player ids, per-player part ownership, preview/ghost layouts that materialize on Start, per-player RESET, and a continuously ticking world. `--play` now hosts that sandbox room; the goal-based slope/terrain rooms remain as `PlayHost.CreateSlopeRoom`/`CreateTerrainRoom` (tests + future racing).
+Current state: the "multiplayer persistent sandbox" slice plus **PLAY part switches** (see `tasks/plan.md` + `tasks/todo.md`, gitignored; spec `docs/specs/play-part-switches.md`) are implemented and verified end-to-end: per-connection player ids, per-player part ownership, preview/ghost layouts that materialize on Start, per-player RESET, a continuously ticking world, and per-part switches (bottom-centre bar, `1`–`9`/`0`/`A`… hotkeys, tap-to-toggle) whose state is server-authoritative and rides the snapshot. `--play` hosts that sandbox room; the goal-based slope/terrain rooms remain as `PlayHost.CreateSlopeRoom`/`CreateTerrainRoom` (tests + future racing) and keep their pre-switch automatic behaviour.
 
 ## Architecture & Data Flow
 
@@ -20,7 +20,7 @@ UnityReference -> (none; file/schema exchange only)
 clients/web -> (none; wire formats only, never .NET assemblies)
 ```
 
-**Server tick pipeline** (`GameRoom.Tick`, `src/PigForge.Server/GameRoom.cs:582-620`), manually ticked at 60 Hz for determinism:
+**Server tick pipeline** (`GameRoom.Tick`, `src/PigForge.Server/GameRoom.cs`), manually ticked at 60 Hz for determinism:
 
 1. `_world.ApplyCommands(_output.Commands)` — impulses produced by rules on the previous tick
 2. `_world.Step(_timeStep)` — fixed timestep (`1 / tickRateHz`)
@@ -30,10 +30,10 @@ clients/web -> (none; wire formats only, never .NET assemblies)
 
 Building mode manipulates pure `ConstructionRules` state (no physics bodies); `Start()` runs `CompoundAssembler.Assemble` (union-find over connections) into one physics body per cluster.
 
-**Wire formats** (all v2, little-endian binary, hand-written with `BinaryPrimitives`/`Span`/`ref struct`):
+**Wire formats** (little-endian binary, hand-written with `BinaryPrimitives`/`Span`/`ref struct`; PGFS v3, PGFC v2):
 
-- PGFS snapshots: 15-byte header + 68-byte entities; building phase `0x10` publishes layout with `physicsBodyId = 0`
-- PGFC commands (`ClientCommandKind` 0–7: PlacePart, RemovePart, RotatePart, StartSimulation, EnterBuildMode, Retry, MovePart, ScalePart), PGFA acks
+- PGFS snapshots (v3): 15-byte header + 69-byte entities (trailing `flags:u8`, bit0 = part switch on); building phase `0x10` publishes layout with `physicsBodyId = 0`
+- PGFC commands (`ClientCommandKind` 0–9: PlacePart, RemovePart, RotatePart, StartSimulation, EnterBuildMode, Retry, MovePart, ScalePart, SetPartActive, SetPartTypeActive), PGFA acks
 - Replay JSON per `schemas/physics-replay-v2.schema.json`
 
 **Client flow**: `PlayHost` (`ws://127.0.0.1:5088/play`) → `CommandFrame.TryDecode` → `GameRoom.Submit` → PGFA ack → PGFS broadcast each tick. `DemoSnapshotHost` (`/snapshots`) is broadcast-only. No client hosts simulation.
@@ -49,9 +49,9 @@ Building mode manipulates pure `ConstructionRules` state (no physics bodies); `S
 - `src/PigForge.Server` — `GameRoom` (authoritative room), `PlayHost`/`DemoSnapshotHost`, `Program.cs` entry
 - `src/PigForge.Benchmarks` — custom perf harness (no BenchmarkDotNet)
 - `tests/` — 5 xUnit projects (Core, Protocol, Replay, Physics, Server Tests)
-- `clients/web` — Vue 3 + TS + Vite + Pinia SPA (pnpm); build-mode tools (place/select/move/rotate/scale) in `src/editor/tools.ts` + `src/gesture/canvasGestures.ts`
+- `clients/web` — Vue 3 + TS + Vite + Pinia SPA (pnpm); build-mode tools (place/select/move/rotate/scale) in `src/editor/tools.ts` + `src/gesture/canvasGestures.ts`; play-mode switch bar in `src/live/gadgets.ts` + `App.vue`
 - `unity/PigForge.UnityReference` — Unity 6000.5.6f1 reference exporter, isolated
-- `content/` — `parts.json` (46 parts, partTypeId 1–46), `levels/slope-v1.json`, `levels/terrain-v1.json`
+- `content/` — `parts.json` (50 entries, partTypeId 1–50; 47–50 are TNT variants; `capabilities.activation` declares part switches), `levels/slope-v1.json`, `levels/terrain-v1.json`
 - `schemas/` — cross-runtime JSON Schema contracts: `part-content-v1`, `level-content-v1`, `physics-replay-v2`, `client-command-v1`
 
 ## Development Commands
@@ -96,13 +96,13 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 - `src/PigForge.Server/GameRoom.cs` — authoritative room, 5-phase tick, command execution, snapshot publishing
 - `src/PigForge.Server/PlayHost.cs` — WS play host (`CreateSandboxRoom` for `--play`, per-connection player ids); loads content via `FindRepositoryRoot` (walks up from `AppContext.BaseDirectory` — running outside the repo tree throws)
 - `src/PigForge.Physics.Abstractions/PhysicsContracts.cs` — `IPhysicsWorld` + all semantic types (shapes, joints, commands, events, snapshots, `PhysicsVector3`/`PhysicsQuaternion`)
-- `src/PigForge.Core/Runtime/GameplayRules.cs` — 935-line rules engine (ADR-002 semantics; note `GameplayConfig.Default.MaxTicks = 0` vs `PlayHost` passing 1200)
+- `src/PigForge.Core/Runtime/GameplayRules.cs` — 1100-line rules engine (ADR-002 semantics, part switches; note `GameplayConfig.Default.MaxTicks = 0` vs `PlayHost` passing 1200)
 - `src/PigForge.Core/Construction/CompoundAssembler.cs` — cluster assembly/seam split
-- `src/PigForge.Protocol/SnapshotWire.cs`, `CommandWire.cs` — wire codecs (fixed sizes: 15-byte header, 68-byte entity)
+- `src/PigForge.Protocol/SnapshotWire.cs`, `CommandWire.cs` — wire codecs (fixed sizes: 15-byte header, 69-byte entity)
 - `Directory.Build.props` — net10.0, ImplicitUsings, Nullable, LangVersion latest, TreatWarningsAsErrors
 - `docs/decisions/ADR-001-*.md` — net10 physics boundary; `ADR-002-*.md` — no-damage runtime semantics (**binding** for any gameplay change)
-- `docs/intent/*.md` + `docs/specs/*.md` — confirmed intent and the authoritative per-slice spec (e.g. `advanced-building.md` for build-mode move/rotate/scale)
-- `clients/web/vite.config.ts` — dev server port 5173 + WS proxy; `clients/web/src/schema/decodeSnapshot.ts`/`encodeCommand.ts` — client wire codecs; `clients/web/src/editor/tools.ts` — tool math/snaps
+- `docs/intent/*.md` + `docs/specs/*.md` — confirmed intent and the authoritative per-slice spec (e.g. `advanced-building.md` for build-mode move/rotate/scale, `play-part-switches.md` for part switches)
+- `clients/web/vite.config.ts` — dev server port 5173 + WS proxy; `clients/web/src/schema/decodeSnapshot.ts`/`encodeCommand.ts` — client wire codecs; `clients/web/src/editor/tools.ts` — tool math/snaps; `clients/web/src/live/gadgets.ts` — switch-bar grouping/hotkeys
 
 ## Runtime/Tooling Preferences
 
@@ -114,11 +114,11 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 
 ## Testing & QA
 
-- **Run everything**: `dotnet test PigForge.slnx` (~229 Fact/Theory cases incl. real-Bepu fixtures). Per project: `dotnet test tests/PigForge.Server.Tests/PigForge.Server.Tests.csproj`; filter e.g. `--filter FullyQualifiedName~GameplayRules` / `~SlopePlay`.
+- **Run everything**: `dotnet test PigForge.slnx` (~255 Fact/Theory cases incl. real-Bepu fixtures). Per project: `dotnet test tests/PigForge.Server.Tests/PigForge.Server.Tests.csproj`; filter e.g. `--filter FullyQualifiedName~GameplayRules` / `~SlopePlay`.
 - **Framework**: xUnit, global `Using Include="Xunit"` (no explicit `using Xunit;`). No mock libraries — hand-written fakes (`ScriptedPhysicsWorld`, `RecordingReplaySimulation`, `GameplayHarness`, `PhysicsDrivenLevel`). No `IClassFixture`/`[Collection]`/async lifecycle; tests construct their own SUT.
 - **Dominant convention**: run twice, compare a `long` state hash or byte stream for determinism; cross-backend (Bepu vs Jolt) differentials assert event-level agreement within tolerances and require genuine solver divergence to be *reported*, not hidden.
 - **Assertions**: xUnit `Assert.*` only, expected-before-actual; physics outcomes via `Assert.InRange`/`precision:`; allocation checks via `GC.GetAllocatedBytesForCurrentThread()` delta == 0.
 - **Fixture files**: JSON as C# raw string literals, or repo-relative paths resolved by walking up from `AppContext.BaseDirectory` (`FindRepositoryFile`/`FindRepositoryRoot`); never embedded resources.
 - **Coverage**: `coverlet.collector` is referenced but unconfigured — no gate; can run `dotnet test PigForge.slnx --collect:"XPlat Code Coverage"`.
-- **Web tests**: Vitest `environment: "node"` (not jsdom, despite jsdom dependency), colocated `*.test.ts`.
+- **Web tests**: Vitest `environment: "node"` (not jsdom, despite jsdom dependency), colocated `*.test.ts` (75 cases).
 - Known staleness: `tests/PigForge.Core.Tests` pins older xunit 2.5.3/SDK 17.8.0 than siblings; `Protocol.Tests`/`Replay.Tests` csproj missing `<IsTestProject>`; Unity reference exporter still emits replay v1 vs .NET v2.
