@@ -162,13 +162,74 @@ public sealed class CommandWireTests
     }
 
     [Fact]
-    public void KindBeyondScalePartIsRejected()
+    public void KindBeyondSetPartTypeActiveIsRejected()
     {
         PlacePartCommand original = new(0, 1, 1, 1, 0f, 0f, 0f, 1f);
         byte[] buffer = new byte[CommandFrame.PlaceByteCount];
         Assert.True(CommandFrame.TryEncode(buffer, original, out _));
-        buffer[6] = (byte)ClientCommandKind.ScalePart + 1;
+        buffer[6] = (byte)ClientCommandKind.SetPartTypeActive + 1;
         Assert.False(CommandFrame.TryDecode(buffer, out _, out string error));
         Assert.Contains("Unknown", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetPartActiveRoundTripPreservesFields()
+    {
+        SetPartActiveCommand original = new(0, 7, 1, 9, Active: true);
+        byte[] buffer = new byte[CommandFrame.SetPartActiveByteCount];
+        Assert.True(CommandFrame.TryEncode(buffer, original, out int written));
+
+        Assert.Equal(24, written);
+        Assert.True(CommandFrame.TryDecode(buffer, out ReplayCommand? decoded, out string error), error);
+        SetPartActiveCommand command = Assert.IsType<SetPartActiveCommand>(decoded);
+        Assert.Equal(9u, command.EntityId);
+        Assert.True(command.Active);
+    }
+
+    [Fact]
+    public void SetPartTypeActiveRoundTripPreservesFields()
+    {
+        SetPartTypeActiveCommand original = new(0, 8, 1, 11, Active: false);
+        byte[] buffer = new byte[CommandFrame.SetPartTypeActiveByteCount];
+        Assert.True(CommandFrame.TryEncode(buffer, original, out int written));
+
+        Assert.Equal(24, written);
+        Assert.True(CommandFrame.TryDecode(buffer, out ReplayCommand? decoded, out string error), error);
+        SetPartTypeActiveCommand command = Assert.IsType<SetPartTypeActiveCommand>(decoded);
+        Assert.Equal(11u, command.PartTypeId);
+        Assert.False(command.Active);
+    }
+
+    [Fact]
+    public void InvalidActivationPayloadsAreRejected()
+    {
+        SetPartActiveCommand zeroEntity = new(0, 1, 1, 0, Active: true);
+        byte[] entityBuffer = new byte[CommandFrame.SetPartActiveByteCount];
+        Assert.True(CommandFrame.TryEncode(entityBuffer, zeroEntity, out _));
+        Assert.False(CommandFrame.TryDecode(entityBuffer, out _, out _));
+
+        SetPartTypeActiveCommand zeroType = new(0, 1, 1, 0, Active: true);
+        byte[] typeBuffer = new byte[CommandFrame.SetPartTypeActiveByteCount];
+        Assert.True(CommandFrame.TryEncode(typeBuffer, zeroType, out _));
+        Assert.False(CommandFrame.TryDecode(typeBuffer, out _, out _));
+
+        SetPartActiveCommand valid = new(0, 1, 1, 9, Active: true);
+        byte[] badFlag = new byte[CommandFrame.SetPartActiveByteCount];
+        Assert.True(CommandFrame.TryEncode(badFlag, valid, out _));
+        badFlag[23] = 2;
+        Assert.False(CommandFrame.TryDecode(badFlag, out _, out string error));
+        Assert.Contains("active", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TruncatedActivationPayloadIsRejected()
+    {
+        SetPartActiveCommand original = new(0, 1, 1, 9, Active: true);
+        byte[] full = new byte[CommandFrame.SetPartActiveByteCount];
+        Assert.True(CommandFrame.TryEncode(full, original, out _));
+        byte[] truncated = full[..^1];
+
+        Assert.False(CommandFrame.TryDecode(truncated, out _, out string error));
+        Assert.Contains("truncated", error, StringComparison.OrdinalIgnoreCase);
     }
 }

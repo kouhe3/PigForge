@@ -20,6 +20,9 @@ public static class CommandFrame
     // ScalePart payload is entityId:u32 @19 + scale:f32 @23 (27 total).
     public static int MoveByteCount => HeaderByteCount + 12;
     public static int ScaleByteCount => HeaderByteCount + 8;
+    // SetPartActive/SetPartTypeActive payload is id:u32 @19 + active:u8 @23 (24 total).
+    public static int SetPartActiveByteCount => HeaderByteCount + 5;
+    public static int SetPartTypeActiveByteCount => HeaderByteCount + 5;
 
     public static bool TryEncode(Span<byte> destination, ReplayCommand command, out int written)
     {
@@ -32,6 +35,8 @@ public static class CommandFrame
             MovePartCommand => MoveByteCount,
             ScalePartCommand => ScaleByteCount,
             StartSimulationCommand or RetryCommand => StartByteCount,
+            SetPartActiveCommand => SetPartActiveByteCount,
+            SetPartTypeActiveCommand => SetPartTypeActiveByteCount,
             _ => 0
         };
         if (size == 0 || destination.Length < size)
@@ -74,6 +79,14 @@ public static class CommandFrame
                 BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], scale.EntityId);
                 BinaryPrimitives.WriteSingleLittleEndian(destination[23..], scale.Scale);
                 break;
+            case SetPartActiveCommand setActive:
+                BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], setActive.EntityId);
+                destination[23] = setActive.Active ? (byte)1 : (byte)0;
+                break;
+            case SetPartTypeActiveCommand setTypeActive:
+                BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], setTypeActive.PartTypeId);
+                destination[23] = setTypeActive.Active ? (byte)1 : (byte)0;
+                break;
         }
 
         written = size;
@@ -108,7 +121,7 @@ public static class CommandFrame
             return false;
         }
 
-        if (kindByte > (byte)ClientCommandKind.ScalePart)
+        if (kindByte > (byte)ClientCommandKind.SetPartTypeActive)
         {
             error = "Unknown command kind.";
             return false;
@@ -214,6 +227,44 @@ public static class CommandFrame
                 }
 
                 command = new ScalePartCommand(tick, sequence, playerId, entityId, scale);
+                return true;
+            }
+            case ClientCommandKind.SetPartActive:
+            {
+                if (source.Length < SetPartActiveByteCount)
+                {
+                    error = "SetPartActive payload is truncated.";
+                    return false;
+                }
+
+                uint entityId = BinaryPrimitives.ReadUInt32LittleEndian(source[19..]);
+                byte activeByte = source[23];
+                if (entityId == 0 || activeByte > 1)
+                {
+                    error = "SetPartActiveCommand has invalid entity id or active flag.";
+                    return false;
+                }
+
+                command = new SetPartActiveCommand(tick, sequence, playerId, entityId, activeByte == 1);
+                return true;
+            }
+            case ClientCommandKind.SetPartTypeActive:
+            {
+                if (source.Length < SetPartTypeActiveByteCount)
+                {
+                    error = "SetPartTypeActive payload is truncated.";
+                    return false;
+                }
+
+                uint partTypeId = BinaryPrimitives.ReadUInt32LittleEndian(source[19..]);
+                byte activeByte = source[23];
+                if (partTypeId == 0 || activeByte > 1)
+                {
+                    error = "SetPartTypeActiveCommand has invalid part type id or active flag.";
+                    return false;
+                }
+
+                command = new SetPartTypeActiveCommand(tick, sequence, playerId, partTypeId, activeByte == 1);
                 return true;
             }
             case ClientCommandKind.StartSimulation:

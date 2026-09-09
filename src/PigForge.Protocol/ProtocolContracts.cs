@@ -15,7 +15,9 @@ public enum ClientCommandKind
 	EnterBuildMode,
 	Retry,
 	MovePart,
-	ScalePart
+	ScalePart,
+	SetPartActive,
+	SetPartTypeActive
 }
 
 public sealed record ClientCommandEnvelope(

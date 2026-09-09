@@ -128,6 +128,22 @@ public sealed record ScalePartCommand(
     uint EntityId,
     float Scale) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.ScalePart);
 
+/// <summary>Sets one part's switch: on for a toggle, fire for a one-shot trigger.</summary>
+public sealed record SetPartActiveCommand(
+    uint Tick,
+    uint Sequence,
+    uint PlayerId,
+    uint EntityId,
+    bool Active) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.SetPartActive);
+
+/// <summary>Sets the switch for every switchable part of one type the player owns.</summary>
+public sealed record SetPartTypeActiveCommand(
+    uint Tick,
+    uint Sequence,
+    uint PlayerId,
+    uint PartTypeId,
+    bool Active) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.SetPartTypeActive);
+
 public sealed record StartSimulationCommand(
     uint Tick,
     uint Sequence,
