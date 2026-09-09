@@ -84,6 +84,9 @@ const selectedBaseId = computed(() => {
   return part?.variantOf ?? selectedPart.value;
 });
 
+/** Part lookup for the move-drag contact snap; rebuilt when content arrives. */
+const partById = computed(() => new Map((session.content?.parts ?? []).map((part) => [part.partTypeId, part])));
+
 function syncPlayer(): void {
   playerPhase.value = player.phase;
   ownCount.value = player.ownEntityIds.size;
@@ -465,6 +468,7 @@ onMounted(() => {
         tool: () => tool.value,
         canPlace: () => canPlace.value,
         isEditable: (entityId) => canEdit.value && player.ownEntityIds.has(entityId),
+        partOf: (partTypeId) => partById.value.get(partTypeId),
       },
     );
   }
@@ -577,7 +581,7 @@ onUnmounted(() => {
     <aside class="side">
       <template v-if="activeTab === 'live'">
         <h1>零件</h1>
-        <p class="meta">工具 1–5：放置/选择/移动/旋转/缩放。拖动选中零件变换，Alt 不吸附，方向键微调移动。选择工具左键拖拽空白框选（Shift 加选），中键拖拽平移。Q/E 放置角，Alt+滚轮放置缩放，R 旋转，Delete 删除。不提交位姿。</p>
+        <p class="meta">工具 1–5：放置/选择/移动/旋转/缩放。拖动选中零件变换（移动默认自由，靠近零件自动贴合；Alt 吸附 0.5 网格），方向键微调移动。选择工具左键拖拽空白框选（Shift 加选），中键拖拽平移。Q/E 放置角，Alt+滚轮放置缩放，R 旋转，Delete 删除。不提交位姿。</p>
         <div class="palette">
           <template v-for="part in PALETTE" :key="part.partTypeId">
             <button

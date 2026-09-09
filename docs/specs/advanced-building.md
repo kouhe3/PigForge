@@ -19,7 +19,7 @@ Build order: `transform-commands` → `sandbox-transform`；`web-editor-tools` �
 1. **单选 v1**（框选/多选已由 `docs/specs/multi-select.md` 取代）：点击选中 / 点空取消；多选、Shift 加选、框选见多选切片。
 2. 工具集固定为 **放置 / 选择 / 移动 / 旋转 / 缩放**，快捷键 `1`–`5`，默认「放置」（保持现有手感）。工具只在「建造」标签页出现。
 3. 移动/旋转/缩放只对**自己且 Editing** 的零件生效；服务器仍最终校验（`NotOwnedByPlayer` / `WrongMode`）。选择工具可以选中任何零件（只读检查）。
-4. 吸附：移动 0.5 m、旋转 15°、缩放 0.25；按住 `Alt` 不吸附（缩放仍钳制在 `[0.25, 4]`）。
+4. 吸附：旋转 15°、缩放 0.25；按住 `Alt` 不吸附（缩放仍钳制在 `[0.25, 4]`）。移动**默认自由**：候选位姿跟指针走，只做零件贴合吸附——拖拽件与附近零件的建造平面 AABB（第一碰撞形状按 yaw/scale 投影，与服务端 `PartFootprint.Bounds` 同式）在某一轴贴合（间隙 0）且另一轴已重叠时，取距指针不超过 `PART_SNAP = 0.35 m` 的最近贴合位置（`clients/web/src/editor/tools.ts`）。按住 `Alt` 时移动改为吸附绝对 0.5 网格，此时不做贴合。贴合后两件距离 ≤ `ConstructionRules.ConnectionProximity`（0.15 m）即连接；旋转件的 AABB 是外接框，倾斜时贴合可能留下小间隙（已知近似）。
 5. 拖拽期间只画本地半透明预览（沿用 `bodyId === 0` 幽灵样式），**不连续发命令**；松手时发一条命令。服务器拒绝 → 下一帧快照恢复真实位姿，错误列表显示。松手到确认之间可能有 ≤2 帧回跳（本切片接受）。
 6. 协议保持 v2：19B 头与既有 kind 0–5 布局不变，只**追加** kind 6/7。旧客户端不受影响；旧服务器对 6/7 回 `UnknownKind`。
 7. 回放文档契约同步扩展（`MOVE_PART` / `SCALE_PART` 可被校验），但本切片不产出含这两种命令的回放。
@@ -112,7 +112,7 @@ clients/web/src/App.vue                # 工具面板、快捷键、命令派发
 |---|---|---|---|---|
 | 放置 | 命中零件 → 选中；空白 → 记录起点 | 相机平移 | 空白且未移动 → `PlaceRequested(x,y)` | 缩放相机；`Alt` → 放置缩放 |
 | 选择 | 命中 → 选中；空白 → 清空选中 | 相机平移 | — | 缩放相机 |
-| 移动 | 命中**可编辑自有**零件 → 开始移动拖拽；否则选中命中项（如有）并相机平移 | 候选位姿 = 起始位姿 + 世界位移，吸附 0.5（`Alt` 自由） | `MoveRequested(entityId, x, y)` | 缩放相机 |
+| 移动 | 命中**可编辑自有**零件 → 开始移动拖拽；否则选中命中项（如有）并相机平移 | 候选位姿 = 起始位姿 + 世界位移；默认自由 + 零件贴合（阈值 0.35），按住 `Alt` 吸附 0.5 网格（见 Assumptions #4） | `MoveRequested(entityId, x, y)` | 缩放相机 |
 | 旋转 | 命中可编辑自有零件 → 记录「指针相对零件中心的角度」与当前 yaw | 候选 yaw = 起始 yaw + 指针角差，吸附 15°（`Alt` 自由） | `RotateRequested(entityId, angle)` | 缩放相机 |
 | 缩放 | 命中可编辑自有零件 → 记录「指针到中心的距离」与当前 scale | 候选 scale = 起始 scale × 距离比，吸附 0.25、钳制 `[0.25, 4]`（`Alt` 不吸附但仍钳制） | `ScaleRequested(entityId, scale)` | 缩放相机 |
 
@@ -166,7 +166,7 @@ clients/web/src/App.vue                # 工具面板、快捷键、命令派发
 
 ### Web（vitest）
 
-- `editor/tools.test.ts`：吸附取整、`Alt` 自由、缩放钳制、指针角度/距离比。
+- `editor/tools.test.ts`：`snapMove` 取整、`snapBoxOf` 形状投影、贴合阈值/自身排除/另一轴不重叠不贴合、`movePose` 默认自由 + `Alt` 网格、缩放钳制、指针角度/距离比。
 - `schema/encodeCommand.test.ts`：kind 6/7 字节布局。
 - `gesture/canvasGestures.test.ts`：五种工具的按下/拖动/松手消息序列；拖他人零件不发变换请求（改平移相机）。
 - `live/playerSession.test.ts`：kind 6/7 的 ack 不影响 `ownEntityIds` / 状态机。

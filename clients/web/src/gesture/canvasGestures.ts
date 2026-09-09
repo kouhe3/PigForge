@@ -2,6 +2,7 @@ import { type Camera, screenToWorld } from "@/renderer/camera";
 import {
   MIN_POINTER_DISTANCE,
   type Pose,
+  type SnapBox,
   type ToolId,
   type Vec2,
   isTransformTool,
@@ -12,8 +13,9 @@ import {
   rotatePose,
   scalePose,
   shortestAngleDelta,
+  snapBoxOf,
 } from "@/editor/tools";
-import type { DrawEntity, GestureMessage, MarqueeRect } from "@/schema/types";
+import type { DrawEntity, GestureMessage, MarqueeRect, PartDefinition } from "@/schema/types";
 
 export interface CanvasGestureOptions {
   /** Current build tool; pointer semantics follow it. Defaults to "place". */
@@ -22,6 +24,8 @@ export interface CanvasGestureOptions {
   canPlace?: () => boolean;
   /** Whether this client may transform the entity (own + editing). */
   isEditable?: (entityId: number) => boolean;
+  /** Content lookup used to snap a move drag flush against nearby parts. */
+  partOf?: (partTypeId: number) => PartDefinition | undefined;
 }
 
 interface TransformDrag {
@@ -34,6 +38,9 @@ interface TransformDrag {
   lastPointerAngle: number;
   startDistance: number;
   accumulatedAngle: number;
+  /** Build-plane half extents at drag start; 0 when the part has no snap shape. */
+  halfX: number;
+  halfY: number;
 }
 
 const DRAG_THRESHOLD_PX = 4;
@@ -122,6 +129,7 @@ export function attachCanvasGestures(
     if (hit !== null && target && isTransformTool(currentTool) && options?.isEditable?.(hit)) {
       const center = { x: target.x, y: target.y };
       const startPointerAngle = pointerAngle(center, world);
+      const box = options?.partOf === undefined ? null : snapBoxOf(target, options.partOf(target.partTypeId));
       drag = {
         tool: currentTool,
         entityId: hit,
@@ -131,6 +139,8 @@ export function attachCanvasGestures(
         lastPointerAngle: startPointerAngle,
         startDistance: pointerDistance(center, world),
         accumulatedAngle: 0,
+        halfX: box?.halfX ?? 0,
+        halfY: box?.halfY ?? 0,
       };
     }
   };
@@ -169,7 +179,18 @@ export function attachCanvasGestures(
       const snap = !event.altKey;
       const center = { x: drag.start.x, y: drag.start.y };
       if (drag.tool === "move") {
-        drag.last = movePose(drag.start, world.x - drag.startWorld.x, world.y - drag.startWorld.y, snap);
+        const dx = world.x - drag.startWorld.x;
+        const dy = world.y - drag.startWorld.y;
+        const grid = event.altKey;
+        const partOf = options?.partOf;
+        const contacts =
+          grid || partOf === undefined || drag.halfX <= 0 || drag.halfY <= 0
+            ? undefined
+            : {
+                self: { entityId: drag.entityId, halfX: drag.halfX, halfY: drag.halfY },
+                others: contactBoxes(entities.current, partOf),
+              };
+        drag.last = movePose(drag.start, dx, dy, grid, contacts);
       } else if (drag.tool === "rotate") {
         const angleNow = pointerAngle(center, world);
         drag.accumulatedAngle += shortestAngleDelta(drag.lastPointerAngle, angleNow);
@@ -305,4 +326,19 @@ function marqueeRect(start: Vec2, end: Vec2): MarqueeRect {
 function pointerCss(canvas: HTMLCanvasElement, event: PointerEvent): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+/** Build-plane boxes of every entity whose part carries a snappable shape. */
+function contactBoxes(
+  entities: readonly DrawEntity[],
+  partOf: (partTypeId: number) => PartDefinition | undefined,
+): SnapBox[] {
+  const boxes: SnapBox[] = [];
+  for (const entity of entities) {
+    const box = snapBoxOf(entity, partOf(entity.partTypeId));
+    if (box !== null) {
+      boxes.push(box);
+    }
+  }
+  return boxes;
 }

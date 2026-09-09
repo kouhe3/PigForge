@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { attachCanvasGestures, type CanvasGestureOptions } from "./canvasGestures";
 import { createCamera } from "@/renderer/camera";
-import type { DrawEntity, GestureMessage } from "@/schema/types";
+import type { DrawEntity, GestureMessage, PartDefinition } from "@/schema/types";
 
 /** Minimal canvas mock: records listeners, captures pointers, gives a fixed rect. */
 function makeCanvas() {
@@ -77,24 +77,29 @@ describe("canvas gestures: place and select", () => {
 });
 
 describe("canvas gestures: transform tools", () => {
-  it("moves an editable part with grid snap and emits one request on release", () => {
+  it("moves an editable part freely by default and emits one request on release", () => {
     const [x, y] = worldToCss(part.x, part.y);
     const { listeners, messages, detach } = attach([part], { tool: () => "move", isEditable: () => true });
     listeners.pointerdown(pointerEvent("pointerdown", x, y));
     listeners.pointermove(pointerEvent("pointermove", x + 12, y - 12));
-    expect(findMessage(messages, "ToolPreview")?.preview).toEqual({ entityId: 7, x: 1, y: 1, yaw: 0, scale: 1 });
+    const preview = findMessage(messages, "ToolPreview")?.preview;
+    expect(preview?.entityId).toBe(7);
+    expect(preview?.x).toBeCloseTo(5 / 6);
+    expect(preview?.y).toBeCloseTo(5 / 6);
     listeners.pointerup(pointerEvent("pointerup", x + 12, y - 12));
-    expect(findMessage(messages, "MoveRequested")).toEqual({ kind: "MoveRequested", entityId: 7, x: 1, y: 1 });
+    const request = findMessage(messages, "MoveRequested");
+    expect(request?.entityId).toBe(7);
+    expect(request?.x).toBeCloseTo(5 / 6);
     expect(messages[messages.length - 1]).toEqual({ kind: "ToolPreview", preview: null });
     detach();
   });
 
-  it("keeps raw coordinates while Alt is held", () => {
+  it("snaps a move to the 0.5 grid while Alt is held", () => {
     const [x, y] = worldToCss(part.x, part.y);
     const { listeners, messages, detach } = attach([part], { tool: () => "move", isEditable: () => true });
     listeners.pointerdown(pointerEvent("pointerdown", x, y));
     listeners.pointermove(pointerEvent("pointermove", x + 12, y, true));
-    expect(findMessage(messages, "ToolPreview")?.preview?.x).toBeCloseTo(5 / 6);
+    expect(findMessage(messages, "ToolPreview")?.preview).toMatchObject({ x: 1, y: 0.5 });
     detach();
   });
 
@@ -137,6 +142,27 @@ describe("canvas gestures: transform tools", () => {
     listeners.pointerdown(pointerEvent("pointerdown", x, y));
     listeners.pointerup(pointerEvent("pointerup", x, y));
     expect(messages.some((m) => m.kind === "MoveRequested")).toBe(false);
+    detach();
+  });
+
+  it("snaps a move drag flush against a neighbouring part", () => {
+    const dragged: DrawEntity = { ...part, entityId: 7, partTypeId: 1 };
+    const neighbour: DrawEntity = { ...part, entityId: 8, partTypeId: 2, x: 2 };
+    const parts: Record<number, PartDefinition> = {
+      1: { partTypeId: 1, name: "a", mode: "dynamic", mass: 1, shapes: [{ kind: "box", halfExtents: [0.45, 0.45, 0.5] }] },
+      2: { partTypeId: 2, name: "b", mode: "dynamic", mass: 1, shapes: [{ kind: "box", halfExtents: [0.475, 0.475, 0.5] }] },
+    };
+    const [x, y] = worldToCss(dragged.x, dragged.y);
+    const { listeners, messages, detach } = attach([dragged, neighbour], {
+      tool: () => "move",
+      isEditable: () => true,
+      partOf: (partTypeId) => parts[partTypeId],
+    });
+    listeners.pointerdown(pointerEvent("pointerdown", x, y));
+    listeners.pointermove(pointerEvent("pointermove", x + 20, y));
+    const preview = findMessage(messages, "ToolPreview")?.preview;
+    expect(preview?.x).toBeCloseTo(1.075);
+    expect(preview?.y).toBeCloseTo(0.5);
     detach();
   });
 });

@@ -1,4 +1,4 @@
-import type { DrawEntity } from "@/schema/types";
+import type { DrawEntity, PartDefinition } from "@/schema/types";
 
 /**
  * Build-mode editing tools (advanced building): the tool set, its snap steps, and the
@@ -87,8 +87,27 @@ export function shortestAngleDelta(from: number, to: number): number {
   return delta;
 }
 
-export function movePose(start: Pose, dx: number, dy: number, snap: boolean): Pose {
-  return { x: snapMove(start.x + dx, snap), y: snapMove(start.y + dy, snap), yaw: start.yaw, scale: start.scale };
+/** Contact-snap inputs for a move drag: the dragged part and its neighbours. */
+export interface MoveSnapContext {
+  self: SnapTarget;
+  others: readonly SnapBox[];
+}
+
+/**
+ * Move candidate from the drag start. Default (`grid` false) follows the pointer and
+ * only snaps flush against a neighbour (see `snapMoveToParts`); `grid` true (`Alt`)
+ * snaps both axes to the absolute 0.5 grid instead.
+ */
+export function movePose(start: Pose, dx: number, dy: number, grid: boolean, contacts?: MoveSnapContext): Pose {
+  const rawX = start.x + dx;
+  const rawY = start.y + dy;
+  if (grid) {
+    return { x: snapMove(rawX, true), y: snapMove(rawY, true), yaw: start.yaw, scale: start.scale };
+  }
+
+  const snapped =
+    contacts === undefined ? { x: rawX, y: rawY } : snapMoveToParts(rawX, rawY, contacts.self, contacts.others);
+  return { x: snapped.x, y: snapped.y, yaw: start.yaw, scale: start.scale };
 }
 
 export function rotatePose(start: Pose, accumulatedDelta: number, snap: boolean): Pose {
@@ -112,4 +131,104 @@ export function entitiesInBox(
     .filter((entity) => entity.x >= minX && entity.x <= maxX && entity.y >= minY && entity.y <= maxY)
     .map((entity) => entity.entityId)
     .sort((left, right) => left - right);
+}
+
+/** Flush-contact snap distance for a move drag (world metres, below the 0.5 grid step). */
+export const PART_SNAP = 0.35;
+
+/** Half extents of a part's build-plane AABB, plus the id to exclude from contact tests. */
+export interface SnapTarget {
+  entityId: number;
+  halfX: number;
+  halfY: number;
+}
+
+/** A placed part's build-plane AABB: a contact target with its centre. */
+export interface SnapBox extends SnapTarget {
+  x: number;
+  y: number;
+}
+
+/**
+ * World-axis half extents of an entity's first collision shape, or null when the part
+ * is unknown or carries no box/sphere shape (nothing to snap against).
+ */
+export function snapBoxOf(entity: DrawEntity, part: PartDefinition | undefined): SnapBox | null {
+  const shape = part?.shapes[0];
+  if (shape === undefined) {
+    return null;
+  }
+
+  if (shape.kind === "sphere") {
+    if (shape.radius === undefined) {
+      return null;
+    }
+
+    const radius = shape.radius * entity.scale;
+    return { entityId: entity.entityId, x: entity.x, y: entity.y, halfX: radius, halfY: radius };
+  }
+
+  const half = shape.halfExtents;
+  if (half === undefined) {
+    return null;
+  }
+
+  const cos = Math.abs(Math.cos(entity.yaw));
+  const sin = Math.abs(Math.sin(entity.yaw));
+  const halfX = half[0] * entity.scale;
+  const halfY = half[1] * entity.scale;
+  return {
+    entityId: entity.entityId,
+    x: entity.x,
+    y: entity.y,
+    halfX: halfX * cos + halfY * sin,
+    halfY: halfX * sin + halfY * cos,
+  };
+}
+
+/**
+ * Flush-contact candidate: zero gap against a nearby part whose other axis already
+ * overlaps. Only contact makes the server connect parts (`ConstructionRules`
+ * ConnectionProximity = 0.15 m), so this is the only snapping a free move applies;
+ * candidates further than `threshold` from the pointer are ignored.
+ */
+export function snapMoveToParts(
+  rawX: number,
+  rawY: number,
+  self: SnapTarget,
+  others: readonly SnapBox[],
+  threshold = PART_SNAP,
+): Vec2 {
+  let bestX = rawX;
+  let bestXDelta = Number.POSITIVE_INFINITY;
+  let bestY = rawY;
+  let bestYDelta = Number.POSITIVE_INFINITY;
+
+  for (const other of others) {
+    if (other.entityId === self.entityId) {
+      continue;
+    }
+
+    if (Math.abs(rawY - other.y) < other.halfY + self.halfY) {
+      for (const candidate of [other.x + other.halfX + self.halfX, other.x - other.halfX - self.halfX]) {
+        const delta = Math.abs(candidate - rawX);
+        if (delta <= threshold && delta < bestXDelta) {
+          bestX = candidate;
+          bestXDelta = delta;
+        }
+      }
+    }
+
+    if (Math.abs(rawX - other.x) < other.halfX + self.halfX) {
+      for (const candidate of [other.y + other.halfY + self.halfY, other.y - other.halfY - self.halfY]) {
+        const delta = Math.abs(candidate - rawY);
+        if (delta <= threshold && delta < bestYDelta) {
+          bestY = candidate;
+          bestYDelta = delta;
+        }
+      }
+    }
+  }
+
+  return { x: bestX, y: bestY };
 }
