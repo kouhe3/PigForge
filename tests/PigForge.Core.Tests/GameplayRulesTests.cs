@@ -128,6 +128,67 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
+    public void DisabledObjectivesKeepPlayingWhenPigEntersGoalZone()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f,
+            ObjectivesEnabled: false));
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(-8, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+    }
+
+    [Fact]
+    public void DisabledObjectivesKeepPlayingWhenPigLeavesMapBounds()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-50, -10, -50), new PhysicsVector3(50, 50, 50)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f,
+            ObjectivesEnabled: false));
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(60, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+        Assert.False(harness.Rules.RestartRequested);
+    }
+
+    [Fact]
+    public void DisabledObjectivesKeepPlayingPastMaxTicks()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(500, 500, 500), new PhysicsVector3(501, 501, 501)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f,
+            MaxTicks: 5,
+            ObjectivesEnabled: false));
+
+        harness.Tick(5, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+    }
+
+    [Fact]
     public void JointBreakEventsAreRecorded()
     {
         EntityStore entities = new();

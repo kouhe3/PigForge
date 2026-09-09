@@ -18,8 +18,8 @@ public sealed class CompoundAssemblerTests
     public void AdjacentDynamicBoxesMergeIntoOneClusterWithOneSeam()
     {
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();
-        EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f).Entity;
-        EntityId right = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f).Entity;
+        EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId right = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity;
 
         List<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { left, right }, rules, content);
 
@@ -38,8 +38,8 @@ public sealed class CompoundAssemblerTests
     public void DistantPartsStaySingletonClusters()
     {
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();
-        EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f).Entity;
-        EntityId right = rules.Place(PartBlock, 2.5f, 0f, 0f, 1f).Entity;
+        EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId right = rules.Place(PartBlock, 2.5f, 0f, 0f, 1f, 0).Entity;
 
         List<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { left, right }, rules, content);
 
@@ -51,8 +51,8 @@ public sealed class CompoundAssemblerTests
     public void StaticPartsNeverMerge()
     {
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();
-        EntityId ground = rules.Place(PartGround, 0f, -1f, 0f, 1f).Entity;
-        EntityId block = rules.Place(PartBlock, 0f, 0.1f, 0f, 1f).Entity;
+        EntityId ground = rules.Place(PartGround, 0f, -1f, 0f, 1f, 0).Entity;
+        EntityId block = rules.Place(PartBlock, 0f, 0.1f, 0f, 1f, 0).Entity;
 
         List<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { ground, block }, rules, content);
 
@@ -77,8 +77,8 @@ public sealed class CompoundAssemblerTests
     public void SplitAlongSeamYieldsTwoSingletons()
     {
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();
-        EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f).Entity;
-        EntityId right = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f).Entity;
+        EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId right = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity;
         CompoundCluster merged = Assert.Single(CompoundAssembler.Assemble(new[] { left, right }, rules, content));
 
         IReadOnlyList<CompoundCluster> pieces = CompoundAssembler.SplitAlongSeam(merged, merged.Seams[0]);
@@ -95,9 +95,9 @@ public sealed class CompoundAssemblerTests
     public void NearestSeamPicksTheCloserWeld()
     {
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();
-        EntityId a = rules.Place(PartBlock, 0f, 0f, 0f, 1f).Entity;
-        EntityId b = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f).Entity;
-        EntityId c = rules.Place(PartBlock, 2.2f, 0f, 0f, 1f).Entity;
+        EntityId a = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId b = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity;
+        EntityId c = rules.Place(PartBlock, 2.2f, 0f, 0f, 1f, 0).Entity;
         CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { a, b, c }, rules, content));
         Assert.Equal(2, cluster.Seams.Count);
 
@@ -121,9 +121,9 @@ public sealed class CompoundAssemblerTests
     {
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();
         List<EntityId> placed = new();
-        placed.Add(rules.Place(PartBlock, 0f, 0f, 0f, 1f).Entity);
-        placed.Add(rules.Place(PartBlock, 1.1f, 0f, 0f, 1f).Entity);
-        placed.Add(rules.Place(PartBlock, 2.2f, 0f, 0f, 1f).Entity);
+        placed.Add(rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity);
+        placed.Add(rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity);
+        placed.Add(rules.Place(PartBlock, 2.2f, 0f, 0f, 1f, 0).Entity);
         CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(placed, rules, content));
 
         long hash = cluster.ComputeHash();

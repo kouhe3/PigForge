@@ -29,7 +29,8 @@ public sealed record GameplayConfig(
     float TntIgniteImpactSpeed,
     float EggBreakImpactSpeed = 6f,
     float SeamBreakImpulse = 10f,
-    uint MaxTicks = 0)
+    uint MaxTicks = 0,
+    bool ObjectivesEnabled = true)
 {
     public static GameplayConfig Default { get; } = new(
         GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
@@ -775,6 +776,11 @@ public sealed class GameplayRules
 
     private void CheckObjectives(uint tick)
     {
+        if (!_config.ObjectivesEnabled)
+        {
+            return;
+        }
+
         var pigs = _pigs.GetEnumerator();
         while (pigs.MoveNext())
         {

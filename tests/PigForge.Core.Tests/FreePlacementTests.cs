@@ -18,7 +18,7 @@ public sealed class FreePlacementTests
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        ConstructionResult placed = rules.Place(PartBlock, 2.3f, 1.7f, angle: 0.6f, scale: 2f);
+        ConstructionResult placed = rules.Place(PartBlock, 2.3f, 1.7f, angle: 0.6f, scale: 2f, owner: 0);
 
         Assert.True(placed.IsSuccess);
         Assert.True(rules.TryGetTransform(placed.Entity, out EntityTransform transform));
@@ -33,12 +33,12 @@ public sealed class FreePlacementTests
         (ConstructionRules rules, _) = CreateRules();
 
         // Two 45° rectangles whose centres are closer than their diagonal extents cross.
-        Assert.True(rules.Place(PartBlock, 0f, 0f, 0.785398f, 1f).IsSuccess);
-        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 0.9f, 0.1f, 0.785398f, 1f).Error);
+        Assert.True(rules.Place(PartBlock, 0f, 0f, 0.785398f, 1f, 0).IsSuccess);
+        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 0.9f, 0.1f, 0.785398f, 1f, 0).Error);
 
         // Flush edge-to-edge placement is legal and connects through proximity.
-        Assert.True(rules.Place(PartBlock, 10f, 0f, 0f, 1f).IsSuccess);
-        Assert.True(rules.Place(PartBlock, 11f, 0f, 0f, 1f).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 10f, 0f, 0f, 1f, 0).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 11f, 0f, 0f, 1f, 0).IsSuccess);
         Assert.Contains(1048579u, rules.ConnectionsOf(new EntityId(1048578)));
     }
 
@@ -48,9 +48,9 @@ public sealed class FreePlacementTests
         (ConstructionRules rules, _) = CreateRules();
 
         // 0.1 gap connects (within ConnectionProximity), 0.3 gap does not.
-        Assert.True(rules.Place(PartBlock, 0f, 0f, 0f, 1f).IsSuccess);
-        Assert.True(rules.Place(PartBlock, 1.1f, 0f, 0f, 1f).IsSuccess);
-        Assert.True(rules.Place(PartBlock, 2.5f, 0f, 0f, 1f).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 2.5f, 0f, 0f, 1f, 0).IsSuccess);
 
         Assert.Contains(1048578u, rules.ConnectionsOf(new EntityId(1048577)));
         Assert.DoesNotContain(1048579u, rules.ConnectionsOf(new EntityId(1048577)));
@@ -61,8 +61,8 @@ public sealed class FreePlacementTests
     {
         (ConstructionRules rules, _) = CreateRules(new ConstructionLimits(MaxParts: 8, MaxConnectionsPerPart: 6, MaxFootprintCells: 8));
 
-        Assert.Equal(ConstructionError.FootprintTooLarge, rules.Place(PartBlock, 0f, 0f, 0f, scale: 4f).Error);
-        Assert.True(rules.Place(PartBlock, 0f, 0f, 0f, scale: 2f).IsSuccess);
+        Assert.Equal(ConstructionError.FootprintTooLarge, rules.Place(PartBlock, 0f, 0f, 0f, scale: 4f, owner: 0).Error);
+        Assert.True(rules.Place(PartBlock, 0f, 0f, 0f, scale: 2f, owner: 0).IsSuccess);
     }
 
     [Fact]
@@ -77,13 +77,13 @@ public sealed class FreePlacementTests
         float[] angles = { 0f, 0.35f, 1.2f, 2f };
         for (int index = 0; index < angles.Length; index++)
         {
-            ConstructionResult result = rules.Place(PartBlock, 2f + (index * 10f), 3f + (index * 7f), angles[index], 1.5f);
+            ConstructionResult result = rules.Place(PartBlock, 2f + (index * 10f), 3f + (index * 7f), angles[index], 1.5f, 0);
             Assert.True(result.IsSuccess, result.Error.ToString());
         }
 
-        Assert.True(rules.Rotate(new EntityId(1048577), 0.9f).IsSuccess);
-        Assert.True(rules.Remove(new EntityId(1048578)).IsSuccess);
-        Assert.True(rules.Place(PartPlank, 50f, 50f, -0.4f, 1f).IsSuccess);
+        Assert.True(rules.Rotate(new EntityId(1048577), 0.9f, 0).IsSuccess);
+        Assert.True(rules.Remove(new EntityId(1048578), 0).IsSuccess);
+        Assert.True(rules.Place(PartPlank, 50f, 50f, -0.4f, 1f, 0).IsSuccess);
         return rules.ComputeLayoutHash();
     }
 

@@ -1,40 +1,51 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.WebSockets;
+using System.Runtime.CompilerServices;
 using PigForge.Core;
 using PigForge.Core.Content;
 using PigForge.Physics.Abstractions;
 using PigForge.Physics.Bepu;
 using PigForge.Protocol;
 
+// Identity helpers stay internal; the server test project verifies them directly.
+[assembly: InternalsVisibleTo("PigForge.Server.Tests")]
+
 namespace PigForge.Server;
 
 /// <summary>
-/// Local play host: one Bepu room stays in Building until StartSimulation, then ticks
-/// at 60 Hz. Clients send PGFC and receive PGFA + PGFS. No keep / EnterBuildMode.
+/// Local play host. Every accepted /play socket owns a process-unique player id and the
+/// server overrides each PGFC command's wire playerId before submitting it. --play hosts
+/// the persistent sandbox room (Running from setup, objectives disabled); --demo-ws stays
+/// the snapshot-only demo. Clients send PGFC and receive PGFA + PGFS.
 /// </summary>
 public static class PlayHost
 {
     public const string Prefix = "http://127.0.0.1:5088/";
-    public const uint PlayerId = 1;
+
+    private static int _nextPlayerId;
 
     private sealed class PlayClient
     {
         public required WebSocket Socket { get; init; }
+
+        public required uint PlayerId { get; init; }
+
         public SemaphoreSlim SendLock { get; } = new(1, 1);
     }
 
     public static async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
-        using GameRoom room = CreateLevelRoom("terrain-v1.json");
+        using GameRoom room = CreateSandboxRoom();
         using HttpListener listener = new();
         listener.Prefixes.Add(Prefix);
         listener.Start();
         Console.WriteLine($"PigForge play host on {Prefix}play");
 
         ConcurrentDictionary<Guid, PlayClient> clients = new();
-        Task accept = AcceptAsync(listener, clients, room, cancellationToken);
-        Task ticks = TickAsync(room, clients, cancellationToken);
+        SnapshotBroadcaster broadcaster = new();
+        Task accept = AcceptAsync(listener, clients, room, broadcaster, cancellationToken);
+        Task ticks = TickAsync(room, clients, broadcaster, cancellationToken);
         await Task.WhenAny(accept, ticks);
         listener.Stop();
         return 0;
@@ -44,7 +55,22 @@ public static class PlayHost
 
     public static GameRoom CreateTerrainRoom() => CreateLevelRoom("terrain-v1.json");
 
-    public static GameRoom CreateLevelRoom(string levelFile)
+    public static GameRoom CreateLevelRoom(string levelFile) => CreateRoom(levelFile, sandboxMode: false);
+
+    /// <summary>
+    /// Persistent sandbox room: the level world is materialized during setup, objectives
+    /// are disabled, and the room runs at 60 Hz without ever returning to Building.
+    /// </summary>
+    public static GameRoom CreateSandboxRoom() => CreateRoom("terrain-v1.json", sandboxMode: true);
+
+    /// <summary>Allocates the next process-unique player id (starts at 1, never reused).</summary>
+    internal static uint NextPlayerId() => (uint)Interlocked.Increment(ref _nextPlayerId);
+
+    /// <summary>Overrides the wire player id with the connection's server-assigned id.</summary>
+    internal static ReplayCommand BindPlayer(ReplayCommand command, uint playerId) =>
+        command with { PlayerId = playerId };
+
+    private static GameRoom CreateRoom(string levelFile, bool sandboxMode)
     {
         string root = FindRepositoryRoot();
         PartContentLibrary parts = PartContentLibrary.Load(Path.Combine(root, "content", "parts.json"));
@@ -55,11 +81,13 @@ public static class PlayHost
             TntBlastRadius: 4f,
             TntBlastImpulse: 25f,
             TntIgniteImpactSpeed: 5f,
-            MaxTicks: 1200);
+            MaxTicks: 1200,
+            ObjectivesEnabled: !sandboxMode);
         GameRoom room = new(GameRoomOptions.Create(
             parts,
             () => new BepuPhysicsWorld(new PhysicsVector3(0f, -9.81f, 0f)),
-            config));
+            config,
+            sandboxMode: sandboxMode));
         room.SetupFromLevel(level);
         return room;
     }
@@ -68,6 +96,7 @@ public static class PlayHost
         HttpListener listener,
         ConcurrentDictionary<Guid, PlayClient> clients,
         GameRoom room,
+        SnapshotBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -82,9 +111,9 @@ public static class PlayHost
 
             HttpListenerWebSocketContext socketContext = await context.AcceptWebSocketAsync(subProtocol: null);
             Guid id = Guid.NewGuid();
-            PlayClient client = new() { Socket = socketContext.WebSocket };
+            PlayClient client = new() { Socket = socketContext.WebSocket, PlayerId = NextPlayerId() };
             clients[id] = client;
-            _ = ReceiveAsync(id, client, room, clients, cancellationToken);
+            _ = ReceiveAsync(id, client, room, clients, broadcaster, cancellationToken);
         }
     }
 
@@ -93,6 +122,7 @@ public static class PlayHost
         PlayClient client,
         GameRoom room,
         ConcurrentDictionary<Guid, PlayClient> clients,
+        SnapshotBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
         byte[] buffer = new byte[256];
@@ -115,20 +145,20 @@ public static class PlayHost
                 lock (room)
                 {
                     if (!CommandFrame.TryDecode(buffer.AsSpan(0, result.Count), out ReplayCommand? command, out _)
-                        || command is null
-                        || command.PlayerId != PlayerId)
+                        || command is null)
                     {
                         CommandFrame.TryEncodeAck(ack, 0, (byte)CommandStatus.UnknownKind, 0, 0);
                     }
                     else
                     {
-                        CommandOutcome outcome = room.Submit(command);
+                        ReplayCommand bound = BindPlayer(command, client.PlayerId);
+                        CommandOutcome outcome = room.Submit(bound);
                         CommandFrame.TryEncodeAck(ack, command.Sequence, (byte)outcome.Status, (byte)outcome.Error, outcome.EntityId);
                     }
                 }
 
                 await SendBinaryAsync(client, ack, cancellationToken);
-                await BroadcastSnapshotAsync(room, clients, cancellationToken);
+                await broadcaster.BroadcastAsync(room, clients, cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -151,6 +181,7 @@ public static class PlayHost
     private static async Task TickAsync(
         GameRoom room,
         ConcurrentDictionary<Guid, PlayClient> clients,
+        SnapshotBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
         using PeriodicTimer timer = new(TimeSpan.FromSeconds(1.0 / 60.0));
@@ -166,7 +197,7 @@ public static class PlayHost
                     }
                 }
 
-                await BroadcastSnapshotAsync(room, clients, cancellationToken);
+                await broadcaster.BroadcastAsync(room, clients, cancellationToken);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -175,37 +206,52 @@ public static class PlayHost
         }
     }
 
-    private static async Task BroadcastSnapshotAsync(
-        GameRoom room,
-        ConcurrentDictionary<Guid, PlayClient> clients,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// Reuses one snapshot buffer per host, growing it when the room's entity count rises:
+    /// sandbox mixed frames include every player's previews, not just bound bodies, so the
+    /// legacy fixed 256-entity capacity would silently drop frames.
+    /// </summary>
+    private sealed class SnapshotBroadcaster
     {
-        byte[] buffer = new byte[SnapshotFrame.GetMaxByteCount(256)];
-        int written;
-        lock (room)
-        {
-            if (!room.TryPublishSnapshot(buffer, out written))
-            {
-                return;
-            }
-        }
+        private byte[] _buffer = new byte[SnapshotFrame.GetMaxByteCount(256)];
 
-        byte[] frame = buffer.AsSpan(0, written).ToArray();
-        foreach (KeyValuePair<Guid, PlayClient> pair in clients)
+        public async Task BroadcastAsync(
+            GameRoom room,
+            ConcurrentDictionary<Guid, PlayClient> clients,
+            CancellationToken cancellationToken)
         {
-            if (pair.Value.Socket.State != WebSocketState.Open)
+            int written;
+            lock (room)
             {
-                clients.TryRemove(pair.Key, out _);
-                continue;
+                int required = SnapshotFrame.GetMaxByteCount(room.MaxSnapshotEntityCount);
+                if (_buffer.Length < required)
+                {
+                    _buffer = new byte[required];
+                }
+
+                if (!room.TryPublishSnapshot(_buffer, out written))
+                {
+                    return;
+                }
             }
 
-            try
+            byte[] frame = _buffer.AsSpan(0, written).ToArray();
+            foreach (KeyValuePair<Guid, PlayClient> pair in clients)
             {
-                await SendBinaryAsync(pair.Value, frame, cancellationToken);
-            }
-            catch (WebSocketException)
-            {
-                clients.TryRemove(pair.Key, out _);
+                if (pair.Value.Socket.State != WebSocketState.Open)
+                {
+                    clients.TryRemove(pair.Key, out _);
+                    continue;
+                }
+
+                try
+                {
+                    await SendBinaryAsync(pair.Value, frame, cancellationToken);
+                }
+                catch (WebSocketException)
+                {
+                    clients.TryRemove(pair.Key, out _);
+                }
             }
         }
     }

@@ -24,5 +24,5 @@ if (args.Contains("--play"))
 
 Console.WriteLine("PigForge.Server initialized.");
 Console.WriteLine("Pass --demo-ws to tick one Bepu room and broadcast PGFS snapshots on ws://127.0.0.1:5088/snapshots.");
-Console.WriteLine("Pass --play for the slope build loop on ws://127.0.0.1:5088/play.");
+Console.WriteLine("Pass --play for the persistent sandbox world on ws://127.0.0.1:5088/play.");
 return 0;

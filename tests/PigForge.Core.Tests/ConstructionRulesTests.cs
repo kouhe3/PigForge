@@ -9,13 +9,16 @@ public sealed class ConstructionRulesTests
     private const uint PartBlock = 1;
     private const uint PartPlank = 2;
 
+    private const uint OwnerA = 1;
+    private const uint OwnerB = 2;
+
     [Fact]
     public void PlaceCreatesEntityWithPartsTransformAndConnections()
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        ConstructionResult first = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f);
-        ConstructionResult second = rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f);
+        ConstructionResult first = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0);
+        ConstructionResult second = rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f, 0);
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -30,8 +33,8 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f).IsSuccess);
-        ConstructionResult blocked = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f);
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0).IsSuccess);
+        ConstructionResult blocked = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0);
 
         Assert.Equal(ConstructionError.CellsOccupied, blocked.Error);
         Assert.Equal(1, rules.PartCount);
@@ -44,7 +47,7 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        ConstructionResult result = rules.Place(partTypeId, 0.5f, 0.5f, angle, 1f);
+        ConstructionResult result = rules.Place(partTypeId, 0.5f, 0.5f, angle, 1f, 0);
 
         Assert.Equal(expected, result.Error);
         Assert.Equal(0, rules.PartCount);
@@ -59,7 +62,7 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        Assert.Equal(ConstructionError.InvalidScale, rules.Place(PartBlock, 0.5f, 0.5f, 0f, scale).Error);
+        Assert.Equal(ConstructionError.InvalidScale, rules.Place(PartBlock, 0.5f, 0.5f, 0f, scale, 0).Error);
     }
 
     [Fact]
@@ -67,9 +70,9 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, _) = CreateRules(new ConstructionLimits(MaxParts: 2, MaxConnectionsPerPart: 6, MaxFootprintCells: 64));
 
-        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f).IsSuccess);
-        Assert.True(rules.Place(PartBlock, 5.5f, 0.5f, 0f, 1f).IsSuccess);
-        ConstructionResult third = rules.Place(PartBlock, 9.5f, 0.5f, 0f, 1f);
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 5.5f, 0.5f, 0f, 1f, 0).IsSuccess);
+        ConstructionResult third = rules.Place(PartBlock, 9.5f, 0.5f, 0f, 1f, 0);
 
         Assert.Equal(ConstructionError.PartLimitReached, third.Error);
     }
@@ -79,10 +82,10 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, _) = CreateRules(new ConstructionLimits(MaxParts: 64, MaxConnectionsPerPart: 2, MaxFootprintCells: 64));
 
-        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f).IsSuccess);
-        Assert.True(rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f).IsSuccess);
-        Assert.True(rules.Place(PartBlock, -0.5f, 0.5f, 0f, 1f).IsSuccess);
-        ConstructionResult thirdNeighbour = rules.Place(PartBlock, 0.5f, 1.5f, 0f, 1f);
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f, 0).IsSuccess);
+        Assert.True(rules.Place(PartBlock, -0.5f, 0.5f, 0f, 1f, 0).IsSuccess);
+        ConstructionResult thirdNeighbour = rules.Place(PartBlock, 0.5f, 1.5f, 0f, 1f, 0);
 
         Assert.Equal(ConstructionError.ConnectionLimitReached, thirdNeighbour.Error);
     }
@@ -91,10 +94,10 @@ public sealed class ConstructionRulesTests
     public void RemoveDestroysEntityAndFreesSpaceForReuse()
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult placed = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f);
+        ConstructionResult placed = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0);
 
-        ConstructionResult removed = rules.Remove(placed.Entity);
-        ConstructionResult replaced = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f);
+        ConstructionResult removed = rules.Remove(placed.Entity, 0);
+        ConstructionResult replaced = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0);
 
         Assert.True(removed.IsSuccess);
         Assert.False(rules.IsAlive(placed.Entity));
@@ -107,24 +110,101 @@ public sealed class ConstructionRulesTests
     {
         (ConstructionRules rules, EntityStore entities) = CreateRules();
 
-        Assert.Equal(ConstructionError.EntityNotFound, rules.Remove(new EntityId(12345)).Error);
+        Assert.Equal(ConstructionError.EntityNotFound, rules.Remove(new EntityId(12345), 0).Error);
 
         EntityId foreign = entities.Create();
-        Assert.Equal(ConstructionError.NotAConstructionEntity, rules.Remove(foreign).Error);
+        Assert.Equal(ConstructionError.NotAConstructionEntity, rules.Remove(foreign, 0).Error);
         Assert.True(rules.IsAlive(foreign), "A rejected removal must leave the entity intact.");
+    }
+
+    [Fact]
+    public void ForeignOwnerRotateAndRemoveAreRejected()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        ConstructionResult placed = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA);
+        Assert.True(placed.IsSuccess);
+
+        Assert.Equal(ConstructionError.NotOwnedByPlayer, rules.Rotate(placed.Entity, 0.5f, OwnerB).Error);
+        Assert.Equal(ConstructionError.NotOwnedByPlayer, rules.Remove(placed.Entity, OwnerB).Error);
+
+        Assert.True(rules.IsAlive(placed.Entity));
+        Assert.Equal(1, rules.PartCount);
+        Assert.Equal(new[] { placed.Entity.Value }, rules.PlacedEntitiesOf(OwnerA));
+    }
+
+    [Fact]
+    public void ErrorOrderChecksExistenceAndMembershipBeforeOwnership()
+    {
+        (ConstructionRules rules, EntityStore entities) = CreateRules();
+
+        Assert.Equal(ConstructionError.EntityNotFound, rules.Rotate(new EntityId(12345), 0f, OwnerB).Error);
+        Assert.Equal(ConstructionError.EntityNotFound, rules.Remove(new EntityId(12345), OwnerB).Error);
+
+        EntityId foreign = entities.Create();
+        Assert.Equal(ConstructionError.NotAConstructionEntity, rules.Rotate(foreign, 0f, OwnerB).Error);
+        Assert.Equal(ConstructionError.NotAConstructionEntity, rules.Remove(foreign, OwnerB).Error);
+    }
+
+    [Fact]
+    public void PartLimitIsEnforcedPerOwner()
+    {
+        (ConstructionRules rules, _) = CreateRules(new ConstructionLimits(MaxParts: 2, MaxConnectionsPerPart: 6, MaxFootprintCells: 64));
+
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 5.5f, 0.5f, 0f, 1f, OwnerA).IsSuccess);
+        Assert.Equal(ConstructionError.PartLimitReached, rules.Place(PartBlock, 9.5f, 0.5f, 0f, 1f, OwnerA).Error);
+
+        Assert.True(rules.Place(PartBlock, 0.5f, 5.5f, 0f, 1f, OwnerB).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 5.5f, 5.5f, 0f, 1f, OwnerB).IsSuccess);
+        Assert.Equal(ConstructionError.PartLimitReached, rules.Place(PartBlock, 9.5f, 5.5f, 0f, 1f, OwnerB).Error);
+        Assert.Equal(4, rules.PartCount);
+
+        Assert.Equal(2, rules.ResetOwned(OwnerA).Count);
+
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 5.5f, 0.5f, 0f, 1f, OwnerA).IsSuccess);
+        Assert.Equal(ConstructionError.PartLimitReached, rules.Place(PartBlock, 9.5f, 0.5f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(4, rules.PartCount);
+    }
+
+    [Fact]
+    public void OverlapAcrossOwnersIsRejected()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA).IsSuccess);
+        ConstructionResult blocked = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerB);
+
+        Assert.Equal(ConstructionError.CellsOccupied, blocked.Error);
+        Assert.Equal(1, rules.PartCount);
+        Assert.Empty(rules.PlacedEntitiesOf(OwnerB));
+    }
+
+    [Fact]
+    public void AdjacentPartsOfDifferentOwnersDoNotConnect()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+
+        ConstructionResult left = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA);
+        ConstructionResult right = rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f, OwnerB);
+
+        Assert.True(left.IsSuccess);
+        Assert.True(right.IsSuccess);
+        Assert.Empty(rules.ConnectionsOf(left.Entity));
+        Assert.Empty(rules.ConnectionsOf(right.Entity));
     }
 
     [Fact]
     public void RotateRecomputesOccupancyTransformAndConnections()
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult plank = rules.Place(PartPlank, 1.0f, 0.5f, 0f, 1f);
-        ConstructionResult block = rules.Place(PartBlock, 2.5f, 0.5f, 0f, 1f);
+        ConstructionResult plank = rules.Place(PartPlank, 1.0f, 0.5f, 0f, 1f, 0);
+        ConstructionResult block = rules.Place(PartBlock, 2.5f, 0.5f, 0f, 1f, 0);
         Assert.True(plank.IsSuccess);
         Assert.True(block.IsSuccess);
         Assert.NotEmpty(rules.ConnectionsOf(plank.Entity));
 
-        ConstructionResult rotated = rules.Rotate(plank.Entity, angle: MathF.PI / 2f);
+        ConstructionResult rotated = rules.Rotate(plank.Entity, angle: MathF.PI / 2f, owner: 0);
 
         Assert.True(rotated.IsSuccess);
         EntityTransform transform = TransformOf(rules, plank.Entity);
@@ -140,16 +220,90 @@ public sealed class ConstructionRulesTests
     public void RotateIntoOccupiedFootprintIsBlocked()
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult plank = rules.Place(PartPlank, 1.0f, 0.5f, 0f, 1f);
+        ConstructionResult plank = rules.Place(PartPlank, 1.0f, 0.5f, 0f, 1f, 0);
         // Sits exactly where the 90°-rotated plank would sweep, flush to its rest pose.
-        Assert.True(rules.Place(PartBlock, 1.0f, 1.5f, 0f, 1f).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 1.0f, 1.5f, 0f, 1f, 0).IsSuccess);
 
-        ConstructionResult rotated = rules.Rotate(plank.Entity, angle: MathF.PI / 2f);
+        ConstructionResult rotated = rules.Rotate(plank.Entity, angle: MathF.PI / 2f, owner: 0);
 
         Assert.Equal(ConstructionError.RotationBlocked, rotated.Error);
         EntityTransform transform = TransformOf(rules, plank.Entity);
         Assert.Equal(0f, transform.Rotation.Z, precision: 4);
         Assert.Single(rules.ConnectionsOf(plank.Entity));
+    }
+
+    [Fact]
+    public void ResetOwnedDestroysOnlyThatOwnersLayout()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        ConstructionResult a1 = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA);
+        ConstructionResult a2 = rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f, OwnerA);
+        ConstructionResult b1 = rules.Place(PartBlock, 0.5f, 5.5f, 0f, 1f, OwnerB);
+        ConstructionResult b2 = rules.Place(PartBlock, 1.5f, 5.5f, 0f, 1f, OwnerB);
+        Assert.True(a1.IsSuccess && a2.IsSuccess && b1.IsSuccess && b2.IsSuccess);
+        Assert.Equal(new[] { b2.Entity.Value }, rules.ConnectionsOf(b1.Entity));
+        long hashB = rules.ComputeLayoutHash(OwnerB);
+
+        List<uint> destroyed = rules.ResetOwned(OwnerA);
+
+        Assert.Equal(new[] { a1.Entity.Value, a2.Entity.Value }, destroyed);
+        Assert.False(rules.IsAlive(a1.Entity));
+        Assert.False(rules.IsAlive(a2.Entity));
+        Assert.Empty(rules.PlacedEntitiesOf(OwnerA));
+        Assert.Equal(new[] { b1.Entity.Value, b2.Entity.Value }, rules.PlacedEntitiesOf(OwnerB));
+        Assert.Equal(new[] { b2.Entity.Value }, rules.ConnectionsOf(b1.Entity));
+        Assert.Equal(new[] { b1.Entity.Value }, rules.ConnectionsOf(b2.Entity));
+        Assert.Equal(hashB, rules.ComputeLayoutHash(OwnerB));
+        Assert.Equal(2, rules.PartCount);
+    }
+
+    [Fact]
+    public void OwnerLayoutHashIsStableAcrossRuns()
+    {
+        (long hashA, long hashB, ConstructionError[] rejections) first = RunOwnerFixtureScript();
+        (long hashA, long hashB, ConstructionError[] rejections) second = RunOwnerFixtureScript();
+
+        Assert.Equal(first.hashA, second.hashA);
+        Assert.Equal(first.hashB, second.hashB);
+        Assert.Equal(first.rejections, second.rejections);
+        Assert.Equal(
+            new[] { ConstructionError.CellsOccupied, ConstructionError.CellsOccupied, ConstructionError.NotOwnedByPlayer },
+            first.rejections);
+    }
+
+    [Fact]
+    public void ForgetFreesTheFootprintOfADestroyedEntity()
+    {
+        (ConstructionRules rules, EntityStore entities) = CreateRules();
+        ConstructionResult placed = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA);
+        Assert.True(placed.IsSuccess);
+
+        entities.Destroy(placed.Entity);
+        rules.Forget(placed.Entity);
+        rules.Forget(placed.Entity);
+        rules.Forget(new EntityId(12345));
+
+        Assert.Equal(0, rules.PartCount);
+        Assert.Empty(rules.PlacedEntitiesOf(OwnerA));
+        Assert.False(rules.IsAlive(placed.Entity));
+
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerB).IsSuccess);
+        Assert.Equal(1, rules.PartCount);
+    }
+
+    [Fact]
+    public void ForgetOfLiveEntityClearsBookkeepingWithoutDestroyingIt()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        ConstructionResult placed = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA);
+
+        rules.Forget(placed.Entity);
+
+        Assert.True(rules.IsAlive(placed.Entity));
+        Assert.Equal(0, rules.PartCount);
+        Assert.False(rules.TryGetPartTypeId(placed.Entity, out _));
+        Assert.Empty(rules.PlacedEntitiesOf(OwnerA));
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerB).IsSuccess);
     }
 
     [Fact]
@@ -214,7 +368,7 @@ public sealed class ConstructionRulesTests
             switch (op)
             {
                 case 'p':
-                    ConstructionResult placed = rules.Place(part, x, y, angle, scale);
+                    ConstructionResult placed = rules.Place(part, x, y, angle, scale, 0);
                     if (placed.IsSuccess)
                     {
                         entities.Add(placed.Entity);
@@ -226,7 +380,7 @@ public sealed class ConstructionRulesTests
 
                     break;
                 case 'r':
-                    ConstructionResult rotated = rules.Rotate(entities[^1], angle);
+                    ConstructionResult rotated = rules.Rotate(entities[^1], angle, 0);
                     if (!rotated.IsSuccess)
                     {
                         rejections.Add(rotated.Error);
@@ -234,7 +388,7 @@ public sealed class ConstructionRulesTests
 
                     break;
                 case 'x':
-                    ConstructionResult removed = rules.Remove(entities[0]);
+                    ConstructionResult removed = rules.Remove(entities[0], 0);
                     if (!removed.IsSuccess)
                     {
                         rejections.Add(removed.Error);
@@ -245,5 +399,43 @@ public sealed class ConstructionRulesTests
         }
 
         return (rules.ComputeLayoutHash(), rejections.ToArray());
+    }
+
+    private static (long HashA, long HashB, ConstructionError[] Rejections) RunOwnerFixtureScript()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        List<ConstructionError> rejections = new();
+        List<EntityId> ownedA = new();
+        List<EntityId> ownedB = new();
+
+        (uint owner, uint part, float x, float y, float angle, float scale)[] placements =
+        {
+            (OwnerA, PartBlock, 0.5f, 0.5f, 0f, 1f),
+            (OwnerB, PartBlock, 0.5f, 5.5f, 0f, 1f),
+            (OwnerA, PartBlock, 1.5f, 0.5f, 0f, 1f),
+            (OwnerB, PartBlock, 1.5f, 5.5f, 0f, 1f),
+            (OwnerB, PartBlock, 0.5f, 5.5f, 0f, 1f),
+            (OwnerA, PartBlock, 0.5f, 5.5f, 0f, 1f),
+            (OwnerA, PartPlank, 4.0f, 0.5f, 0f, 1f),
+        };
+
+        foreach ((uint owner, uint part, float x, float y, float angle, float scale) in placements)
+        {
+            ConstructionResult placed = rules.Place(part, x, y, angle, scale, owner);
+            if (placed.IsSuccess)
+            {
+                (owner == OwnerA ? ownedA : ownedB).Add(placed.Entity);
+            }
+            else
+            {
+                rejections.Add(placed.Error);
+            }
+        }
+
+        Assert.True(rules.Rotate(ownedA[^1], MathF.PI / 2f, OwnerA).IsSuccess);
+        rejections.Add(rules.Rotate(ownedB[0], 0f, OwnerA).Error);
+        Assert.True(rules.Remove(ownedB[^1], OwnerB).IsSuccess);
+
+        return (rules.ComputeLayoutHash(OwnerA), rules.ComputeLayoutHash(OwnerB), rejections.ToArray());
     }
 }

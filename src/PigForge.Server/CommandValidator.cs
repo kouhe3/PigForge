@@ -23,13 +23,18 @@ public readonly record struct CommandOutcome(ReplayCommand Command, CommandStatu
 /// Deterministic command gate: per-player sequence tracking makes duplicate and stale
 /// submissions idempotent, and tick/mode checks reject out-of-order or capability-invalid
 /// commands. Accepted sequences are consumed even when a later rule rejects the command,
-/// so retries cannot smuggle a rejected command past validation twice.
+/// so retries cannot smuggle a rejected command past validation twice. In sandbox mode
+/// the tick field is ignored and gating is per-player: editing players may place,
+/// remove, rotate, start, or reset; a materialised player may only reset.
 /// </summary>
 public sealed class CommandValidator
 {
     private readonly Dictionary<uint, uint> _lastSequenceByPlayer = new();
 
-    public CommandStatus Validate(ReplayCommand command, RoomMode mode, uint currentTick)
+    public CommandStatus Validate(ReplayCommand command, RoomMode mode, uint currentTick) =>
+        Validate(command, mode, currentTick, sandboxMode: false, materialized: false);
+
+    public CommandStatus Validate(ReplayCommand command, RoomMode mode, uint currentTick, bool sandboxMode, bool materialized)
     {
         ArgumentNullException.ThrowIfNull(command);
 
@@ -46,7 +51,9 @@ public sealed class CommandValidator
             }
         }
 
-        CommandStatus modeStatus = ValidateModeAndTick(command, mode, currentTick);
+        CommandStatus modeStatus = sandboxMode
+            ? ValidateSandboxMode(command, materialized)
+            : ValidateModeAndTick(command, mode, currentTick);
         if (modeStatus != CommandStatus.Accepted)
         {
             return modeStatus;
@@ -54,6 +61,26 @@ public sealed class CommandValidator
 
         _lastSequenceByPlayer[command.PlayerId] = command.Sequence;
         return CommandStatus.Accepted;
+    }
+
+    private static CommandStatus ValidateSandboxMode(ReplayCommand command, bool materialized)
+    {
+        if (materialized)
+        {
+            return command switch
+            {
+                RetryCommand => CommandStatus.Accepted,
+                PlacePartCommand or RemovePartCommand or RotatePartCommand or StartSimulationCommand or EnterBuildModeCommand => CommandStatus.WrongMode,
+                _ => CommandStatus.UnknownKind
+            };
+        }
+
+        return command switch
+        {
+            PlacePartCommand or RemovePartCommand or RotatePartCommand or StartSimulationCommand or RetryCommand => CommandStatus.Accepted,
+            EnterBuildModeCommand => CommandStatus.WrongMode,
+            _ => CommandStatus.UnknownKind
+        };
     }
 
     private static CommandStatus ValidateModeAndTick(ReplayCommand command, RoomMode mode, uint currentTick)

@@ -30,10 +30,11 @@ public sealed record GameRoomOptions(
     ushort TickRateHz,
     PartContentLibrary Content,
     Func<IPhysicsWorld> WorldFactory,
-    GameplayConfig GameplayConfig)
+    GameplayConfig GameplayConfig,
+    bool SandboxMode = false)
 {
-    public static GameRoomOptions Create(PartContentLibrary content, Func<IPhysicsWorld> worldFactory, GameplayConfig gameplayConfig, ushort tickRateHz = 60) =>
-        new(tickRateHz, content, worldFactory, gameplayConfig);
+    public static GameRoomOptions Create(PartContentLibrary content, Func<IPhysicsWorld> worldFactory, GameplayConfig gameplayConfig, ushort tickRateHz = 60, bool sandboxMode = false) =>
+        new(tickRateHz, content, worldFactory, gameplayConfig, sandboxMode);
 }
 
 /// <summary>
@@ -82,6 +83,9 @@ public sealed class GameRoom : IDisposable
     private readonly List<LiveCompound> _liveCompounds = new();
     private readonly List<PhysicsCommand> _appliedCommands = new();
     private readonly float _seamBreakImpulse;
+    private readonly GameplayConfig _gameplayConfig;
+    private readonly bool _sandboxMode;
+    private readonly SandboxPlayers _sandboxPlayers = new();
     private readonly List<CommandOutcome> _outcomeLog = new();
     private PhysicsBodySnapshot[] _snapshotBuffer = Array.Empty<PhysicsBodySnapshot>();
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
@@ -96,6 +100,8 @@ public sealed class GameRoom : IDisposable
         _content = options.Content ?? throw new ArgumentException("Room options must carry part content.", nameof(options));
         _world = options.WorldFactory?.Invoke() ?? throw new ArgumentException("Room options must provide a world factory.", nameof(options));
         _timeStep = FixedTimeStep.FromSeconds(1f / (options.TickRateHz == 0 ? (ushort)60 : options.TickRateHz));
+        _gameplayConfig = options.GameplayConfig;
+        _sandboxMode = options.SandboxMode;
         _seamBreakImpulse = options.GameplayConfig.SeamBreakImpulse;
         _parts = new PartStore(_entities);
         _transforms = new TransformStore(_entities);
@@ -132,6 +138,11 @@ public sealed class GameRoom : IDisposable
     public bool RestartRequested => _rules.RestartRequested;
 
     public int BodyCount => _bodyByEntity.Count;
+
+    /// <summary>Upper bound on the entity count of the next published frame. Sandbox
+    /// frames also carry previews that have no physics body, so transports must size
+    /// their encode buffer from this value rather than from <see cref="BodyCount"/>.</summary>
+    public int MaxSnapshotEntityCount => Math.Max(_parts.Count, _bodyByEntity.Count);
 
     public IReadOnlyList<CommandOutcome> OutcomeLog => _outcomeLog;
 
@@ -191,6 +202,13 @@ public sealed class GameRoom : IDisposable
                 spawn.IsWheel,
                 spawn.Angle));
         }
+
+        if (_sandboxMode)
+        {
+            // The sandbox world runs from tick zero: level actors become bodies
+            // immediately and the room never enters the Building phase.
+            MaterializeLevelActors();
+        }
     }
 
     /// <summary>
@@ -202,6 +220,11 @@ public sealed class GameRoom : IDisposable
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(command);
+
+        if (_sandboxMode)
+        {
+            return SubmitSandbox(command);
+        }
 
         CommandStatus status = _validator.Validate(command, Mode, CurrentTick);
         ConstructionError ruleError = ConstructionError.None;
@@ -223,7 +246,7 @@ public sealed class GameRoom : IDisposable
             case PlacePartCommand place:
             {
                 ConstructionResult placed = _construction.Place(
-                    place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale);
+                    place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale, 0);
                 if (!placed.IsSuccess)
                 {
                     return (CommandStatus.RuleRejected, placed.Error, 0);
@@ -235,7 +258,7 @@ public sealed class GameRoom : IDisposable
 
             case RotatePartCommand rotate:
             {
-                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle);
+                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle, 0);
                 return rotated.IsSuccess
                     ? (CommandStatus.Accepted, ConstructionError.None, rotate.EntityId)
                     : (CommandStatus.RuleRejected, rotated.Error, 0);
@@ -244,7 +267,7 @@ public sealed class GameRoom : IDisposable
             case RemovePartCommand remove:
             {
                 EntityId entity = new(remove.EntityId);
-                ConstructionResult removed = _construction.Remove(entity);
+                ConstructionResult removed = _construction.Remove(entity, 0);
                 if (removed.IsSuccess)
                 {
                     _rules.CleanupEntityStores(entity);
@@ -377,14 +400,7 @@ public sealed class GameRoom : IDisposable
             throw new InvalidOperationException("Only a building room can start simulation.");
         }
 
-        List<EntityId> entities = new();
-        var parts = _parts.GetEnumerator();
-        while (parts.MoveNext())
-        {
-            entities.Add(parts.CurrentId);
-        }
-
-        entities.Sort((left, right) => left.Value.CompareTo(right.Value));
+        List<EntityId> entities = CollectPartEntities();
         _retryLayout.Clear();
         foreach (uint entityValue in _construction.PlacedEntities)
         {
@@ -538,10 +554,255 @@ public sealed class GameRoom : IDisposable
 
         foreach ((uint _, uint partTypeId, float positionX, float positionY, float angle, float scale) in _retryLayout)
         {
-            ConstructionResult placed = _construction.Place(partTypeId, positionX, positionY, angle, scale);
+            ConstructionResult placed = _construction.Place(partTypeId, positionX, positionY, angle, scale, 0);
             if (placed.IsSuccess)
             {
                 RegisterPlacedRole(placed.Entity, partTypeId);
+            }
+        }
+    }
+
+    private CommandOutcome SubmitSandbox(ReplayCommand command)
+    {
+        _sandboxPlayers.Register(command.PlayerId);
+        CommandStatus status = _validator.Validate(
+            command,
+            Mode,
+            CurrentTick,
+            sandboxMode: true,
+            materialized: _sandboxPlayers.IsMaterialized(command.PlayerId));
+        ConstructionError ruleError = ConstructionError.None;
+        uint entityId = 0;
+        if (status == CommandStatus.Accepted)
+        {
+            (status, ruleError, entityId) = ExecuteSandboxCommand(command);
+        }
+
+        CommandOutcome outcome = new(command, status, ruleError, entityId);
+        _outcomeLog.Add(outcome);
+        return outcome;
+    }
+
+    private (CommandStatus Status, ConstructionError Error, uint EntityId) ExecuteSandboxCommand(ReplayCommand command)
+    {
+        switch (command)
+        {
+            case PlacePartCommand place:
+            {
+                ConstructionResult placed = _construction.Place(
+                    place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale, place.PlayerId);
+                if (!placed.IsSuccess)
+                {
+                    return (CommandStatus.RuleRejected, placed.Error, 0);
+                }
+
+                RegisterPlacedRole(placed.Entity, place.PartTypeId);
+                return (CommandStatus.Accepted, ConstructionError.None, placed.Entity.Value);
+            }
+
+            case RotatePartCommand rotate:
+            {
+                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle, rotate.PlayerId);
+                return rotated.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None, rotate.EntityId)
+                    : (CommandStatus.RuleRejected, rotated.Error, 0);
+            }
+
+            case RemovePartCommand remove:
+            {
+                EntityId entity = new(remove.EntityId);
+                ConstructionResult removed = _construction.Remove(entity, remove.PlayerId);
+                if (removed.IsSuccess)
+                {
+                    _rules.CleanupEntityStores(entity);
+                    UnbindEntity(entity, destroyBodyIfOrphan: true);
+                }
+
+                return removed.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None, remove.EntityId)
+                    : (CommandStatus.RuleRejected, removed.Error, 0);
+            }
+
+            case StartSimulationCommand start:
+                try
+                {
+                    if (!StartPlayer(start.PlayerId))
+                    {
+                        return (CommandStatus.RuleRejected, ConstructionError.EntityNotFound, 0);
+                    }
+                }
+                catch (NotSupportedException)
+                {
+                    return (CommandStatus.RuleRejected, ConstructionError.UnsupportedShape, 0);
+                }
+
+                return (CommandStatus.Accepted, ConstructionError.None, 0);
+
+            case RetryCommand retry:
+                ResetPlayer(retry.PlayerId);
+                return (CommandStatus.Accepted, ConstructionError.None, 0);
+
+            default:
+                return (CommandStatus.UnknownKind, ConstructionError.None, 0);
+        }
+    }
+
+    /// <summary>Materialises one sandbox player's layout into authoritative bodies.
+    /// Returns false when the player has no placed parts.</summary>
+    private bool StartPlayer(uint playerId)
+    {
+        IReadOnlyCollection<uint> owned = _construction.PlacedEntitiesOf(playerId);
+        if (owned.Count == 0)
+        {
+            return false;
+        }
+
+        List<EntityId> entities = new(owned.Count);
+        foreach (uint entityValue in owned)
+        {
+            entities.Add(new EntityId(entityValue));
+        }
+
+        List<CompoundCluster> clusters = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
+        foreach (CompoundCluster cluster in clusters)
+        {
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content));
+        }
+
+        _sandboxPlayers.MarkMaterialized(playerId);
+        EnsureBuffers();
+        return true;
+    }
+
+    /// <summary>Per-player RESET: destroys only this player's entities and layout in
+    /// ascending entity order, then returns the player to editing. Idempotent, and
+    /// never touches the room-wide rules state.</summary>
+    private void ResetPlayer(uint playerId)
+    {
+        foreach (uint entityValue in _construction.PlacedEntitiesOf(playerId))
+        {
+            EntityId entity = new(entityValue);
+            _construction.Remove(entity, playerId);
+            _rules.CleanupEntityStores(entity);
+            UnbindEntity(entity, destroyBodyIfOrphan: true);
+        }
+
+        _sandboxPlayers.MarkEditing(playerId);
+        DropOrphanedCommands();
+    }
+
+    /// <summary>Binds the level's owner-0 actors as bodies at setup so the sandbox world
+    /// runs from tick zero.</summary>
+    private void MaterializeLevelActors()
+    {
+        List<EntityId> entities = CollectPartEntities();
+        List<CompoundCluster> clusters = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
+        foreach (CompoundCluster cluster in clusters)
+        {
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content));
+        }
+
+        EnsureBuffers();
+        Mode = RoomMode.Running;
+    }
+
+    private List<EntityId> CollectPartEntities()
+    {
+        List<EntityId> entities = new();
+        var parts = _parts.GetEnumerator();
+        while (parts.MoveNext())
+        {
+            entities.Add(parts.CurrentId);
+        }
+
+        entities.Sort((left, right) => left.Value.CompareTo(right.Value));
+        return entities;
+    }
+
+    /// <summary>Per-player out-of-bounds cleanup: a materialised player whose every
+    /// entity is outside the map bounds is reset. Preview entities never participate
+    /// and other players are unaffected.</summary>
+    private void ResetPlayersOutOfBounds()
+    {
+        IReadOnlyList<uint> known = _sandboxPlayers.KnownPlayers;
+        bool anyMaterialized = false;
+        for (int index = 0; index < known.Count; index++)
+        {
+            if (_sandboxPlayers.IsMaterialized(known[index]))
+            {
+                anyMaterialized = true;
+                break;
+            }
+        }
+
+        if (!anyMaterialized)
+        {
+            return;
+        }
+
+        int snapshotCount = _world.CopySnapshots(_snapshotBuffer);
+        for (int index = 0; index < known.Count; index++)
+        {
+            uint playerId = known[index];
+            if (!_sandboxPlayers.IsMaterialized(playerId) || !IsPlayerOutOfBounds(playerId, snapshotCount))
+            {
+                continue;
+            }
+
+            ResetPlayer(playerId);
+        }
+    }
+
+    private bool IsPlayerOutOfBounds(uint playerId, int snapshotCount)
+    {
+        IReadOnlyCollection<uint> owned = _construction.PlacedEntitiesOf(playerId);
+        if (owned.Count == 0)
+        {
+            // Every part was destroyed during the run: the player is back to editing.
+            return true;
+        }
+
+        foreach (uint entityValue in owned)
+        {
+            EntityId entity = new(entityValue);
+            PhysicsVector3 position;
+            if (_bodyByEntity.TryGetValue(entityValue, out PhysicsBodyId body))
+            {
+                if (!TryFindSnapshot(body, snapshotCount, out PhysicsBodySnapshot snapshot))
+                {
+                    return false;
+                }
+
+                (position, _) = WorldPose(entityValue, snapshot);
+            }
+            else if (_transforms.TryGet(entity, out EntityTransform transform))
+            {
+                position = transform.Position;
+            }
+            else
+            {
+                continue;
+            }
+
+            if (_gameplayConfig.MapBounds.Contains(position))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Drops queued rule commands whose target body no longer exists, so a
+    /// per-player reset cannot feed impulses to destroyed bodies on the next tick.</summary>
+    private void DropOrphanedCommands()
+    {
+        List<PhysicsCommand> commands = _output.Commands;
+        for (int index = commands.Count - 1; index >= 0; index--)
+        {
+            if (!_entitiesByBody.ContainsKey(commands[index].Body.Value))
+            {
+                commands.RemoveAt(index);
             }
         }
     }
@@ -597,9 +858,11 @@ public sealed class GameRoom : IDisposable
         // Phase 4 (rules): gameplay consumes the telemetry and produces commands/destructions.
         _rules.Tick(CurrentTick, _eventBuffer.AsSpan(0, eventCount), _snapshotBuffer.AsSpan(0, snapshotCount), _output);
 
-        // Phase 5 (cleanup): bodies of destroyed entities leave the authoritative scene.
+        // Phase 5 (cleanup): bodies of destroyed entities leave the authoritative scene
+        // and their construction footprint is released so the cells can be reused.
         foreach (EntityId destroyed in _output.DestroyedEntities)
         {
+            _construction.Forget(destroyed);
             UnbindEntity(destroyed, destroyBodyIfOrphan: true);
         }
 
@@ -610,6 +873,11 @@ public sealed class GameRoom : IDisposable
         }
 
         SplitFromAppliedCommands(snapshotCount);
+
+        if (_sandboxMode)
+        {
+            ResetPlayersOutOfBounds();
+        }
     }
 
     public void RunTicks(uint count)
@@ -627,6 +895,11 @@ public sealed class GameRoom : IDisposable
     public bool TryPublishSnapshot(Span<byte> destination, out int bytesWritten)
     {
         ThrowIfDisposed();
+        if (_sandboxMode)
+        {
+            return TryPublishSandboxSnapshot(destination, out bytesWritten);
+        }
+
         if (Mode == RoomMode.Building)
         {
             return TryPublishBuildingSnapshot(destination, out bytesWritten);
@@ -705,6 +978,74 @@ public sealed class GameRoom : IDisposable
                     ToReplay(transform.Rotation),
                     zero,
                     zero,
+                    transform.Scale)))
+            {
+                bytesWritten = 0;
+                return false;
+            }
+        }
+
+        bytesWritten = writer.WrittenBytes;
+        return true;
+    }
+
+    /// <summary>
+    /// Sandbox frame: one mixed frame per tick carrying every entity with a part link.
+    /// Bound entities use the running-style record (real body id, world pose, real
+    /// velocities); previews carry body id 0 at their transform pose with zero
+    /// velocities. Entities ascend by id and the phase is always Playing.
+    /// </summary>
+    private bool TryPublishSandboxSnapshot(Span<byte> destination, out int bytesWritten)
+    {
+        FillConstructionOrder();
+        if (!SnapshotFrame.TryEncodeHeader(
+                destination,
+                new SnapshotFrameHeader(ProtocolVersion.Current, CurrentTick, (byte)GameplayPhase.Playing, (uint)_entityOrder.Count),
+                out SnapshotFrameWriter writer))
+        {
+            bytesWritten = 0;
+            return false;
+        }
+
+        int count = _world.CopySnapshots(_snapshotBuffer);
+        ReplayVector3 zero = ReplayVector3.Zero;
+        for (int index = 0; index < _entityOrder.Count; index++)
+        {
+            uint entityValue = _entityOrder[index];
+            EntityId entity = new(entityValue);
+            if (!_parts.TryGet(entity, out PartLink part) || !_transforms.TryGet(entity, out EntityTransform transform))
+            {
+                bytesWritten = 0;
+                return false;
+            }
+
+            uint bodyId = 0;
+            PhysicsVector3 position = transform.Position;
+            PhysicsQuaternion rotation = transform.Rotation;
+            ReplayVector3 linearVelocity = zero;
+            ReplayVector3 angularVelocity = zero;
+            if (_bodyByEntity.TryGetValue(entityValue, out PhysicsBodyId body))
+            {
+                if (!TryFindSnapshot(body, count, out PhysicsBodySnapshot snapshot))
+                {
+                    bytesWritten = 0;
+                    return false;
+                }
+
+                bodyId = snapshot.Body.Value;
+                (position, rotation) = WorldPose(entityValue, snapshot);
+                linearVelocity = ToReplay(snapshot.LinearVelocity);
+                angularVelocity = ToReplay(snapshot.AngularVelocity);
+            }
+
+            if (!writer.WriteEntity(new SnapshotEntity(
+                    entityValue,
+                    bodyId,
+                    part.PartTypeId,
+                    ToReplay(position),
+                    ToReplay(rotation),
+                    linearVelocity,
+                    angularVelocity,
                     transform.Scale)))
             {
                 bytesWritten = 0;
@@ -988,9 +1329,10 @@ public sealed class GameRoom : IDisposable
     private void EnsureBuffers()
     {
         int bodyCount = Math.Max(1, _entitiesByBody.Count);
-        if (_snapshotBuffer.Length < bodyCount)
+        int entityCapacity = Math.Max(bodyCount, MaxSnapshotEntityCount);
+        if (_snapshotBuffer.Length < entityCapacity)
         {
-            _snapshotBuffer = new PhysicsBodySnapshot[bodyCount];
+            _snapshotBuffer = new PhysicsBodySnapshot[entityCapacity];
         }
 
         int eventCapacity = (bodyCount * (bodyCount - 1) / 2) + bodyCount + 16;
@@ -999,9 +1341,9 @@ public sealed class GameRoom : IDisposable
             _eventBuffer = new PhysicsEvent[eventCapacity];
         }
 
-        if (_entityOrder.Capacity < _bodyByEntity.Count)
+        if (_entityOrder.Capacity < entityCapacity)
         {
-            _entityOrder.Capacity = _bodyByEntity.Count;
+            _entityOrder.Capacity = entityCapacity;
         }
     }
 

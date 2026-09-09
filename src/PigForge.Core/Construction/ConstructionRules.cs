@@ -27,7 +27,8 @@ public enum ConstructionError
     NotAConstructionEntity,
     RotationBlocked,
     FrozenEntity,
-    UnsupportedShape
+    UnsupportedShape,
+    NotOwnedByPlayer
 }
 
 public readonly record struct ConstructionResult(EntityId Entity, ConstructionError Error)
@@ -68,6 +69,9 @@ public sealed class ConstructionRules
     private readonly Dictionary<uint, HashSet<uint>> _connectionsByEntity = new();
     private readonly HashSet<uint> _frozenEntities = new();
 
+    private readonly Dictionary<uint, uint> _ownerByEntity = new();
+    private readonly Dictionary<uint, int> _partCountByOwner = new();
+
     public ConstructionRules(
         EntityStore entities,
         PartStore parts,
@@ -87,6 +91,27 @@ public sealed class ConstructionRules
     /// <summary>Placed (player-built) entity ids, including frozen ones; level-authoring
     /// spawns are not construction entities and are excluded.</summary>
     public IReadOnlyCollection<uint> PlacedEntities => (IReadOnlyCollection<uint>)_footprintByEntity.Keys;
+
+    /// <summary>Placed entity ids owned by the given player, ascending.</summary>
+    public IReadOnlyCollection<uint> PlacedEntitiesOf(uint owner)
+    {
+        List<uint> owned = new();
+        foreach ((uint entityValue, uint entityOwner) in _ownerByEntity)
+        {
+            if (entityOwner == owner)
+            {
+                owned.Add(entityValue);
+            }
+        }
+
+        if (owned.Count == 0)
+        {
+            return Array.Empty<uint>();
+        }
+
+        owned.Sort();
+        return owned;
+    }
 
     public int FrozenCount => _frozenEntities.Count;
 
@@ -115,7 +140,7 @@ public sealed class ConstructionRules
             : Array.Empty<uint>();
     }
 
-    public ConstructionResult Place(uint partTypeId, float positionX, float positionY, float angle, float scale)
+    public ConstructionResult Place(uint partTypeId, float positionX, float positionY, float angle, float scale, uint owner)
     {
         if (!float.IsFinite(angle))
         {
@@ -150,7 +175,7 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.FootprintTooLarge);
         }
 
-        if (_footprintByEntity.Count >= _limits.MaxParts)
+        if (OwnerPartCount(owner) >= _limits.MaxParts)
         {
             return Failure(ConstructionError.PartLimitReached);
         }
@@ -160,7 +185,16 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.CellsOccupied);
         }
 
-        List<uint> neighbours = CollectOverlapping(footprint, ConnectionProximity, exclude: 0);
+        List<uint> candidates = CollectOverlapping(footprint, ConnectionProximity, exclude: 0);
+        List<uint> neighbours = new(candidates.Count);
+        foreach (uint candidate in candidates)
+        {
+            if (IsOwnedBy(candidate, owner))
+            {
+                neighbours.Add(candidate);
+            }
+        }
+
         if (neighbours.Count > _limits.MaxConnectionsPerPart
             || neighbours.Any(neighbour => ConnectionCount(neighbour) + 1 > _limits.MaxConnectionsPerPart))
         {
@@ -169,6 +203,8 @@ public sealed class ConstructionRules
 
         EntityId entity = _entities.Create();
         SetFootprint(entity.Value, footprint);
+        _ownerByEntity.Add(entity.Value, owner);
+        _partCountByOwner[owner] = OwnerPartCount(owner) + 1;
         _parts.Set(entity, new PartLink(partTypeId));
         _transforms.Set(entity, new EntityTransform(
             new PhysicsVector3(positionX, positionY, 0f),
@@ -184,23 +220,31 @@ public sealed class ConstructionRules
         return new ConstructionResult(entity, ConstructionError.None);
     }
 
-    public ConstructionResult Rotate(EntityId entity, float angle)
+    public ConstructionResult Rotate(EntityId entity, float angle, uint owner)
     {
-        if (!float.IsFinite(angle))
+        if (!_entities.IsAlive(entity))
         {
-            return Failure(ConstructionError.InvalidRotation);
+            return Failure(ConstructionError.EntityNotFound);
         }
 
-        if (!_entities.IsAlive(entity) || !_parts.TryGet(entity, out PartLink link))
+        if (!_parts.TryGet(entity, out PartLink link))
         {
-            return _entities.IsAlive(entity)
-                ? Failure(ConstructionError.NotAConstructionEntity)
-                : Failure(ConstructionError.EntityNotFound);
+            return Failure(ConstructionError.NotAConstructionEntity);
+        }
+
+        if (!IsOwnedBy(entity.Value, owner))
+        {
+            return Failure(ConstructionError.NotOwnedByPlayer);
         }
 
         if (_frozenEntities.Contains(entity.Value))
         {
             return Failure(ConstructionError.FrozenEntity);
+        }
+
+        if (!float.IsFinite(angle))
+        {
+            return Failure(ConstructionError.InvalidRotation);
         }
 
         _transforms.TryGet(entity, out EntityTransform current);
@@ -227,7 +271,7 @@ public sealed class ConstructionRules
         return new ConstructionResult(entity, ConstructionError.None);
     }
 
-    public ConstructionResult Remove(EntityId entity)
+    public ConstructionResult Remove(EntityId entity, uint owner)
     {
         if (!_entities.IsAlive(entity))
         {
@@ -239,18 +283,27 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.NotAConstructionEntity);
         }
 
+        if (!IsOwnedBy(entity.Value, owner))
+        {
+            return Failure(ConstructionError.NotOwnedByPlayer);
+        }
+
         if (_frozenEntities.Contains(entity.Value))
         {
             return Failure(ConstructionError.FrozenEntity);
         }
 
-        UnsetFootprint(entity.Value);
-        UnlinkAll(entity.Value);
-        _connectionsByEntity.Remove(entity.Value);
-        _parts.Remove(entity);
-        _transforms.Remove(entity);
+        DetachEntity(entity.Value);
         _entities.Destroy(entity);
         return new ConstructionResult(entity, ConstructionError.None);
+    }
+
+    /// <summary>Drops construction bookkeeping for an entity without touching the entity
+    /// store; used when runtime rules destroy a part behind the registry's back.
+    /// Idempotent, and a no-op for entities the registry does not track.</summary>
+    public void Forget(EntityId entity)
+    {
+        DetachEntity(entity.Value);
     }
 
     /// <summary>
@@ -294,6 +347,8 @@ public sealed class ConstructionRules
         _footprintByEntity.Clear();
         _connectionsByEntity.Clear();
         _frozenEntities.Clear();
+        _ownerByEntity.Clear();
+        _partCountByOwner.Clear();
         foreach (uint entityValue in destroyed)
         {
             EntityId entity = new(entityValue);
@@ -315,12 +370,50 @@ public sealed class ConstructionRules
         return destroyed;
     }
 
-    /// <summary>Stable hash over part types, poses, scales, and connections.</summary>
-    public long ComputeLayoutHash()
+    /// <summary>Destroys one owner's construction entities in ascending entity order,
+    /// leaving every other owner's footprint, connections and transforms untouched.</summary>
+    public List<uint> ResetOwned(uint owner)
+    {
+        List<uint> destroyed = new();
+        foreach ((uint entityValue, uint entityOwner) in _ownerByEntity)
+        {
+            if (entityOwner == owner)
+            {
+                destroyed.Add(entityValue);
+            }
+        }
+
+        destroyed.Sort();
+        foreach (uint entityValue in destroyed)
+        {
+            EntityId entity = new(entityValue);
+            bool alive = _entities.IsAlive(entity);
+            DetachEntity(entityValue);
+            if (alive)
+            {
+                _entities.Destroy(entity);
+            }
+        }
+
+        return destroyed;
+    }
+
+    /// <summary>Stable hash over every construction entity's part type, pose, scale, and connections.</summary>
+    public long ComputeLayoutHash() => ComputeLayoutHashCore(owner: null);
+
+    /// <summary>Stable hash over one owner's part types, poses, scales, and connections.</summary>
+    public long ComputeLayoutHash(uint owner) => ComputeLayoutHashCore(owner);
+
+    private long ComputeLayoutHashCore(uint? owner)
     {
         long hash = 17;
         foreach (uint entityValue in _footprintByEntity.Keys.OrderBy(value => value))
         {
+            if (owner.HasValue && !IsOwnedBy(entityValue, owner.Value))
+            {
+                continue;
+            }
+
             hash = unchecked(hash * 31 + entityValue);
             if (_parts.TryGet(new EntityId(entityValue), out PartLink link))
             {
@@ -348,12 +441,22 @@ public sealed class ConstructionRules
 
     private void Reconnect(uint entityValue)
     {
-        if (!_footprintByEntity.TryGetValue(entityValue, out PartFootprint footprint))
+        if (!_footprintByEntity.TryGetValue(entityValue, out PartFootprint footprint)
+            || !_ownerByEntity.TryGetValue(entityValue, out uint owner))
         {
             return;
         }
 
-        List<uint> neighbours = CollectOverlapping(footprint, ConnectionProximity, entityValue);
+        List<uint> candidates = CollectOverlapping(footprint, ConnectionProximity, entityValue);
+        List<uint> neighbours = new(candidates.Count);
+        foreach (uint candidate in candidates)
+        {
+            if (IsOwnedBy(candidate, owner))
+            {
+                neighbours.Add(candidate);
+            }
+        }
+
         UnlinkAll(entityValue);
         _connectionsByEntity[entityValue] = new HashSet<uint>(neighbours);
         foreach (uint neighbour in neighbours)
@@ -389,6 +492,37 @@ public sealed class ConstructionRules
 
     private int ConnectionCount(uint entityValue) =>
         _connectionsByEntity.TryGetValue(entityValue, out HashSet<uint>? connections) ? connections.Count : 0;
+
+    private bool IsOwnedBy(uint entityValue, uint owner) =>
+        _ownerByEntity.TryGetValue(entityValue, out uint entityOwner) && entityOwner == owner;
+
+    private int OwnerPartCount(uint owner) =>
+        _partCountByOwner.TryGetValue(owner, out int count) ? count : 0;
+
+    /// <summary>Removes construction bookkeeping only; the entity store is never touched here.</summary>
+    private void DetachEntity(uint entityValue)
+    {
+        UnsetFootprint(entityValue);
+        UnlinkAll(entityValue);
+        _connectionsByEntity.Remove(entityValue);
+        _frozenEntities.Remove(entityValue);
+        if (_ownerByEntity.Remove(entityValue, out uint owner)
+            && _partCountByOwner.TryGetValue(owner, out int count))
+        {
+            if (count <= 1)
+            {
+                _partCountByOwner.Remove(owner);
+            }
+            else
+            {
+                _partCountByOwner[owner] = count - 1;
+            }
+        }
+
+        EntityId entity = new(entityValue);
+        _parts.Remove(entity);
+        _transforms.Remove(entity);
+    }
 
     /// <summary>Coarse bucket query followed by the exact footprint test.</summary>
     private List<uint> CollectOverlapping(in PartFootprint footprint, float margin, uint exclude)

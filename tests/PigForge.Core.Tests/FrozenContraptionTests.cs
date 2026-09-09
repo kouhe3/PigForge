@@ -17,8 +17,8 @@ public sealed class FrozenContraptionTests
     public void FreezeAllReleasesCellsKeepsPosesAndBlocksConnections()
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult first = rules.Place(PartBlock, 0f, 0f, 0f, 1f);
-        ConstructionResult second = rules.Place(PartBlock, 1f, 0f, 0f, 1f);
+        ConstructionResult first = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0);
+        ConstructionResult second = rules.Place(PartBlock, 1f, 0f, 0f, 1f, 0);
         var poses = new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>
         {
             [first.Entity.Value] = (new PhysicsVector3(10f, 3f, 0f), PhysicsQuaternion.Identity),
@@ -33,7 +33,7 @@ public sealed class FrozenContraptionTests
         Assert.Equal(new PhysicsVector3(10f, 3f, 0f), TransformOf(rules, first.Entity).Position);
 
         // Released cells are buildable again and stay disconnected from the frozen group.
-        ConstructionResult fresh = rules.Place(PartBlock, 0f, 0f, 0f, 1f);
+        ConstructionResult fresh = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0);
         Assert.True(fresh.IsSuccess);
         Assert.False(rules.IsFrozen(fresh.Entity.Value));
         Assert.Empty(rules.ConnectionsOf(fresh.Entity));
@@ -44,11 +44,11 @@ public sealed class FrozenContraptionTests
     public void FrozenEntitiesCountTowardThePartLimit()
     {
         (ConstructionRules rules, _) = CreateRules(new ConstructionLimits(MaxParts: 2, MaxConnectionsPerPart: 6, MaxFootprintCells: 64));
-        ConstructionResult kept = rules.Place(PartBlock, 0f, 0f, 0f, 1f);
+        ConstructionResult kept = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0);
         rules.FreezeAll(new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>());
 
-        Assert.True(rules.Place(PartBlock, 5f, 5f, 0f, 1f).IsSuccess);
-        Assert.Equal(ConstructionError.PartLimitReached, rules.Place(PartBlock, 9f, 9f, 0f, 1f).Error);
+        Assert.True(rules.Place(PartBlock, 5f, 5f, 0f, 1f, 0).IsSuccess);
+        Assert.Equal(ConstructionError.PartLimitReached, rules.Place(PartBlock, 9f, 9f, 0f, 1f, 0).Error);
         Assert.Equal(2, rules.PartCount);
     }
 
@@ -56,7 +56,7 @@ public sealed class FrozenContraptionTests
     public void FrozenEntitiesRejectRemoveAndRotateWhileFreshPartsStayEditable()
     {
         (ConstructionRules rules, EntityStore entities) = CreateRules();
-        ConstructionResult kept = rules.Place(PartBlock, 0f, 0f, 0f, 1f);
+        ConstructionResult kept = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0);
         var movedPose = new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>
         {
             [kept.Entity.Value] = (new PhysicsVector3(20f, 5f, 0f), PhysicsQuaternion.Identity)
@@ -64,14 +64,14 @@ public sealed class FrozenContraptionTests
         rules.FreezeAll(movedPose);
 
         // The wreckage still occupies the spot it rests at...
-        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 20f, 5f, 0f, 1f).Error);
+        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 20f, 5f, 0f, 1f, 0).Error);
         // ...but its old cells are free and fresh parts stay editable.
-        ConstructionResult fresh = rules.Place(PartBlock, 0f, 0f, 0f, 1f);
+        ConstructionResult fresh = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0);
 
         Assert.True(fresh.IsSuccess);
-        Assert.Equal(ConstructionError.FrozenEntity, rules.Remove(kept.Entity).Error);
-        Assert.Equal(ConstructionError.FrozenEntity, rules.Rotate(kept.Entity, 1f).Error);
-        Assert.True(rules.Remove(fresh.Entity).IsSuccess);
+        Assert.Equal(ConstructionError.FrozenEntity, rules.Remove(kept.Entity, 0).Error);
+        Assert.Equal(ConstructionError.FrozenEntity, rules.Rotate(kept.Entity, 1f, 0).Error);
+        Assert.True(rules.Remove(fresh.Entity, 0).IsSuccess);
         Assert.True(entities.IsAlive(kept.Entity));
     }
 
@@ -90,12 +90,12 @@ public sealed class FrozenContraptionTests
     public void ResetAllDestroysBuildAndFrozenEntitiesAndReleasesEverything()
     {
         (ConstructionRules rules, EntityStore entities) = CreateRules();
-        ConstructionResult frozen = rules.Place(PartBlock, 0f, 0f, 0f, 1f);
+        ConstructionResult frozen = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0);
         rules.FreezeAll(new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>
         {
             [frozen.Entity.Value] = (new PhysicsVector3(20f, 5f, 0f), PhysicsQuaternion.Identity)
         });
-        ConstructionResult fresh = rules.Place(PartBlock, 0f, 0f, 0f, 1f);
+        ConstructionResult fresh = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0);
 
         List<uint> destroyed = rules.ResetAll();
 
@@ -103,13 +103,13 @@ public sealed class FrozenContraptionTests
         Assert.Equal(0, rules.PartCount);
         Assert.Equal(0, entities.Count);
         Assert.False(rules.IsAlive(frozen.Entity));
-        Assert.True(rules.Place(PartBlock, 20f, 5f, 0f, 1f).IsSuccess);
+        Assert.True(rules.Place(PartBlock, 20f, 5f, 0f, 1f, 0).IsSuccess);
     }
 
     private static long HashAfterFreeze(PhysicsVector3 pose)
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult placed = rules.Place(PartBlock, 0f, 0f, 0f, 1f);
+        ConstructionResult placed = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0);
         rules.FreezeAll(new Dictionary<uint, (PhysicsVector3, PhysicsQuaternion)>
         {
             [placed.Entity.Value] = (pose, PhysicsQuaternion.Identity)
