@@ -74,7 +74,7 @@ clients/web/
 ### M2 差异视图 + 贴图映射
 
 - 双回放同屏叠加渲染，差异 tick 高亮，事件流对比列表。
-- 贴图资产清单与 sprite 渲染路径。
+- 贴图资产清单与 sprite 渲染路径（已实现：`tools/bple-textures/extract.mjs` 生成 `part-textures.json` + 图集，`renderer/atlas.ts` 加载，`renderer/draw.ts` 按 partTypeId 绘制；资产不入库、缺失时回退形状渲染，见 `docs/decisions/ADR-003-original-texture-assets.md`）。
 - 验收：Unity/Bepu/Jolt 三方同一场景回放的可视化对比可用。
 
 ### M3 实时客户端（依赖 Phase 4/5）
