@@ -25,7 +25,7 @@ public readonly record struct CommandOutcome(ReplayCommand Command, CommandStatu
 /// commands. Accepted sequences are consumed even when a later rule rejects the command,
 /// so retries cannot smuggle a rejected command past validation twice. In sandbox mode
 /// the tick field is ignored and gating is per-player: editing players may place,
-/// remove, rotate, start, or reset; a materialised player may only reset.
+/// remove, rotate, move, scale, start, or reset; a materialised player may only reset.
 /// </summary>
 public sealed class CommandValidator
 {
@@ -70,14 +70,14 @@ public sealed class CommandValidator
             return command switch
             {
                 RetryCommand => CommandStatus.Accepted,
-                PlacePartCommand or RemovePartCommand or RotatePartCommand or StartSimulationCommand or EnterBuildModeCommand => CommandStatus.WrongMode,
+                PlacePartCommand or RemovePartCommand or RotatePartCommand or MovePartCommand or ScalePartCommand or StartSimulationCommand or EnterBuildModeCommand => CommandStatus.WrongMode,
                 _ => CommandStatus.UnknownKind
             };
         }
 
         return command switch
         {
-            PlacePartCommand or RemovePartCommand or RotatePartCommand or StartSimulationCommand or RetryCommand => CommandStatus.Accepted,
+            PlacePartCommand or RemovePartCommand or RotatePartCommand or MovePartCommand or ScalePartCommand or StartSimulationCommand or RetryCommand => CommandStatus.Accepted,
             EnterBuildModeCommand => CommandStatus.WrongMode,
             _ => CommandStatus.UnknownKind
         };
@@ -93,7 +93,7 @@ public sealed class CommandValidator
                 : CommandStatus.StaleTick,
             // Build-phase commands are timeless pre-simulation inputs and always carry
             // Tick 0, including in a re-entered building phase (issue #7).
-            (RoomMode.Building, PlacePartCommand or RotatePartCommand or RemovePartCommand) => command.Tick == 0
+            (RoomMode.Building, PlacePartCommand or RotatePartCommand or RemovePartCommand or MovePartCommand or ScalePartCommand) => command.Tick == 0
                 ? CommandStatus.Accepted
                 : CommandStatus.StaleTick,
             (RoomMode.Building, EnterBuildModeCommand) => CommandStatus.WrongMode,
@@ -106,7 +106,7 @@ public sealed class CommandValidator
             (RoomMode.Running, RetryCommand) => command.Tick <= currentTick
                 ? CommandStatus.Accepted
                 : CommandStatus.StaleTick,
-            (RoomMode.Running, StartSimulationCommand or PlacePartCommand or RotatePartCommand or RemovePartCommand) => CommandStatus.WrongMode,
+            (RoomMode.Running, StartSimulationCommand or PlacePartCommand or RotatePartCommand or RemovePartCommand or MovePartCommand or ScalePartCommand) => CommandStatus.WrongMode,
             (RoomMode.Building, RetryCommand) => CommandStatus.WrongMode,
             _ => CommandStatus.UnknownKind
         };

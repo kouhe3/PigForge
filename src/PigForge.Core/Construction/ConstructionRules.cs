@@ -25,7 +25,7 @@ public enum ConstructionError
     ConnectionLimitReached,
     EntityNotFound,
     NotAConstructionEntity,
-    RotationBlocked,
+    TransformBlocked,
     FrozenEntity,
     UnsupportedShape,
     NotOwnedByPlayer
@@ -220,7 +220,29 @@ public sealed class ConstructionRules
         return new ConstructionResult(entity, ConstructionError.None);
     }
 
-    public ConstructionResult Rotate(EntityId entity, float angle, uint owner)
+    public ConstructionResult Move(EntityId entity, float positionX, float positionY, uint owner) =>
+        Retransform(entity, owner, positionX, positionY, angle: null, scale: null);
+
+    public ConstructionResult Scale(EntityId entity, float scale, uint owner) =>
+        Retransform(entity, owner, positionX: null, positionY: null, angle: null, scale: scale);
+
+    public ConstructionResult Rotate(EntityId entity, float angle, uint owner) =>
+        Retransform(entity, owner, positionX: null, positionY: null, angle: angle, scale: null);
+
+    /// <summary>
+    /// Shared path for every post-placement transform (move/rotate/scale): the target pose
+    /// is the current pose with the supplied components replaced, then re-validated
+    /// (existence, ownership, frozen state, finite values, footprint area, overlap, and
+    /// connection limits) before the footprint is migrated, the transform written, and the
+    /// entity and its previous neighbours reconnected.
+    /// </summary>
+    private ConstructionResult Retransform(
+        EntityId entity,
+        uint owner,
+        float? positionX,
+        float? positionY,
+        float? angle,
+        float? scale)
     {
         if (!_entities.IsAlive(entity))
         {
@@ -242,25 +264,66 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.FrozenEntity);
         }
 
-        if (!float.IsFinite(angle))
+        if ((positionX.HasValue && !float.IsFinite(positionX.Value))
+            || (positionY.HasValue && !float.IsFinite(positionY.Value)))
+        {
+            return Failure(ConstructionError.InvalidPosition);
+        }
+
+        if (angle.HasValue && !float.IsFinite(angle.Value))
         {
             return Failure(ConstructionError.InvalidRotation);
         }
 
+        if (scale.HasValue && (!float.IsFinite(scale.Value) || scale.Value is <= 0f or > MaxScale))
+        {
+            return Failure(ConstructionError.InvalidScale);
+        }
+
         _transforms.TryGet(entity, out EntityTransform current);
+        float targetX = positionX ?? current.Position.X;
+        float targetY = positionY ?? current.Position.Y;
+        float targetScale = scale ?? current.Scale;
+        PhysicsQuaternion targetRotation = angle.HasValue ? RotationQuaternion(angle.Value) : current.Rotation;
         PartDefinition part = _content.GetPart(link.PartTypeId);
-        PartFootprint candidate = PartFootprint.ForPart(part, current.Position.X, current.Position.Y, angle, current.Scale);
+        PartFootprint candidate = PartFootprint.ForPart(part, targetX, targetY, YawOf(targetRotation), targetScale);
+        (float minX, float minY, float maxX, float maxY) = candidate.Bounds();
+        int areaInCells = (int)MathF.Ceiling(maxX - minX) * (int)MathF.Ceiling(maxY - minY);
+        if (areaInCells > _limits.MaxFootprintCells)
+        {
+            return Failure(ConstructionError.FootprintTooLarge);
+        }
+
         if (CollectOverlapping(candidate, -OverlapTolerance, exclude: entity.Value).Count > 0)
         {
-            return Failure(ConstructionError.RotationBlocked);
+            return Failure(ConstructionError.TransformBlocked);
         }
 
         HashSet<uint> previousNeighbours = new(_connectionsByEntity.TryGetValue(entity.Value, out HashSet<uint>? connections)
             ? connections
             : Array.Empty<uint>());
+        List<uint> candidates = CollectOverlapping(candidate, ConnectionProximity, exclude: entity.Value);
+        List<uint> neighbours = new(candidates.Count);
+        foreach (uint candidateEntity in candidates)
+        {
+            if (IsOwnedBy(candidateEntity, owner))
+            {
+                neighbours.Add(candidateEntity);
+            }
+        }
+
+        if (neighbours.Count > _limits.MaxConnectionsPerPart
+            || neighbours.Any(neighbour => ConnectionCount(neighbour) + (previousNeighbours.Contains(neighbour) ? 0 : 1) > _limits.MaxConnectionsPerPart))
+        {
+            return Failure(ConstructionError.ConnectionLimitReached);
+        }
+
         UnsetFootprint(entity.Value);
         SetFootprint(entity.Value, candidate);
-        _transforms.Set(entity, new EntityTransform(current.Position, RotationQuaternion(angle), current.Scale));
+        _transforms.Set(entity, new EntityTransform(
+            new PhysicsVector3(targetX, targetY, current.Position.Z),
+            targetRotation,
+            targetScale));
 
         Reconnect(entity.Value);
         foreach (uint previous in previousNeighbours)
@@ -609,6 +672,13 @@ public sealed class ConstructionRules
         float halfAngle = angle / 2f;
         return new PhysicsQuaternion(0f, 0f, MathF.Sin(halfAngle), MathF.Cos(halfAngle));
     }
+
+    /// <summary>Build-plane yaw of a stored pose; same projection as
+    /// <see cref="PartFootprint.ForPart(PartDefinition, PhysicsVector3, PhysicsQuaternion, float)"/>.</summary>
+    private static float YawOf(PhysicsQuaternion rotation) =>
+        MathF.Atan2(
+            2f * ((rotation.W * rotation.Z) + (rotation.X * rotation.Y)),
+            1f - (2f * ((rotation.Y * rotation.Y) + (rotation.Z * rotation.Z))));
 
     private static ConstructionResult Failure(ConstructionError error) => new(default, error);
 

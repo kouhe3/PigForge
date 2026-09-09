@@ -183,6 +183,41 @@ public sealed class ReplayContractTests
 
         Assert.Contains(result.Errors, error => error.Contains("EnterBuildModeCommand", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void MoveAndScaleCommandsPassValidation()
+    {
+        ReplayDocument document = ReplayFixtures.Valid() with
+        {
+            Commands = new ReplayCommand[]
+            {
+                new MovePartCommand(Tick: 1, Sequence: 1, PlayerId: 1, EntityId: 1, PositionX: 2f, PositionY: 3f),
+                new ScalePartCommand(Tick: 1, Sequence: 2, PlayerId: 1, EntityId: 1, Scale: 2f)
+            }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+    }
+
+    [Fact]
+    public void MoveAndScaleCommandsRejectInvalidFields()
+    {
+        ReplayDocument document = ReplayFixtures.Valid() with
+        {
+            Commands = new ReplayCommand[]
+            {
+                new MovePartCommand(Tick: 1, Sequence: 1, PlayerId: 1, EntityId: 0, PositionX: float.NaN, PositionY: 0f),
+                new ScalePartCommand(Tick: 1, Sequence: 2, PlayerId: 1, EntityId: 1, Scale: 5f)
+            }
+        };
+
+        ReplayValidationResult result = ReplayDocumentValidator.Validate(document);
+
+        Assert.Contains(result.Errors, error => error.Contains("MovePartCommand", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.Contains("ScalePartCommand", StringComparison.Ordinal));
+    }
 }
 
 internal static class ReplayFixtures

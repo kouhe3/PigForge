@@ -74,6 +74,10 @@ public sealed class PhysicsReplaySimulation : IReplaySimulation, IDisposable
                 throw new NotSupportedException("PhysicsReplaySimulation requires a logical entity allocator for PlacePartCommand.");
             case RotatePartCommand:
                 throw new NotSupportedException("PhysicsReplaySimulation does not support RotatePartCommand without a pose mutation contract.");
+            case MovePartCommand:
+                throw new NotSupportedException("PhysicsReplaySimulation does not support MovePartCommand without a pose mutation contract.");
+            case ScalePartCommand:
+                throw new NotSupportedException("PhysicsReplaySimulation does not support ScalePartCommand without a pose mutation contract.");
             default:
                 throw new ArgumentOutOfRangeException(nameof(command), command.Kind, "Unknown replay command type.");
         }

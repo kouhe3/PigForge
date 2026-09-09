@@ -13,7 +13,9 @@ public enum ClientCommandKind
 	RotatePart,
 	StartSimulation,
 	EnterBuildMode,
-	Retry
+	Retry,
+	MovePart,
+	ScalePart
 }
 
 public sealed record ClientCommandEnvelope(

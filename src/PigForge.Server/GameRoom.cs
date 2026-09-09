@@ -264,6 +264,22 @@ public sealed class GameRoom : IDisposable
                     : (CommandStatus.RuleRejected, rotated.Error, 0);
             }
 
+            case MovePartCommand move:
+            {
+                ConstructionResult moved = _construction.Move(new EntityId(move.EntityId), move.PositionX, move.PositionY, 0);
+                return moved.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None, move.EntityId)
+                    : (CommandStatus.RuleRejected, moved.Error, 0);
+            }
+
+            case ScalePartCommand scale:
+            {
+                ConstructionResult scaled = _construction.Scale(new EntityId(scale.EntityId), scale.Scale, 0);
+                return scaled.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None, scale.EntityId)
+                    : (CommandStatus.RuleRejected, scaled.Error, 0);
+            }
+
             case RemovePartCommand remove:
             {
                 EntityId entity = new(remove.EntityId);
@@ -606,6 +622,22 @@ public sealed class GameRoom : IDisposable
                 return rotated.IsSuccess
                     ? (CommandStatus.Accepted, ConstructionError.None, rotate.EntityId)
                     : (CommandStatus.RuleRejected, rotated.Error, 0);
+            }
+
+            case MovePartCommand move:
+            {
+                ConstructionResult moved = _construction.Move(new EntityId(move.EntityId), move.PositionX, move.PositionY, move.PlayerId);
+                return moved.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None, move.EntityId)
+                    : (CommandStatus.RuleRejected, moved.Error, 0);
+            }
+
+            case ScalePartCommand scale:
+            {
+                ConstructionResult scaled = _construction.Scale(new EntityId(scale.EntityId), scale.Scale, scale.PlayerId);
+                return scaled.IsSuccess
+                    ? (CommandStatus.Accepted, ConstructionError.None, scale.EntityId)
+                    : (CommandStatus.RuleRejected, scaled.Error, 0);
             }
 
             case RemovePartCommand remove:

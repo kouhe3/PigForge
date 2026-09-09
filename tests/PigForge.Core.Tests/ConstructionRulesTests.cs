@@ -226,7 +226,7 @@ public sealed class ConstructionRulesTests
 
         ConstructionResult rotated = rules.Rotate(plank.Entity, angle: MathF.PI / 2f, owner: 0);
 
-        Assert.Equal(ConstructionError.RotationBlocked, rotated.Error);
+        Assert.Equal(ConstructionError.TransformBlocked, rotated.Error);
         EntityTransform transform = TransformOf(rules, plank.Entity);
         Assert.Equal(0f, transform.Rotation.Z, precision: 4);
         Assert.Single(rules.ConnectionsOf(plank.Entity));
@@ -318,6 +318,190 @@ public sealed class ConstructionRulesTests
         Assert.Contains(ConstructionError.InvalidRotation, firstRun.rejections);
         Assert.Contains(ConstructionError.InvalidScale, firstRun.rejections);
         Assert.Contains(ConstructionError.InvalidPosition, firstRun.rejections);
+    }
+
+    [Fact]
+    public void MoveMigratesFootprintAndRecomputesConnections()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        ConstructionResult first = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0);
+        ConstructionResult second = rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f, 0);
+        ConstructionResult third = rules.Place(PartBlock, 5.5f, 0.5f, 0f, 1f, 0);
+        Assert.True(first.IsSuccess && second.IsSuccess && third.IsSuccess);
+        Assert.Equal(new[] { second.Entity.Value }, rules.ConnectionsOf(first.Entity));
+
+        ConstructionResult moved = rules.Move(first.Entity, 4.5f, 0.5f, 0);
+
+        Assert.True(moved.IsSuccess);
+        EntityTransform transform = TransformOf(rules, first.Entity);
+        Assert.Equal(4.5f, transform.Position.X, 4);
+        Assert.Equal(0.5f, transform.Position.Y, 4);
+        Assert.Equal(new[] { third.Entity.Value }, rules.ConnectionsOf(first.Entity));
+        Assert.Empty(rules.ConnectionsOf(second.Entity));
+        Assert.Equal(new[] { first.Entity.Value }, rules.ConnectionsOf(third.Entity));
+
+        // The vacated footprint is buildable again.
+        Assert.True(rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0).IsSuccess);
+    }
+
+    [Fact]
+    public void ScaleResizesFootprintAndRejectsOversizedResults()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        ConstructionResult placed = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0);
+        Assert.True(placed.IsSuccess);
+
+        ConstructionResult scaled = rules.Scale(placed.Entity, 2f, 0);
+
+        Assert.True(scaled.IsSuccess);
+        Assert.Equal(2f, TransformOf(rules, placed.Entity).Scale, 4);
+        // The enlarged footprint now covers cells that were free before.
+        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f, 0).Error);
+
+        (ConstructionRules small, _) = CreateRules(new ConstructionLimits(MaxParts: 64, MaxConnectionsPerPart: 6, MaxFootprintCells: 4));
+        ConstructionResult plank = small.Place(PartPlank, 1.0f, 0.5f, 0f, 1f, 0);
+        Assert.True(plank.IsSuccess);
+
+        ConstructionResult tooLarge = small.Scale(plank.Entity, 2f, 0);
+
+        Assert.Equal(ConstructionError.FootprintTooLarge, tooLarge.Error);
+        Assert.Equal(1f, TransformOf(small, plank.Entity).Scale, 4);
+    }
+
+    [Fact]
+    public void MoveAndScaleOntoAnotherPartAreTransformBlocked()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        ConstructionResult first = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0);
+        ConstructionResult second = rules.Place(PartBlock, 2.5f, 0.5f, 0f, 1f, 0);
+        Assert.True(first.IsSuccess && second.IsSuccess);
+
+        ConstructionResult moved = rules.Move(first.Entity, 2.5f, 0.5f, 0);
+        ConstructionResult scaled = rules.Scale(second.Entity, 4f, 0);
+
+        Assert.Equal(ConstructionError.TransformBlocked, moved.Error);
+        Assert.Equal(ConstructionError.TransformBlocked, scaled.Error);
+        Assert.Equal(0.5f, TransformOf(rules, first.Entity).Position.X, 4);
+        Assert.Equal(1f, TransformOf(rules, second.Entity).Scale, 4);
+        Assert.Equal(2, rules.PartCount);
+    }
+
+    [Fact]
+    public void TransformErrorMatrixIsSharedByMoveScaleAndRotate()
+    {
+        (ConstructionRules rules, EntityStore entities) = CreateRules();
+        ConstructionResult owned = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA);
+        ConstructionResult other = rules.Place(PartBlock, 5.5f, 0.5f, 0f, 1f, OwnerB);
+        Assert.True(owned.IsSuccess && other.IsSuccess);
+
+        Assert.Equal(ConstructionError.EntityNotFound, rules.Move(new EntityId(12345), 1f, 1f, OwnerA).Error);
+        Assert.Equal(ConstructionError.EntityNotFound, rules.Scale(new EntityId(12345), 2f, OwnerA).Error);
+        EntityId foreign = entities.Create();
+        Assert.Equal(ConstructionError.NotAConstructionEntity, rules.Move(foreign, 1f, 1f, OwnerA).Error);
+        Assert.Equal(ConstructionError.NotAConstructionEntity, rules.Scale(foreign, 2f, OwnerA).Error);
+
+        Assert.Equal(ConstructionError.NotOwnedByPlayer, rules.Move(owned.Entity, 1f, 1f, OwnerB).Error);
+        Assert.Equal(ConstructionError.NotOwnedByPlayer, rules.Scale(owned.Entity, 2f, OwnerB).Error);
+
+        Assert.Equal(ConstructionError.InvalidPosition, rules.Move(owned.Entity, float.NaN, 1f, OwnerA).Error);
+        Assert.Equal(ConstructionError.InvalidPosition, rules.Move(owned.Entity, 1f, float.PositiveInfinity, OwnerA).Error);
+        Assert.Equal(ConstructionError.InvalidScale, rules.Scale(owned.Entity, 0f, OwnerA).Error);
+        Assert.Equal(ConstructionError.InvalidScale, rules.Scale(owned.Entity, float.NaN, OwnerA).Error);
+        Assert.Equal(ConstructionError.InvalidScale, rules.Scale(owned.Entity, 5f, OwnerA).Error);
+        Assert.Equal(ConstructionError.InvalidRotation, rules.Rotate(owned.Entity, float.NaN, OwnerA).Error);
+
+        // A rejected transform leaves the pose untouched.
+        EntityTransform transform = TransformOf(rules, owned.Entity);
+        Assert.Equal(0.5f, transform.Position.X, 4);
+        Assert.Equal(1f, transform.Scale, 4);
+    }
+
+    [Fact]
+    public void FrozenEntitiesRejectMoveScaleAndRotate()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        ConstructionResult placed = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA);
+        Assert.True(placed.IsSuccess);
+
+        rules.FreezeAll(new Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)>());
+
+        Assert.True(rules.IsFrozen(placed.Entity.Value));
+        Assert.Equal(ConstructionError.FrozenEntity, rules.Move(placed.Entity, 1f, 1f, OwnerA).Error);
+        Assert.Equal(ConstructionError.FrozenEntity, rules.Scale(placed.Entity, 2f, OwnerA).Error);
+        Assert.Equal(ConstructionError.FrozenEntity, rules.Rotate(placed.Entity, 1f, OwnerA).Error);
+    }
+
+    [Fact]
+    public void TransformConnectionLimitsAreEnforced()
+    {
+        (ConstructionRules rules, _) = CreateRules(new ConstructionLimits(MaxParts: 64, MaxConnectionsPerPart: 2, MaxFootprintCells: 64));
+        ConstructionResult first = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, 0);
+        ConstructionResult middle = rules.Place(PartBlock, 1.5f, 0.5f, 0f, 1f, 0);
+        ConstructionResult last = rules.Place(PartBlock, 2.5f, 0.5f, 0f, 1f, 0);
+        ConstructionResult far = rules.Place(PartBlock, 0.5f, 3.5f, 0f, 1f, 0);
+        Assert.True(first.IsSuccess && middle.IsSuccess && last.IsSuccess && far.IsSuccess);
+        Assert.Equal(2, rules.ConnectionsOf(middle.Entity).Count);
+
+        ConstructionResult moved = rules.Move(far.Entity, 1.5f, 1.5f, 0);
+
+        Assert.Equal(ConstructionError.ConnectionLimitReached, moved.Error);
+        EntityTransform transform = TransformOf(rules, far.Entity);
+        Assert.Equal(0.5f, transform.Position.X, 4);
+        Assert.Equal(3.5f, transform.Position.Y, 4);
+    }
+
+    [Fact]
+    public void TransformScriptReplaysDeterministically()
+    {
+        (long hash, ConstructionError[] rejections) first = RunTransformFixtureScript();
+        (long hash, ConstructionError[] rejections) second = RunTransformFixtureScript();
+
+        Assert.Equal(first.hash, second.hash);
+        Assert.Equal(first.rejections, second.rejections);
+        Assert.Contains(ConstructionError.TransformBlocked, first.rejections);
+        Assert.Contains(ConstructionError.InvalidScale, first.rejections);
+    }
+
+    private static (long Hash, ConstructionError[] Rejections) RunTransformFixtureScript()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        List<ConstructionError> rejections = new();
+        ConstructionResult first = rules.Place(PartBlock, 0.5f, 0.5f, 0f, 1f, OwnerA);
+        ConstructionResult second = rules.Place(PartBlock, 3.5f, 0.5f, 0f, 1f, OwnerA);
+        ConstructionResult plank = rules.Place(PartPlank, 1.0f, 4.5f, 0f, 1f, OwnerA);
+        Assert.True(first.IsSuccess && second.IsSuccess && plank.IsSuccess);
+
+        ConstructionResult moved = rules.Move(first.Entity, 2.5f, 0.5f, OwnerA);
+        if (!moved.IsSuccess)
+        {
+            rejections.Add(moved.Error);
+        }
+
+        ConstructionResult scaled = rules.Scale(plank.Entity, 2f, OwnerA);
+        if (!scaled.IsSuccess)
+        {
+            rejections.Add(scaled.Error);
+        }
+
+        ConstructionResult blocked = rules.Move(second.Entity, 2.5f, 0.5f, OwnerA);
+        if (!blocked.IsSuccess)
+        {
+            rejections.Add(blocked.Error);
+        }
+
+        ConstructionResult rotated = rules.Rotate(plank.Entity, MathF.PI / 4f, OwnerA);
+        if (!rotated.IsSuccess)
+        {
+            rejections.Add(rotated.Error);
+        }
+
+        ConstructionResult invalid = rules.Scale(first.Entity, 0f, OwnerA);
+        if (!invalid.IsSuccess)
+        {
+            rejections.Add(invalid.Error);
+        }
+
+        return (rules.ComputeLayoutHash(), rejections.ToArray());
     }
 
     private static EntityTransform TransformOf(ConstructionRules rules, EntityId entity)

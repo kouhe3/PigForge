@@ -41,6 +41,8 @@ public sealed class PlayHostIdentityTests
             new StartSimulationCommand(0, 4, 0),
             new EnterBuildModeCommand(0, 5, 0, BuildModePolicy.Keep),
             new RetryCommand(0, 6, 0),
+            new MovePartCommand(0, 7, 0, 9, 1f, 2f),
+            new ScalePartCommand(0, 8, 0, 9, 1.5f),
         };
 
         foreach (ReplayCommand command in commands)

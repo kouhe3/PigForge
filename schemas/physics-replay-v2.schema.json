@@ -165,6 +165,8 @@
         { "$ref": "#/$defs/placePartCommand" },
         { "$ref": "#/$defs/removePartCommand" },
         { "$ref": "#/$defs/rotatePartCommand" },
+        { "$ref": "#/$defs/movePartCommand" },
+        { "$ref": "#/$defs/scalePartCommand" },
         { "$ref": "#/$defs/startSimulationCommand" },
         { "$ref": "#/$defs/enterBuildModeCommand" }
       ]
@@ -221,6 +223,37 @@
             "kind": { "const": "ROTATE_PART" },
             "entityId": { "$ref": "#/$defs/positiveUInt" },
             "angle": { "$ref": "#/$defs/finiteNumber" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "movePartCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind", "entityId", "positionX", "positionY"],
+          "properties": {
+            "kind": { "const": "MOVE_PART" },
+            "entityId": { "$ref": "#/$defs/positiveUInt" },
+            "positionX": { "$ref": "#/$defs/finiteNumber" },
+            "positionY": { "$ref": "#/$defs/finiteNumber" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "scalePartCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/commandBase" },
+        {
+          "type": "object",
+          "required": ["kind", "entityId", "scale"],
+          "properties": {
+            "kind": { "const": "SCALE_PART" },
+            "entityId": { "$ref": "#/$defs/positiveUInt" },
+            "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 }
           }
         }
       ],

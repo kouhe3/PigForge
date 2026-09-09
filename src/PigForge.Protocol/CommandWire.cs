@@ -16,6 +16,10 @@ public static class CommandFrame
     public static int RemoveByteCount => HeaderByteCount + 4;
     public static int RotateByteCount => HeaderByteCount + 8;
     public static int StartByteCount => HeaderByteCount;
+    // MovePart payload is entityId:u32 @19 + positionX:f32 @23 + positionY:f32 @27 (31 total);
+    // ScalePart payload is entityId:u32 @19 + scale:f32 @23 (27 total).
+    public static int MoveByteCount => HeaderByteCount + 12;
+    public static int ScaleByteCount => HeaderByteCount + 8;
 
     public static bool TryEncode(Span<byte> destination, ReplayCommand command, out int written)
     {
@@ -25,6 +29,8 @@ public static class CommandFrame
             PlacePartCommand => PlaceByteCount,
             RemovePartCommand => RemoveByteCount,
             RotatePartCommand => RotateByteCount,
+            MovePartCommand => MoveByteCount,
+            ScalePartCommand => ScaleByteCount,
             StartSimulationCommand or RetryCommand => StartByteCount,
             _ => 0
         };
@@ -58,6 +64,15 @@ public static class CommandFrame
             case RotatePartCommand rotate:
                 BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], rotate.EntityId);
                 BinaryPrimitives.WriteSingleLittleEndian(destination[23..], rotate.Angle);
+                break;
+            case MovePartCommand move:
+                BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], move.EntityId);
+                BinaryPrimitives.WriteSingleLittleEndian(destination[23..], move.PositionX);
+                BinaryPrimitives.WriteSingleLittleEndian(destination[27..], move.PositionY);
+                break;
+            case ScalePartCommand scale:
+                BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], scale.EntityId);
+                BinaryPrimitives.WriteSingleLittleEndian(destination[23..], scale.Scale);
                 break;
         }
 
@@ -93,7 +108,7 @@ public static class CommandFrame
             return false;
         }
 
-        if (kindByte > (byte)ClientCommandKind.Retry)
+        if (kindByte > (byte)ClientCommandKind.ScalePart)
         {
             error = "Unknown command kind.";
             return false;
@@ -160,6 +175,45 @@ public static class CommandFrame
                 }
 
                 command = new RotatePartCommand(tick, sequence, playerId, entityId, angle);
+                return true;
+            }
+            case ClientCommandKind.MovePart:
+            {
+                if (source.Length < MoveByteCount)
+                {
+                    error = "MovePart payload is truncated.";
+                    return false;
+                }
+
+                uint entityId = BinaryPrimitives.ReadUInt32LittleEndian(source[19..]);
+                float positionX = BinaryPrimitives.ReadSingleLittleEndian(source[23..]);
+                float positionY = BinaryPrimitives.ReadSingleLittleEndian(source[27..]);
+                if (entityId == 0 || !float.IsFinite(positionX) || !float.IsFinite(positionY))
+                {
+                    error = "MovePartCommand has invalid entity id or position.";
+                    return false;
+                }
+
+                command = new MovePartCommand(tick, sequence, playerId, entityId, positionX, positionY);
+                return true;
+            }
+            case ClientCommandKind.ScalePart:
+            {
+                if (source.Length < ScaleByteCount)
+                {
+                    error = "ScalePart payload is truncated.";
+                    return false;
+                }
+
+                uint entityId = BinaryPrimitives.ReadUInt32LittleEndian(source[19..]);
+                float scale = BinaryPrimitives.ReadSingleLittleEndian(source[23..]);
+                if (entityId == 0 || !float.IsFinite(scale) || scale <= 0f || scale > 4f)
+                {
+                    error = "ScalePartCommand has invalid entity id or scale.";
+                    return false;
+                }
+
+                command = new ScalePartCommand(tick, sequence, playerId, entityId, scale);
                 return true;
             }
             case ClientCommandKind.StartSimulation:

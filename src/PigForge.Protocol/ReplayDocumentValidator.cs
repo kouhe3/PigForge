@@ -153,6 +153,8 @@ public static class ReplayDocumentValidator
                 PlacePartCommand => ClientCommandKind.PlacePart,
                 RemovePartCommand => ClientCommandKind.RemovePart,
                 RotatePartCommand => ClientCommandKind.RotatePart,
+                MovePartCommand => ClientCommandKind.MovePart,
+                ScalePartCommand => ClientCommandKind.ScalePart,
                 StartSimulationCommand => ClientCommandKind.StartSimulation,
                 EnterBuildModeCommand => ClientCommandKind.EnterBuildMode,
                 RetryCommand => ClientCommandKind.Retry,
@@ -177,6 +179,20 @@ public static class ReplayDocumentValidator
             if (command is RotatePartCommand rotatePart && (rotatePart.EntityId == 0 || !float.IsFinite(rotatePart.Angle)))
             {
                 errors.Add("RotatePartCommand has invalid entity or angle.");
+            }
+
+            if (command is MovePartCommand movePart && (movePart.EntityId == 0
+                || !float.IsFinite(movePart.PositionX)
+                || !float.IsFinite(movePart.PositionY)))
+            {
+                errors.Add("MovePartCommand has invalid entity or position.");
+            }
+
+            if (command is ScalePartCommand scalePart && (scalePart.EntityId == 0
+                || !float.IsFinite(scalePart.Scale)
+                || scalePart.Scale is <= 0f or > 4f))
+            {
+                errors.Add("ScalePartCommand has invalid entity or scale.");
             }
 
             if (command is RemovePartCommand removePart && removePart.EntityId == 0)

@@ -238,6 +238,8 @@ public sealed class SandboxRoomTests
 
         Assert.Equal(CommandStatus.WrongMode, room.Submit(PlacePart(3, PlayerOne, PartBlock, 3.5f, 0.5f)).Status);
         Assert.Equal(CommandStatus.WrongMode, room.Submit(Rotate(3, PlayerOne, entityId, 1.5f)).Status);
+        Assert.Equal(CommandStatus.WrongMode, room.Submit(Move(3, PlayerOne, entityId, 2.5f, 0.5f)).Status);
+        Assert.Equal(CommandStatus.WrongMode, room.Submit(Scale(3, PlayerOne, entityId, 2f)).Status);
         Assert.Equal(CommandStatus.WrongMode, room.Submit(Remove(3, PlayerOne, entityId)).Status);
         Assert.Equal(CommandStatus.WrongMode, room.Submit(Start(3, PlayerOne)).Status);
         Assert.Equal(CommandStatus.WrongMode, room.Submit(new EnterBuildModeCommand(0, 3, PlayerOne, BuildModePolicy.Keep)).Status);
@@ -285,11 +287,17 @@ public sealed class SandboxRoomTests
 
         CommandOutcome rotated = room.Submit(Rotate(1, PlayerTwo, entityId, 1.5f));
         CommandOutcome removed = room.Submit(Remove(2, PlayerTwo, entityId));
+        CommandOutcome moved = room.Submit(Move(3, PlayerTwo, entityId, 2.5f, 0.5f));
+        CommandOutcome scaled = room.Submit(Scale(4, PlayerTwo, entityId, 2f));
 
         Assert.Equal(CommandStatus.RuleRejected, rotated.Status);
         Assert.Equal(ConstructionError.NotOwnedByPlayer, rotated.Error);
         Assert.Equal(CommandStatus.RuleRejected, removed.Status);
         Assert.Equal(ConstructionError.NotOwnedByPlayer, removed.Error);
+        Assert.Equal(CommandStatus.RuleRejected, moved.Status);
+        Assert.Equal(ConstructionError.NotOwnedByPlayer, moved.Error);
+        Assert.Equal(CommandStatus.RuleRejected, scaled.Status);
+        Assert.Equal(ConstructionError.NotOwnedByPlayer, scaled.Error);
         Assert.Equal(entityId, Assert.Single(PublishEntities(room, out _)).EntityId);
     }
 
@@ -459,6 +467,62 @@ public sealed class SandboxRoomTests
         Assert.Equal(3u, room.CurrentTick);
     }
 
+    [Fact]
+    public void EditingPlayerMayMoveAndScaleAndPreviewFollowsTheTransform()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint entityId = room.Submit(PlacePart(1, PlayerOne, PartBlock, 0.5f, 0.5f)).EntityId;
+        uint blockerId = room.Submit(PlacePart(2, PlayerOne, PartBlock, 6.5f, 0.5f)).EntityId;
+
+        CommandOutcome blocked = room.Submit(Move(3, PlayerOne, entityId, 6.5f, 0.5f));
+        CommandOutcome moved = room.Submit(Move(4, PlayerOne, entityId, 4.5f, 3.5f));
+        CommandOutcome scaled = room.Submit(Scale(5, PlayerOne, entityId, 2f));
+
+        Assert.Equal(CommandStatus.RuleRejected, blocked.Status);
+        Assert.Equal(ConstructionError.TransformBlocked, blocked.Error);
+        Assert.Equal(0u, blocked.EntityId);
+        Assert.True(moved.IsAccepted);
+        Assert.Equal(entityId, moved.EntityId);
+        Assert.True(scaled.IsAccepted);
+        Assert.Equal(entityId, scaled.EntityId);
+
+        Dictionary<uint, SnapshotEntity> previews = PublishEntities(room, out _).ToDictionary(entity => entity.EntityId);
+        Assert.Equal(0u, previews[entityId].PhysicsBodyId);
+        Assert.Equal(4.5f, previews[entityId].Position.X);
+        Assert.Equal(3.5f, previews[entityId].Position.Y);
+        Assert.Equal(2f, previews[entityId].Scale);
+        Assert.Equal(6.5f, previews[blockerId].Position.X);
+    }
+
+    [Fact]
+    public void LegacyBuildingRoomAcceptsMoveAndScaleWithOwnerZero()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateLegacyRoom(world);
+        room.SetupFromLevel(Level());
+        uint entityId = room.Submit(PlacePart(1, PlayerOne, PartBlock, 0.5f, 0.5f)).EntityId;
+
+        // Legacy parts belong to owner 0, so any connection may transform them.
+        CommandOutcome moved = room.Submit(Move(2, PlayerTwo, entityId, 4.5f, 3.5f));
+        CommandOutcome scaled = room.Submit(Scale(3, PlayerTwo, entityId, 1.5f));
+
+        Assert.True(moved.IsAccepted);
+        Assert.Equal(entityId, moved.EntityId);
+        Assert.True(scaled.IsAccepted);
+        Assert.Equal(entityId, scaled.EntityId);
+
+        SnapshotEntity preview = Assert.Single(PublishEntities(room, out _));
+        Assert.Equal(4.5f, preview.Position.X);
+        Assert.Equal(3.5f, preview.Position.Y);
+        Assert.Equal(1.5f, preview.Scale);
+
+        room.Start();
+        Assert.Equal(CommandStatus.WrongMode, room.Submit(Move(4, PlayerOne, entityId, 5.5f, 0.5f)).Status);
+        Assert.Equal(CommandStatus.WrongMode, room.Submit(Scale(5, PlayerOne, entityId, 2f)).Status);
+    }
+
     private static ResetScriptOutcome RunResetScript()
     {
         ScriptedWorld world = new();
@@ -544,6 +608,12 @@ public sealed class SandboxRoomTests
 
     private static RotatePartCommand Rotate(uint sequence, uint playerId, uint entityId, float angle) =>
         new(Tick: 0, Sequence: sequence, PlayerId: playerId, EntityId: entityId, Angle: angle);
+
+    private static MovePartCommand Move(uint sequence, uint playerId, uint entityId, float positionX, float positionY) =>
+        new(Tick: 0, Sequence: sequence, PlayerId: playerId, EntityId: entityId, PositionX: positionX, PositionY: positionY);
+
+    private static ScalePartCommand Scale(uint sequence, uint playerId, uint entityId, float scale) =>
+        new(Tick: 0, Sequence: sequence, PlayerId: playerId, EntityId: entityId, Scale: scale);
 
     private static RemovePartCommand Remove(uint sequence, uint playerId, uint entityId) =>
         new(Tick: 0, Sequence: sequence, PlayerId: playerId, EntityId: entityId);

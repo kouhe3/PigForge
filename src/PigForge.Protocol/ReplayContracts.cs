@@ -111,6 +111,23 @@ public sealed record RotatePartCommand(
     uint EntityId,
     float Angle) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.RotatePart);
 
+/// <summary>Moves a placed part to a new build-plane position, keeping its angle and scale.</summary>
+public sealed record MovePartCommand(
+    uint Tick,
+    uint Sequence,
+    uint PlayerId,
+    uint EntityId,
+    float PositionX,
+    float PositionY) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.MovePart);
+
+/// <summary>Rescales a placed part uniformly, keeping its position and angle.</summary>
+public sealed record ScalePartCommand(
+    uint Tick,
+    uint Sequence,
+    uint PlayerId,
+    uint EntityId,
+    float Scale) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.ScalePart);
+
 public sealed record StartSimulationCommand(
     uint Tick,
     uint Sequence,
