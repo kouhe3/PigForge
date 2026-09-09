@@ -75,12 +75,14 @@ const content: PartContentDocument = {
   parts: [
     { partTypeId: 44, name: "flashlight", mode: "dynamic", mass: 0.4, capabilities: { light: 3 }, shapes: [{ kind: "box", halfExtents: [0.2, 0.2, 0.2] }] },
     { partTypeId: 1, name: "block", mode: "dynamic", mass: 1, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
+    { partTypeId: 8, name: "engine", mode: "dynamic", mass: 1, capabilities: { motor: { thrustPerTick: 2, directionX: 1 }, activation: "toggle" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
   ],
 };
 
 const light: DrawEntity = { entityId: 1, partTypeId: 44, x: 2, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 11, active: false };
 const block: DrawEntity = { entityId: 2, partTypeId: 1, x: 4, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 12, active: false };
 const preview: DrawEntity = { ...light, entityId: 3, bodyId: 0 };
+const engine: DrawEntity = { ...block, entityId: 4, partTypeId: 8, active: false };
 
 describe("drawFrame light halo", () => {
   it("casts a radial glow for light parts", () => {
@@ -94,6 +96,24 @@ describe("drawFrame light halo", () => {
     const { ctx, calls } = makeCtx();
     drawFrame(ctx, createCamera(), [block], content, null);
     expect(calls.createRadialGradient).toBeUndefined();
+  });
+});
+
+describe("drawFrame switch outline", () => {
+  it("outlines a switchable part only while its switch is on", () => {
+    const off = makeCtx();
+    drawFrame(off.ctx, createCamera(), [{ ...engine, active: false }], content, null);
+    expect(off.calls.strokeRect).toBe(1);
+
+    const on = makeCtx();
+    drawFrame(on.ctx, createCamera(), [{ ...engine, active: true }], content, null);
+    expect(on.calls.strokeRect).toBe(2);
+  });
+
+  it("ignores the flag on a part without a switch", () => {
+    const { ctx, calls } = makeCtx();
+    drawFrame(ctx, createCamera(), [{ ...block, active: true }], content, null);
+    expect(calls.strokeRect).toBe(1);
   });
 });
 

@@ -1,4 +1,4 @@
-import type { DrawEntity, PartContentDocument, PartDefinition } from "@/schema/types";
+import type { DrawEntity, PartContentDocument, PartDefinition, PartShape } from "@/schema/types";
 import { type Camera, worldToScreen } from "./camera";
 import { layoutSprites, type PartTextureSet } from "./atlas";
 
@@ -6,6 +6,7 @@ const STATIC_FILL = "#5c6b52";
 const DYNAMIC_FILL = "#c4a574";
 const SELECT_STROKE = "#f0d090";
 const PREVIEW_ALPHA = 0.45;
+const ACTIVE_STROKE = "#ffd166";
 
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -117,6 +118,10 @@ export function drawFrame(
       ctx.lineWidth = 1;
       ctx.strokeRect(-hx, -hy, hx * 2, hy * 2);
     }
+    // A switchable part with its switch on gets an amber ring around its shape.
+    if (!preview && entity.active && part?.capabilities?.activation !== undefined) {
+      strokeActive(ctx, shape, pixelScale);
+    }
     // Untextured parts are still placeholders: stamp the type name at the collision centre.
     if (!preview && part && part.name && !texture) {
       ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
@@ -132,6 +137,21 @@ export function drawFrame(
     }
     ctx.restore();
   }
+}
+
+function strokeActive(ctx: CanvasRenderingContext2D, shape: PartShape | undefined, pixelScale: number): void {
+  ctx.strokeStyle = ACTIVE_STROKE;
+  ctx.lineWidth = 2;
+  if (shape?.kind === "sphere" && shape.radius) {
+    ctx.beginPath();
+    ctx.arc(0, 0, shape.radius * pixelScale + 2, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+
+  const hx = (shape?.halfExtents?.[0] ?? 0.5) * pixelScale + 2;
+  const hy = (shape?.halfExtents?.[1] ?? 0.5) * pixelScale + 2;
+  ctx.strokeRect(-hx, -hy, hx * 2, hy * 2);
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, camera: Camera, width: number, height: number): void {
