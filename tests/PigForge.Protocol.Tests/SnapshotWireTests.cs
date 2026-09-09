@@ -36,8 +36,8 @@ public sealed class SnapshotWireTests
     public void FrameSizeIsBoundedPerEntity()
     {
         Assert.Equal(15, SnapshotFrame.HeaderByteCount);
-        Assert.Equal(68, SnapshotFrame.EntityByteCount);
-        Assert.Equal(15 + (10 * 68), SnapshotFrame.GetMaxByteCount(10));
+        Assert.Equal(69, SnapshotFrame.EntityByteCount);
+        Assert.Equal(15 + (10 * 69), SnapshotFrame.GetMaxByteCount(10));
     }
 
     [Fact]
@@ -120,9 +120,26 @@ public sealed class SnapshotWireTests
                 Rotation: new ReplayQuaternion(0f, 0f, 0.70710678f, 0.70710678f),
                 LinearVelocity: new ReplayVector3(1f, -2f, 0f),
                 AngularVelocity: ReplayVector3.Zero,
-                Scale: 1f + index);
+                Scale: 1f + index,
+                Flags: (byte)(index % 2));
         }
 
         return entities;
+    }
+
+    [Fact]
+    public void VersionTwoFramesAreRejected()
+    {
+        SnapshotEntity[] entities = CreateEntities(1);
+        Span<byte> buffer = stackalloc byte[SnapshotFrame.GetMaxByteCount(1)];
+        Assert.True(SnapshotFrame.TryEncodeHeader(
+            buffer,
+            new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, 1, 0, 1),
+            out SnapshotFrameWriter writer));
+        Assert.True(writer.WriteEntity(entities[0]));
+
+        buffer[4] = 2;
+        buffer[5] = 0;
+        Assert.False(SnapshotFrame.TryDecodeHeader(buffer[..writer.WrittenBytes], out _, out _));
     }
 }

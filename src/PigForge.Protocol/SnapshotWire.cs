@@ -10,26 +10,28 @@ public readonly record struct SnapshotEntity(
 	ReplayQuaternion Rotation,
 	ReplayVector3 LinearVelocity,
 	ReplayVector3 AngularVelocity,
-	float Scale);
+	float Scale,
+	byte Flags = 0);
 
 public readonly record struct SnapshotFrameHeader(ushort Version, uint Tick, byte Phase, uint EntityCount);
 
 /// <summary>
-/// Binary wire format for published authoritative room snapshots (v2).
+/// Binary wire format for published authoritative room snapshots (v3).
 /// Layout, little-endian: magic "PGFS" | version:u16 | tick:u32 | phase:u8 | entityCount:u32,
 /// then per entity: entityId:u32 | physicsBodyId:u32 | partTypeId:u32 | position:3f |
-/// rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f.
+/// rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f | flags:u8.
+/// Flags bit0 is the part switch state; bits 1-7 are reserved (written 0, ignored on read).
 /// The hot path is span-based: no JSON and no allocations.
 /// </summary>
 public static class SnapshotFrame
 {
-	public const ushort CurrentVersion = 2;
+	public const ushort CurrentVersion = 3;
 
 	public const byte BuildingPhase = 0x10;
 
 	public const int HeaderByteCount = 15;
 
-	public const int EntityByteCount = 12 + (4 * 14);
+	public const int EntityByteCount = 13 + (4 * 14);
 
 	public static int GetMaxByteCount(int entityCount) => HeaderByteCount + (entityCount * EntityByteCount);
 
@@ -110,6 +112,7 @@ public ref struct SnapshotFrameWriter
 		WriteVector3(span[40..], entity.LinearVelocity);
 		WriteVector3(span[52..], entity.AngularVelocity);
 		BinaryPrimitives.WriteSingleLittleEndian(span[64..], entity.Scale);
+		span[68] = entity.Flags;
 		_position += SnapshotFrame.EntityByteCount;
 		return true;
 	}
@@ -162,7 +165,8 @@ public ref struct SnapshotFrameReader
 			ReadQuaternion(span[24..]),
 			ReadVector3(span[40..]),
 			ReadVector3(span[52..]),
-			BinaryPrimitives.ReadSingleLittleEndian(span[64..]));
+			BinaryPrimitives.ReadSingleLittleEndian(span[64..]),
+			span[68]);
 		_position += SnapshotFrame.EntityByteCount;
 		_remaining--;
 		return true;

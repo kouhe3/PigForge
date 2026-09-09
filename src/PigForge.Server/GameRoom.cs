@@ -941,7 +941,7 @@ public sealed class GameRoom : IDisposable
 
         if (!SnapshotFrame.TryEncodeHeader(
                 destination,
-                new SnapshotFrameHeader(ProtocolVersion.Current, CurrentTick, (byte)Phase, (uint)_bodyByEntity.Count),
+                new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, CurrentTick, (byte)Phase, (uint)_bodyByEntity.Count),
                 out SnapshotFrameWriter writer))
         {
             bytesWritten = 0;
@@ -986,7 +986,7 @@ public sealed class GameRoom : IDisposable
         FillConstructionOrder();
         if (!SnapshotFrame.TryEncodeHeader(
                 destination,
-                new SnapshotFrameHeader(ProtocolVersion.Current, CurrentTick, SnapshotFrame.BuildingPhase, (uint)_entityOrder.Count),
+                new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, CurrentTick, SnapshotFrame.BuildingPhase, (uint)_entityOrder.Count),
                 out SnapshotFrameWriter writer))
         {
             bytesWritten = 0;
@@ -1034,7 +1034,7 @@ public sealed class GameRoom : IDisposable
         FillConstructionOrder();
         if (!SnapshotFrame.TryEncodeHeader(
                 destination,
-                new SnapshotFrameHeader(ProtocolVersion.Current, CurrentTick, (byte)GameplayPhase.Playing, (uint)_entityOrder.Count),
+                new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, CurrentTick, (byte)GameplayPhase.Playing, (uint)_entityOrder.Count),
                 out SnapshotFrameWriter writer))
         {
             bytesWritten = 0;
