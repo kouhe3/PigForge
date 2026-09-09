@@ -33,7 +33,7 @@ Building mode manipulates pure `ConstructionRules` state (no physics bodies); `S
 **Wire formats** (all v2, little-endian binary, hand-written with `BinaryPrimitives`/`Span`/`ref struct`):
 
 - PGFS snapshots: 15-byte header + 68-byte entities; building phase `0x10` publishes layout with `physicsBodyId = 0`
-- PGFC commands (`ClientCommandKind` 0–5: PlacePart, RemovePart, RotatePart, StartSimulation, EnterBuildMode, Retry), PGFA acks
+- PGFC commands (`ClientCommandKind` 0–7: PlacePart, RemovePart, RotatePart, StartSimulation, EnterBuildMode, Retry, MovePart, ScalePart), PGFA acks
 - Replay JSON per `schemas/physics-replay-v2.schema.json`
 
 **Client flow**: `PlayHost` (`ws://127.0.0.1:5088/play`) → `CommandFrame.TryDecode` → `GameRoom.Submit` → PGFA ack → PGFS broadcast each tick. `DemoSnapshotHost` (`/snapshots`) is broadcast-only. No client hosts simulation.
@@ -49,7 +49,7 @@ Building mode manipulates pure `ConstructionRules` state (no physics bodies); `S
 - `src/PigForge.Server` — `GameRoom` (authoritative room), `PlayHost`/`DemoSnapshotHost`, `Program.cs` entry
 - `src/PigForge.Benchmarks` — custom perf harness (no BenchmarkDotNet)
 - `tests/` — 5 xUnit projects (Core, Protocol, Replay, Physics, Server Tests)
-- `clients/web` — Vue 3 + TS + Vite + Pinia SPA (pnpm)
+- `clients/web` — Vue 3 + TS + Vite + Pinia SPA (pnpm); build-mode tools (place/select/move/rotate/scale) in `src/editor/tools.ts` + `src/gesture/canvasGestures.ts`
 - `unity/PigForge.UnityReference` — Unity 6000.5.6f1 reference exporter, isolated
 - `content/` — `parts.json` (46 parts, partTypeId 1–46), `levels/slope-v1.json`, `levels/terrain-v1.json`
 - `schemas/` — cross-runtime JSON Schema contracts: `part-content-v1`, `level-content-v1`, `physics-replay-v2`, `client-command-v1`
@@ -101,7 +101,8 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 - `src/PigForge.Protocol/SnapshotWire.cs`, `CommandWire.cs` — wire codecs (fixed sizes: 15-byte header, 68-byte entity)
 - `Directory.Build.props` — net10.0, ImplicitUsings, Nullable, LangVersion latest, TreatWarningsAsErrors
 - `docs/decisions/ADR-001-*.md` — net10 physics boundary; `ADR-002-*.md` — no-damage runtime semantics (**binding** for any gameplay change)
-- `clients/web/vite.config.ts` — dev server port 5173 + WS proxy; `clients/web/src/schema/decodeSnapshot.ts`/`encodeCommand.ts` — client wire codecs
+- `docs/intent/*.md` + `docs/specs/*.md` — confirmed intent and the authoritative per-slice spec (e.g. `advanced-building.md` for build-mode move/rotate/scale)
+- `clients/web/vite.config.ts` — dev server port 5173 + WS proxy; `clients/web/src/schema/decodeSnapshot.ts`/`encodeCommand.ts` — client wire codecs; `clients/web/src/editor/tools.ts` — tool math/snaps
 
 ## Runtime/Tooling Preferences
 
@@ -113,11 +114,11 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 
 ## Testing & QA
 
-- **Run everything**: `dotnet test PigForge.slnx` (~156 Fact/Theory cases incl. real-Bepu fixtures). Per project: `dotnet test tests/PigForge.Server.Tests/PigForge.Server.Tests.csproj`; filter e.g. `--filter FullyQualifiedName~GameplayRules` / `~SlopePlay`.
+- **Run everything**: `dotnet test PigForge.slnx` (~229 Fact/Theory cases incl. real-Bepu fixtures). Per project: `dotnet test tests/PigForge.Server.Tests/PigForge.Server.Tests.csproj`; filter e.g. `--filter FullyQualifiedName~GameplayRules` / `~SlopePlay`.
 - **Framework**: xUnit, global `Using Include="Xunit"` (no explicit `using Xunit;`). No mock libraries — hand-written fakes (`ScriptedPhysicsWorld`, `RecordingReplaySimulation`, `GameplayHarness`, `PhysicsDrivenLevel`). No `IClassFixture`/`[Collection]`/async lifecycle; tests construct their own SUT.
 - **Dominant convention**: run twice, compare a `long` state hash or byte stream for determinism; cross-backend (Bepu vs Jolt) differentials assert event-level agreement within tolerances and require genuine solver divergence to be *reported*, not hidden.
 - **Assertions**: xUnit `Assert.*` only, expected-before-actual; physics outcomes via `Assert.InRange`/`precision:`; allocation checks via `GC.GetAllocatedBytesForCurrentThread()` delta == 0.
 - **Fixture files**: JSON as C# raw string literals, or repo-relative paths resolved by walking up from `AppContext.BaseDirectory` (`FindRepositoryFile`/`FindRepositoryRoot`); never embedded resources.
 - **Coverage**: `coverlet.collector` is referenced but unconfigured — no gate; can run `dotnet test PigForge.slnx --collect:"XPlat Code Coverage"`.
 - **Web tests**: Vitest `environment: "node"` (not jsdom, despite jsdom dependency), colocated `*.test.ts`.
-- Known staleness: `tests/PigForge.Core.Tests` pins older xunit 2.5.3/SDK 17.8.0 than siblings; `Protocol.Tests`/`Replay.Tests` csproj missing `<IsTestProject>`; `schemas/client-command-v1.schema.json` kind enum 0–3 is stale vs 6 command kinds; Unity reference exporter still emits replay v1 vs .NET v2.
+- Known staleness: `tests/PigForge.Core.Tests` pins older xunit 2.5.3/SDK 17.8.0 than siblings; `Protocol.Tests`/`Replay.Tests` csproj missing `<IsTestProject>`; Unity reference exporter still emits replay v1 vs .NET v2.
