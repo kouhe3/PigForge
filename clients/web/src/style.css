@@ -133,6 +133,21 @@ label {
   margin-bottom: 1rem;
 }
 
+.palette button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  min-height: 2.2rem;
+}
+
+.part-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .palette button.selected {
   outline: 2px solid #f0d090;
 }
@@ -149,7 +164,13 @@ label {
 .palette .variants button {
   font-size: 0.78rem;
   padding: 0.15rem 0.45rem;
+  min-height: 1.9rem;
   opacity: 0.85;
+}
+
+.palette .variants .part-icon {
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .toolbar .tools {
@@ -223,6 +244,13 @@ label {
 
 .gadget-button.trigger {
   border-style: dashed;
+}
+
+.gadget-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .gadget-key {

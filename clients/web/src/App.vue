@@ -10,6 +10,7 @@ import { connectSnapshotSocket } from "./live/snapshotSocket";
 import { createPlayerSession, type CommandKind } from "./live/playerSession";
 import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
 import { loadPartTextures, type PartTextureSet } from "./renderer/atlas";
+import { partThumbnailDataUrl } from "./renderer/thumbnails";
 import { drawFrame } from "./renderer/draw";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
@@ -43,6 +44,23 @@ let disconnectLive: (() => void) | null = null;
 let sendCommand: ((command: ClientCommand) => void) | null = null;
 // Original-art sprite manifest: optional, absent in a clean checkout.
 const partTextures = shallowRef<PartTextureSet | null>(null);
+// Palette/gadget button icons, cached per partTypeId; empty strings never enter the map.
+const partIcons = new Map<number, string | null>();
+
+/** Original-art icon for a part button, or null to fall back to its text label. */
+function partThumb(partTypeId: number): string | null {
+  const textures = partTextures.value;
+  if (textures === null) {
+    return null;
+  }
+
+  if (!partIcons.has(partTypeId)) {
+    partIcons.set(partTypeId, partThumbnailDataUrl(textures, partTypeId));
+  }
+
+  return partIcons.get(partTypeId) ?? null;
+}
+
 let raf = 0;
 
 const canEdit = computed(() => playerPhase.value === "editing");
@@ -412,6 +430,7 @@ watch(canEdit, (editable) => {
 onMounted(() => {
   session.loadContent(PLAY_PARTS);
   void loadPartTextures().then((textures) => {
+    partIcons.clear();
     partTextures.value = textures;
   });
   const node = canvas.value;
@@ -548,6 +567,7 @@ onUnmounted(() => {
           @click="toggleGadget(group)"
         >
           <span class="gadget-key">{{ group.hotkey }}</span>
+          <img v-if="partThumb(group.partTypeId)" class="gadget-icon" :src="partThumb(group.partTypeId) ?? ''" alt="" />
           <span class="gadget-label">{{ group.label }}</span>
           <span v-if="group.count > 1" class="gadget-count">×{{ group.count }}</span>
         </button>
@@ -563,16 +583,26 @@ onUnmounted(() => {
             <button
               type="button"
               :class="{ selected: selectedPart === part.partTypeId }"
+              :title="part.label"
+              :aria-label="part.label"
               @click="selectPalettePart(part.partTypeId)"
-            >{{ part.label }}</button>
+            >
+              <img v-if="partThumb(part.partTypeId)" class="part-icon" :src="partThumb(part.partTypeId) ?? ''" alt="" />
+              <span v-else>{{ part.label }}</span>
+            </button>
             <div v-if="selectedBaseId === part.partTypeId && variantsOf(session.content, part.partTypeId).length" class="variants">
               <button
                 v-for="(variant, index) in variantsOf(session.content, part.partTypeId)"
                 :key="variant.partTypeId"
                 type="button"
                 :class="{ selected: selectedPart === variant.partTypeId }"
+                :title="variantLabel(part.label, index + 1, variant)"
+                :aria-label="variantLabel(part.label, index + 1, variant)"
                 @click="selectPalettePart(variant.partTypeId)"
-              >{{ variantLabel(part.label, index + 1, variant) }}</button>
+              >
+                <img v-if="partThumb(variant.partTypeId)" class="part-icon" :src="partThumb(variant.partTypeId) ?? ''" alt="" />
+                <span v-else>{{ variantLabel(part.label, index + 1, variant) }}</span>
+              </button>
             </div>
           </template>
         </div>
