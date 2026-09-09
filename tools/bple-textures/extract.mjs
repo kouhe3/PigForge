@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "..", "..");
-const UNITS_PER_PIXEL = 10 / 768; // BPLE: 768 px = 20 world units.
+const UNITS_PER_PIXEL = 20 / 768; // BPLE: 768 px = 20 world units (Sprite.cs camera height).
 
 function arg(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -255,7 +255,7 @@ function extractSprite(prefab, sprite) {
     rect = { x: named.x, y: named.y, w: named.w, h: named.h };
     quadW = named.w * named.scaleX;
     quadH = named.h * named.scaleY;
-    unitsPerPixel = 10 / named.screenHeight;
+    unitsPerPixel = 20 / named.screenHeight;
   } else {
     const cell = spriteCells.get(f.m_id);
     const uv = spriteUv.get(f.m_id);
@@ -372,7 +372,7 @@ for (const [partTypeId, prefabName] of Object.entries(assignments)) {
 
 const manifest = {
   format: "pigforge.part-textures",
-  schemaVersion: 1,
+  schemaVersion: 2,
   source: basename(BPLE),
   unitsPerPixel: UNITS_PER_PIXEL,
   atlases: Object.fromEntries([...usedAtlases].map(([name, entry]) => [name, entry.size])),

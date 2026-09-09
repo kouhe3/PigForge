@@ -22,8 +22,8 @@ Accepted
 
 1. **贴图不入库**：解包产物（图集 PNG + `part-textures.json`）写入 `clients/web/public/assets/original/` 并进 `.gitignore`；仓库只保存解包工具与人工映射表。干净检出没有贴图，客户端按形状渲染（现状行为）。
 2. **解包直接读编辑器工程源 PNG**：`tools/bple-textures/extract.mjs`（零依赖 Node）读取 BPLE 工程，按上述规则切片，复制用到的图集并生成清单。仅在只有构建产物时才需要 UnityPy 之类工具，属于备选路径。
-3. **运行时契约是可选的资产清单**：`part-textures.json`（`format: pigforge.part-textures`，`schemaVersion: 1`）按 `partTypeId` 给出图集矩形、部件局部偏移/尺寸/旋转。清单缺失、格式错误、图集加载失败都只回退到形状渲染，不报错、不阻塞。
-4. **绘制语义**：同一零件的多个精灵按 prefab 的 z 排序绘制（猪=身体+耳朵+脸+眼，气球/沙袋多联=同图集矩形多份），合成包围盒等比适配零件物理形状（box halfExtents / sphere radius），保留局部旋转；名字为 `*Attachment` 的关节标记精灵不参与（运行时按连接方向条件显示）。
+3. **运行时契约是可选的资产清单**：`part-textures.json`（`format: pigforge.part-textures`，`schemaVersion: 2`）按 `partTypeId` 给出图集矩形、部件局部偏移/世界尺寸/旋转。清单缺失、格式错误、图集加载失败都只回退到形状渲染，不报错、不阻塞。
+4. **绘制语义**：同一零件的多个精灵按 prefab 的 z 排序绘制（猪=身体+耳朵+脸+眼，气球/沙袋多联=同图集矩形多份），按原作世界尺寸与局部偏移绘制（清单 v2 的 `sx/sy` 是真实世界尺寸，只乘建造期 `scale`；不再适配物理形状，见 ADR-005），保留局部旋转；名字为 `*Attachment` 的关节标记精灵不参与（运行时按连接方向条件显示）。
 5. **映射置信度**：`GameData.m_parts` 的 46 个原版部件覆盖 41 个 PigForge 零件；`ground-slab`、`ball-weight`、`terrain-box`、`ramp-plank`、`firework-blue` 在原版没有对应部件，保持形状回退。映射表 `tools/bple-textures/part-map.json` 是唯一需要人工维护的部分。
 6. **内容格式不动**：`content/parts.json`（`part-content-v1`）不含任何贴图字段；贴图清单是渲染层的可选叠加，物理/回放契约与 .NET 侧不受影响。
 

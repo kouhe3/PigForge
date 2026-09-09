@@ -19,7 +19,7 @@ export interface PartSprite {
   /** Sprite centre relative to the part origin, world units, +y up (BPLE convention). */
   cx: number;
   cy: number;
-  /** Sprite size in world units. */
+  /** Sprite size in world units, exactly as the original game draws it. */
   sx: number;
   sy: number;
   /** Local rotation in radians, counter-clockwise in the +y-up frame. */
@@ -27,7 +27,7 @@ export interface PartSprite {
 }
 
 export interface PartTexture {
-  /** Composite bounds in world units; the renderer fits this box into the part shape. */
+  /** Composite bounds in world units; validated as a manifest sanity check. */
   bbox: [number, number];
   sprites: PartSprite[];
 }
@@ -49,7 +49,7 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
   if (typeof value !== "object" || value === null) throw new Error("part-textures: not an object");
   const document = value as { format?: unknown; schemaVersion?: unknown; parts?: unknown };
   if (document.format !== "pigforge.part-textures") throw new Error("part-textures: unknown format");
-  if (document.schemaVersion !== 1) throw new Error("part-textures: unsupported schemaVersion");
+  if (document.schemaVersion !== 2) throw new Error("part-textures: unsupported schemaVersion");
   if (typeof document.parts !== "object" || document.parts === null) throw new Error("part-textures: missing parts");
   const parts = new Map<number, PartTexture>();
   for (const [key, raw] of Object.entries(document.parts as Record<string, unknown>)) {
@@ -96,12 +96,11 @@ export interface SpritePlacement {
 }
 
 /**
- * Fits a part's sprite composite into the part's shape half-extents, preserving aspect
- * ratio and centring it. Pure math so the renderer stays a thin blit loop.
+ * Places a part's sprite composite at the original game's world size and offsets,
+ * scaled by the entity's build-time scale. Pure math so the renderer stays a thin
+ * blit loop.
  */
-export function layoutSprites(texture: PartTexture, halfWidth: number, halfHeight: number): SpritePlacement[] {
-  const [bboxWidth, bboxHeight] = texture.bbox;
-  const scale = Math.min((halfWidth * 2) / bboxWidth, (halfHeight * 2) / bboxHeight);
+export function layoutSprites(texture: PartTexture, scale: number): SpritePlacement[] {
   return texture.sprites.map((sprite) => ({
     sprite,
     x: sprite.cx * scale,

@@ -137,19 +137,19 @@ describe("drawFrame original-art textures", () => {
         1,
         {
           bbox: [1, 1] as [number, number],
-          sprites: [{ atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 1, sy: 1, rot: 0 }],
+          sprites: [{ atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0 }],
         },
       ],
     ]),
   });
 
-  it("blits the manifest rect fitted to the part shape and drops the name label", () => {
+  it("blits the manifest rect at its original world size and drops the name label", () => {
     const { ctx, calls, draws } = makeCtx();
     const image = {} as CanvasImageSource;
     drawFrame(ctx, createCamera(), [block], content, null, undefined, undefined, textures(image));
     expect(calls.drawImage).toBe(1);
-    // 0.5 half-extent shape over a 1x1 bbox at camera scale 36 -> 36x36 at the origin.
-    expect(draws[0]).toEqual([10, 20, 100, 100, -18, -18, 36, 36]);
+    // 2x3 world-unit sprite at camera scale 36 -> 72x108, independent of the 1x1 shape.
+    expect(draws[0]).toEqual([10, 20, 100, 100, -36, -54, 72, 108]);
     expect(calls.fillRect).toBe(1); // background only: the shape path is skipped
     expect(calls.fillText).toBeUndefined();
   });

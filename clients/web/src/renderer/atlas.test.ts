@@ -3,7 +3,7 @@ import { layoutSprites, loadPartTextures, parsePartTextures } from "./atlas";
 
 const manifest = {
   format: "pigforge.part-textures",
-  schemaVersion: 1,
+  schemaVersion: 2,
   atlases: { "A.png": { width: 2048, height: 2048 } },
   parts: {
     "10": {
@@ -39,7 +39,7 @@ describe("parsePartTextures", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expect(() => parsePartTextures({ ...manifest, schemaVersion: 2 })).toThrow();
+    expect(() => parsePartTextures({ ...manifest, schemaVersion: 1 })).toThrow();
   });
 
   it("rejects a sprite with a non-positive source rect", () => {
@@ -52,20 +52,19 @@ describe("parsePartTextures", () => {
 });
 
 describe("layoutSprites", () => {
-  it("fits the composite into the shape half-extents, preserving aspect ratio", () => {
-    const [left, right] = layoutSprites(parsePartTextures(manifest).get(10)!, 0.5, 0.5);
-    // bbox 2x1 into a 1x1 box: scale 0.5, so each 1x1 sprite becomes 0.5x0.5.
-    expect(left.w).toBeCloseTo(0.5);
-    expect(left.h).toBeCloseTo(0.5);
-    expect(left.x).toBeCloseTo(0.25);
-    expect(right.x).toBeCloseTo(-0.25);
+  it("places sprites at the original world size and offsets", () => {
+    const [left, right] = layoutSprites(parsePartTextures(manifest).get(10)!, 1);
+    expect(left.w).toBeCloseTo(1);
+    expect(left.h).toBeCloseTo(1);
+    expect(left.x).toBeCloseTo(0.5);
+    expect(right.x).toBeCloseTo(-0.5);
     expect(left.y).toBeCloseTo(0);
   });
 
-  it("centres the composite on the part origin", () => {
-    const placements = layoutSprites(parsePartTextures(manifest).get(10)!, 2, 2);
-    const centre = placements.reduce((sum, p) => sum + p.x, 0) / placements.length;
-    expect(centre).toBeCloseTo(0);
+  it("scales the whole composite by the entity scale", () => {
+    const [left] = layoutSprites(parsePartTextures(manifest).get(10)!, 2);
+    expect(left.w).toBeCloseTo(2);
+    expect(left.x).toBeCloseTo(1);
   });
 });
 

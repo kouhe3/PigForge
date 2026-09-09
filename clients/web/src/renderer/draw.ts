@@ -76,11 +76,9 @@ export function drawFrame(
     const texture = textures?.parts.get(entity.partTypeId);
     const pixelScale = entity.scale * camera.scale;
     if (texture && atlasImages && texture.sprites.every((sprite) => atlasImages.get(sprite.atlas) !== undefined)) {
-      // Original art: fit the BPLE sprite composite into the part's physics shape.
-      const sphere = shape?.kind === "sphere" && shape.radius ? shape.radius : undefined;
-      const halfWidth = (sphere ?? shape?.halfExtents?.[0] ?? 0.5) * entity.scale;
-      const halfHeight = (sphere ?? shape?.halfExtents?.[1] ?? 0.5) * entity.scale;
-      for (const placement of layoutSprites(texture, halfWidth, halfHeight)) {
+      // Original art: drawn at the BPLE world size and offsets, so part visuals match
+      // the original regardless of the (independent) physics shape.
+      for (const placement of layoutSprites(texture, entity.scale)) {
         const image = textures.atlases.get(placement.sprite.atlas);
         if (!image) continue;
         const w = placement.w * pixelScale;
