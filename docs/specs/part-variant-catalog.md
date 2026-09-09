@@ -62,7 +62,7 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 | 23 三沙袋 | Sandbag3 | 3 | 24 猪王 | KingPig | 6 |
 | 25 黑汽水 | CokeBottle | 4 | 26 绿汽水 | SodaBottle | 4 |
 
-合计 217 件 + TNT 两件（51/52）= **219** 条新内容；新总数 50 + 219 = **269**。
+合计 217 件 + TNT 两件（51/52）= **219** 条新内容；导入时基准 50 条 → 269，后来删除 PigForge 自制件 3/29 → 现 **267** 条（44 基准 + 223 变体）。
 
 **参数变体**（复制基准件后覆盖，均为原版实测值）：
 
@@ -114,7 +114,7 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 
 ## Testing Strategy
 
-- .NET：`PartContentTests` 数量断言 269 + 新能力解析；`GameplayRulesTests` 新增：连锁（半径内 TNT 被点燃、半径外不）、`igniteOnImpact=false` 撞击不点火、blaster 冲量只作用于半径内动态体且自身存活、chainRadius 连锁；`GameRoomTests` 新增：含胶簇不裂缝、无胶簇照常裂缝。
+- .NET：`PartContentTests` 数量断言 267 + 新能力解析；`GameplayRulesTests` 新增：连锁（半径内 TNT 被点燃、半径外不）、`igniteOnImpact=false` 撞击不点火、blaster 冲量只作用于半径内动态体且自身存活、chainRadius 连锁；`GameRoomTests` 新增：含胶簇不裂缝、无胶簇照常裂缝。
 - Web：`validateContent` 新字段（合法/非法各一）、`variantLabel` 纯函数、`slope.test.ts` 全量一致性。
 - 手验：`--play` 启动，调色板每个基准件展开皮肤（贴图正确）、AlienTNT 开关引爆并连锁、BlasterTNT 推飞、异形蛋簇撞击不散。
 
@@ -129,8 +129,8 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 ## Success Criteria
 
 1. `dotnet test PigForge.slnx`、`pnpm test`、`pnpm build` 全绿。
-2. `content/parts.json` 269 条；每个有原版变体的基准件在调色板里都能展开皮肤，顺序与原版 `customPartIndex` 一致。
-3. `tools/bple-textures/extract.mjs` 对全部 269 条映射输出 0 警告（`parts: 264/269` 为基准 null 项）。
+2. `content/parts.json` 267 条；每个有原版变体的基准件在调色板里都能展开皮肤，顺序与原版 `customPartIndex` 一致。
+3. `tools/bple-textures/extract.mjs` 对全部 267 条映射输出 0 警告（`parts: 264/267`，3 个 null 为 ground-slab/terrain-box/ramp-plank）。
 4. AlienTNT 撞击不点火、开关点火后连锁半径内普通 TNT；BlasterTNT 触发后推飞周围动态体且自身存活；含 AlienEgg 的簇在超阈冲量下不裂缝。
 5. `docs/decisions/ADR-004-part-variants.md` 的 AlienTNT 描述修正为实测结论。
 

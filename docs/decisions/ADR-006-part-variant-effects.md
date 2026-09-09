@@ -28,7 +28,7 @@ ADR-004 决定「变体 = 扁平 partTypeId + 内容层分组，行为差异走�
 
 ## 影响
 
-- `content/parts.json` 269 条：46 基准 + 223 变体；`tnt` 家族 9/42/47–52 全部 `chainDetonate`（默认），51 `igniteOnImpact: false`，52 `blaster` + 质量 2，241 `egg + glue`。
+- `content/parts.json` 267 条：44 基准 + 223 变体；`tnt` 家族 9/42/47–52 全部 `chainDetonate`（默认），51 `igniteOnImpact: false`，52 `blaster` + 质量 2，241 `egg + glue`。
 - 新能力字段：schema/`PartContentParser`/`PartContentDocument`/`types.ts`/`validateContent.ts` 五处同步；`GameplayRules` 新增 `BlasterStore`/`GlueStore`、`RunBlasters`、`IgniteChargesInRadius`，并在 `RunTntFuses` 里补上规格早就要求、但此前缺失的「TNT 开关点火」（`docs/specs/play-part-switches.md:228`）。
 - `GameRoom.RegisterPlacedRole` 把三个能力接到规则；`SplitFromAppliedCommands` 通过 `IsGluedCompound` 跳过含胶簇。
 - 回放/快照格式不变：新能力只是内容，`partTypeId` 仍是唯一身份。

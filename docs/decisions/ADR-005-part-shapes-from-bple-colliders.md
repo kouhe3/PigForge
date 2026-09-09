@@ -26,7 +26,7 @@ Accepted
 1. **碰撞体是零件尺寸的唯一权威。** `content/parts.json` 的 `shapes` 由 `tools/bple-shapes/extract-shapes.mjs` 从 BPLE prefab 提取：`box` 取 `m_Size / 2`，`sphere` 取 `m_Radius`，`capsule` 取 X/Y 包围盒（`box`），运行时添加的碰撞体按脚本常量补上。关节标记（`*Attachment`）与脚本辅助碰撞体（`MouthPos`）不算零件本体。提取报告写到 `artifacts/`（gitignore），零件映射复用 `tools/bple-textures/part-map.json`。
 2. **只表达单形状、无偏移。** 建造平面的足迹投影（`PartFootprint.ForPart`）只读 `shapes[0]` 且不支持 shape offset，`PartContentLibrary.CreateBodyDefinition` 也显式拒绝 offset。因此多碰撞体零件取主体碰撞体（车轮取轮胎球，而不是 `SupportCollider` 支撑盒），碰撞体的局部偏移折中为居中。这是已知偏差，不是原作的完整碰撞几何。
 3. **贴图按原作世界尺寸与偏移绘制。** `part-textures.json` 的 `sx/sy` 改为真实世界尺寸（旧版是真实尺寸的一半，渲染靠适配抵消），清单 `schemaVersion` 升到 2；`layoutSprites` 不再适配物理形状，按清单尺寸与偏移绘制，只乘建造期的 `scale`。旧版清单被解析器拒绝 → 回退形状渲染，不会静默画错大小。
-4. **无原作对应件的零件保留手工形状**：`ground-slab`、`ball-weight`、`terrain-box`、`ramp-plank`、`firework-blue`、`rope`、`dynamite`、`spotlight`（`part-map.json` 里为 `null`，或 prefab 只有关节标记碰撞体）。
+4. **无原作对应件的零件保留手工形状**：`ground-slab`、`terrain-box`、`ramp-plank`、`rope`、`dynamite`、`spotlight`（`part-map.json` 里为 `null`，或 prefab 只有关节标记碰撞体）。
 5. **客户端内联表必须与内容一致。** `clients/web/src/builder/slope.ts` 的 `PLAY_PARTS` 是离线坡道构建器的副本，由 `clients/web/src/builder/slope.test.ts` 对着 `content/parts.json` 逐字段校验，防止再次漂移。
 
 ## 影响

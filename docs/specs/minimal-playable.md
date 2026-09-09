@@ -100,9 +100,10 @@ docs/specs/minimal-playable.md         # 本文件
 |---|---|---|
 | 现有 1 | wooden-block | part |
 | 新 | pig | pig（不可摧毁货物） |
-| 现有 3 | ball-weight | part（可选配重） |
 
 禁止面板放置静态地面/坡板。TNT/轮/发动机本切片不做。
+
+> 2026-09-09 更新：`ball-weight`（3）是 PigForge 自制件（原版无对应件、无贴图），已在变体目录切片后删除；配重改用原版沙袋 21/22/23。
 
 `level-content` spawn 增补：
 

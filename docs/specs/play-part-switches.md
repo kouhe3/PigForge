@@ -63,7 +63,7 @@ v1 映射（`content/parts.json` 与 `clients/web/src/builder/slope.ts` 的 `PLA
 | activation | 零件（partTypeId） |
 |---|---|
 | `toggle` | engine 8、motor-wheel 17、propeller 38、fan 11、black-umbrella 35、electric-umbrella 36、gearbox-lever 39 |
-| `trigger` | rocket 13、soda-bottle-black 25、soda-bottle-green 26、firework-blue 29、firework-red 30、bellows 40、grappling-hook 46、detacher 43、tnt 9/42/47/48/49/50、balloon 10/19/20、rotor 37 |
+| `trigger` | rocket 13、soda-bottle-black 25、soda-bottle-green 26、firework-red 30、bellows 40、grappling-hook 46、detacher 43、tnt 9/42/47/48/49/50、balloon 10/19/20、rotor 37 |
 | 无 | 结构件、轮子、猪/猪王、沙袋、绳、蛋、弹簧 12/28、翼 31/32、尾 33/34、灯 44/45 |
 
 注：气球/旋翼对应原作的「点一下放气」——升力与今天一样**被动生效**；开关触发即 `DestroyEntity`（与火箭自毁同一路径），升力立即停止、实体从快照与施工布局消失。复合体成员的形状重建沿用既有 `UnbindEntity` 语义，见 Open Questions。

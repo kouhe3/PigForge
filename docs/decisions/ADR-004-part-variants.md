@@ -29,7 +29,7 @@ Accepted
 
 ## 影响
 
-- 每个皮肤在 `content/parts.json` 中占一条。当前：46 个基准件 + 223 个变体 = 269 条（TNT 家族 47–52；其余 53–269 覆盖原版 `m_customParts` 中属于 PigForge 基准件的全部 217 件）。
+- 每个皮肤在 `content/parts.json` 中占一条。当前：44 个基准件 + 223 个变体 = 267 条（TNT 家族 47–52；其余 53–269 覆盖原版 `m_customParts` 中属于 PigForge 基准件的全部 217 件）。PigForge 自制的 `ball-weight` 3 与 `firework-blue` 29（原版无对应件）已删除。
 - 调色板按 `variantOf` 在基准零件下方展开皮肤按钮（`App.vue` 的 `.variants`）；`PALETTE` 仍只列基准零件，无 `variantName` 的皮肤显示「<基准件> #n」。
 - `partTypeId` 空间随皮肤增长，追加分配即可；回放/快照中的皮肤就是普通零件。
 - 行为变体（AlienTNT/BlasterTNT/AlienEgg 与参数变体）的能力语义与实现见 `ADR-006-part-variant-effects.md`。
