@@ -20,7 +20,7 @@ Build order: `activation-model` → `activation-wire` → `web-gadgets`。`clien
 2. **两分语义**：
    - `toggle`：持续效果的开关，`Active` 一直保持到再次切换（电机、风扇、伞、齿轮箱反向）。
    - `trigger`：一次性动作，只在激活沿触发一次；触发后清 `Active`，不可重复触发（火箭点火后烧完、气球/旋翼放气后零件被摧毁、风箱/抓钩/脱钩/TNT 各触发一次）。
-3. **默认关闭**：沙盒 Start 后所有 `toggle` 零件 `Active = false`、`trigger` 零件未触发（`Active = false`），等玩家操作。**例外：气球/旋翼的升力是被动效果**（原作即如此，Start 后就有升力），开关只负责放气摧毁。旧关卡房间（`PlayHost.CreateSlopeRoom`/`CreateTerrainRoom`）在 `Start()` 末尾 `ActivateAll()`，保持「世界立刻在跑」的既有语义。
+3. **默认关闭**：沙盒 Start 后所有 `toggle` 零件 `Active = false`、`trigger` 零件未触发（`Active = false`），等玩家操作。**例外：气球/旋翼的升力是被动效果**（原作即如此，Start 后就有升力），开关只负责放气摧毁。旧关卡房间（`PlayHost.CreateSlopeRoom`/`CreateTerrainRoom`）**不种开关条目**（只有沙盒种），因此斜坡/地形与 `--demo-ws` 走本切片前的既有自动路径，行为逐字不变。
 4. **一次性零件不再自动触发**（有意行为变更）：火箭不再 t0 自燃；风箱/抓钩不再触地自动触发；开关是唯一玩家触发。气球/旋翼的升力是被动效果（见 Assumption 3），开关只做放气摧毁。ADR-002 的撞击语义不变：TNT 强撞击仍自燃、脱钩件强撞击仍分离、蛋仍会摔碎。
 5. **齿轮箱修正**：只有 `Active` 的齿轮箱才让同 body 的电机反向（现状是「放了齿轮箱就永远反向」）。
 6. **按钮 = 零件类型**：开关条只列该玩家自己、已 Materialized、可开关的零件类型，按 `partTypeId` 升序；按钮状态 = 该类型存在任一 `Active` 零件。原作「发动机按钮联动所有动力零件」的特例不做。
@@ -79,21 +79,20 @@ public sealed class ActivationStore(EntityStore entities) : ComponentStore<Activ
 `GameplayRules` 构造参数在 `GrappleStore` 之后追加 `ActivationStore activations`，并新增：
 
 ```csharp
-public void AddActivation(EntityId entity, PartActivation kind);  // Active = false
+public void AddActivation(EntityId entity);                       // 声明开关；Active = false
 public void SetActive(EntityId entity, bool active);              // 只改 Active，不校验归属/可开关性（调用方已校验）
-public void ActivateAll();                                        // 旧房间 Start 自动全开
 public bool IsPartActive(EntityId entity);                        // 快照/哈希用；无条目 = false
 ```
 
-门控规则（无 `ActivationState` 条目 = 一直工作，保持既有直接 `AddMotor`/`AddBellows` 测试的语义）：
+门控规则（**无 `ActivationState` 条目 = 该零件没有开关**，走本切片前的既有路径：持续件一直工作，一次性件保留触地/撞击/t0 自燃触发）：
 
 - `RunMotors` / `RunFans` / `RunUmbrellas`：条目存在且 `!Active` → 跳过。
 - `RunBalloons`：升力照旧被动生效（不随 `Active` 门控）；条目 `Active` 时 `DestroyEntity(entity, output)`（放气，升力消失）。
 - `CollectGearboxBodies`：只收 `Active` 的齿轮箱。
-- `RunRockets`：条目存在且 `!Active` 且 `!Ignited` → 跳过；一旦点火就烧到 `DurationTicks` 归零并自毁（点火不可中断）。
-- `RunBellows` / `RunGrapples`：用私有 `TryConsumeTrigger(entity)`（无条目 → true；条目 `Active` → 清 `Active` 并返回 true；否则 false）。触发一次后 `BoostedRecently`/`FiredRecently` 变为**永久已用**标记，不再随离地重臂。
+- `RunRockets`：有条目且未点火且 `!Active` → 跳过（等开关）；一旦点火就烧到 `DurationTicks` 归零并自毁（点火不可中断）；无条目 → 保持 t0 自燃。
+- `RunBellows` / `RunGrapples`：有条目 → `TryConsumeTrigger(entity)` 激活沿触发一次，触发后 `BoostedRecently`/`FiredRecently` 为**永久已用**；无条目 → 保持触地触发、离地重臂。
+- `RunDetachers`（新增）：条目 `Active` → `output.DetachedEntities.Add(entity)`；无条目 → 只有 `DetachOnImpact` 的撞击路径。
 - `RunTntFuses` / `IgniteTntOnBody`：激活沿 `Ignited = true`（与撞击路径共用既有状态）。
-- `DetachOnImpact` + 激活沿：`output.DetachedEntities.Add(entity)`（重复触发是 no-op，因为已分离）。
 - `RunSprings`、翼/尾、灯：不变（被动）。
 - `ResetForRebuild()` / `ResetAll()`：所有条目 `Active = false`，并清 `BouncedRecently`/`BoostedRecently`/`FiredRecently`（重臂）。
 - `CleanupEntityStores` / `DestroyEntity`：`_activations.Remove(entity)`。
@@ -147,8 +146,7 @@ per-player `(PlayerId, Sequence)` 语义不变。
 
 - `ConstructionError` 追加 `PartNotSwitchable`（末尾追加，字节值不变既有项）。
 - `ConstructionRules` 追加 `public uint? OwnerOf(EntityId entity)`（`_ownerByEntity` 查询）。
-- `RegisterPlacedRole` 与 `Spawn`：`capabilities.Activation != None` 时 `_rules.AddActivation(entity, capabilities.Activation)`。
-- 旧房间 `Start()`：绑定簇之后 `_rules.ActivateAll()`。
+- `RegisterPlacedRole` 与 `Spawn`：**仅沙盒模式**（`_sandboxMode`）为 `capabilities.Activation != None` 的零件 `_rules.AddActivation(entity)`；旧关卡房间不种条目，既有自动路径不变。
 - `ExecuteCommand`（owner 0）与 `ExecuteSandboxCommand`（owner = `PlayerId`）共用：
 
 ```text
@@ -227,10 +225,10 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 - `PartContentTests`：`activation` 解析（合法/非法/重复键）；`parts.json` 映射逐条断言（至少 toggle/trigger 各若干）。
 - `GameplayRulesTests`：
   - toggle 门控：motor 关 → 无命令；开 → 有命令；fan/balloon/umbrella 同理；齿轮箱关 → 不反向、开 → 反向。
-  - trigger：火箭关 → 不点火、开 → 推满 `DurationTicks` 后自毁；风箱/抓钩改为**激活触发一次**（原触地用例改写为「激活触发、无条目时 t0 触发、触发后不再触发」）；TNT 激活点火 + 撞击点火仍成立；脱钩激活分离。
+  - trigger：火箭关 → 不点火、开 → 推满 `DurationTicks` 后自毁；风箱/抓钩/脱钩有开关时**激活触发一次**（无条目保持既有触地/撞击路径，原用例不改）；TNT 激活点火 + 撞击点火仍成立。
   - 重置：`ResetForRebuild` 后条目 `Active=false`、已用标记清空。
   - 双跑：含开关脚本的确定性哈希一致。
-- 既有直接 `AddMotor`/`AddBalloon` 等无条目用例保持通过（无条目 = 一直工作）。
+- 既有直接 `AddMotor`/`AddBalloon`/`AddBellows` 等无条目用例保持通过（无条目 = 既有路径）。
 
 ### Protocol（`tests/PigForge.Protocol.Tests`）
 
@@ -241,7 +239,7 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 
 - 门控矩阵（沙盒 Editing/Materialized、旧房间 Building/Running）。
 - 沙盒：A 的零件被 B 切换 → `RuleRejected` + `NotOwnedByPlayer`；不可开关零件 → `PartNotSwitchable`；kind 9 只影响自己的该类型零件（他人的不动）；接受后下一帧 flags 正确。
-- 旧房间 `Start()` 后 flags 全为 1（自动全开）。
+- 旧房间不种条目：flags 全 0，`SlopePlayTests`/`PhysicsDrivenLevel` 行为不变。
 - 双跑状态哈希含开关状态。
 
 ### Web（vitest）
@@ -285,7 +283,7 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 2. 两个标签：A Start 后载具静止；A 点「发动机」按钮（或按 `1`，或点发动机零件）→ 载具开动；再点 → 停；B 看到 A 的零件描边亮起，点它被拒且错误可见。
 3. 火箭/礼花/风箱/抓钩/TNT 只在开关触发后动作（不再 t0 自燃/触地自动触发）；气球/旋翼 Start 后即提供升力，开关触发后消失；TNT 强撞击仍自燃。
 4. RESET → 重新 Start 后所有开关回到关闭，开关条重建。
-5. 旧房间（斜坡/地形）`Start()` 后行为与本切片前一致（自动全开），`--demo-ws` 只升到 v3 帧。
+5. 旧房间（斜坡/地形）行为与本切片前逐字一致（不种开关条目，走既有自动路径），`--demo-ws` 只升到 v3 帧。
 6. 抓包：客户端→服务器只有 PGFC（含 24B 的 kind 8/9），无位姿或状态上传。
 
 ## Open Questions
