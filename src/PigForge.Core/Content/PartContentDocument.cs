@@ -19,7 +19,9 @@ public sealed record PartDefinition(
     float Restitution,
     float Friction,
     IReadOnlyList<PartShapeDefinition> Shapes,
-    PartCapabilities? Capabilities = null);
+    PartCapabilities? Capabilities = null,
+    uint? VariantOf = null,
+    string? VariantName = null);
 
 /// <summary>
 /// Gameplay capabilities a part carries (ADR-002): a pig is indestructible bouncy

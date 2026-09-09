@@ -33,3 +33,35 @@ describe("validateReplay", () => {
     expect(validatePartContent(content)).toEqual([]);
   });
 });
+
+describe("validatePartContent variants", () => {
+  const base: Record<string, unknown> = {
+    partTypeId: 9,
+    name: "tnt",
+    mode: "dynamic",
+    mass: 1,
+    shapes: [{ kind: "box", halfExtents: [0.35, 0.35, 0.35] }],
+  };
+  const document = (parts: unknown[]) => ({ format: "pigforge.part-content", schemaVersion: 1, contentVersion: "x", parts });
+
+  it("accepts a variant that references a declared base part", () => {
+    const variant = { ...base, partTypeId: 47, name: "tnt-nitro", variantOf: 9, variantName: "Nitro TNT" };
+    expect(validatePartContent(document([base, variant]))).toEqual([]);
+  });
+
+  it("rejects a variant of an undeclared part", () => {
+    const variant = { ...base, partTypeId: 47, name: "tnt-nitro", variantOf: 404 };
+    expect(validatePartContent(document([base, variant])).some((error) => error.includes("undeclared part"))).toBe(true);
+  });
+
+  it("rejects a variant chain", () => {
+    const first = { ...base, partTypeId: 47, name: "tnt-nitro", variantOf: 9 };
+    const second = { ...base, partTypeId: 48, name: "tnt-bomb", variantOf: 47 };
+    expect(validatePartContent(document([base, first, second])).some((error) => error.includes("itself a variant"))).toBe(true);
+  });
+
+  it("rejects a self-referencing variant", () => {
+    const self = { ...base, partTypeId: 9, variantOf: 9 };
+    expect(validatePartContent(document([self])).some((error) => error.includes("variant of itself"))).toBe(true);
+  });
+});

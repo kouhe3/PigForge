@@ -38,6 +38,10 @@ export interface PartDefinition {
   mass: number;
   capabilities?: PartCapabilities;
   shapes: PartShape[];
+  /** Base partTypeId this entry is a skin/variant of. Never points at another variant. */
+  variantOf?: number;
+  /** Display label for the variant (falls back to `name`). */
+  variantName?: string;
 }
 
 export interface PartContentDocument {

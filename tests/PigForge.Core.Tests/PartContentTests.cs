@@ -14,7 +14,7 @@ public sealed class PartContentTests
         PartContentLibrary library = PartContentLibrary.Load(path);
 
         Assert.Equal("pigforge-base-content-v1", library.Document.ContentVersion);
-        Assert.Equal(46, library.Document.Parts.Count);
+        Assert.Equal(50, library.Document.Parts.Count);
         Assert.NotNull(library.GetPart(1));
     }
 
@@ -78,6 +78,67 @@ public sealed class PartContentTests
 
         PartContentException exception = Assert.Throws<PartContentException>(() => PartContentParser.Parse(mutated));
         Assert.Contains(exception.Errors, error => error.Contains(expectedErrorFragment, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void VariantPartsParseAndReferenceTheirBase()
+    {
+        PartContentDocument document = PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 9, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] },
+                { "partTypeId": 47, "name": "tnt-nitro", "variantOf": 9, "variantName": "Nitro TNT", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] }
+            ]
+        }
+        """);
+
+        PartDefinition variant = document.Parts[1];
+        Assert.Equal(9u, variant.VariantOf);
+        Assert.Equal("Nitro TNT", variant.VariantName);
+        Assert.Null(document.Parts[0].VariantOf);
+    }
+
+    [Theory]
+    [InlineData(47, "cannot be a variant of itself")]
+    public void InvalidVariantBaseIsRejected(uint basePartTypeId, string expectedErrorFragment)
+    {
+        string json = $$"""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 9, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] },
+                { "partTypeId": 47, "name": "tnt-nitro", "variantOf": {{basePartTypeId}}, "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] }
+            ]
+        }
+        """;
+
+        PartContentException exception = Assert.Throws<PartContentException>(() => PartContentParser.Parse(json));
+        Assert.Contains(exception.Errors, error => error.Contains(expectedErrorFragment, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void VariantChainsAreRejected()
+    {
+        string json = """
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 9, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] },
+                { "partTypeId": 47, "name": "tnt-nitro", "variantOf": 9, "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] },
+                { "partTypeId": 48, "name": "tnt-bomb", "variantOf": 47, "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] }
+            ]
+        }
+        """;
+
+        PartContentException exception = Assert.Throws<PartContentException>(() => PartContentParser.Parse(json));
+        Assert.Contains(exception.Errors, error => error.Contains("itself a variant", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

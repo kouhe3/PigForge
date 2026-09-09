@@ -88,6 +88,8 @@ public static class PartContentParser
             }
         }
 
+        ValidateVariants(parts, errors);
+
         if (errors.Count > 0)
         {
             throw new PartContentException(errors);
@@ -113,7 +115,15 @@ public static class PartContentParser
             }
         }
 
-        RequireExactly(seen, new[] { "partTypeId", "name", "mode", "mass", "shapes" }, path, errors, "material", "capabilities");
+        RequireExactly(
+            seen,
+            new[] { "partTypeId", "name", "mode", "mass", "shapes" },
+            path,
+            errors,
+            "material",
+            "capabilities",
+            "variantOf",
+            "variantName");
         RejectEngineAssetReferences(seen, path, errors);
         uint partTypeId = 0;
         if (seen.Contains("partTypeId") && element.TryGetProperty("partTypeId", out JsonElement idElement))
@@ -186,6 +196,40 @@ public static class PartContentParser
 
         PartCapabilities? capabilities = ParseCapabilities(element, seen, path, errors);
 
+        uint? variantOf = null;
+        if (seen.Contains("variantOf") && element.TryGetProperty("variantOf", out JsonElement variantOfElement))
+        {
+            if (variantOfElement.ValueKind != JsonValueKind.Number || !variantOfElement.TryGetUInt32(out uint basePartTypeId) || basePartTypeId == 0)
+            {
+                errors.Add($"{path}.variantOf: must be a positive 32-bit integer.");
+            }
+            else
+            {
+                variantOf = basePartTypeId;
+            }
+        }
+
+        string? variantName = null;
+        if (seen.Contains("variantName") && element.TryGetProperty("variantName", out JsonElement variantNameElement))
+        {
+            if (variantNameElement.ValueKind != JsonValueKind.String)
+            {
+                errors.Add($"{path}.variantName: must be a string.");
+            }
+            else
+            {
+                string value = variantNameElement.GetString()!;
+                if (value.Length is 0 or > 64)
+                {
+                    errors.Add($"{path}.variantName: must contain 1 to 64 characters.");
+                }
+                else
+                {
+                    variantName = value;
+                }
+            }
+        }
+
         List<PartShapeDefinition> shapes = new();
         if (seen.Contains("shapes") && element.TryGetProperty("shapes", out JsonElement shapesElement))
         {
@@ -221,7 +265,43 @@ public static class PartContentParser
             restitution,
             friction,
             shapes,
-            capabilities));
+            capabilities,
+            variantOf,
+            variantName));
+    }
+
+    /// <summary>
+    /// A variant groups itself under a declared base part. Chains and self references are
+    /// rejected so the client can render a two-level palette without cycle handling.
+    /// </summary>
+    private static void ValidateVariants(List<PartDefinition> parts, List<string> errors)
+    {
+        Dictionary<uint, PartDefinition> byId = new();
+        foreach (PartDefinition part in parts)
+        {
+            byId.TryAdd(part.PartTypeId, part);
+        }
+
+        foreach (PartDefinition part in parts)
+        {
+            if (part.VariantOf is not uint baseId)
+            {
+                continue;
+            }
+
+            if (baseId == part.PartTypeId)
+            {
+                errors.Add($"root.parts: part {part.PartTypeId} cannot be a variant of itself.");
+            }
+            else if (!byId.TryGetValue(baseId, out PartDefinition? basePart))
+            {
+                errors.Add($"root.parts: part {part.PartTypeId} is a variant of undeclared part {baseId}.");
+            }
+            else if (basePart.VariantOf is not null)
+            {
+                errors.Add($"root.parts: part {part.PartTypeId} is a variant of part {baseId}, which is itself a variant.");
+            }
+        }
     }
     private static PartCapabilities? ParseCapabilities(JsonElement element, HashSet<string> seen, string path, List<string> errors)
     {

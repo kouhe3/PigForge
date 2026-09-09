@@ -25,6 +25,7 @@ export function validatePartContent(value: unknown): string[] {
   for (const part of document.parts) {
     validatePart(part, seen, errors);
   }
+  validateVariants(document.parts, errors);
   return errors;
 }
 
@@ -53,6 +54,12 @@ function validatePart(part: PartDefinition, seen: Set<number>, errors: string[])
   if ("assetGuid" in part || "guid" in part) {
     errors.push(`Part ${part.partTypeId} contains a GUID-like field.`);
   }
+  if (part.variantOf !== undefined && (!Number.isInteger(part.variantOf) || part.variantOf < 1)) {
+    errors.push(`Part ${part.partTypeId} variantOf must be a positive integer.`);
+  }
+  if (part.variantName !== undefined && (typeof part.variantName !== "string" || part.variantName.length === 0 || part.variantName.length > 64)) {
+    errors.push(`Part ${part.partTypeId} variantName must contain 1 to 64 characters.`);
+  }
   validateCapabilities(part.partTypeId, part.capabilities, errors);
   if (!Array.isArray(part.shapes) || part.shapes.length === 0) {
     errors.push(`Part ${part.partTypeId} needs at least one shape.`);
@@ -60,6 +67,25 @@ function validatePart(part: PartDefinition, seen: Set<number>, errors: string[])
   }
   for (const shape of part.shapes) {
     validateShape(part.partTypeId, shape, errors);
+  }
+}
+
+/** A variant groups under a declared base part; chains and self references are rejected. */
+function validateVariants(parts: PartDefinition[], errors: string[]): void {
+  const byId = new Map<number, PartDefinition>();
+  for (const part of parts) {
+    if (!byId.has(part.partTypeId)) byId.set(part.partTypeId, part);
+  }
+  for (const part of parts) {
+    if (part.variantOf === undefined) continue;
+    const base = byId.get(part.variantOf);
+    if (part.variantOf === part.partTypeId) {
+      errors.push(`Part ${part.partTypeId} cannot be a variant of itself.`);
+    } else if (!base) {
+      errors.push(`Part ${part.partTypeId} is a variant of undeclared part ${part.variantOf}.`);
+    } else if (base.variantOf !== undefined) {
+      errors.push(`Part ${part.partTypeId} is a variant of part ${part.variantOf}, which is itself a variant.`);
+    }
   }
 }
 

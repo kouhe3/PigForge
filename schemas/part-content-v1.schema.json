@@ -54,6 +54,16 @@
         "mass": { "$ref": "#/$defs/finiteNumber" },
         "material": { "$ref": "#/$defs/material" },
         "capabilities": { "$ref": "#/$defs/capabilities" },
+        "variantOf": {
+          "description": "Base partTypeId this entry is a skin/variant of. Must reference a declared non-variant part.",
+          "$ref": "#/$defs/positiveUInt"
+        },
+        "variantName": {
+          "description": "Display label for the variant; the renderer falls back to name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
         "shapes": {
           "type": "array",
           "minItems": 1,

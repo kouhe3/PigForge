@@ -49,6 +49,10 @@ export const PLAY_PARTS: PartContentDocument = {
     { partTypeId: 45, name: "spotlight", mode: "dynamic", mass: 0.8, capabilities: { light: 5 }, shapes: [{ kind: "box", halfExtents: [0.3, 0.2, 0.2] }] },
     { partTypeId: 46, name: "grappling-hook", mode: "dynamic", mass: 0.7, capabilities: { grapple: { impulse: 22, directionX: 0.70710678, directionY: 0.70710678 } }, shapes: [{ kind: "box", halfExtents: [0.3, 0.3, 0.3] }] },
     { partTypeId: 6, name: "ramp-plank", mode: "static", mass: 0, shapes: [{ kind: "box", halfExtents: [6, 0.25, 1] }] },
+    { partTypeId: 47, name: "tnt-nitro", variantOf: 9, variantName: "Nitro TNT", mode: "dynamic", mass: 1, capabilities: { tnt: { fuseTicks: 5 } }, shapes: [{ kind: "box", halfExtents: [0.35, 0.35, 0.35] }] },
+    { partTypeId: 48, name: "tnt-bomb", variantOf: 9, variantName: "Bomb TNT", mode: "dynamic", mass: 1, capabilities: { tnt: { fuseTicks: 5 } }, shapes: [{ kind: "box", halfExtents: [0.35, 0.35, 0.35] }] },
+    { partTypeId: 49, name: "tnt-gift", variantOf: 9, variantName: "Gift TNT", mode: "dynamic", mass: 1, capabilities: { tnt: { fuseTicks: 5 } }, shapes: [{ kind: "box", halfExtents: [0.35, 0.35, 0.35] }] },
+    { partTypeId: 50, name: "tnt-pumpkin", variantOf: 9, variantName: "Pumpkin TNT", mode: "dynamic", mass: 1, capabilities: { tnt: { fuseTicks: 5 } }, shapes: [{ kind: "box", halfExtents: [0.35, 0.35, 0.35] }] },
   ],
 };
 

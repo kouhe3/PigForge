@@ -629,6 +629,66 @@
           "halfExtents": [0.3, 0.3, 0.3]
         }
       ]
+    },
+    {
+      "partTypeId": 47,
+      "name": "tnt-nitro",
+      "variantOf": 9,
+      "variantName": "Nitro TNT",
+      "mode": "dynamic",
+      "mass": 1.0,
+      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.35, 0.35]
+        }
+      ]
+    },
+    {
+      "partTypeId": 48,
+      "name": "tnt-bomb",
+      "variantOf": 9,
+      "variantName": "Bomb TNT",
+      "mode": "dynamic",
+      "mass": 1.0,
+      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.35, 0.35]
+        }
+      ]
+    },
+    {
+      "partTypeId": 49,
+      "name": "tnt-gift",
+      "variantOf": 9,
+      "variantName": "Gift TNT",
+      "mode": "dynamic",
+      "mass": 1.0,
+      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.35, 0.35]
+        }
+      ]
+    },
+    {
+      "partTypeId": 50,
+      "name": "tnt-pumpkin",
+      "variantOf": 9,
+      "variantName": "Pumpkin TNT",
+      "mode": "dynamic",
+      "mass": 1.0,
+      "capabilities": { "tnt": { "fuseTicks": 5 } },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.35, 0.35]
+        }
+      ]
     }
   ]
 }
