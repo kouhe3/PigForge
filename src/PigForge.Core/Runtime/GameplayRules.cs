@@ -88,6 +88,7 @@ public sealed class GameplayRules
     private readonly BellowsStore _bellows;
     private readonly DetacherStore _detachers;
     private readonly GrappleStore _grapples;
+    private readonly ActivationStore _activations;
     private readonly PhysicsBodyStore _bodies;
     private readonly GameplayConfig _config;
 
@@ -117,6 +118,7 @@ public sealed class GameplayRules
         BellowsStore bellows,
         DetacherStore detachers,
         GrappleStore grapples,
+        ActivationStore activations,
         PhysicsBodyStore bodies,
         GameplayConfig config)
     {
@@ -137,6 +139,7 @@ public sealed class GameplayRules
         _bellows = bellows ?? throw new ArgumentNullException(nameof(bellows));
         _detachers = detachers ?? throw new ArgumentNullException(nameof(detachers));
         _grapples = grapples ?? throw new ArgumentNullException(nameof(grapples));
+        _activations = activations ?? throw new ArgumentNullException(nameof(activations));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
@@ -208,6 +211,49 @@ public sealed class GameplayRules
     public void AddGrapple(EntityId entity, float impulse, float directionX, float directionY) =>
         _grapples.Set(entity, new GrappleState(impulse, directionX, directionY, FiredRecently: false));
 
+    /// <summary>Declares a switch for a part; the switch starts off.</summary>
+    public void AddActivation(EntityId entity) =>
+        _activations.Set(entity, new ActivationState(Active: false));
+
+    /// <summary>Flips a switch the caller has already validated as owned and switchable.</summary>
+    public void SetActive(EntityId entity, bool active)
+    {
+        if (!_activations.TryGet(entity, out ActivationState state) || state.Active == active)
+        {
+            return;
+        }
+
+        _activations.Set(entity, state with { Active = active });
+    }
+
+    /// <summary>Snapshot/hash view: true only when the part has a switch and it is on.</summary>
+    public bool IsPartActive(EntityId entity) =>
+        _activations.TryGet(entity, out ActivationState state) && state.Active;
+
+    /// <summary>No switch means legacy content: the part keeps its always-on behaviour.</summary>
+    private bool IsDriven(EntityId entity) =>
+        !_activations.TryGet(entity, out ActivationState state) || state.Active;
+
+    private bool HasSwitch(EntityId entity) => _activations.TryGet(entity, out _);
+
+    /// <summary>Consumes a one-shot switch: false when the part has no switch (the caller
+    /// falls back to its legacy contact rule) or the switch is off.</summary>
+    private bool TryConsumeTrigger(EntityId entity)
+    {
+        if (!_activations.TryGet(entity, out ActivationState state))
+        {
+            return false;
+        }
+
+        if (!state.Active)
+        {
+            return false;
+        }
+
+        _activations.Set(entity, state with { Active = false });
+        return true;
+    }
+
     public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
     public void Tick(uint tick, ReadOnlySpan<PhysicsEvent> events, ReadOnlySpan<PhysicsBodySnapshot> snapshots, GameplayTickOutput output)
     {
@@ -227,6 +273,7 @@ public sealed class GameplayRules
         RunSprings(output);
         RunBellows(output);
         RunGrapples(output);
+        RunDetachers(output);
         RunRockets(output);
         RunTntFuses(output);
         DropCommandsForDestroyedBodies(output);
@@ -327,6 +374,11 @@ public sealed class GameplayRules
                 continue;
             }
 
+            if (!IsDriven(motors.CurrentId))
+            {
+                continue;
+            }
+
             // Wheel-driven motors only push while their wheel touches something this tick.
             if (_wheels.TryGet(motors.CurrentId, out _) && !_touchedBodies.Contains(link.Body.Value))
             {
@@ -354,7 +406,7 @@ public sealed class GameplayRules
         var gearboxes = _gearboxes.GetEnumerator();
         while (gearboxes.MoveNext())
         {
-            if (_bodies.TryGet(gearboxes.CurrentId, out PhysicsBodyLink link))
+            if (IsDriven(gearboxes.CurrentId) && _bodies.TryGet(gearboxes.CurrentId, out PhysicsBodyLink link))
             {
                 bodies.Add(link.Body.Value);
             }
@@ -403,7 +455,14 @@ public sealed class GameplayRules
             }
 
             // A balloon supplies buoyancy every tick it stays attached and able to
-            // lift; it does not require ground contact (pure vertical lift).
+            // lift; it does not require ground contact (pure vertical lift). Its switch
+            // deflates it: the part leaves the world and the lift stops.
+            if (_activations.TryGet(balloons.CurrentId, out ActivationState balloonSwitch) && balloonSwitch.Active)
+            {
+                DestroyEntity(balloons.CurrentId, output);
+                continue;
+            }
+
             BalloonState balloon = balloons.CurrentValue;
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
@@ -419,6 +478,11 @@ public sealed class GameplayRules
         {
             if (!_bodies.TryGet(fans.CurrentId, out PhysicsBodyLink link)
                 || !_kinematicsByBody.ContainsKey(link.Body.Value))
+            {
+                continue;
+            }
+
+            if (!IsDriven(fans.CurrentId))
             {
                 continue;
             }
@@ -503,6 +567,11 @@ public sealed class GameplayRules
                 continue;
             }
 
+            if (!IsDriven(umbrellas.CurrentId))
+            {
+                continue;
+            }
+
             UmbrellaState umbrella = umbrellas.CurrentValue;
             // Only while descending: the fall damper slows the drop as an upward
             // impulse; rising bodies are unaffected.
@@ -556,21 +625,32 @@ public sealed class GameplayRules
             }
 
             BellowsState state = bellows.CurrentValue;
+            bool switched = HasSwitch(bellows.CurrentId);
             bool touched = _touchedBodies.Contains(link.Body.Value);
-            if (touched && !state.BoostedRecently)
+            if (state.BoostedRecently)
             {
-                // A landing ignites the jet: one forward boost along facing +X
-                // (original bellows m_boostForce one-shot) until the rig lifts off.
-                _bellows.Set(bellows.CurrentId, state with { BoostedRecently = true });
-                output.Commands.Add(PhysicsCommand.ApplyImpulse(
-                    link.Body,
-                    new PhysicsVector3(state.BoostImpulse, 0f, 0f),
-                    _kinematicsByBody[link.Body.Value].Position));
+                // Legacy content re-arms on lift-off; a switched part stays spent.
+                if (!switched && !touched)
+                {
+                    _bellows.Set(bellows.CurrentId, state with { BoostedRecently = false });
+                }
+
+                continue;
             }
-            else if (!touched && state.BoostedRecently)
+
+            bool fire = switched ? TryConsumeTrigger(bellows.CurrentId) : touched;
+            if (!fire)
             {
-                _bellows.Set(bellows.CurrentId, state with { BoostedRecently = false });
+                continue;
             }
+
+            // A landing (legacy content) or the switch fires the jet: one forward boost
+            // along facing +X (original bellows m_boostForce one-shot) until the rig lifts off.
+            _bellows.Set(bellows.CurrentId, state with { BoostedRecently = true });
+            output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                link.Body,
+                new PhysicsVector3(state.BoostImpulse, 0f, 0f),
+                _kinematicsByBody[link.Body.Value].Position));
         }
     }
 
@@ -586,23 +666,53 @@ public sealed class GameplayRules
             }
 
             GrappleState grapple = grapples.CurrentValue;
+            bool switched = HasSwitch(grapples.CurrentId);
+            bool touched = _touchedBodies.Contains(link.Body.Value);
+            if (grapple.FiredRecently)
+            {
+                // Legacy content re-arms on lift-off; a switched part stays spent.
+                if (!switched && !touched)
+                {
+                    _grapples.Set(grapples.CurrentId, grapple with { FiredRecently = false });
+                }
+
+                continue;
+            }
+
             float magnitude = PhysicsVector3.Distance(
                 new PhysicsVector3(grapple.DirectionX, grapple.DirectionY, 0f), PhysicsVector3.Zero);
-            bool touched = _touchedBodies.Contains(link.Body.Value);
-            if (touched && !grapple.FiredRecently && magnitude > float.Epsilon)
+            if (magnitude <= float.Epsilon)
             {
-                // Touchdown fires the hook toward its direction: one strong pull
-                // impulse (cast + drag merged) until the rig lifts off again.
-                _grapples.Set(grapples.CurrentId, grapple with { FiredRecently = true });
-                PhysicsVector3 direction = new(grapple.DirectionX / magnitude, grapple.DirectionY / magnitude, 0f);
-                output.Commands.Add(PhysicsCommand.ApplyImpulse(
-                    link.Body,
-                    direction * grapple.Impulse,
-                    kinematics.Position));
+                continue;
             }
-            else if (!touched && grapple.FiredRecently)
+
+            bool fire = switched ? TryConsumeTrigger(grapples.CurrentId) : touched;
+            if (!fire)
             {
-                _grapples.Set(grapples.CurrentId, grapple with { FiredRecently = false });
+                continue;
+            }
+
+            // A landing (legacy content) or the switch fires the hook toward its
+            // direction: one strong pull impulse (cast + drag merged).
+            _grapples.Set(grapples.CurrentId, grapple with { FiredRecently = true });
+            PhysicsVector3 direction = new(grapple.DirectionX / magnitude, grapple.DirectionY / magnitude, 0f);
+            output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                link.Body,
+                direction * grapple.Impulse,
+                kinematics.Position));
+        }
+    }
+
+    private void RunDetachers(GameplayTickOutput output)
+    {
+        var detachers = _detachers.GetEnumerator();
+        while (detachers.MoveNext())
+        {
+            // A switched detacher fires on its switch; legacy content keeps the
+            // impact path in DetachOnImpact.
+            if (TryConsumeTrigger(detachers.CurrentId))
+            {
+                output.DetachedEntities.Add(detachers.CurrentId);
             }
         }
     }
@@ -620,7 +730,16 @@ public sealed class GameplayRules
             }
 
             RocketState rocket = rockets.CurrentValue;
-            rocket = rocket with { Ignited = true };
+            if (!rocket.Ignited)
+            {
+                // A switched rocket waits for its switch; legacy content auto-ignites.
+                if (HasSwitch(rockets.CurrentId) && !TryConsumeTrigger(rockets.CurrentId))
+                {
+                    continue;
+                }
+
+                rocket = rocket with { Ignited = true };
+            }
             if (rocket.DurationTicks == 0)
             {
                 (spent ??= new List<(EntityId, float, float)>()).Add((rockets.CurrentId, rocket.ExplodeRadius, rocket.ExplodeImpulse));
@@ -843,6 +962,7 @@ public sealed class GameplayRules
         _bellows.Remove(entity);
         _detachers.Remove(entity);
         _grapples.Remove(entity);
+        _activations.Remove(entity);
     }
 
     /// <summary>
@@ -869,6 +989,42 @@ public sealed class GameplayRules
         while (rockets.MoveNext())
         {
             _rockets.Set(rockets.CurrentId, rockets.CurrentValue with { Ignited = false });
+        }
+
+        var activations = _activations.GetEnumerator();
+        while (activations.MoveNext())
+        {
+            if (activations.CurrentValue.Active)
+            {
+                _activations.Set(activations.CurrentId, activations.CurrentValue with { Active = false });
+            }
+        }
+
+        var springs = _springs.GetEnumerator();
+        while (springs.MoveNext())
+        {
+            if (springs.CurrentValue.BouncedRecently)
+            {
+                _springs.Set(springs.CurrentId, springs.CurrentValue with { BouncedRecently = false });
+            }
+        }
+
+        var bellows = _bellows.GetEnumerator();
+        while (bellows.MoveNext())
+        {
+            if (bellows.CurrentValue.BoostedRecently)
+            {
+                _bellows.Set(bellows.CurrentId, bellows.CurrentValue with { BoostedRecently = false });
+            }
+        }
+
+        var grapples = _grapples.GetEnumerator();
+        while (grapples.MoveNext())
+        {
+            if (grapples.CurrentValue.FiredRecently)
+            {
+                _grapples.Set(grapples.CurrentId, grapples.CurrentValue with { FiredRecently = false });
+            }
         }
 
         Phase = GameplayPhase.Playing;
@@ -900,6 +1056,7 @@ public sealed class GameplayRules
         _bellows.Clear();
         _detachers.Clear();
         _grapples.Clear();
+        _activations.Clear();
         _bodies.Clear();
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
@@ -934,6 +1091,7 @@ public sealed class GameplayRules
         _bellows.Remove(entity);
         _detachers.Remove(entity);
         _grapples.Remove(entity);
+        _activations.Remove(entity);
         _bodies.Remove(entity);
         _entities.Destroy(entity);
         output.DestroyedEntities.Add(entity);

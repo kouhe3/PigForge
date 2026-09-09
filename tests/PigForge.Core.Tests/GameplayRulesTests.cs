@@ -256,6 +256,7 @@ public sealed class GameplayRulesTests
                 new BellowsStore(entities),
                 new DetacherStore(entities),
                 new GrappleStore(entities),
+                new ActivationStore(entities),
                 _bodies,
                 config);
         }
@@ -318,6 +319,7 @@ public sealed class GameplayRulesTests
                 new BellowsStore(_entities),
                 new DetacherStore(_entities),
                 new GrappleStore(_entities),
+                new ActivationStore(_entities),
                 _bodies,
                 new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
             foreach (LevelSpawnDefinition spawn in level.Spawns)
@@ -895,5 +897,175 @@ public sealed class GameplayRulesTests
         harness.Tick(3, Array.Empty<PhysicsEvent>());
         harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         Assert.Single(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void ToggleSwitchGatesMotorThrust()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId motor = entities.Create();
+        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Rules.AddActivation(motor);
+        harness.Link(motor, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+
+        harness.Rules.SetActive(motor, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(2f, command.Impulse.X, 5);
+
+        harness.Rules.SetActive(motor, false);
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void GearboxReversesOnlyWhileItsSwitchIsOn()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId motor = entities.Create();
+        EntityId gearbox = entities.Create();
+        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Rules.AddGearbox(gearbox);
+        harness.Rules.AddActivation(gearbox);
+        harness.Link(motor, new PhysicsBodyId(1));
+        harness.Link(gearbox, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand forward = Assert.Single(harness.Output.Commands);
+        Assert.Equal(2f, forward.Impulse.X, 5);
+
+        harness.Rules.SetActive(gearbox, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        PhysicsCommand reverse = Assert.Single(harness.Output.Commands);
+        Assert.Equal(-2f, reverse.Impulse.X, 5);
+    }
+
+    [Fact]
+    public void BalloonPopsWhenItsSwitchFires()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId balloon = entities.Create();
+        harness.Rules.AddBalloon(balloon, 1.5f);
+        harness.Rules.AddActivation(balloon);
+        harness.Link(balloon, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Single(harness.Output.Commands); // lift is passive
+
+        harness.Rules.SetActive(balloon, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+        Assert.Contains(balloon, harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
+    public void RocketWaitsForItsSwitch()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        harness.Rules.AddActivation(rocket);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+
+        harness.Rules.SetActive(rocket, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(4f, command.Impulse.X, 5);
+    }
+
+    [Fact]
+    public void BellowsFiresOnItsSwitchInsteadOfTouchdown()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId bellows = entities.Create();
+        harness.Rules.AddBellows(bellows, boostImpulse: 8f);
+        harness.Rules.AddActivation(bellows);
+        harness.Link(bellows, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        // Grounded but unswitched: nothing fires.
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Empty(harness.Output.Commands);
+
+        harness.Rules.SetActive(bellows, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(8f, command.Impulse.X, 5);
+
+        // Spent: a later switch or touchdown cannot re-fire it.
+        harness.Rules.SetActive(bellows, true);
+        harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Empty(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void GrappleFiresOnItsSwitch()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId hook = entities.Create();
+        harness.Rules.AddGrapple(hook, 22f, 1f, 0f);
+        harness.Rules.AddActivation(hook);
+        harness.Link(hook, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Empty(harness.Output.Commands);
+
+        harness.Rules.SetActive(hook, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(22f, command.Impulse.X, 5);
+    }
+
+    [Fact]
+    public void DetacherFiresOnItsSwitch()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId detacher = entities.Create();
+        harness.Rules.AddDetacher(detacher);
+        harness.Rules.AddActivation(detacher);
+        harness.Link(detacher, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.DetachedEntities);
+
+        harness.Rules.SetActive(detacher, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Contains(detacher, harness.Output.DetachedEntities);
+    }
+
+    [Fact]
+    public void SwitchedPartsReArmWhenRebuilding()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId motor = entities.Create();
+        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Rules.AddActivation(motor);
+        harness.Link(motor, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Rules.SetActive(motor, true);
+        harness.Rules.ResetForRebuild();
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
     }
 }

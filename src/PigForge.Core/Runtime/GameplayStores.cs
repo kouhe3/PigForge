@@ -103,3 +103,8 @@ public sealed class DetacherStore(EntityStore entities) : ComponentStore<Detache
 public readonly record struct GrappleState(float Impulse, float DirectionX, float DirectionY, bool FiredRecently);
 
 public sealed class GrappleStore(EntityStore entities) : ComponentStore<GrappleState>(entities);
+
+/// <summary>Switch state for a part whose content declares an activation. Absent = no switch.</summary>
+public readonly record struct ActivationState(bool Active);
+
+public sealed class ActivationStore(EntityStore entities) : ComponentStore<ActivationState>(entities);
