@@ -8,6 +8,7 @@ function makeCtx() {
   const calls: Record<string, number> = {};
   const alphas: number[] = [];
   const translations: Array<[number, number]> = [];
+  const draws: number[][] = [];
   const alpha = { value: 1 };
   const gradient: CanvasGradient = { addColorStop: () => {} } as unknown as CanvasGradient;
   const ctx = {
@@ -24,6 +25,10 @@ function makeCtx() {
     },
     strokeRect: () => {
       calls.strokeRect = (calls.strokeRect ?? 0) + 1;
+    },
+    drawImage: (...args: unknown[]) => {
+      calls.drawImage = (calls.drawImage ?? 0) + 1;
+      draws.push(args.slice(1) as number[]);
     },
     beginPath: () => {
       calls.beginPath = (calls.beginPath ?? 0) + 1;
@@ -60,7 +65,7 @@ function makeCtx() {
     textAlign: "",
     textBaseline: "",
   };
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations, draws };
 }
 
 const content: PartContentDocument = {
@@ -121,5 +126,38 @@ describe("drawFrame entity placement", () => {
       [328, 300],
       [400, 300],
     ]);
+  });
+});
+
+describe("drawFrame original-art textures", () => {
+  const textures = (image: CanvasImageSource | undefined) => ({
+    atlases: new Map([["A.png", image as CanvasImageSource]]),
+    parts: new Map([
+      [
+        1,
+        {
+          bbox: [1, 1] as [number, number],
+          sprites: [{ atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 1, sy: 1, rot: 0 }],
+        },
+      ],
+    ]),
+  });
+
+  it("blits the manifest rect fitted to the part shape and drops the name label", () => {
+    const { ctx, calls, draws } = makeCtx();
+    const image = {} as CanvasImageSource;
+    drawFrame(ctx, createCamera(), [block], content, null, undefined, undefined, textures(image));
+    expect(calls.drawImage).toBe(1);
+    // 0.5 half-extent shape over a 1x1 bbox at camera scale 36 -> 36x36 at the origin.
+    expect(draws[0]).toEqual([10, 20, 100, 100, -18, -18, 36, 36]);
+    expect(calls.fillRect).toBe(1); // background only: the shape path is skipped
+    expect(calls.fillText).toBeUndefined();
+  });
+
+  it("falls back to the shape when the atlas image is missing", () => {
+    const { ctx, calls } = makeCtx();
+    drawFrame(ctx, createCamera(), [block], content, null, undefined, undefined, textures(undefined));
+    expect(calls.drawImage).toBeUndefined();
+    expect(calls.fillRect).toBe(2); // background + the part shape
   });
 });

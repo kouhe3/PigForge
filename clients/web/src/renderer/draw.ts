@@ -1,5 +1,6 @@
 import type { DrawEntity, PartContentDocument, PartDefinition } from "@/schema/types";
 import { type Camera, worldToScreen } from "./camera";
+import { layoutSprites, type PartTextureSet } from "./atlas";
 
 const STATIC_FILL = "#5c6b52";
 const DYNAMIC_FILL = "#c4a574";
@@ -14,6 +15,7 @@ export function drawFrame(
   selectedId: number | null,
   goal?: { minX: number; minY: number; maxX: number; maxY: number },
   bounds?: { minX: number; minY: number; maxX: number; maxY: number },
+  textures?: PartTextureSet | null,
 ): void {
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
@@ -70,8 +72,37 @@ export function drawFrame(
     ctx.translate(origin.x, origin.y);
     ctx.rotate(-entity.yaw);
     const shape = part?.shapes[0];
-    if (shape?.kind === "sphere" && shape.radius) {
-      const radius = shape.radius * entity.scale * camera.scale;
+    const atlasImages = textures?.atlases;
+    const texture = textures?.parts.get(entity.partTypeId);
+    const pixelScale = entity.scale * camera.scale;
+    if (texture && atlasImages && texture.sprites.every((sprite) => atlasImages.get(sprite.atlas) !== undefined)) {
+      // Original art: fit the BPLE sprite composite into the part's physics shape.
+      const sphere = shape?.kind === "sphere" && shape.radius ? shape.radius : undefined;
+      const halfWidth = (sphere ?? shape?.halfExtents?.[0] ?? 0.5) * entity.scale;
+      const halfHeight = (sphere ?? shape?.halfExtents?.[1] ?? 0.5) * entity.scale;
+      for (const placement of layoutSprites(texture, halfWidth, halfHeight)) {
+        const image = textures.atlases.get(placement.sprite.atlas);
+        if (!image) continue;
+        const w = placement.w * pixelScale;
+        const h = placement.h * pixelScale;
+        ctx.save();
+        ctx.translate(placement.x * pixelScale, -placement.y * pixelScale);
+        ctx.rotate(-placement.sprite.rot);
+        ctx.drawImage(
+          image,
+          placement.sprite.x,
+          placement.sprite.y,
+          placement.sprite.w,
+          placement.sprite.h,
+          -w / 2,
+          -h / 2,
+          w,
+          h,
+        );
+        ctx.restore();
+      }
+    } else if (shape?.kind === "sphere" && shape.radius) {
+      const radius = shape.radius * pixelScale;
       ctx.beginPath();
       ctx.arc(0, 0, radius, 0, Math.PI * 2);
       ctx.fillStyle = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
@@ -80,16 +111,16 @@ export function drawFrame(
       ctx.lineWidth = 1;
       ctx.stroke();
     } else {
-      const hx = (shape?.halfExtents?.[0] ?? 0.5) * entity.scale * camera.scale;
-      const hy = (shape?.halfExtents?.[1] ?? 0.5) * entity.scale * camera.scale;
+      const hx = (shape?.halfExtents?.[0] ?? 0.5) * pixelScale;
+      const hy = (shape?.halfExtents?.[1] ?? 0.5) * pixelScale;
       ctx.fillStyle = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
       ctx.fillRect(-hx, -hy, hx * 2, hy * 2);
       ctx.strokeStyle = part?.mode === "static" ? "#8a9a7a" : "#d8b880";
       ctx.lineWidth = 1;
       ctx.strokeRect(-hx, -hy, hx * 2, hy * 2);
     }
-    // Placeholder texture: the type name is stamped at the part's collision centre.
-    if (!preview && part && part.name) {
+    // Untextured parts are still placeholders: stamp the type name at the collision centre.
+    if (!preview && part && part.name && !texture) {
       ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
       ctx.font = "10px system-ui, sans-serif";
       ctx.textAlign = "center";

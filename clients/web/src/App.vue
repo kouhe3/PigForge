@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
 import { MOVE_SNAP, TOOLS, type ToolId, toolByHotkey } from "./editor/tools";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
@@ -7,6 +7,7 @@ import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
 import { createPlayerSession, type CommandKind } from "./live/playerSession";
 import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
+import { loadPartTextures, type PartTextureSet } from "./renderer/atlas";
 import { drawFrame } from "./renderer/draw";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
@@ -34,6 +35,8 @@ let clock: PlaybackClock | null = null;
 let detachGestures: (() => void) | null = null;
 let disconnectLive: (() => void) | null = null;
 let sendCommand: ((command: ClientCommand) => void) | null = null;
+// Original-art sprite manifest: optional, absent in a clean checkout.
+const partTextures = shallowRef<PartTextureSet | null>(null);
 let raf = 0;
 
 const canEdit = computed(() => playerPhase.value === "editing");
@@ -146,6 +149,7 @@ function paint(): void {
     viewState.selectedId,
     activeTab.value === "live" ? undefined : GOAL_ZONE,
     MAP_BOUNDS,
+    partTextures.value,
   );
   raf = requestAnimationFrame(paint);
 }
@@ -308,6 +312,9 @@ watch(canEdit, (editable) => {
 
 onMounted(() => {
   session.loadContent(PLAY_PARTS);
+  void loadPartTextures().then((textures) => {
+    partTextures.value = textures;
+  });
   const node = canvas.value;
   if (node) {
     detachGestures = attachCanvasGestures(
