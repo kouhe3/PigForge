@@ -37,7 +37,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -76,8 +77,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.2, 0.32, 0.5],
+          "offset": [0.0, 0.1702, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.33
+          "radius": 0.33,
+          "offset": [0.0106, -0.2057, 0.0]
         }
       ]
     },
@@ -130,7 +137,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.225, 0.5, 0.5]
+          "halfExtents": [0.225, 0.5, 0.5],
+          "offset": [-0.16, 0.0, 0.0]
         }
       ]
     },
@@ -144,7 +152,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.1, 0.5]
+          "halfExtents": [0.35, 0.1, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -157,7 +166,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.15, 0.5]
+          "halfExtents": [0.35, 0.15, 0.5],
+          "offset": [0.0, -0.03, 0.0]
         }
       ]
     },
@@ -170,8 +180,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.1, 0.18, 0.5],
+          "offset": [0.0, 0.31, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.18
+          "radius": 0.18,
+          "offset": [0.0051, 0.1424, 0.0]
         }
       ]
     },
@@ -184,8 +200,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -199,7 +221,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -213,7 +241,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -267,7 +301,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -280,7 +315,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -293,7 +329,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -307,7 +344,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.05, 0.9, 0.5]
+          "halfExtents": [1.05, 0.9, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -321,7 +359,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -335,7 +374,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -349,7 +389,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.3, 0.425, 0.3]
+          "halfExtents": [0.3, 0.425, 0.3],
+          "offset": [0.0141, 0.0141, 0.0]
         }
       ]
     },
@@ -377,7 +418,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.15, 0.5]
+          "halfExtents": [0.35, 0.15, 0.5],
+          "offset": [0.0, -0.03, 0.0]
         }
       ]
     },
@@ -391,7 +433,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.95, 0.3061, 0.75]
+          "halfExtents": [0.95, 0.3061, 0.75],
+          "offset": [-0.5, -0.15, 0.0]
         }
       ]
     },
@@ -405,7 +448,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.9, 0.3061, 0.75]
+          "halfExtents": [0.9, 0.3061, 0.75],
+          "offset": [-0.26, -0.15, 0.0]
         }
       ]
     },
@@ -419,7 +463,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.425, 0.375, 0.5]
+          "halfExtents": [0.425, 0.375, 0.5],
+          "offset": [0.06, 0.03, 0.0]
         }
       ]
     },
@@ -447,7 +492,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.0, 0.25, 0.0]
         }
       ]
     },
@@ -461,7 +512,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.0, 0.25, 0.0]
         }
       ]
     },
@@ -475,7 +532,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -489,7 +551,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -544,7 +607,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.4, 0.25, 0.3]
+          "halfExtents": [0.4, 0.25, 0.3],
+          "offset": [0.0, -0.15, 0.0]
         }
       ]
     },
@@ -558,7 +622,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5305, 0.5297, 0.5]
+          "halfExtents": [0.5305, 0.2459, 0.5],
+          "offset": [0.0, -0.0084, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.2492, 0.5297, 0.5],
+          "offset": [-0.0028, 0.0, 0.0]
         }
       ]
     },
@@ -989,7 +1059,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.225, 0.5, 0.5]
+          "halfExtents": [0.225, 0.5, 0.5],
+          "offset": [-0.16, 0.0, 0.0]
         }
       ]
     },
@@ -1003,7 +1074,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.225, 0.5, 0.5]
+          "halfExtents": [0.225, 0.5, 0.5],
+          "offset": [-0.16, 0.0, 0.0]
         }
       ]
     },
@@ -1017,7 +1089,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.225, 0.5, 0.5]
+          "halfExtents": [0.225, 0.5, 0.5],
+          "offset": [-0.16, 0.0, 0.0]
         }
       ]
     },
@@ -1031,7 +1104,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.225, 0.5, 0.5]
+          "halfExtents": [0.225, 0.5, 0.5],
+          "offset": [-0.16, 0.0, 0.0]
         }
       ]
     },
@@ -1045,7 +1119,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.225, 0.5, 0.5]
+          "halfExtents": [0.225, 0.5, 0.5],
+          "offset": [-0.16, 0.0, 0.0]
         }
       ]
     },
@@ -1281,8 +1356,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1296,8 +1377,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1311,8 +1398,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1326,8 +1419,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1341,8 +1440,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1356,8 +1461,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1371,8 +1482,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1386,8 +1503,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1401,8 +1524,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1416,8 +1545,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.425, 0.125, 0.5],
+          "offset": [0.0, 0.3402, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.36
+          "radius": 0.36,
+          "offset": [-0.0112, -0.1259, 0.0]
         }
       ]
     },
@@ -1502,7 +1637,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1517,7 +1653,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1532,7 +1669,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1547,7 +1685,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1562,7 +1701,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1577,7 +1717,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1592,7 +1733,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1607,7 +1749,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1622,7 +1765,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1637,7 +1781,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1652,7 +1797,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1667,7 +1813,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1682,7 +1829,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1712,7 +1860,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1742,7 +1891,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1757,7 +1907,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1772,7 +1923,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.42
+          "radius": 0.42,
+          "offset": [0.0, -0.04, 0.0]
         }
       ]
     },
@@ -1871,7 +2023,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -1886,7 +2039,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -1901,7 +2055,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -1916,7 +2071,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -1931,7 +2087,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -1946,7 +2103,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -1961,7 +2119,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -1976,7 +2135,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -1991,7 +2151,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.14, 0.5, 0.5]
+          "halfExtents": [0.14, 0.5, 0.5],
+          "offset": [-0.3124, 0.0, 0.0]
         }
       ]
     },
@@ -2006,7 +2167,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.95, 0.3061, 0.75]
+          "halfExtents": [0.95, 0.3061, 0.75],
+          "offset": [-0.5, -0.15, 0.0]
         }
       ]
     },
@@ -2021,7 +2183,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.95, 0.3061, 0.75]
+          "halfExtents": [0.95, 0.3061, 0.75],
+          "offset": [-0.5, -0.15, 0.0]
         }
       ]
     },
@@ -2036,7 +2199,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.95, 0.3061, 0.75]
+          "halfExtents": [0.95, 0.3061, 0.75],
+          "offset": [-0.5, -0.15, 0.0]
         }
       ]
     },
@@ -2051,7 +2215,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.95, 0.3061, 0.75]
+          "halfExtents": [0.95, 0.3061, 0.75],
+          "offset": [-0.5, -0.15, 0.0]
         }
       ]
     },
@@ -2066,7 +2231,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.425, 0.375, 0.5]
+          "halfExtents": [0.425, 0.375, 0.5],
+          "offset": [0.06, 0.03, 0.0]
         }
       ]
     },
@@ -2081,7 +2247,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.425, 0.375, 0.5]
+          "halfExtents": [0.425, 0.375, 0.5],
+          "offset": [0.06, 0.03, 0.0]
         }
       ]
     },
@@ -2096,7 +2263,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.425, 0.375, 0.5]
+          "halfExtents": [0.425, 0.375, 0.5],
+          "offset": [0.06, 0.03, 0.0]
         }
       ]
     },
@@ -2194,7 +2362,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.15, 0.5]
+          "halfExtents": [0.35, 0.15, 0.5],
+          "offset": [0.0, -0.03, 0.0]
         }
       ]
     },
@@ -2208,7 +2377,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.15, 0.5]
+          "halfExtents": [0.35, 0.15, 0.5],
+          "offset": [0.0, -0.03, 0.0]
         }
       ]
     },
@@ -2222,7 +2392,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.15, 0.5]
+          "halfExtents": [0.35, 0.15, 0.5],
+          "offset": [0.0, -0.03, 0.0]
         }
       ]
     },
@@ -2391,8 +2562,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.1, 0.18, 0.5],
+          "offset": [0.0, 0.31, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.18
+          "radius": 0.18,
+          "offset": [0.0051, 0.1424, 0.0]
         }
       ]
     },
@@ -2406,8 +2583,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.1, 0.18, 0.5],
+          "offset": [0.0, 0.31, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.18
+          "radius": 0.18,
+          "offset": [0.0051, 0.1424, 0.0]
         }
       ]
     },
@@ -2421,8 +2604,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.1, 0.18, 0.5],
+          "offset": [0.0, 0.31, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.18
+          "radius": 0.18,
+          "offset": [0.0051, 0.1424, 0.0]
         }
       ]
     },
@@ -2436,8 +2625,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.1, 0.18, 0.5],
+          "offset": [0.0, 0.31, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.18
+          "radius": 0.18,
+          "offset": [0.0051, 0.1424, 0.0]
         }
       ]
     },
@@ -2451,8 +2646,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.1, 0.18, 0.5],
+          "offset": [0.0, 0.31, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.18
+          "radius": 0.18,
+          "offset": [0.0051, 0.1424, 0.0]
         }
       ]
     },
@@ -2466,8 +2667,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.1, 0.18, 0.5],
+          "offset": [0.0, 0.31, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.18
+          "radius": 0.18,
+          "offset": [0.0051, 0.1424, 0.0]
         }
       ]
     },
@@ -2482,7 +2689,18 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.18
+          "radius": 0.18,
+          "offset": [0.0, 0.17, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.1, 0.18, 0.5],
+          "offset": [0.0, 0.31, 0.0]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.18,
+          "offset": [0.0, 0.18, 0.0]
         }
       ]
     },
@@ -2497,7 +2715,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.9, 0.3061, 0.75]
+          "halfExtents": [0.9, 0.3061, 0.75],
+          "offset": [-0.26, -0.15, 0.0]
         }
       ]
     },
@@ -2512,7 +2731,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.9, 0.3061, 0.75]
+          "halfExtents": [0.9, 0.3061, 0.75],
+          "offset": [-0.26, -0.15, 0.0]
         }
       ]
     },
@@ -2527,7 +2747,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.9, 0.3061, 0.75]
+          "halfExtents": [0.9, 0.3061, 0.75],
+          "offset": [-0.26, -0.15, 0.0]
         }
       ]
     },
@@ -2587,7 +2808,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2602,7 +2828,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2617,7 +2848,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2632,7 +2868,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2647,7 +2888,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2662,7 +2908,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2677,7 +2928,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2692,7 +2948,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2707,7 +2968,12 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.275, 0.44, 0.5]
+          "halfExtents": [1.275, 0.1, 0.5],
+          "offset": [0.0, 0.3, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.44, 0.5]
         }
       ]
     },
@@ -2722,7 +2988,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -2737,7 +3009,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -2752,7 +3030,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -2767,7 +3051,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -2782,7 +3072,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -2797,7 +3093,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -2826,8 +3128,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.2, 0.32, 0.5],
+          "offset": [0.0, 0.191, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.33
+          "radius": 0.33,
+          "offset": [0.0106, -0.175, 0.0]
         }
       ]
     },
@@ -2841,8 +3149,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.2, 0.32, 0.5],
+          "offset": [0.0, 0.1702, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.33
+          "radius": 0.33,
+          "offset": [0.014, -0.196, 0.0]
         }
       ]
     },
@@ -2856,8 +3170,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.2, 0.32, 0.5],
+          "offset": [0.0, 0.123, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.33
+          "radius": 0.33,
+          "offset": [0.003, -0.209, 0.0]
         }
       ]
     },
@@ -2871,8 +3191,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.2, 0.32, 0.5],
+          "offset": [0.0, 0.1702, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.33
+          "radius": 0.33,
+          "offset": [0.0106, -0.2057, 0.0]
         }
       ]
     },
@@ -2886,8 +3212,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.2, 0.32, 0.5],
+          "offset": [0.0, 0.191, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.33
+          "radius": 0.33,
+          "offset": [0.0106, -0.175, 0.0]
         }
       ]
     },
@@ -2901,8 +3233,14 @@
       "capabilities": { "wheel": true },
       "shapes": [
         {
+          "kind": "box",
+          "halfExtents": [0.2, 0.32, 0.5],
+          "offset": [0.0, 0.1702, 0.0]
+        },
+        {
           "kind": "sphere",
-          "radius": 0.33
+          "radius": 0.33,
+          "offset": [0.0106, -0.2057, 0.0]
         }
       ]
     },
@@ -2917,7 +3255,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.1, 0.5]
+          "halfExtents": [0.35, 0.1, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -2932,7 +3271,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.1, 0.5]
+          "halfExtents": [0.35, 0.1, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -2947,7 +3287,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.1, 0.5]
+          "halfExtents": [0.35, 0.1, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -2962,7 +3303,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.0, 0.25, 0.0]
         }
       ]
     },
@@ -2977,7 +3324,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.0, 0.25, 0.0]
         }
       ]
     },
@@ -2992,7 +3345,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.0, 0.25, 0.0]
         }
       ]
     },
@@ -3007,7 +3366,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [-0.01, 0.25, 0.0]
         }
       ]
     },
@@ -3022,7 +3387,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.0, 0.25, 0.0]
         }
       ]
     },
@@ -3037,7 +3408,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.4815, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.042, 0.263, 0.0]
         }
       ]
     },
@@ -3094,7 +3471,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -3109,7 +3487,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -3124,7 +3503,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -3139,7 +3519,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -3154,7 +3535,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.05, 0.9, 0.5]
+          "halfExtents": [1.05, 0.9, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -3169,7 +3551,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.05, 0.9, 0.5]
+          "halfExtents": [1.05, 0.9, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -3184,7 +3567,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.05, 0.9, 0.5]
+          "halfExtents": [1.05, 0.9, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -3199,7 +3583,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.05, 0.9, 0.5]
+          "halfExtents": [1.05, 0.9, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -3214,7 +3599,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.05, 0.9, 0.5]
+          "halfExtents": [1.05, 0.9, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -3229,7 +3615,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.05, 0.9, 0.5]
+          "halfExtents": [1.05, 0.9, 0.5],
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     },
@@ -3244,7 +3631,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.15, 0.5]
+          "halfExtents": [0.35, 0.15, 0.5],
+          "offset": [0.0, -0.03, 0.0]
         }
       ]
     },
@@ -3259,7 +3647,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.15, 0.5]
+          "halfExtents": [0.35, 0.15, 0.5],
+          "offset": [0.0, -0.03, 0.0]
         }
       ]
     },
@@ -3274,7 +3663,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.35, 0.15, 0.5]
+          "halfExtents": [0.35, 0.15, 0.5],
+          "offset": [0.0, -0.03, 0.0]
         }
       ]
     },
@@ -3289,7 +3679,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -3304,7 +3695,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -3319,7 +3711,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -3334,7 +3727,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.375, 0.2, 0.5]
+          "halfExtents": [0.375, 0.2, 0.5],
+          "offset": [0.03, -0.015, 0.0]
         }
       ]
     },
@@ -3349,7 +3743,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.006, 0.25, 0.0]
         }
       ]
     },
@@ -3364,7 +3764,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.009, 0.25, 0.0]
         }
       ]
     },
@@ -3379,7 +3785,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5, 0.475, 0.5]
+          "halfExtents": [0.1, 0.35, 0.5],
+          "offset": [0.0, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.2, 0.5],
+          "offset": [0.0, 0.25, 0.0]
         }
       ]
     },
@@ -3394,7 +3806,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.3, 0.425, 0.3]
+          "halfExtents": [0.3, 0.425, 0.3],
+          "offset": [0.0192, -0.1002, 0.0]
         }
       ]
     },
@@ -3409,7 +3822,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.3, 0.425, 0.3]
+          "halfExtents": [0.3, 0.425, 0.3],
+          "offset": [-0.0002, 0.02, 0.0]
         }
       ]
     },
@@ -3424,7 +3838,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.3, 0.425, 0.3]
+          "halfExtents": [0.3, 0.425, 0.3],
+          "offset": [0.0141, 0.0141, 0.0]
         }
       ]
     },
@@ -3439,7 +3854,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.3, 0.425, 0.3]
+          "halfExtents": [0.3, 0.425, 0.3],
+          "offset": [-0.0002, 0.02, 0.0]
         }
       ]
     },
@@ -3455,7 +3871,8 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.3, 0.425, 0.3]
+          "halfExtents": [0.3, 0.425, 0.3],
+          "offset": [-0.0002, 0.02, 0.0]
         }
       ]
     },
@@ -3530,7 +3947,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -3545,7 +3968,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -3560,7 +3989,13 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.45
+          "radius": 0.45,
+          "offset": [0.0, -0.075, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3, 0.1, 0.5],
+          "offset": [-0.0067, 0.3345, 0.0]
         }
       ]
     },
@@ -3650,7 +4085,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5305, 0.5297, 0.5]
+          "halfExtents": [0.5305, 0.2459, 0.5],
+          "offset": [0.0, -0.0084, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.2492, 0.5297, 0.5],
+          "offset": [-0.0028, 0.0, 0.0]
         }
       ]
     },
@@ -3665,7 +4106,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5305, 0.5297, 0.5]
+          "halfExtents": [0.5305, 0.2459, 0.5],
+          "offset": [0.0, -0.0084, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.2492, 0.5297, 0.5],
+          "offset": [-0.0028, 0.0, 0.0]
         }
       ]
     },
@@ -3679,7 +4126,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5305, 0.5297, 0.5]
+          "halfExtents": [0.5305, 0.2459, 0.5],
+          "offset": [0.0, -0.0084, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.2492, 0.5297, 0.5],
+          "offset": [-0.0028, 0.0, 0.0]
         }
       ]
     },
@@ -3694,7 +4147,13 @@
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [0.5305, 0.5297, 0.5]
+          "halfExtents": [0.5305, 0.2459, 0.5],
+          "offset": [0.0, -0.0084, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.2492, 0.5297, 0.5],
+          "offset": [-0.0028, 0.0, 0.0]
         }
       ]
     },

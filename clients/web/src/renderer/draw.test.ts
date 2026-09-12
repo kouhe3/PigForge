@@ -200,3 +200,34 @@ describe("drawFrame selection and marquee", () => {
     expect(calls.strokeRect).toBe(5); // 2 part outlines + 2 selection boxes + 1 marquee
   });
 });
+
+describe("drawFrame multi-shape placeholders", () => {
+  it("draws every shape of a part at its local offset", () => {
+    const { ctx, calls, translations } = makeCtx();
+    const wheelContent: PartContentDocument = {
+      ...content,
+      parts: [
+        ...content.parts,
+        {
+          partTypeId: 7,
+          name: "wheel",
+          mode: "dynamic",
+          mass: 0.5,
+          shapes: [
+            { kind: "sphere", radius: 0.33, offset: [0.01, -0.2, 0] },
+            { kind: "box", halfExtents: [0.2, 0.32, 0.5], offset: [0, 0.17, 0] },
+          ],
+        },
+      ],
+    };
+    const wheel: DrawEntity = { entityId: 5, partTypeId: 7, x: 4, y: 2, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 13, active: false };
+
+    drawFrame(ctx, createCamera(), [wheel], wheelContent, []);
+
+    expect(calls.fillRect).toBe(2); // background + support box
+    expect(calls.arc).toBe(1); // tire circle
+    // camera { x: 4, y: 2, scale: 36 } over 800x600 puts the wheel at screen (400,300).
+    expect(translations).toContainEqual([0.01 * 36, 0.2 * 36]);
+    expect(translations).toContainEqual([0, -0.17 * 36]);
+  });
+});

@@ -9,6 +9,8 @@ export interface PartShape {
   kind: ShapeKind;
   halfExtents?: Vec3;
   radius?: number;
+  /** Part-local shape offset, +y up (wheels carry their support box at the top). */
+  offset?: Vec3;
 }
 
 export interface PartCapabilities {

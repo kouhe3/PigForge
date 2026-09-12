@@ -99,6 +99,9 @@ function validateShape(partTypeId: number, shape: PartShape, errors: string[]): 
       errors.push(`Part ${partTypeId} sphere radius must be finite and positive.`);
     }
   }
+  if (shape.offset !== undefined && (!isVec3(shape.offset) || !shape.offset.every((value) => Number.isFinite(value)))) {
+    errors.push(`Part ${partTypeId} shape offset must be three finite numbers.`);
+  }
 }
 
 function isVec3(value: unknown): value is [number, number, number] {

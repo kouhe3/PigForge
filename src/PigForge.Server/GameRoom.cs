@@ -83,6 +83,8 @@ public sealed class GameRoom : IDisposable
     private readonly Dictionary<uint, EntityId> _entityByBody = new();
     private readonly Dictionary<uint, List<uint>> _entitiesByBody = new();
     private readonly Dictionary<uint, (PhysicsVector3 Offset, PhysicsQuaternion Rotation)> _compoundLocalByEntity = new();
+    private readonly Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> _bodyPose = new();
+    private readonly List<(PhysicsJointId Joint, PhysicsBodyId Wheel, PhysicsBodyId Parent)> _wheelJoints = new();
     private readonly List<LiveCompound> _liveCompounds = new();
     private readonly List<PhysicsCommand> _appliedCommands = new();
     private readonly float _seamBreakImpulse;
@@ -469,6 +471,8 @@ public sealed class GameRoom : IDisposable
             BindCluster(cluster, cluster.CreateBodyDefinition(_content));
         }
 
+        BindWheelHinges(entities);
+
         EnsureBuffers();
         Mode = RoomMode.Running;
     }
@@ -503,6 +507,8 @@ public sealed class GameRoom : IDisposable
         _entityByBody.Clear();
         _entitiesByBody.Clear();
         _compoundLocalByEntity.Clear();
+        _bodyPose.Clear();
+        _wheelJoints.Clear();
         _liveCompounds.Clear();
 
         if (policy == BuildModePolicy.Keep)
@@ -576,6 +582,8 @@ public sealed class GameRoom : IDisposable
         _entityByBody.Clear();
         _entitiesByBody.Clear();
         _compoundLocalByEntity.Clear();
+        _bodyPose.Clear();
+        _wheelJoints.Clear();
         _liveCompounds.Clear();
 
         Mode = RoomMode.Building;
@@ -788,6 +796,8 @@ public sealed class GameRoom : IDisposable
             BindCluster(cluster, cluster.CreateBodyDefinition(_content));
         }
 
+        BindWheelHinges(entities);
+
         _sandboxPlayers.MarkMaterialized(playerId);
         EnsureBuffers();
         return true;
@@ -820,6 +830,8 @@ public sealed class GameRoom : IDisposable
         {
             BindCluster(cluster, cluster.CreateBodyDefinition(_content));
         }
+
+        BindWheelHinges(entities);
 
         EnsureBuffers();
         Mode = RoomMode.Running;
@@ -1226,6 +1238,8 @@ public sealed class GameRoom : IDisposable
         _entityByBody.Clear();
         _entitiesByBody.Clear();
         _compoundLocalByEntity.Clear();
+        _bodyPose.Clear();
+        _wheelJoints.Clear();
         _liveCompounds.Clear();
         _appliedCommands.Clear();
         _outcomeLog.Clear();
@@ -1237,6 +1251,7 @@ public sealed class GameRoom : IDisposable
     private void BindCluster(CompoundCluster cluster, BodyDefinition definition)
     {
         PhysicsBodyId body = _world.CreateBody(definition);
+        _bodyPose[body.Value] = (definition.Position, definition.Rotation);
         foreach (CompoundMember member in cluster.Members)
         {
             _bodies.Set(member.Entity, new PhysicsBodyLink(body));
@@ -1250,7 +1265,9 @@ public sealed class GameRoom : IDisposable
             }
 
             members.Add(member.Entity.Value);
-            if (cluster.IsMerged)
+            if (cluster.IsMerged
+                || member.LocalOffset != PhysicsVector3.Zero
+                || member.LocalRotation != PhysicsQuaternion.Identity)
             {
                 _compoundLocalByEntity[member.Entity.Value] = (member.LocalOffset, member.LocalRotation);
             }
@@ -1259,6 +1276,56 @@ public sealed class GameRoom : IDisposable
         if (cluster.IsMerged)
         {
             _liveCompounds.Add(new LiveCompound(body, cluster));
+        }
+    }
+
+    /// <summary>
+    /// Creates the revolute joints that attach every wheel part's own body to a neighbour
+    /// body at the wheel axle, so wheels roll instead of skidding with the chassis.
+    /// </summary>
+    private void BindWheelHinges(IReadOnlyList<EntityId> entities)
+    {
+        foreach (CompoundHinge hinge in CompoundAssembler.CollectHinges(entities, _construction, _content))
+        {
+            if (!_bodies.TryGet(hinge.Wheel, out PhysicsBodyLink wheelLink)
+                || !_bodies.TryGet(hinge.Parent, out PhysicsBodyLink parentLink)
+                || wheelLink.Body == parentLink.Body
+                || !_bodyPose.TryGetValue(wheelLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) wheelPose)
+                || !_bodyPose.TryGetValue(parentLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) parentPose)
+                || !_transforms.TryGet(hinge.Wheel, out EntityTransform transform))
+            {
+                continue;
+            }
+
+            PhysicsVector3 axle = transform.Position;
+            JointDefinition definition = new(
+                PhysicsJointKind.Revolute,
+                parentLink.Body,
+                wheelLink.Body,
+                PhysicsConstraintMask.LockPositionX | PhysicsConstraintMask.LockPositionY | PhysicsConstraintMask.LockPositionZ
+                    | PhysicsConstraintMask.LockRotationX | PhysicsConstraintMask.LockRotationY,
+                breakForce: 0f,
+                breakTorque: 0f,
+                localAnchorA: parentPose.Rotation.Inverse.Rotate(axle - parentPose.Position),
+                localAnchorB: wheelPose.Rotation.Inverse.Rotate(axle - wheelPose.Position),
+                localAxisA: new PhysicsVector3(0f, 0f, 1f),
+                localAxisB: new PhysicsVector3(0f, 0f, 1f));
+            _wheelJoints.Add((_world.CreateJoint(definition), wheelLink.Body, parentLink.Body));
+        }
+    }
+
+    private void ForgetJointsForBody(PhysicsBodyId body)
+    {
+        for (int index = _wheelJoints.Count - 1; index >= 0; index--)
+        {
+            (PhysicsJointId joint, PhysicsBodyId wheel, PhysicsBodyId parent) = _wheelJoints[index];
+            if (wheel != body && parent != body)
+            {
+                continue;
+            }
+
+            _world.DestroyJoint(joint);
+            _wheelJoints.RemoveAt(index);
         }
     }
 
@@ -1280,6 +1347,8 @@ public sealed class GameRoom : IDisposable
                 _liveCompounds.RemoveAll(live => live.Body == body);
                 if (destroyBodyIfOrphan)
                 {
+                    ForgetJointsForBody(body);
+                    _bodyPose.Remove(body.Value);
                     _world.DestroyBody(body);
                 }
             }
@@ -1291,6 +1360,8 @@ public sealed class GameRoom : IDisposable
         else if (destroyBodyIfOrphan)
         {
             _entityByBody.Remove(body.Value);
+            ForgetJointsForBody(body);
+            _bodyPose.Remove(body.Value);
             _world.DestroyBody(body);
         }
     }

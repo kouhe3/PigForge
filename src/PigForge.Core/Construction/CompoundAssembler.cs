@@ -23,7 +23,13 @@ public readonly record struct CompoundSeam(
     float BreakImpulse);
 
 /// <summary>
-/// A connected group of dynamic box parts welded into one rigid body. Singletons
+/// Revolute attachment: the wheel keeps its own body and hinges to the parent entity's
+/// body at the wheel's axle, so it can spin instead of skidding with the chassis.
+/// </summary>
+public readonly record struct CompoundHinge(EntityId Wheel, EntityId Parent);
+
+/// <summary>
+/// A connected group of dynamic parts welded into one rigid body. Singletons
 /// (no welds) are also represented so callers can spawn every part through one path.
 /// </summary>
 public sealed class CompoundCluster
@@ -78,29 +84,41 @@ public sealed class CompoundCluster
         ArgumentNullException.ThrowIfNull(content);
         if (Members.Count == 1)
         {
-            CompoundMember member = Members[0];
-            return content.CreateBodyDefinition(
-                member.PartTypeId,
-                WorldPosition,
-                WorldRotation,
-                member.Scale,
-                linearVelocity,
-                angularVelocity);
+            CompoundMember single = Members[0];
+            PartContentLibrary.ShapePlacement[] placements = content.EnumerateShapePlacements(single.PartTypeId, single.Scale);
+            if (placements.Length == 1
+                && placements[0].Offset == PhysicsVector3.Zero
+                && single.LocalOffset == PhysicsVector3.Zero
+                && single.LocalRotation == PhysicsQuaternion.Identity)
+            {
+                // A single centred shape keeps the cheap primitive body (static-friendly).
+                return content.CreateBodyDefinition(
+                    single.PartTypeId,
+                    WorldPosition,
+                    WorldRotation,
+                    single.Scale,
+                    linearVelocity,
+                    angularVelocity);
+            }
         }
 
-        CompoundChild[] children = new CompoundChild[Members.Count];
+        List<CompoundChild> children = new(Members.Count);
         for (int index = 0; index < Members.Count; index++)
         {
             CompoundMember member = Members[index];
-            BodyDefinition leaf = content.CreateBodyDefinition(
-                member.PartTypeId,
-                PhysicsVector3.Zero,
-                PhysicsQuaternion.Identity,
-                member.Scale);
-            children[index] = new CompoundChild(leaf.Shapes[0], member.LocalOffset, member.LocalRotation);
+            foreach (PartContentLibrary.ShapePlacement placement in content.EnumerateShapePlacements(member.PartTypeId, member.Scale))
+            {
+                PhysicsVector3 offset = member.LocalOffset + member.LocalRotation.Rotate(placement.Offset);
+                children.Add(new CompoundChild(placement.Shape, offset, member.LocalRotation));
+            }
         }
 
         PartDefinition first = content.GetPart(Members[0].PartTypeId);
+        if (first.Mode != PhysicsBodyMode.Dynamic)
+        {
+            throw new NotSupportedException($"Part type {first.PartTypeId} is static and uses offset or multi-shape colliders, which the physics contract does not support yet.");
+        }
+
         return new BodyDefinition(
             PhysicsBodyMode.Dynamic,
             WorldPosition,
@@ -431,9 +449,20 @@ public static class CompoundAssembler
             return false;
         }
 
+        // Wheels attach through a revolute joint instead of welding, so their body can
+        // spin about its axle (see CollectHinges).
+        if (part.Capabilities?.IsWheel == true)
+        {
+            return false;
+        }
+
+        // Welding must cover every kind the physics backends can build a compound child
+        // from (Bepu: box + sphere). Anything else stays a singleton so body creation
+        // never fails on an unsupported child.
         for (int index = 0; index < part.Shapes.Count; index++)
         {
-            if (part.Shapes[index].Kind != PhysicsShapeKind.Box)
+            PhysicsShapeKind kind = part.Shapes[index].Kind;
+            if (kind is not (PhysicsShapeKind.Box or PhysicsShapeKind.Sphere))
             {
                 return false;
             }
@@ -441,6 +470,72 @@ public static class CompoundAssembler
 
         return true;
     }
+
+    /// <summary>
+    /// Revolute attachments for wheel parts: each wheel keeps its own body and hinges to
+    /// one neighbour (the lowest-id non-wheel neighbour, else the lowest-id neighbour).
+    /// </summary>
+    public static List<CompoundHinge> CollectHinges(
+        IReadOnlyList<EntityId> entities,
+        ConstructionRules construction,
+        PartContentLibrary content)
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+        ArgumentNullException.ThrowIfNull(construction);
+        ArgumentNullException.ThrowIfNull(content);
+        Dictionary<uint, EntityId> byValue = new(entities.Count);
+        foreach (EntityId entity in entities)
+        {
+            byValue[entity.Value] = entity;
+        }
+
+        List<CompoundHinge> hinges = new();
+        foreach (EntityId entity in entities)
+        {
+            if (!IsHingePart(entity, construction, content))
+            {
+                continue;
+            }
+
+            uint? fallback = null;
+            uint? parent = null;
+            foreach (uint neighbour in construction.ConnectionsOf(entity))
+            {
+                if (!byValue.ContainsKey(neighbour))
+                {
+                    continue;
+                }
+
+                if (IsHingePart(new EntityId(neighbour), construction, content))
+                {
+                    if (fallback is null || neighbour < fallback)
+                    {
+                        fallback = neighbour;
+                    }
+
+                    continue;
+                }
+
+                if (parent is null || neighbour < parent)
+                {
+                    parent = neighbour;
+                }
+            }
+
+            uint? target = parent ?? fallback;
+            if (target is uint parentValue)
+            {
+                hinges.Add(new CompoundHinge(entity, new EntityId(parentValue)));
+            }
+        }
+
+        hinges.Sort((left, right) => left.Wheel.Value.CompareTo(right.Wheel.Value));
+        return hinges;
+    }
+
+    private static bool IsHingePart(EntityId entity, ConstructionRules construction, PartContentLibrary content) =>
+        construction.TryGetPartTypeId(entity, out uint partTypeId)
+        && content.GetPart(partTypeId).Capabilities?.IsWheel == true;
 
     private static CompoundCluster BuildCluster(
         List<EntityId> group,
@@ -450,8 +545,11 @@ public static class CompoundAssembler
     {
         CompoundMember[] members = new CompoundMember[group.Count];
         float mass = 0f;
-        PhysicsVector3 weighted = PhysicsVector3.Zero;
-        PhysicsQuaternion bodyRotation = PhysicsQuaternion.Identity;
+        float shapeVolume = 0f;
+        PhysicsVector3 volumeWeighted = PhysicsVector3.Zero;
+        PhysicsQuaternion bodyRotation = group.Count == 1
+            ? (construction.TryGetTransform(group[0], out EntityTransform singletonPose) ? singletonPose.Rotation : PhysicsQuaternion.Identity)
+            : PhysicsQuaternion.Identity;
         for (int index = 0; index < group.Count; index++)
         {
             EntityId entity = group[index];
@@ -460,7 +558,16 @@ public static class CompoundAssembler
             PartDefinition part = content.GetPart(partTypeId);
             float memberMass = part.Mass * (transform.Scale * transform.Scale * transform.Scale);
             mass += memberMass;
-            weighted += transform.Position * memberMass;
+            // The physics backend recentres compound children onto their volume-weighted
+            // centre, so the body pose must be that centre for the shapes to land where
+            // the content places them.
+            foreach (PartContentLibrary.ShapePlacement placement in content.EnumerateShapePlacements(partTypeId, transform.Scale))
+            {
+                float volume = ShapeMetrics.Volume(placement.Shape);
+                shapeVolume += volume;
+                volumeWeighted += (transform.Position + transform.Rotation.Rotate(placement.Offset)) * volume;
+            }
+
             members[index] = new CompoundMember(
                 entity,
                 partTypeId,
@@ -468,29 +575,18 @@ public static class CompoundAssembler
                 transform.Rotation,
                 transform.Scale,
                 memberMass);
-            if (group.Count == 1)
-            {
-                bodyRotation = transform.Rotation;
-            }
         }
 
-        PhysicsVector3 com = mass > 0f ? weighted * (1f / mass) : members[0].LocalOffset;
-        if (group.Count == 1)
-        {
-            construction.TryGetTransform(group[0], out EntityTransform singleton);
-            com = singleton.Position;
-        }
+        PhysicsVector3 com = shapeVolume > 0f ? volumeWeighted * (1f / shapeVolume) : members[0].LocalOffset;
 
         for (int index = 0; index < members.Length; index++)
         {
             construction.TryGetTransform(members[index].Entity, out EntityTransform transform);
-            PhysicsVector3 local = group.Count == 1
-                ? PhysicsVector3.Zero
-                : transform.Position - com;
-            PhysicsQuaternion localRotation = group.Count == 1
-                ? PhysicsQuaternion.Identity
-                : transform.Rotation;
-            members[index] = members[index] with { LocalOffset = local, LocalRotation = localRotation };
+            members[index] = members[index] with
+            {
+                LocalOffset = bodyRotation.Inverse.Rotate(transform.Position - com),
+                LocalRotation = bodyRotation.Inverse * transform.Rotation,
+            };
         }
 
         List<CompoundSeam> seams = new();

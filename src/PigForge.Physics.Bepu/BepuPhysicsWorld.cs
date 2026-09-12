@@ -27,7 +27,10 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private readonly HashSet<ContactPair> _activeContacts = new();
     private readonly HashSet<ContactPair> _currentContacts = new();
     private readonly List<ContactPair> _orderedContacts = new();
+    private readonly Dictionary<PhysicsJointId, ConstraintHandle> _joints = new();
+    private readonly List<(PhysicsJointId Joint, BodyHandle A, BodyHandle B)> _jointBodies = new();
     private uint _nextBodyId = 1;
+    private uint _nextJointId = 1;
     private bool _disposed;
 
     public BepuPhysicsWorld(PhysicsVector3 gravity)
@@ -46,7 +49,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     }
 
     public PhysicsCapabilities Capabilities { get; } = new(
-        new HashSet<PhysicsJointKind>(),
+        new HashSet<PhysicsJointKind> { PhysicsJointKind.Revolute },
         SupportsContinuousCollision: false,
         SupportsPerBodyInertia: true);
 
@@ -124,6 +127,22 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         ThrowIfDisposed();
         if (_dynamicBodies.Remove(body, out BodyHandle dynamicHandle))
         {
+            for (int index = _jointBodies.Count - 1; index >= 0; index--)
+            {
+                (PhysicsJointId jointId, BodyHandle jointA, BodyHandle jointB) = _jointBodies[index];
+                if (jointA != dynamicHandle && jointB != dynamicHandle)
+                {
+                    continue;
+                }
+
+                if (_joints.Remove(jointId, out ConstraintHandle constraint))
+                {
+                    _simulation.Solver.Remove(constraint);
+                }
+
+                _jointBodies.RemoveAt(index);
+            }
+
             _dynamicIdsByHandle.Remove(dynamicHandle.Value);
             _frictionByDynamicHandle.Remove(dynamicHandle.Value);
             _simulation.Bodies.Remove(dynamicHandle);
@@ -160,7 +179,37 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(definition);
-        throw new NotSupportedException("BepuPhysics backend does not implement PigForge joints yet.");
+        if (definition.Kind != PhysicsJointKind.Revolute)
+        {
+            throw new NotSupportedException($"BepuPhysics backend only implements revolute joints, not {definition.Kind}.");
+        }
+
+        if (!_dynamicBodies.TryGetValue(definition.BodyA, out BodyHandle handleA)
+            || !_dynamicBodies.TryGetValue(definition.BodyB, out BodyHandle handleB))
+        {
+            throw new KeyNotFoundException("Both joint bodies must be dynamic bodies created by this world.");
+        }
+
+        // The hinge keeps the two anchors coincident and lets the bodies rotate about the
+        // shared axis; the spring settings are stiff so it behaves as a rigid axle.
+        Hinge hinge = new()
+        {
+            LocalOffsetA = ToNumerics(definition.LocalAnchorA),
+            LocalOffsetB = ToNumerics(definition.LocalAnchorB),
+            LocalHingeAxisA = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisA)),
+            LocalHingeAxisB = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisB)),
+            SpringSettings = new SpringSettings(30f, 1f),
+        };
+        if (_nextJointId == 0)
+        {
+            throw new InvalidOperationException("The physics joint ID space is exhausted.");
+        }
+
+        PhysicsJointId id = new(_nextJointId++);
+        ConstraintHandle handle = _simulation.Solver.Add(handleA, handleB, hinge);
+        _joints.Add(id, handle);
+        _jointBodies.Add((id, handleA, handleB));
+        return id;
     }
 
     public void DestroyJoint(PhysicsJointId joint)
@@ -171,7 +220,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             throw new ArgumentException("A joint ID must be valid.", nameof(joint));
         }
 
-        throw new NotSupportedException("BepuPhysics backend does not implement PigForge joints yet.");
+        if (_joints.Remove(joint, out ConstraintHandle handle))
+        {
+            _simulation.Solver.Remove(handle);
+            _jointBodies.RemoveAll(entry => entry.Joint == joint);
+        }
     }
 
     public void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands)
@@ -300,6 +353,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _dynamicIdsByHandle.Clear();
         _staticIdsByHandle.Clear();
         _bodyOrder.Clear();
+        _joints.Clear();
+        _jointBodies.Clear();
         _events.Clear();
         _activeContacts.Clear();
         _currentContacts.Clear();
@@ -364,7 +419,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         float totalVolume = 0f;
         for (int index = 0; index < count; index++)
         {
-            float volume = BoxVolume(compound.Children[index].Shape);
+            float volume = ShapeMetrics.Volume(compound.Children[index].Shape);
             childMasses[index] = volume;
             totalVolume += volume;
         }
@@ -385,9 +440,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             for (int index = 0; index < count; index++)
             {
                 Abstractions.CompoundChild child = compound.Children[index];
-                Box box = BoxFor(child.Shape);
                 RigidPose pose = new(ToNumerics(child.Offset), ToNumerics(child.Rotation));
-                builder.Add(in box, in pose, childMasses[index]);
+                AddCompoundChild(ref builder, child.Shape, in pose, childMasses[index]);
             }
 
             builder.BuildDynamicCompound(out Buffer<BepuCompoundChild> children, out inertia, out _);
@@ -407,17 +461,28 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         }
     }
 
-    private static Box BoxFor(ShapeDefinition shape) => shape switch
+    private static void AddCompoundChild(ref CompoundBuilder builder, ShapeDefinition shape, in RigidPose pose, float mass)
     {
-        BoxShapeDefinition box => new Box(box.HalfExtentX * 2, box.HalfExtentY * 2, box.HalfExtentZ * 2),
-        _ => throw new NotSupportedException("BepuPhysics compound children must be boxes for now.")
-    };
+        switch (shape)
+        {
+            case BoxShapeDefinition box:
+            {
+                Box physicsBox = new(box.HalfExtentX * 2, box.HalfExtentY * 2, box.HalfExtentZ * 2);
+                builder.Add(in physicsBox, in pose, mass);
+                break;
+            }
 
-    private static float BoxVolume(ShapeDefinition shape) => shape switch
-    {
-        BoxShapeDefinition box => 8f * box.HalfExtentX * box.HalfExtentY * box.HalfExtentZ,
-        _ => throw new NotSupportedException("BepuPhysics compound children must be boxes for now.")
-    };
+            case SphereShapeDefinition sphere:
+            {
+                Sphere physicsSphere = new(sphere.Radius);
+                builder.Add(in physicsSphere, in pose, mass);
+                break;
+            }
+
+            default:
+                throw new NotSupportedException("BepuPhysics compound children must be boxes or spheres.");
+        }
+    }
 
     private static RigidPose CreatePose(PhysicsVector3 position, PhysicsQuaternion rotation)
     {

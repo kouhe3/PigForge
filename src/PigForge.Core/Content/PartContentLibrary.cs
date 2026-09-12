@@ -37,10 +37,67 @@ public sealed class PartContentLibrary
     }
 
     /// <summary>
+    /// One physics leaf shape of a part with its part-local offset (already scaled).
+    /// Wheels use two: the tire sphere plus the support box that mounts the part.
+    /// </summary>
+    public readonly record struct ShapePlacement(ShapeDefinition Shape, PhysicsVector3 Offset);
+
+    /// <summary>
+    /// Enumerates a part's leaf shapes at a uniform <paramref name="scale"/>. Offsets are
+    /// multiplied by the scale; shape kinds without a physics record fail here rather
+    /// than silently degrading fidelity.
+    /// </summary>
+    public ShapePlacement[] EnumerateShapePlacements(uint partTypeId, float scale = 1f)
+    {
+        PartDefinition part = GetPart(partTypeId);
+        ValidateScale(partTypeId, scale);
+        ShapePlacement[] placements = new ShapePlacement[part.Shapes.Count];
+        for (int index = 0; index < part.Shapes.Count; index++)
+        {
+            PartShapeDefinition shape = part.Shapes[index];
+            ShapeDefinition definition = shape.Kind switch
+            {
+                PhysicsShapeKind.Box when shape.BoxHalfExtents is { Length: 3 } halfExtents
+                    => new BoxShapeDefinition(halfExtents[0] * scale, halfExtents[1] * scale, halfExtents[2] * scale),
+                PhysicsShapeKind.Box => throw new InvalidOperationException($"Part type {partTypeId} has a box shape without half extents."),
+                PhysicsShapeKind.Sphere when shape.Radius is float radius
+                    => new SphereShapeDefinition(radius * scale),
+                PhysicsShapeKind.Sphere => throw new InvalidOperationException($"Part type {partTypeId} has a sphere shape without radius."),
+                _ => throw new NotSupportedException($"Part type {partTypeId} uses shape kind {shape.Kind}, which has no physics shape definition yet.")
+            };
+            PhysicsVector3 offset = shape.Offset is { Length: 3 } value
+                ? new PhysicsVector3(value[0] * scale, value[1] * scale, value[2] * scale)
+                : PhysicsVector3.Zero;
+            placements[index] = new ShapePlacement(definition, offset);
+        }
+
+        return placements;
+    }
+
+    /// <summary>
+    /// Volume-weighted centre of the part's leaf shapes in part-local space (scaled).
+    /// Physics compounds are recentred onto this point, so callers pose the body there.
+    /// </summary>
+    public PhysicsVector3 ShapeCenterOfMass(uint partTypeId, float scale = 1f)
+    {
+        ShapePlacement[] placements = EnumerateShapePlacements(partTypeId, scale);
+        float total = 0f;
+        PhysicsVector3 weighted = PhysicsVector3.Zero;
+        foreach (ShapePlacement placement in placements)
+        {
+            float volume = ShapeMetrics.Volume(placement.Shape);
+            total += volume;
+            weighted += placement.Offset * volume;
+        }
+
+        return total > 0f ? weighted * (1f / total) : PhysicsVector3.Zero;
+    }
+
+    /// <summary>
     /// Maps a part definition to a physics body definition at the given pose. A uniform
     /// <paramref name="scale"/> multiplies linear shape dimensions and mass scales with
-    /// volume (scale cubed). Shape kinds without a physics abstraction record yet
-    /// (sphere, capsule, meshes) fail here rather than silently degrading fidelity.
+    /// volume (scale cubed). A part with several colliders or an offset collider becomes
+    /// one compound shape; static parts cannot express that yet and fail here.
     /// </summary>
     public BodyDefinition CreateBodyDefinition(
         uint partTypeId,
@@ -51,31 +108,34 @@ public sealed class PartContentLibrary
         PhysicsVector3 angularVelocity = default)
     {
         PartDefinition part = GetPart(partTypeId);
-        if (!float.IsFinite(scale) || scale is <= 0f or > Construction.ConstructionRules.MaxScale)
-        {
-            throw new ArgumentOutOfRangeException(nameof(scale), scale, $"A part scale must be finite, positive and at most {Construction.ConstructionRules.MaxScale}.");
-        }
+        ValidateScale(partTypeId, scale);
 
         if (part.Mode == PhysicsBodyMode.Static && (linearVelocity != PhysicsVector3.Zero || angularVelocity != PhysicsVector3.Zero))
         {
             throw new ArgumentException("A static part cannot be placed with an initial velocity.", nameof(linearVelocity));
         }
 
-        if (part.Shapes.Any(shape => shape.Offset is not null))
+        ShapePlacement[] placements = EnumerateShapePlacements(partTypeId, scale);
+        ShapeDefinition[] shapes;
+        if (placements.Length == 1 && placements[0].Offset == PhysicsVector3.Zero)
         {
-            throw new NotSupportedException($"Part type {partTypeId} uses shape offsets, which the physics contract does not support yet.");
+            shapes = new[] { placements[0].Shape };
         }
-
-        ShapeDefinition[] shapes = part.Shapes.Select<PartShapeDefinition, ShapeDefinition>(shape => shape.Kind switch
+        else
         {
-            PhysicsShapeKind.Box when shape.BoxHalfExtents is { Length: 3 } halfExtents
-                => new BoxShapeDefinition(halfExtents[0] * scale, halfExtents[1] * scale, halfExtents[2] * scale),
-            PhysicsShapeKind.Box => throw new InvalidOperationException($"Part type {partTypeId} has a box shape without half extents."),
-            PhysicsShapeKind.Sphere when shape.Radius is float radius
-                => new SphereShapeDefinition(radius * scale),
-            PhysicsShapeKind.Sphere => throw new InvalidOperationException($"Part type {partTypeId} has a sphere shape without radius."),
-            _ => throw new NotSupportedException($"Part type {partTypeId} uses shape kind {shape.Kind}, which has no physics shape definition yet.")
-        }).ToArray();
+            if (part.Mode == PhysicsBodyMode.Static)
+            {
+                throw new NotSupportedException($"Part type {partTypeId} is static and uses shape offsets, which the physics contract does not support yet.");
+            }
+
+            CompoundChild[] children = new CompoundChild[placements.Length];
+            for (int index = 0; index < placements.Length; index++)
+            {
+                children[index] = new CompoundChild(placements[index].Shape, placements[index].Offset);
+            }
+
+            shapes = new ShapeDefinition[] { new CompoundShapeDefinition(children) };
+        }
 
         return new BodyDefinition(
             part.Mode,
@@ -86,5 +146,13 @@ public sealed class PartContentLibrary
             linearVelocity,
             angularVelocity,
             new PhysicsMaterial(part.Restitution, part.Friction));
+    }
+
+    private static void ValidateScale(uint partTypeId, float scale)
+    {
+        if (!float.IsFinite(scale) || scale is <= 0f or > Construction.ConstructionRules.MaxScale)
+        {
+            throw new ArgumentOutOfRangeException(nameof(scale), scale, $"Part type {partTypeId} scale must be finite, positive and at most {Construction.ConstructionRules.MaxScale}.");
+        }
     }
 }

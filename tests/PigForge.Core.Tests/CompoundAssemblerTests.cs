@@ -13,6 +13,7 @@ public sealed class CompoundAssemblerTests
 {
     private const uint PartBlock = 1;
     private const uint PartGround = 2;
+    private const uint PartWheel = 3;
 
     [Fact]
     public void AdjacentDynamicBoxesMergeIntoOneClusterWithOneSeam()
@@ -92,6 +93,59 @@ public sealed class CompoundAssemblerTests
     }
 
     [Fact]
+    public void AdjacentSphereAndBoxMergeIntoOneCluster()
+    {
+        (ConstructionRules rules, PartContentLibrary content) = CreateRules();
+        EntityId block = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId wheel = rules.Place(PartWheel, 0f, -1f, 0f, 1f, 0).Entity;
+
+        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { block, wheel }, rules, content));
+
+        Assert.True(cluster.IsMerged);
+        Assert.Equal(new[] { block, wheel }, cluster.Members.Select(member => member.Entity));
+        Assert.Equal(1.5f, cluster.Mass, precision: 4);
+        CompoundSeam seam = Assert.Single(cluster.Seams);
+        Assert.Equal(block, seam.Left);
+        Assert.Equal(wheel, seam.Right);
+    }
+
+    [Fact]
+    public void WoodenWheelSupportColliderConnectsToFrameDirectlyAbove()
+    {
+        // The original wheel is a tire sphere plus a support box at the top; only that
+        // box reaches a wooden frame placed one grid cell above the wheel.
+        const uint WoodenBlock = 1;
+        const uint WoodenWheel = 7;
+        PartContentLibrary content = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+        EntityStore entities = new();
+        ConstructionRules rules = new(entities, new PartStore(entities), new TransformStore(entities), content);
+        EntityId frame = rules.Place(WoodenBlock, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId wheel = rules.Place(WoodenWheel, 0f, -1f, 0f, 1f, 0).Entity;
+        Assert.Contains(wheel.Value, rules.ConnectionsOf(frame));
+
+        // Wheels keep their own body and attach through a revolute joint so they roll
+        // instead of skidding with the chassis.
+        List<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { frame, wheel }, rules, content);
+        Assert.Equal(2, clusters.Count);
+        Assert.All(clusters, cluster => Assert.False(cluster.IsMerged));
+        CompoundHinge hinge = Assert.Single(CompoundAssembler.CollectHinges(new[] { frame, wheel }, rules, content));
+        Assert.Equal(wheel, hinge.Wheel);
+        Assert.Equal(frame, hinge.Parent);
+    }
+
+    private static string FindRepositoryFile(string relativePath)
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, relativePath)))
+        {
+            directory = directory.Parent;
+        }
+
+        Assert.NotNull(directory);
+        return Path.Combine(directory!.FullName, relativePath);
+    }
+
+    [Fact]
     public void NearestSeamPicksTheCloserWeld()
     {
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();
@@ -145,7 +199,8 @@ public sealed class CompoundAssemblerTests
             "contentVersion": "compound-test-v1",
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
-                { "partTypeId": 2, "name": "ground", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [4, 0.5, 4] } ] }
+                { "partTypeId": 2, "name": "ground", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [4, 0.5, 4] } ] },
+                { "partTypeId": 3, "name": "wheel", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.45 } ] }
             ]
         }
         """));

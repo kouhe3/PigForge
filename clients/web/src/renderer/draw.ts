@@ -7,6 +7,8 @@ const DYNAMIC_FILL = "#c4a574";
 const SELECT_STROKE = "#f0d090";
 const PREVIEW_ALPHA = 0.45;
 const ACTIVE_STROKE = "#ffd166";
+/** Placeholder shape for entities whose content entry is unknown. */
+const DEFAULT_SHAPE: PartShape = { kind: "box", halfExtents: [0.5, 0.5, 0.5] };
 
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -101,23 +103,36 @@ export function drawFrame(
         );
         ctx.restore();
       }
-    } else if (shape?.kind === "sphere" && shape.radius) {
-      const radius = shape.radius * pixelScale;
-      ctx.beginPath();
-      ctx.arc(0, 0, radius, 0, Math.PI * 2);
-      ctx.fillStyle = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
-      ctx.fill();
-      ctx.strokeStyle = part?.mode === "static" ? "#8a9a7a" : "#d8b880";
-      ctx.lineWidth = 1;
-      ctx.stroke();
     } else {
-      const hx = (shape?.halfExtents?.[0] ?? 0.5) * pixelScale;
-      const hy = (shape?.halfExtents?.[1] ?? 0.5) * pixelScale;
-      ctx.fillStyle = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
-      ctx.fillRect(-hx, -hy, hx * 2, hy * 2);
-      ctx.strokeStyle = part?.mode === "static" ? "#8a9a7a" : "#d8b880";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(-hx, -hy, hx * 2, hy * 2);
+      const fill = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
+      const stroke = part?.mode === "static" ? "#8a9a7a" : "#d8b880";
+      const shapes = part?.shapes?.length ? part.shapes : [DEFAULT_SHAPE];
+      for (const entry of shapes) {
+        const [offsetX, offsetY] = entry.offset ?? [0, 0, 0];
+        const shifted = offsetX !== 0 || offsetY !== 0;
+        if (shifted) {
+          ctx.save();
+          ctx.translate(offsetX * pixelScale, -offsetY * pixelScale);
+        }
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 1;
+        if (entry.kind === "sphere" && entry.radius) {
+          const radius = entry.radius * pixelScale;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          const hx = (entry.halfExtents?.[0] ?? 0.5) * pixelScale;
+          const hy = (entry.halfExtents?.[1] ?? 0.5) * pixelScale;
+          ctx.fillRect(-hx, -hy, hx * 2, hy * 2);
+          ctx.strokeRect(-hx, -hy, hx * 2, hy * 2);
+        }
+        if (shifted) {
+          ctx.restore();
+        }
+      }
     }
     // A switchable part with its switch on gets an amber ring around its shape.
     if (!preview && entity.active && part?.capabilities?.activation !== undefined) {

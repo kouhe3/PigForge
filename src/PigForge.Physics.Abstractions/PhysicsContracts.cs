@@ -129,6 +129,14 @@ public readonly record struct PhysicsQuaternion(float X, float Y, float Z, float
 		PhysicsVector3 inner = PhysicsVector3.Cross(u, value) + (value * W);
 		return value + (PhysicsVector3.Cross(u, inner) * 2f);
 	}
+
+	/// <summary>Prints only the four components: the generated member printer would
+	/// recurse through <see cref="Inverse"/>, which is the same type.</summary>
+	private bool PrintMembers(System.Text.StringBuilder builder)
+	{
+		builder.Append('(').Append(X).Append(", ").Append(Y).Append(", ").Append(Z).Append(", ").Append(W).Append(')');
+		return true;
+	}
 }
 
 public readonly record struct FixedTimeStep(float Seconds)
@@ -249,6 +257,21 @@ public sealed record CompoundShapeDefinition : ShapeDefinition
 	public IReadOnlyList<CompoundChild> Children { get; }
 }
 
+/// <summary>Volume of a leaf shape; compounds weigh their children by it.</summary>
+public static class ShapeMetrics
+{
+	public static float Volume(ShapeDefinition shape)
+	{
+		ArgumentNullException.ThrowIfNull(shape);
+		return shape switch
+		{
+			BoxShapeDefinition box => 8f * box.HalfExtentX * box.HalfExtentY * box.HalfExtentZ,
+			SphereShapeDefinition sphere => (4f / 3f) * MathF.PI * sphere.Radius * sphere.Radius * sphere.Radius,
+			_ => throw new NotSupportedException($"Shape kind {shape.Kind} has no volume.")
+		};
+	}
+}
+
 public sealed class BodyDefinition
 {
 	public BodyDefinition(
@@ -351,6 +374,10 @@ public sealed class BodyDefinition
 }
 
 
+/// <summary>
+/// A constraint between two dynamic bodies. Anchors and axes are expressed in each
+/// body's local frame; a <see cref="PhysicsJointKind.Revolute"/> joint needs unit axes.
+/// </summary>
 public sealed record JointDefinition
 {
 	public JointDefinition(
@@ -359,7 +386,11 @@ public sealed record JointDefinition
 		PhysicsBodyId bodyB,
 		PhysicsConstraintMask constraints,
 		float breakForce,
-		float breakTorque)
+		float breakTorque,
+		PhysicsVector3 localAnchorA = default,
+		PhysicsVector3 localAnchorB = default,
+		PhysicsVector3 localAxisA = default,
+		PhysicsVector3 localAxisB = default)
 	{
 		if (!Enum.IsDefined(kind))
 		{
@@ -381,12 +412,27 @@ public sealed record JointDefinition
 			throw new ArgumentOutOfRangeException(nameof(breakTorque), breakTorque, "Break torque must be finite and non-negative.");
 		}
 
+		if (!localAnchorA.IsFinite || !localAnchorB.IsFinite || !localAxisA.IsFinite || !localAxisB.IsFinite)
+		{
+			throw new ArgumentException("Joint anchors and axes must be finite.");
+		}
+
+		if (kind == PhysicsJointKind.Revolute
+			&& (localAxisA == PhysicsVector3.Zero || localAxisB == PhysicsVector3.Zero))
+		{
+			throw new ArgumentException("A revolute joint requires a non-zero local axis on both bodies.", nameof(localAxisA));
+		}
+
 		Kind = kind;
 		BodyA = bodyA;
 		BodyB = bodyB;
 		Constraints = constraints;
 		BreakForce = breakForce;
 		BreakTorque = breakTorque;
+		LocalAnchorA = localAnchorA;
+		LocalAnchorB = localAnchorB;
+		LocalAxisA = localAxisA;
+		LocalAxisB = localAxisB;
 	}
 
 	public PhysicsJointKind Kind { get; }
@@ -395,6 +441,10 @@ public sealed record JointDefinition
 	public PhysicsConstraintMask Constraints { get; }
 	public float BreakForce { get; }
 	public float BreakTorque { get; }
+	public PhysicsVector3 LocalAnchorA { get; }
+	public PhysicsVector3 LocalAnchorB { get; }
+	public PhysicsVector3 LocalAxisA { get; }
+	public PhysicsVector3 LocalAxisB { get; }
 }
 
 public readonly record struct PhysicsCommand

@@ -625,6 +625,93 @@ public sealed class SandboxRoomTests
         Assert.Equal(ConstructionError.PartNotSwitchable, running.Error);
     }
 
+    [Fact]
+    public void SandboxCartHingesWheelsAndDrives()
+    {
+        using GameRoom room = PlayHost.CreateSandboxRoom();
+        uint player = PlayHost.NextPlayerId();
+        uint sequence = 0;
+
+        uint Place(uint partTypeId, float x, float y)
+        {
+            CommandOutcome outcome = room.Submit(PlayHost.BindPlayer(PlacePart(++sequence, 0, partTypeId, x, y), player));
+            Assert.True(outcome.IsAccepted, $"place {partTypeId} at ({x},{y}): {outcome.Status}/{outcome.Error}");
+            return outcome.EntityId;
+        }
+
+        // Real content: motor-wheel (17, sphere) + wooden block (1) + pig (4, sphere).
+        uint rearWheel = Place(17, -8.5f, -2.5f);
+        uint frontWheel = Place(17, -7.5f, -2.5f);
+        uint block = Place(1, -8.0f, -1.5f);
+        uint pig = Place(4, -8.0f, -0.5f);
+        Assert.True(room.Submit(PlayHost.BindPlayer(Start(++sequence, 0), player)).IsAccepted);
+
+        for (int tick = 0; tick < 180; tick++)
+        {
+            room.Tick();
+        }
+
+        List<SnapshotEntity> settled = PublishEntities(room, out _);
+        uint frameBody = settled.Single(entity => entity.EntityId == block).PhysicsBodyId;
+        Assert.NotEqual(0u, frameBody);
+        Assert.Equal(frameBody, settled.Single(entity => entity.EntityId == pig).PhysicsBodyId);
+        uint rearBody = settled.Single(entity => entity.EntityId == rearWheel).PhysicsBodyId;
+        uint frontBody = settled.Single(entity => entity.EntityId == frontWheel).PhysicsBodyId;
+        Assert.NotEqual(frameBody, rearBody);
+        Assert.NotEqual(rearBody, frontBody);
+
+        Assert.True(room.Submit(PlayHost.BindPlayer(SetTypeActive(++sequence, 0, 17, active: true), player)).IsAccepted);
+        float before = settled.Single(entity => entity.EntityId == pig).Position.X;
+        for (int tick = 0; tick < 30; tick++)
+        {
+            room.Tick();
+        }
+
+        List<SnapshotEntity> moved = PublishEntities(room, out _);
+        float after = moved.Single(entity => entity.EntityId == pig).Position.X;
+        Assert.True(after > before + 0.2f, $"the motor must drive the hinged cart: {before} -> {after}");
+        Assert.True(
+            moved.Where(entity => entity.EntityId == rearWheel || entity.EntityId == frontWheel)
+                .Any(entity => MathF.Abs(entity.AngularVelocity.Z) > 0.5f),
+            "the motor must spin the wheels instead of dragging them");
+    }
+
+    [Fact]
+    public void SandboxWheelUnderFrameHingesToFrame()
+    {
+        using GameRoom room = PlayHost.CreateSandboxRoom();
+        uint player = PlayHost.NextPlayerId();
+        uint sequence = 0;
+
+        uint Place(uint partTypeId, float x, float y)
+        {
+            CommandOutcome outcome = room.Submit(PlayHost.BindPlayer(PlacePart(++sequence, 0, partTypeId, x, y), player));
+            Assert.True(outcome.IsAccepted, $"place {partTypeId} at ({x},{y}): {outcome.Status}/{outcome.Error}");
+            return outcome.EntityId;
+        }
+
+        // The user-visible regression: a wooden frame directly above a wooden wheel only
+        // connects through the wheel's support collider, and the wheel keeps its own body
+        // hinged at the axle so it can roll.
+        uint frame = Place(1, -9f, -0.5f);
+        uint wheel = Place(7, -9f, -1.5f);
+        Assert.True(room.Submit(PlayHost.BindPlayer(Start(++sequence, 0), player)).IsAccepted);
+
+        for (int tick = 0; tick < 120; tick++)
+        {
+            room.Tick();
+        }
+
+        List<SnapshotEntity> entities = PublishEntities(room, out _);
+        SnapshotEntity frameEntity = entities.Single(entity => entity.EntityId == frame);
+        SnapshotEntity wheelEntity = entities.Single(entity => entity.EntityId == wheel);
+        Assert.NotEqual(0u, frameEntity.PhysicsBodyId);
+        Assert.NotEqual(frameEntity.PhysicsBodyId, wheelEntity.PhysicsBodyId);
+        float dx = wheelEntity.Position.X - frameEntity.Position.X;
+        float dy = wheelEntity.Position.Y - frameEntity.Position.Y;
+        Assert.InRange(MathF.Sqrt((dx * dx) + (dy * dy)), 0.5f, 1.5f);
+    }
+
     private static ResetScriptOutcome RunResetScript()
     {
         ScriptedWorld world = new();

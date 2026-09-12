@@ -224,7 +224,11 @@ public sealed class PhysicsContractTests
             PhysicsQuaternion.Identity,
             1,
             new ShapeDefinition[] { new UnsupportedShapeDefinition() })));
-        Assert.Empty(world.Capabilities.SupportedJointKinds);
+        Assert.Equal(new[] { PhysicsJointKind.Revolute }, world.Capabilities.SupportedJointKinds);
+        PhysicsBodyId first = world.CreateBody(DynamicBox());
+        PhysicsBodyId second = world.CreateBody(DynamicBox());
+        Assert.Throws<NotSupportedException>(() => world.CreateJoint(new JointDefinition(
+            PhysicsJointKind.Distance, first, second, PhysicsConstraintMask.None, breakForce: 0f, breakTorque: 0f)));
     }
 
     [Fact]
@@ -298,6 +302,98 @@ public sealed class PhysicsContractTests
             PhysicsQuaternion.Identity,
             1,
             new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+    }
+
+    [Fact]
+    public void BepuWorldHingeHoldsBodiesTogetherWhileTheWheelSpins()
+    {
+        using BepuPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));
+        PhysicsBodyId chassis = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 4, 0),
+            PhysicsQuaternion.Identity,
+            2f,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+        PhysicsBodyId wheel = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 3, 0),
+            PhysicsQuaternion.Identity,
+            1f,
+            new ShapeDefinition[] { new SphereShapeDefinition(0.45f) }));
+        PhysicsJointId joint = world.CreateJoint(new JointDefinition(
+            PhysicsJointKind.Revolute,
+            chassis,
+            wheel,
+            PhysicsConstraintMask.None,
+            breakForce: 0f,
+            breakTorque: 0f,
+            localAnchorA: new PhysicsVector3(0f, -1f, 0f),
+            localAnchorB: PhysicsVector3.Zero,
+            localAxisA: new PhysicsVector3(0f, 0f, 1f),
+            localAxisB: new PhysicsVector3(0f, 0f, 1f)));
+
+        // Free fall with no ground: the hinge keeps the axle one unit below the chassis.
+        FixedTimeStep step = FixedTimeStep.FromSeconds(1f / 60f);
+        for (int tick = 0; tick < 120; tick++)
+        {
+            world.ApplyCommands(ReadOnlySpan<PhysicsCommand>.Empty);
+            world.Step(step);
+            _ = world.DrainEvents(new PhysicsEvent[8]);
+        }
+
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[2];
+        int count = world.CopySnapshots(snapshots);
+        PhysicsBodySnapshot chassisSnapshot = Assert.Single(snapshots[..count], entry => entry.Body == chassis);
+        PhysicsBodySnapshot wheelSnapshot = Assert.Single(snapshots[..count], entry => entry.Body == wheel);
+        Assert.InRange(PhysicsVector3.Distance(chassisSnapshot.Position, wheelSnapshot.Position), 0.95f, 1.05f);
+
+        world.DestroyJoint(joint);
+    }
+
+    [Fact]
+    public void BepuWorldDropsCompoundWithSphereChildOntoGround()
+    {
+        using BepuPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));
+        PhysicsBodyId ground = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Static,
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.Identity,
+            0,
+            new ShapeDefinition[] { new BoxShapeDefinition(10, 0.5f, 10) }));
+        CompoundShapeDefinition compound = new(new[]
+        {
+            new CompoundChild(new BoxShapeDefinition(0.5f, 0.5f, 0.5f), new PhysicsVector3(-0.5f, 0f, 0f)),
+            new CompoundChild(new SphereShapeDefinition(0.45f), new PhysicsVector3(0.5f, 0f, 0f))
+        });
+        PhysicsBodyId body = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 4, 0),
+            PhysicsQuaternion.Identity,
+            2,
+            new ShapeDefinition[] { compound }));
+
+        PhysicsEvent[] events = new PhysicsEvent[16];
+        _ = world.DrainEvents(events);
+        bool contactStarted = false;
+        FixedTimeStep timeStep = FixedTimeStep.FromSeconds(1f / 60f);
+        for (int tick = 0; tick < 180; tick++)
+        {
+            world.ApplyCommands(ReadOnlySpan<PhysicsCommand>.Empty);
+            world.Step(timeStep);
+            int eventCount = world.DrainEvents(events);
+            for (int index = 0; index < eventCount; index++)
+            {
+                contactStarted |= events[index].Kind == PhysicsEventKind.ContactStarted
+                    && ((events[index].BodyA == ground && events[index].BodyB == body)
+                        || (events[index].BodyA == body && events[index].BodyB == ground));
+            }
+        }
+
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[2];
+        int snapshotCount = world.CopySnapshots(snapshots);
+        PhysicsBodySnapshot compoundSnapshot = Assert.Single(snapshots[..snapshotCount], snapshot => snapshot.Body == body);
+        Assert.InRange(compoundSnapshot.Position.Y, 0.9f, 1.1f);
+        Assert.True(contactStarted, "the sphere child must reach the ground");
     }
 
     [Fact]
