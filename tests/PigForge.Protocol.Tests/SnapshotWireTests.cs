@@ -36,8 +36,8 @@ public sealed class SnapshotWireTests
     public void FrameSizeIsBoundedPerEntity()
     {
         Assert.Equal(15, SnapshotFrame.HeaderByteCount);
-        Assert.Equal(69, SnapshotFrame.EntityByteCount);
-        Assert.Equal(15 + (10 * 69), SnapshotFrame.GetMaxByteCount(10));
+        Assert.Equal(73, SnapshotFrame.EntityByteCount);
+        Assert.Equal(15 + (10 * 73), SnapshotFrame.GetMaxByteCount(10));
     }
 
     [Fact]
@@ -121,6 +121,7 @@ public sealed class SnapshotWireTests
                 LinearVelocity: new ReplayVector3(1f, -2f, 0f),
                 AngularVelocity: ReplayVector3.Zero,
                 Scale: 1f + index,
+                AttachYaw: index * 0.5f,
                 Flags: (byte)(index % 2));
         }
 
@@ -128,7 +129,7 @@ public sealed class SnapshotWireTests
     }
 
     [Fact]
-    public void VersionTwoFramesAreRejected()
+    public void PreviousVersionFramesAreRejected()
     {
         SnapshotEntity[] entities = CreateEntities(1);
         Span<byte> buffer = stackalloc byte[SnapshotFrame.GetMaxByteCount(1)];

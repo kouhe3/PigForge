@@ -115,15 +115,17 @@ Little-endian，19B 头（magic/version/kind/sequence/playerId/tick）不变：
   - `trigger`：`active = true` → 未触发过则触发；已触发 → Accepted no-op。`active = false` → Accepted no-op（一次性动作不可撤销）。
   - kind 9 作用于该玩家、该 `partTypeId`、可开关的全部存活零件（实体升序）；`toggle` 组客户端发 `active = !组内任一 Active`（原作「有任一个关着 → 全开；否则全关」），`trigger` 组发 `active = true`。
 
-## PGFS v3
+## PGFS v3（本切片）／v4（ADR-009 追加，当前版本）
 
 ```
-magic "PGFS" | version:u16(=3) | tick:u32 | phase:u8 | entityCount:u32
+magic "PGFS" | version:u16(=4) | tick:u32 | phase:u8 | entityCount:u32
 entity: entityId:u32 | physicsBodyId:u32 | partTypeId:u32 | position:3f |
-        rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f | flags:u8
+        rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f | attachYaw:f | flags:u8
 ```
 
-- `SnapshotFrame.CurrentVersion = 3`；`SnapshotFrame.EntityByteCount = 69`；`SnapshotEntity` 追加 `byte Flags`。
+- v4（当前）：`EntityByteCount = 73`，在 `scale` 与 `flags` 之间追加 `attachYaw:f`——零件**不自转的贴图**所刚性附着的参考坐标系的世界 Z 朝向（铰链轮 = 父刚体坐标系，其余零件 = 自身坐标系）。见 `docs/decisions/ADR-009-wheel-spin-model.md`。
+
+- v3（本切片）：`CurrentVersion = 3`、`EntityByteCount = 69`，`SnapshotEntity` 追加 `byte Flags`（已由 v4 取代）。
 - `flags` bit0 = `Active`；其余位保留，写入 0、读取忽略。
 - `GameRoom` 三处 `TryEncodeHeader` 改用 `SnapshotFrame.CurrentVersion`（当前误用 `ProtocolVersion.Current`）；三条发布路径（Running/Building/Sandbox）都写 `Flags = rules.IsPartActive(entity) ? 1 : 0`；预览与未绑定实体为 0。
 - `ComputeStateHash()` 的 Running 分支把激活条目（按 entityId 升序的 `entityId + Active`）纳入哈希。

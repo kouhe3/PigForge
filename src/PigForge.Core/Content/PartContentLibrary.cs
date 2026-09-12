@@ -94,6 +94,71 @@ public sealed class PartContentLibrary
     }
 
     /// <summary>
+    /// One leaf shape of a hinged part: the shape, its part-local offset, and whether it spins
+    /// with the wheel body.
+    /// </summary>
+    public readonly record struct WheelShape(ShapeDefinition Shape, PhysicsVector3 Offset, bool Spins);
+
+    /// <summary>
+    /// True for the only shape kind a spinning wheel body may carry: a sphere is invariant
+    /// under rotation about its own centre, so a tire can roll. Any other collider is a fixed
+    /// mount — the original keeps a wheel's support box on a non-rotating child, so a spinning
+    /// body would sweep it into the chassis.
+    /// </summary>
+    public static bool IsTireShape(ShapeDefinition shape)
+    {
+        ArgumentNullException.ThrowIfNull(shape);
+        return shape.Kind == PhysicsShapeKind.Sphere;
+    }
+
+    /// <summary>
+    /// Classifies a hinged part's shapes and reports the axle they turn about, in part-local
+    /// space (scaled, Z = 0): the volume-weighted centre of its tires, with every other shape
+    /// mounted on the parent body. Hinging anywhere but the tire centre makes the tire orbit
+    /// the joint like a cam instead of rolling. A part with no tire shape has nothing that can
+    /// roll, so all of its shapes spin about their own volume centre (the original's propeller).
+    /// </summary>
+    public (PhysicsVector3 Axle, WheelShape[] Shapes) DescribeWheel(uint partTypeId, float scale = 1f)
+    {
+        ShapePlacement[] placements = EnumerateShapePlacements(partTypeId, scale);
+        bool hasTire = false;
+        foreach (ShapePlacement placement in placements)
+        {
+            if (IsTireShape(placement.Shape))
+            {
+                hasTire = true;
+                break;
+            }
+        }
+
+        float total = 0f;
+        PhysicsVector3 weighted = PhysicsVector3.Zero;
+        foreach (ShapePlacement placement in placements)
+        {
+            if (hasTire && !IsTireShape(placement.Shape))
+            {
+                continue;
+            }
+
+            float volume = ShapeMetrics.Volume(placement.Shape);
+            total += volume;
+            weighted += placement.Offset * volume;
+        }
+
+        PhysicsVector3 axle = total > 0f ? weighted * (1f / total) : PhysicsVector3.Zero;
+        WheelShape[] shapes = new WheelShape[placements.Length];
+        for (int index = 0; index < placements.Length; index++)
+        {
+            shapes[index] = new WheelShape(
+                placements[index].Shape,
+                placements[index].Offset,
+                !hasTire || IsTireShape(placements[index].Shape));
+        }
+
+        return (axle, shapes);
+    }
+
+    /// <summary>
     /// Maps a part definition to a physics body definition at the given pose. A uniform
     /// <paramref name="scale"/> multiplies linear shape dimensions and mass scales with
     /// volume (scale cubed). A part with several colliders or an offset collider becomes

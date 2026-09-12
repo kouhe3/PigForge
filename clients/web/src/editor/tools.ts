@@ -136,11 +136,15 @@ export function entitiesInBox(
 /** Flush-contact snap distance for a move drag (world metres, below the 0.5 grid step). */
 export const PART_SNAP = 0.35;
 
-/** Half extents of a part's build-plane AABB, plus the id to exclude from contact tests. */
+/** Union AABB of a part's build-plane shape union, plus the id to exclude from contact tests. */
 export interface SnapTarget {
   entityId: number;
+  /** Union AABB half extents of the part's build-plane shape union, in world metres. */
   halfX: number;
   halfY: number;
+  /** Union AABB centre relative to the entity origin (independent of the drag position). */
+  offsetX: number;
+  offsetY: number;
 }
 
 /** A placed part's build-plane AABB: a contact target with its centre. */
@@ -150,47 +154,75 @@ export interface SnapBox extends SnapTarget {
 }
 
 /**
- * World-axis half extents of an entity's first collision shape, or null when the part
- * is unknown or carries no box/sphere shape (nothing to snap against).
+ * Union build-plane AABB of an entity's collision shapes, or null when the part is
+ * unknown or carries no box/sphere shape (nothing to snap against). Mirrors the server's
+ * `PartFootprint`: every shape's part-local offset is rotated by `entity.yaw` and scaled,
+ * boxes project to rotated-rect AABBs and spheres to squares of `radius * scale`.
  */
 export function snapBoxOf(entity: DrawEntity, part: PartDefinition | undefined): SnapBox | null {
-  const shape = part?.shapes[0];
-  if (shape === undefined) {
+  if (part === undefined) {
     return null;
   }
 
-  if (shape.kind === "sphere") {
-    if (shape.radius === undefined) {
-      return null;
+  const cos = Math.cos(entity.yaw);
+  const sin = Math.sin(entity.yaw);
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const shape of part.shapes) {
+    const offset = shape.offset ?? [0, 0, 0];
+    const centreX = (offset[0] * cos - offset[1] * sin) * entity.scale;
+    const centreY = (offset[0] * sin + offset[1] * cos) * entity.scale;
+    let extentX: number;
+    let extentY: number;
+
+    if (shape.kind === "sphere") {
+      if (shape.radius === undefined) {
+        continue;
+      }
+
+      extentX = shape.radius * entity.scale;
+      extentY = extentX;
+    } else {
+      const half = shape.halfExtents;
+      if (half === undefined) {
+        continue;
+      }
+
+      const halfX = half[0] * entity.scale;
+      const halfY = half[1] * entity.scale;
+      extentX = Math.abs(halfX * cos) + Math.abs(halfY * sin);
+      extentY = Math.abs(halfX * sin) + Math.abs(halfY * cos);
     }
 
-    const radius = shape.radius * entity.scale;
-    return { entityId: entity.entityId, x: entity.x, y: entity.y, halfX: radius, halfY: radius };
+    minX = Math.min(minX, centreX - extentX);
+    maxX = Math.max(maxX, centreX + extentX);
+    minY = Math.min(minY, centreY - extentY);
+    maxY = Math.max(maxY, centreY + extentY);
   }
 
-  const half = shape.halfExtents;
-  if (half === undefined) {
+  if (minX > maxX) {
     return null;
   }
 
-  const cos = Math.abs(Math.cos(entity.yaw));
-  const sin = Math.abs(Math.sin(entity.yaw));
-  const halfX = half[0] * entity.scale;
-  const halfY = half[1] * entity.scale;
   return {
     entityId: entity.entityId,
     x: entity.x,
     y: entity.y,
-    halfX: halfX * cos + halfY * sin,
-    halfY: halfX * sin + halfY * cos,
+    halfX: (maxX - minX) / 2,
+    halfY: (maxY - minY) / 2,
+    offsetX: (minX + maxX) / 2,
+    offsetY: (minY + maxY) / 2,
   };
 }
 
 /**
- * Flush-contact candidate: zero gap against a nearby part whose other axis already
- * overlaps. Only contact makes the server connect parts (`ConstructionRules`
- * ConnectionProximity = 0.15 m), so this is the only snapping a free move applies;
- * candidates further than `threshold` from the pointer are ignored.
+ * Flush-contact candidate: zero gap between the two parts' union AABB boxes, against a
+ * nearby part whose other axis already overlaps. Only contact makes the server connect
+ * parts (`ConstructionRules` ConnectionProximity = 0.15 m), so this is the only snapping
+ * a free move applies; candidates further than `threshold` from the pointer are ignored.
  */
 export function snapMoveToParts(
   rawX: number,
@@ -209,8 +241,16 @@ export function snapMoveToParts(
       continue;
     }
 
-    if (Math.abs(rawY - other.y) < other.halfY + self.halfY) {
-      for (const candidate of [other.x + other.halfX + self.halfX, other.x - other.halfX - self.halfX]) {
+    const selfCentreX = rawX + self.offsetX;
+    const selfCentreY = rawY + self.offsetY;
+    const otherCentreX = other.x + other.offsetX;
+    const otherCentreY = other.y + other.offsetY;
+
+    if (Math.abs(selfCentreY - otherCentreY) < other.halfY + self.halfY) {
+      for (const candidate of [
+        otherCentreX + other.halfX + self.halfX - self.offsetX,
+        otherCentreX - other.halfX - self.halfX - self.offsetX,
+      ]) {
         const delta = Math.abs(candidate - rawX);
         if (delta <= threshold && delta < bestXDelta) {
           bestX = candidate;
@@ -219,8 +259,11 @@ export function snapMoveToParts(
       }
     }
 
-    if (Math.abs(rawX - other.x) < other.halfX + self.halfX) {
-      for (const candidate of [other.y + other.halfY + self.halfY, other.y - other.halfY - self.halfY]) {
+    if (Math.abs(selfCentreX - otherCentreX) < other.halfX + self.halfX) {
+      for (const candidate of [
+        otherCentreY + other.halfY + self.halfY - self.offsetY,
+        otherCentreY - other.halfY - self.halfY - self.offsetY,
+      ]) {
         const delta = Math.abs(candidate - rawY);
         if (delta <= threshold && delta < bestYDelta) {
           bestY = candidate;

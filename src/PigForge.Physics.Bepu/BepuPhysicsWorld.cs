@@ -20,6 +20,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private readonly Dictionary<TypedIndex, List<TypedIndex>> _childShapesByCompound = new();
     private readonly Dictionary<int, float> _frictionByDynamicHandle = new();
     private readonly Dictionary<int, float> _frictionByStaticHandle = new();
+    // Bodies joined by a PigForge joint are one mechanism: the original keeps a wheel's
+    // support collider and its tire on the same rigid body, and after the split that keeps
+    // wheels spinning (see ADR-009) the two overlap on purpose. Contacts between them would
+    // be a permanent, deeply penetrating collision.
+    private readonly HashSet<long> _jointedPairs = new();
     private readonly Dictionary<int, PhysicsBodyId> _dynamicIdsByHandle = new();
     private readonly Dictionary<int, PhysicsBodyId> _staticIdsByHandle = new();
     private readonly List<PhysicsBodyId> _bodyOrder = new();
@@ -140,6 +145,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
                     _simulation.Solver.Remove(constraint);
                 }
 
+                _jointedPairs.Remove(PairKey(jointA, jointB));
                 _jointBodies.RemoveAt(index);
             }
 
@@ -209,7 +215,25 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         ConstraintHandle handle = _simulation.Solver.Add(handleA, handleB, hinge);
         _joints.Add(id, handle);
         _jointBodies.Add((id, handleA, handleB));
+        _jointedPairs.Add(PairKey(handleA, handleB));
         return id;
+    }
+
+    /// <summary>Order-independent key for a pair of jointed bodies.</summary>
+    private static long PairKey(BodyHandle left, BodyHandle right) =>
+        left.Value <= right.Value
+            ? ((long)left.Value << 32) | (uint)right.Value
+            : ((long)right.Value << 32) | (uint)left.Value;
+
+    /// <summary>True when two collidables are the two ends of a PigForge joint.</summary>
+    private bool AreJointed(in CollidableReference left, in CollidableReference right)
+    {
+        if (left.Mobility != CollidableMobility.Dynamic || right.Mobility != CollidableMobility.Dynamic)
+        {
+            return false;
+        }
+
+        return _jointedPairs.Contains(PairKey(left.BodyHandle, right.BodyHandle));
     }
 
     public void DestroyJoint(PhysicsJointId joint)
@@ -223,7 +247,17 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         if (_joints.Remove(joint, out ConstraintHandle handle))
         {
             _simulation.Solver.Remove(handle);
-            _jointBodies.RemoveAll(entry => entry.Joint == joint);
+            for (int index = _jointBodies.Count - 1; index >= 0; index--)
+            {
+                (PhysicsJointId jointId, BodyHandle jointA, BodyHandle jointB) = _jointBodies[index];
+                if (jointId != joint)
+                {
+                    continue;
+                }
+
+                _jointedPairs.Remove(PairKey(jointA, jointB));
+                _jointBodies.RemoveAt(index);
+            }
         }
     }
 
@@ -355,6 +389,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _bodyOrder.Clear();
         _joints.Clear();
         _jointBodies.Clear();
+        _jointedPairs.Clear();
         _events.Clear();
         _activeContacts.Clear();
         _currentContacts.Clear();
@@ -535,7 +570,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         }
 
         public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin)
-            => a.Mobility == CollidableMobility.Dynamic || b.Mobility == CollidableMobility.Dynamic;
+            => (a.Mobility == CollidableMobility.Dynamic || b.Mobility == CollidableMobility.Dynamic)
+            && !_world.AreJointed(a, b);
 
         public bool AllowContactGeneration(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB) => true;
 

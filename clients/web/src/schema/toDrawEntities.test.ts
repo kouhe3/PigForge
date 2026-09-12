@@ -12,6 +12,7 @@ function snapshot(physicsBodyId: number): SnapshotEntity {
     linearVelocity: [0.5, 0, 0],
     angularVelocity: [0, 0, 1],
     scale: 1.5,
+    attachYaw: 0.25,
     active: false,
   };
 }
@@ -35,5 +36,10 @@ describe("toDrawEntities", () => {
   it("carries the switch flag through", () => {
     const [entity] = toDrawEntities([{ ...snapshot(19), active: true }]);
     expect(entity.active).toBe(true);
+  });
+
+  it("carries the attach frame onto the draw entity", () => {
+    const [entity] = toDrawEntities([{ ...snapshot(19), attachYaw: 0.75 }]);
+    expect(entity.attachYaw).toBe(0.75);
   });
 });

@@ -111,6 +111,8 @@ describe("part contact snap", () => {
     const projected = snapBoxOf({ ...base, scale: 1.5 }, sphere);
     expect(projected?.halfX).toBeCloseTo(0.6);
     expect(projected?.halfY).toBeCloseTo(0.6);
+    expect(projected?.offsetX).toBe(0);
+    expect(projected?.offsetY).toBe(0);
   });
 
   it("has no box without a part or a usable shape", () => {
@@ -118,8 +120,42 @@ describe("part contact snap", () => {
     expect(snapBoxOf(base, { ...block, shapes: [{ kind: "convexMesh" }] })).toBeNull();
   });
 
-  const self = { entityId: 2, halfX: 0.45, halfY: 0.45 };
-  const neighbour = { entityId: 1, x: 0, y: 0, halfX: 0.475, halfY: 0.475 };
+  // Wooden wheel (content partTypeId 7): support box plus the tire sphere, both offset.
+  const wheel: PartDefinition = {
+    partTypeId: 7, name: "woodenWheel", mode: "dynamic", mass: 1,
+    shapes: [
+      { kind: "box", halfExtents: [0.2, 0.32, 0.5], offset: [0, 0.1702, 0] },
+      { kind: "sphere", radius: 0.33, offset: [0.0106, -0.2057, 0] },
+    ],
+  };
+
+  it("unions every shape's offset into the AABB instead of using only the first (wooden wheel)", () => {
+    const projected = snapBoxOf({ ...base, entityId: 2, x: 0, y: 0 }, wheel);
+    // Support box x [-0.2, 0.2] y [-0.1498, 0.4902]; tire sphere x [-0.3194, 0.3406] y [-0.5357, 0.1243].
+    expect(projected?.halfX).toBeCloseTo(0.33);
+    expect(projected?.offsetX).toBeCloseTo(0.0106);
+    expect(projected?.halfY).toBeCloseTo(0.51295);
+    expect(projected?.offsetY).toBeCloseTo(-0.02275);
+  });
+
+  it("snaps the wheel's union AABB flush under a block instead of its first shape 0.17 m too high", () => {
+    const blockAtOne = { entityId: 1, x: 0, y: 1, halfX: 0.5, halfY: 0.5, offsetX: 0, offsetY: 0 };
+    const wheelSelf = snapBoxOf({ ...base, entityId: 2, x: 0, y: 0 }, wheel);
+    if (wheelSelf === null) {
+      throw new Error("the wooden wheel must project to a union box");
+    }
+
+    const snapped = snapMoveToParts(0, 0, wheelSelf, [blockAtOne]);
+    // Origin y 0.0098 puts the union top (0.0098 + 0.4902) exactly on the block's bottom face 0.5.
+    expect(snapped.y).toBeCloseTo(0.0098);
+    // A shapes[0]-only box answered 0.18, sinking the wheel 0.17 m into the block (server rejects overlap).
+    expect(snapped.y).not.toBeCloseTo(0.18, 2);
+    // Block y [0.5, 1.5] vs wheel union y [-0.5357, 0.4902]: no overlap, so the X axis gate never opens.
+    expect(snapped.x).toBe(0);
+  });
+
+  const self = { entityId: 2, halfX: 0.45, halfY: 0.45, offsetX: 0, offsetY: 0 };
+  const neighbour = { entityId: 1, x: 0, y: 0, halfX: 0.475, halfY: 0.475, offsetX: 0, offsetY: 0 };
 
   it("snaps flush against a neighbour inside the threshold", () => {
     const snapped = snapMoveToParts(0.93, 0.05, self, [neighbour]);

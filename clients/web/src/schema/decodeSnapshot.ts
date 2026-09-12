@@ -1,9 +1,9 @@
 import type { SnapshotEntity, SnapshotFrame, Vec3, Quat } from "./types";
 
-export const SNAPSHOT_VERSION = 3;
+export const SNAPSHOT_VERSION = 4;
 export const SNAPSHOT_BUILDING_PHASE = 0x10;
 export const SNAPSHOT_HEADER_BYTES = 15;
-export const SNAPSHOT_ENTITY_BYTES = 69;
+export const SNAPSHOT_ENTITY_BYTES = 73;
 
 export function decodeSnapshotFrame(source: Uint8Array): SnapshotFrame | string {
   if (source.length < SNAPSHOT_HEADER_BYTES) {
@@ -39,7 +39,8 @@ export function decodeSnapshotFrame(source: Uint8Array): SnapshotFrame | string 
       linearVelocity: readVec3(view, offset + 40),
       angularVelocity: readVec3(view, offset + 52),
       scale: view.getFloat32(offset + 64, true),
-      active: (view.getUint8(offset + 68) & 1) === 1,
+      attachYaw: view.getFloat32(offset + 68, true),
+      active: (view.getUint8(offset + 72) & 1) === 1,
     });
   }
 

@@ -67,19 +67,31 @@ const NAMED_SCRIPT = scriptGuid("INSerializedSprite");
 
 // ------------------------------------------------------------ sprite tables
 
-/** sprites.txt: id -> { w, h, pivotX, pivotY } (trimmed pixel size + pivot). */
+/**
+ * sprites.txt: id -> the sprite database row (GUISystem/Sprites).
+ * Columns: 0 id | 1 name | 2 materialId | 3-6 selection x/y/w/h | 7-8 pivot x/y |
+ * 9-10 UV x/y | 11-12 width/height | 13 subdivisions | 14 opaqueBorderPixels.
+ * `selection` is the sprite's box in the 1024-px design grid and `uv`/`width`/`height` its
+ * packed rect; Sprite.SelectSprite derives the mesh's pivot offset from all four (see below).
+ */
 const spriteCells = new Map();
 for (const line of readFileSync(join(ASSETS, "Resources", "guisystem", "sprites.txt"), "utf8").split("\n")) {
   const f = line.split("\t");
   if (f.length < 14 || !f[0]) continue;
+  const int = (index) => Number(f[index]);
   spriteCells.set(f[0], {
-    w: Number(f[11]),
-    h: Number(f[12]),
-    pivotX: Number(f[7]),
-    pivotY: Number(f[8]),
+    selectionX: int(3),
+    selectionY: int(4),
+    selectionWidth: int(5),
+    selectionHeight: int(6),
+    pivotX: int(7),
+    pivotY: int(8),
+    uvX: int(9),
+    uvY: int(10),
+    w: int(11),
+    h: int(12),
   });
 }
-
 /** spritemapping.txt: id -> normalized trimmed UV [x, y, w, h] (Unity bottom-left). */
 const spriteUv = new Map();
 for (const line of readFileSync(join(ASSETS, "Resources", "guisystem", "spritemapping.txt"), "utf8").split("\n")) {
@@ -183,7 +195,16 @@ function pngSize(path) {
 
 // ---------------------------------------------------------------- extraction
 
-/** Sprite centre offset from the prefab root, in BPLE world units (root's own offset excluded). */
+/**
+ * Child nodes whose local rotation the original drives at runtime: the wheel pivots
+ * (CartWheel.cs:101,106) and the fan/rotor/propeller visualization (FanPropeller.cs:323).
+ * A sprite under one of these turns with the part's spin; every other sprite — e.g. a
+ * wheel's axle, which sits on the prefab root — keeps the part's own orientation.
+ */
+const SPINNING_NODES = new Set(["WheelPivot", "FakeWheelPivot", "FanVisualization"]);
+
+/** Sprite centre offset from the prefab root, in BPLE world units (root's own offset
+ * excluded), plus whether the sprite rides a node the original rotates. */
 function localOffset(prefab, gameObject) {
   let transformId = prefab.transformByGameObject.get(gameObject);
   const chain = [];
@@ -192,16 +213,32 @@ function localOffset(prefab, gameObject) {
     chain.push(transform);
     transformId = transform.father;
   }
+  // Walk from the root down so each step's accumulated offset is that node's own offset
+  // from the root (the sprite's own local position must not leak into the pivot).
   const position = [0, 0, 0];
   let angle = 0;
-  for (let i = 0; i < chain.length - 1; i += 1) {
+  let pivot = null;
+  for (let i = chain.length - 2; i >= 0; i -= 1) {
     const t = chain[i];
     position[0] += t.pos[0];
     position[1] += t.pos[1];
     position[2] += t.pos[2];
     angle += 2 * Math.atan2(t.rot[2], t.rot[3]);
+    if (SPINNING_NODES.has(prefab.gameObjects.get(t.gameObject)?.name)) {
+      // The node the original rotates: the axis this sprite — and the whole wheel — turns
+      // about. The renderer spins rotating sprites around it.
+      pivot = [position[0], position[1]];
+    }
   }
-  return { x: position[0], y: position[1], z: position[2], angle };
+
+  return {
+    x: position[0],
+    y: position[1],
+    z: position[2],
+    angle,
+    spin: pivot !== null,
+    pivot,
+  };
 }
 
 function activeChain(prefab, gameObject) {
@@ -230,6 +267,13 @@ function extractSprite(prefab, sprite) {
   const atlas = texturePath.split(/[\\/]/).pop();
   const offset = localOffset(prefab, sprite.gameObject);
   const f = sprite.fields;
+  // Sprite.SelectSprite/CreateMesh rebuild each sprite's quad at runtime around the database
+  // pivot, offsetting it by (selection centre - packed-rect centre + pivot) source pixels,
+  // so a node's local position alone is NOT the artwork's centre. Ignoring it stacks a wheel's
+  // tyre on its fork instead of hanging it on the axle. UnmanagedSprite/INSerializedSprite
+  // centre their quads on the node and carry no pivot, so only the Sprite path corrects.
+  let artX = offset.x;
+  let artY = offset.y;
   let rect;
   let quadW;
   let quadH;
@@ -269,8 +313,16 @@ function extractSprite(prefab, sprite) {
     const w = Math.round(uw * size.width);
     const h = Math.round(uh * size.height);
     rect = { x, y: size.height - yBottom - h, w, h };
-    quadW = Number(f.m_scaleX ?? 1) * cell.w;
-    quadH = Number(f.m_scaleY ?? 1) * cell.h;
+    const scaleX = Number(f.m_scaleX ?? 1);
+    const scaleY = Number(f.m_scaleY ?? 1);
+    quadW = scaleX * cell.w;
+    quadH = scaleY * cell.h;
+    // The pivot the original rotates this quad about, in source pixels, in the same
+    // frame as the packed rect (its centre) — a node offset in world units.
+    const pivotOffsetX = cell.selectionX + cell.selectionWidth / 2 - (cell.uvX + cell.w / 2) + cell.pivotX + Number(f.m_pivotX ?? 0);
+    const pivotOffsetY = cell.selectionY + cell.selectionHeight / 2 - (cell.uvY + cell.h / 2) + cell.pivotY + Number(f.m_pivotY ?? 0);
+    artX = offset.x - scaleX * pivotOffsetX * UNITS_PER_PIXEL;
+    artY = offset.y - scaleY * pivotOffsetY * UNITS_PER_PIXEL;
   }
   if (!(rect.w > 0 && rect.h > 0 && quadW > 0 && quadH > 0)) return undefined;
   const transformId = prefab.transformByGameObject.get(sprite.gameObject);
@@ -278,13 +330,15 @@ function extractSprite(prefab, sprite) {
   return {
     name: prefab.gameObjects.get(sprite.gameObject)?.name ?? "",
     root: prefab.transforms.get(transformId)?.father === "0",
+    rotates: offset.spin,
+    pivot: offset.pivot,
     atlas,
     x: rect.x,
     y: rect.y,
     w: rect.w,
     h: rect.h,
-    cx: offset.x,
-    cy: offset.y,
+    cx: artX,
+    cy: artY,
     sx: quadW * unitsPerPixel,
     sy: quadH * unitsPerPixel,
     rot: offset.angle,
@@ -335,9 +389,19 @@ function extractPart(prefabName) {
   const centreX = (minX + maxX) / 2;
   const centreY = (minY + maxY) / 2;
   const round = (value) => Math.round(value * 1e4) / 1e4;
-  sprites.sort((a, b) => a.z - b.z);
+  // The axis the part's rotating sprites turn about, in the same frame as `cx`/`cy`
+  // (relative to the composite's layout anchor). Absent for parts that never spin. Read
+  // before sorting so the axis never depends on the paint order below.
+  const pivot = sprites.find((s) => s.pivot)?.pivot;
+  // Paint order, far to near. The game camera sits at z = -15 looking towards +z
+  // (IngameCamera.cs:440,1038), so a larger z is farther away, and Unity's transparent queue
+  // draws far geometry first. The array therefore runs z descending, and the client blits it
+  // in order. Reversing this stacks a wheel's tire over the spokes that show through its rim
+  // hole and hides its axle behind the wheel (the reported motor-wheel regression).
+  sprites.sort((a, b) => b.z - a.z);
   return {
     bbox: [round(bbox[0]), round(bbox[1])],
+    ...(pivot ? { pivot: [round(pivot[0] - centreX), round(pivot[1] - centreY)] } : {}),
     sprites: sprites.map((s) => ({
       atlas: s.atlas,
       x: s.x,
@@ -349,6 +413,7 @@ function extractPart(prefabName) {
       sx: round(s.sx),
       sy: round(s.sy),
       rot: round(s.rot),
+      rotates: s.rotates,
     })),
   };
 }

@@ -14,6 +14,7 @@ public sealed class CompoundAssemblerTests
     private const uint PartBlock = 1;
     private const uint PartGround = 2;
     private const uint PartWheel = 3;
+    private const uint PartRamp = 4;
 
     [Fact]
     public void AdjacentDynamicBoxesMergeIntoOneClusterWithOneSeam()
@@ -22,7 +23,7 @@ public sealed class CompoundAssemblerTests
         EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
         EntityId right = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity;
 
-        List<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { left, right }, rules, content);
+        IReadOnlyList<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { left, right }, rules, content).Clusters;
 
         CompoundCluster cluster = Assert.Single(clusters);
         Assert.True(cluster.IsMerged);
@@ -42,7 +43,7 @@ public sealed class CompoundAssemblerTests
         EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
         EntityId right = rules.Place(PartBlock, 2.5f, 0f, 0f, 1f, 0).Entity;
 
-        List<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { left, right }, rules, content);
+        IReadOnlyList<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { left, right }, rules, content).Clusters;
 
         Assert.Equal(2, clusters.Count);
         Assert.All(clusters, cluster => Assert.False(cluster.IsMerged));
@@ -55,10 +56,32 @@ public sealed class CompoundAssemblerTests
         EntityId ground = rules.Place(PartGround, 0f, -1f, 0f, 1f, 0).Entity;
         EntityId block = rules.Place(PartBlock, 0f, 0.1f, 0f, 1f, 0).Entity;
 
-        List<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { ground, block }, rules, content);
+        IReadOnlyList<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { ground, block }, rules, content).Clusters;
 
         Assert.Equal(2, clusters.Count);
         Assert.All(clusters, cluster => Assert.False(cluster.IsMerged));
+    }
+
+    [Fact]
+    public void StaticPartAtFractionalPositionKeepsPrimitiveBody()
+    {
+        (ConstructionRules rules, PartContentLibrary content) = CreateRules();
+        // The sandbox level spawns ramp planks at fractional coordinates (terrain-v1). The
+        // volume-weighted centroid used to round-trip such a position through multiply and
+        // divide, and the residue pushed the lone static member onto the compound path —
+        // which the physics contract has no support for, so the room failed to load.
+        EntityId ramp = rules.Place(PartRamp, -18.125f, -1.758f, 0.25f, 1f, 0).Entity;
+
+        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { ramp }, rules, content).Clusters);
+        BodyDefinition body = cluster.CreateBodyDefinition(content);
+
+        Assert.Equal(PhysicsBodyMode.Static, body.Mode);
+        BoxShapeDefinition shape = Assert.IsType<BoxShapeDefinition>(Assert.Single(body.Shapes));
+        Assert.Equal(6f, shape.HalfExtentX, precision: 4);
+        Assert.Equal(0.25f, shape.HalfExtentY, precision: 4);
+        Assert.Equal(-18.125f, body.Position.X, precision: 4);
+        Assert.Equal(-1.758f, body.Position.Y, precision: 4);
+        Assert.Equal(PhysicsQuaternion.FromZAngle(0.25f), body.Rotation);
     }
 
     [Fact]
@@ -80,7 +103,7 @@ public sealed class CompoundAssemblerTests
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();
         EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
         EntityId right = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity;
-        CompoundCluster merged = Assert.Single(CompoundAssembler.Assemble(new[] { left, right }, rules, content));
+        CompoundCluster merged = Assert.Single(CompoundAssembler.Assemble(new[] { left, right }, rules, content).Clusters);
 
         IReadOnlyList<CompoundCluster> pieces = CompoundAssembler.SplitAlongSeam(merged, merged.Seams[0]);
 
@@ -99,7 +122,7 @@ public sealed class CompoundAssemblerTests
         EntityId block = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
         EntityId wheel = rules.Place(PartWheel, 0f, -1f, 0f, 1f, 0).Entity;
 
-        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { block, wheel }, rules, content));
+        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { block, wheel }, rules, content).Clusters);
 
         Assert.True(cluster.IsMerged);
         Assert.Equal(new[] { block, wheel }, cluster.Members.Select(member => member.Entity));
@@ -125,12 +148,34 @@ public sealed class CompoundAssemblerTests
 
         // Wheels keep their own body and attach through a revolute joint so they roll
         // instead of skidding with the chassis.
-        List<CompoundCluster> clusters = CompoundAssembler.Assemble(new[] { frame, wheel }, rules, content);
-        Assert.Equal(2, clusters.Count);
-        Assert.All(clusters, cluster => Assert.False(cluster.IsMerged));
-        CompoundHinge hinge = Assert.Single(CompoundAssembler.CollectHinges(new[] { frame, wheel }, rules, content));
+        CompoundAssembly assembly = CompoundAssembler.Assemble(new[] { frame, wheel }, rules, content);
+        Assert.Equal(2, assembly.Clusters.Count);
+        Assert.All(assembly.Clusters, cluster => Assert.False(cluster.IsMerged));
+
+        // The axle is the tire centre, not the part origin: the wooden wheel's tire is a
+        // r = 0.33 sphere centred 0.2057 below its origin, and hinging at the origin made the
+        // tire orbit the joint like a cam instead of rolling.
+        CompoundHinge hinge = Assert.Single(assembly.Hinges);
         Assert.Equal(wheel, hinge.Wheel);
         Assert.Equal(frame, hinge.Parent);
+        Assert.Equal(0.0106f, hinge.LocalAxle.X, precision: 4);
+        Assert.Equal(-0.2057f, hinge.LocalAxle.Y, precision: 4);
+
+        // The wheel body sits on that axle and carries one centred tire sphere; its support box
+        // rides the frame body, which does not spin, so an axle mount cannot sweep into it.
+        CompoundCluster wheelCluster = assembly.Clusters.Single(cluster => cluster.Members[0].Entity == wheel);
+        Assert.Equal(-1f + hinge.LocalAxle.Y, wheelCluster.WorldPosition.Y, precision: 4);
+        BodyDefinition wheelBody = wheelCluster.CreateBodyDefinition(content);
+        Assert.Equal(wheelCluster.WorldPosition.Y, wheelBody.Position.Y, precision: 6);
+        SphereShapeDefinition tire = Assert.IsType<SphereShapeDefinition>(Assert.Single(wheelBody.Shapes));
+        Assert.Equal(0.33f, tire.Radius, precision: 4);
+
+        CompoundCluster frameCluster = assembly.Clusters.Single(cluster => cluster.Members[0].Entity == frame);
+        CompoundShapeDefinition frameBody = Assert.IsType<CompoundShapeDefinition>(
+            Assert.Single(frameCluster.CreateBodyDefinition(content).Shapes));
+        Assert.Equal(2, frameBody.Children.Count);
+        Assert.Contains(frameBody.Children, child => MathF.Abs(((BoxShapeDefinition)child.Shape).HalfExtentX - 0.2f) < 1e-4f);
+        Assert.Contains(frameBody.Children, child => child.Shape.Kind == PhysicsShapeKind.Box && MathF.Abs(((BoxShapeDefinition)child.Shape).HalfExtentX - 0.5f) < 1e-4f);
     }
 
     private static string FindRepositoryFile(string relativePath)
@@ -152,7 +197,7 @@ public sealed class CompoundAssemblerTests
         EntityId a = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
         EntityId b = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity;
         EntityId c = rules.Place(PartBlock, 2.2f, 0f, 0f, 1f, 0).Entity;
-        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { a, b, c }, rules, content));
+        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { a, b, c }, rules, content).Clusters);
         Assert.Equal(2, cluster.Seams.Count);
 
         CompoundSeam? nearA = CompoundAssembler.NearestSeam(cluster, new PhysicsVector3(0.55f, 0f, 0f));
@@ -178,7 +223,7 @@ public sealed class CompoundAssemblerTests
         placed.Add(rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity);
         placed.Add(rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity);
         placed.Add(rules.Place(PartBlock, 2.2f, 0f, 0f, 1f, 0).Entity);
-        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(placed, rules, content));
+        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(placed, rules, content).Clusters);
 
         long hash = cluster.ComputeHash();
         CompoundSeam? seam = CompoundAssembler.NearestSeam(cluster, new PhysicsVector3(0.55f, 0f, 0f));
@@ -200,7 +245,8 @@ public sealed class CompoundAssemblerTests
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
                 { "partTypeId": 2, "name": "ground", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [4, 0.5, 4] } ] },
-                { "partTypeId": 3, "name": "wheel", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.45 } ] }
+                { "partTypeId": 3, "name": "wheel", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.45 } ] },
+                { "partTypeId": 4, "name": "ramp", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [6, 0.25, 1] } ] }
             ]
         }
         """));

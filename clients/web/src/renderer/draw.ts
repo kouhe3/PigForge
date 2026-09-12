@@ -1,6 +1,6 @@
 import type { DrawEntity, MarqueeRect, PartContentDocument, PartDefinition, PartShape } from "@/schema/types";
+import { layoutSprites, type PartTexture, type PartTextureSet } from "./atlas";
 import { type Camera, worldToScreen } from "./camera";
-import { layoutSprites, type PartTextureSet } from "./atlas";
 
 const STATIC_FILL = "#5c6b52";
 const DYNAMIC_FILL = "#c4a574";
@@ -9,6 +9,90 @@ const PREVIEW_ALPHA = 0.45;
 const ACTIVE_STROKE = "#ffd166";
 /** Placeholder shape for entities whose content entry is unknown. */
 const DEFAULT_SHAPE: PartShape = { kind: "box", halfExtents: [0.5, 0.5, 0.5] };
+
+/** Rotates a part-local offset into the world frame (+y up). */
+function rotatePoint(x: number, y: number, angle: number): { x: number; y: number } {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return { x: x * cos - y * sin, y: x * sin + y * cos };
+}
+
+/**
+ * The axle a wheel's sprites turn about, part-local metres: the centre of the tire the part
+ * content describes, which is the same point the server hinges the wheel body about
+ * (`PartContentLibrary.DescribeWheel`). Sourcing it from the content keeps the spin correct
+ * even when the art manifest is stale or absent (`pivot` is only the art-frame fallback).
+ */
+export function wheelAxle(part: PartDefinition, texture?: PartTexture): [number, number] | undefined {
+  if (part.capabilities?.wheel !== true) {
+    return undefined;
+  }
+
+  const tires = part.shapes.filter((shape) => shape.kind === "sphere" && (shape.radius ?? 0) > 0);
+  if (tires.length > 0) {
+    // Volume-weighted, matching the server: a wheel turns about its tires' combined centre.
+    let weight = 0;
+    let x = 0;
+    let y = 0;
+    for (const tire of tires) {
+      const volume = (tire.radius ?? 0) ** 3;
+      weight += volume;
+      x += (tire.offset?.[0] ?? 0) * volume;
+      y += (tire.offset?.[1] ?? 0) * volume;
+    }
+    return [x / weight, y / weight];
+  }
+
+  if (part.shapes.length === 1) {
+    // Nothing round to roll (the original's propeller): its one shape is its own axle.
+    return [part.shapes[0].offset?.[0] ?? 0, part.shapes[0].offset?.[1] ?? 0];
+  }
+
+  return texture?.pivot;
+}
+
+/** Diameter of the tire a wheel part rolls on, or undefined when it has no round shape. */
+function tireDiameter(part: PartDefinition): number | undefined {
+  let radius = 0;
+  for (const shape of part.shapes) {
+    if (shape.kind === "sphere" && (shape.radius ?? 0) > radius) {
+      radius = shape.radius ?? 0;
+    }
+  }
+  return radius > 0 ? radius * 2 : undefined;
+}
+
+/**
+ * Which sprites turn with the wheel. The manifest's per-sprite `rotates` flags are the
+ * authority — only the prefab chain knows which art node the original drives. A manifest
+ * without any flags (an older generated file) falls back to the sprite that draws the tire:
+ * the round one whose art box is the size of the tire it rolls on.
+ */
+function turningSprites(texture: PartTexture, part: PartDefinition): boolean[] {
+  if (texture.sprites.some((sprite) => sprite.rotates)) {
+    return texture.sprites.map((sprite) => sprite.rotates === true);
+  }
+
+  const diameter = tireDiameter(part);
+  const spin = texture.sprites.map(() => false);
+  if (diameter === undefined) {
+    return spin;
+  }
+
+  let best = -1;
+  let bestError = 0.15;
+  texture.sprites.forEach((sprite, index) => {
+    const error = Math.max(Math.abs(sprite.sx - diameter) / diameter, Math.abs(sprite.sy - diameter) / diameter);
+    if (error <= bestError) {
+      bestError = error;
+      best = index;
+    }
+  });
+  if (best >= 0) {
+    spin[best] = true;
+  }
+  return spin;
+}
 
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -74,22 +158,60 @@ export function drawFrame(
       ctx.globalAlpha = PREVIEW_ALPHA;
     }
     ctx.translate(origin.x, origin.y);
-    ctx.rotate(-entity.yaw);
     const shape = part?.shapes[0];
     const atlasImages = textures?.atlases;
     const texture = textures?.parts.get(entity.partTypeId);
     const pixelScale = entity.scale * camera.scale;
+    // A wheel part's body rolls, so `yaw` carries the accumulated spin. Its turning sprites
+    // spin about the axle the content describes; the mounts stay rigid to the frame the part
+    // is attached to — the hinge's parent body (snapshot `attachYaw`), or, for a source
+    // without that frame (a replay document), the angle the part was built at. Build-mode
+    // previews (`bodyId` 0) are not rolled by physics yet, so they follow `yaw` wholesale.
+    const axle = part ? wheelAxle(part, texture) : undefined;
+    const mountFrame = entity.attachYaw ?? entity.restYaw;
+    const rolling = axle !== undefined && entity.bodyId !== 0 && mountFrame !== undefined;
+    const rest = rolling ? mountFrame! : entity.yaw;
+    // Content offsets are part-local, so the axle scales with the part like the sprites do.
+    const axleOffset = rolling && axle
+      ? rotatePoint(axle[0] * entity.scale, axle[1] * entity.scale, entity.yaw)
+      : null;
+    // Which sprites turn with the wheel (manifest flags, with a tire-size fallback).
+    const turning = rolling && part !== undefined && texture !== undefined ? turningSprites(texture, part) : undefined;
+    // Every sprite offset below is measured in the manifest's own frame, so a mount is placed
+    // relative to the tire — the sprite pinned on the axle — and the pair keeps the relative
+    // placement the manifest authored. Measuring a mount from the content axle instead would
+    // mix two frames and drop a small wheel's fork underneath its tire.
+    const tire = turning && texture !== undefined
+      ? layoutSprites(texture, entity.scale).find((_, index) => turning[index])
+      : undefined;
     if (texture && atlasImages && texture.sprites.every((sprite) => atlasImages.get(sprite.atlas) !== undefined)) {
       // Original art: drawn at the BPLE world size and offsets, so part visuals match
-      // the original regardless of the (independent) physics shape.
-      for (const placement of layoutSprites(texture, entity.scale)) {
+      layoutSprites(texture, entity.scale).forEach((placement, index) => {
         const image = textures.atlases.get(placement.sprite.atlas);
-        if (!image) continue;
+        if (!image) return;
         const w = placement.w * pixelScale;
         const h = placement.h * pixelScale;
+        // Position and orientation in the world frame, both taken from the part origin.
+        let offsetX = Math.cos(entity.yaw) * placement.x - Math.sin(entity.yaw) * placement.y;
+        let offsetY = Math.sin(entity.yaw) * placement.x + Math.cos(entity.yaw) * placement.y;
+        let angle = entity.yaw;
+        if (axleOffset) {
+          if (turning?.[index] || tire === undefined) {
+            // The tire spins on the axle: it stays centred there instead of orbiting it.
+            offsetX = axleOffset.x;
+            offsetY = axleOffset.y;
+          } else {
+            // Mounts sit still: keep the offset from the tire the manifest authored.
+            const fixed = rotatePoint(placement.x - tire.x, placement.y - tire.y, rest);
+            offsetX = axleOffset.x + fixed.x;
+            offsetY = axleOffset.y + fixed.y;
+            angle = rest;
+          }
+        }
+
         ctx.save();
-        ctx.translate(placement.x * pixelScale, -placement.y * pixelScale);
-        ctx.rotate(-placement.sprite.rot);
+        ctx.translate(offsetX * pixelScale, -offsetY * pixelScale);
+        ctx.rotate(-(angle + placement.sprite.rot));
         ctx.drawImage(
           image,
           placement.sprite.x,
@@ -102,8 +224,12 @@ export function drawFrame(
           h,
         );
         ctx.restore();
-      }
+      });
     } else {
+      // Shape placeholders live in the part's own frame: rotate the context like the
+      // original sprite path did before the wheel pivot took over placement.
+      ctx.save();
+      ctx.rotate(-entity.yaw);
       const fill = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
       const stroke = part?.mode === "static" ? "#8a9a7a" : "#d8b880";
       const shapes = part?.shapes?.length ? part.shapes : [DEFAULT_SHAPE];
@@ -133,10 +259,14 @@ export function drawFrame(
           ctx.restore();
         }
       }
+      ctx.restore();
     }
     // A switchable part with its switch on gets an amber ring around its shape.
     if (!preview && entity.active && part?.capabilities?.activation !== undefined) {
+      ctx.save();
+      ctx.rotate(-entity.yaw);
       strokeActive(ctx, shape, pixelScale);
+      ctx.restore();
     }
     // Untextured parts are still placeholders: stamp the type name at the collision centre.
     if (!preview && part && part.name && !texture) {

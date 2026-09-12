@@ -38,9 +38,12 @@ interface TransformDrag {
   lastPointerAngle: number;
   startDistance: number;
   accumulatedAngle: number;
-  /** Build-plane half extents at drag start; 0 when the part has no snap shape. */
+  /** Build-plane union-AABB half extents at drag start; 0 when the part has no snap shape. */
   halfX: number;
   halfY: number;
+  /** Union-AABB centre relative to the entity origin at drag start; 0 without a snap shape. */
+  offsetX: number;
+  offsetY: number;
 }
 
 const DRAG_THRESHOLD_PX = 4;
@@ -141,6 +144,8 @@ export function attachCanvasGestures(
         accumulatedAngle: 0,
         halfX: box?.halfX ?? 0,
         halfY: box?.halfY ?? 0,
+        offsetX: box?.offsetX ?? 0,
+        offsetY: box?.offsetY ?? 0,
       };
     }
   };
@@ -187,7 +192,7 @@ export function attachCanvasGestures(
           grid || partOf === undefined || drag.halfX <= 0 || drag.halfY <= 0
             ? undefined
             : {
-                self: { entityId: drag.entityId, halfX: drag.halfX, halfY: drag.halfY },
+                self: { entityId: drag.entityId, halfX: drag.halfX, halfY: drag.halfY, offsetX: drag.offsetX, offsetY: drag.offsetY },
                 others: contactBoxes(entities.current, partOf),
               };
         drag.last = movePose(drag.start, dx, dy, grid, contacts);

@@ -17,7 +17,7 @@ ADR-007 把车轮恢复成「轮胎球 + 支撑盒」并允许 sphere 焊接后�
 
 ## 决策
 
-1. **轮子保留自己的刚体，用 revolute 关节挂在相邻车体上**：`CompoundAssembler.CanMerge` 对 `capabilities.wheel` 的零件返回 false；新增 `CompoundAssembler.CollectHinges` 为每个轮子选一个父件（优先最小 entity id 的非轮子邻居），`GameRoom.BindWheelHinges` 在绑定完簇之后创建关节，锚点 = 轮子零件原点（轴心）在两个刚体局部坐标系下的位置，轴 = 局部 Z。
+1. **轮子保留自己的刚体，用 revolute 关节挂在相邻车体上**：`CompoundAssembler.CanMerge` 对 `capabilities.wheel` 的零件返回 false；新增 `CompoundAssembler.CollectHinges` 为每个轮子选一个父件（优先最小 entity id 的非轮子邻居），`GameRoom.BindWheelHinges` 在绑定完簇之后创建关节，轴 = 局部 Z。**锚点与轮体形状的细节已由 ADR-009 取代**（锚点 = 轮胎中心，轮体只带轮胎形状，安装件挂父体，关节对不碰撞）；本条的「独立刚体 + revolute 关节」结论不变。
 2. **扩展 `JointDefinition`**：追加 `LocalAnchorA/B`、`LocalAxisA/B`（局部坐标系，Revolute 必须是非零轴）；Bepu 后端用 `Hinge` 约束实现 `Revolute`，`PhysicsCapabilities.SupportedJointKinds = { Revolute }`，其它种类仍显式抛 `NotSupportedException`。
 3. **复合体位姿取形状体积质心**：`CompoundAssembler.BuildCluster` 用 `PartContentLibrary.EnumerateShapePlacements` + `ShapeMetrics.Volume` 计算所有 leaf shape 的体积加权中心作为刚体位姿，成员局部偏移按该中心换算；`GameRoom.BindCluster` 对局部偏移非零的单件簇也记录 `_compoundLocalByEntity`，快照/渲染据此还原零件原点。这样 Bepu 的居中就是恒等变换，碰撞几何与内容逐字一致。
 4. **轮子的滚动角由物理给出**：轮子刚体的 Z 旋转就是真实滚动角，快照 `rotation` 直接可用——贴图动画不再需要按地面速度推算轮子转速（见 `docs/specs/part-texture-animation.md`）。

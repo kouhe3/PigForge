@@ -7,6 +7,6 @@
 - **User:** 仓库维护者本人 + 本机 `--play` 的玩家与回放查看者。
 - **Why now:** 贴图已接上（ADR-003/005）但所有零件都是静止图；原作的「活着的」观感主要就来自这四处动画；开关切片刚落地的开关→转速因果现在可观察。
 - **Success:** `--play` 里开风扇 → 叶片立刻满速压缩旋转，关 → 约 2.5s 指数衰减停住；轮子随车速滚动、车身倾斜时仍竖直滚动；猪静止时每 1.5–4s 眨眼、速度按载具能力分档（满推 1 秒速度的 15%/30%/50%）依次露 Grin/FearfulGrin/Fear、单帧速度突变 >5 显示受击 1s、下落速度 >3 m/s 显示 Fear_2；建造期、暂停、预览件（`bodyId === 0`）完全不动画；干净检出（无贴图资产）行为与本切片前逐字一致；`pnpm test`、`pnpm build` 全绿。
-- **Constraint:** 纯客户端表现——零协议改动（PGFS v3 / PGFC v2 不变），动画不进回放、不进状态哈希、不上行；动画数据进 `part-textures.json`（本机生成、gitignored），不进 `content/parts.json`（ADR-003 决策 6）；转速/衰减/旋转轴照抄 BPLE prefab 与脚本，表情阈值因 PigForge 没有原作马达限速改为相对阈值（实测标定，见规格）；缺贴图或缺动画描述符回退静态渲染。
+- **Constraint:** 纯客户端表现——零协议改动（PGFS / PGFC 线格式不变，当前 PGFS v4 / PGFC v2），动画不进回放、不进状态哈希、不上行；动画数据进 `part-textures.json`（本机生成、gitignored），不进 `content/parts.json`（ADR-003 决策 6）；转速/衰减/旋转轴照抄 BPLE prefab 与脚本，表情阈值因 PigForge 没有原作马达限速改为相对阈值（实测标定，见规格）；缺贴图或缺动画描述符回退静态渲染。
 - **Spec:** `docs/specs/part-texture-animation.md`
 - **Out of scope:** 原作不存在的动画（TNT 闪烁、气球帧序列、引擎火焰帧）；Gold 扫光与 Goal 旗 UV 滚动（前者无 Gold 件、后者是关卡装饰）；BlasterTNT 一次性放大淡出（需要激活沿，见 Open Questions）；收集星星盒子/达成目标触发的 `Laugh`（沙盒没有收集物与目标事件）；建造期随机表情；`Laugh` 本身保留在帧表里但不触发；服务端动画权威；Unity 参考工程改动。

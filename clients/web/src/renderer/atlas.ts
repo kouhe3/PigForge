@@ -24,12 +24,24 @@ export interface PartSprite {
   sy: number;
   /** Local rotation in radians, counter-clockwise in the +y-up frame. */
   rot: number;
+  /**
+   * True when the sprite hangs off a node the original drives at runtime (a wheel pivot,
+   * a fan/rotor/propeller visualization): it turns with the part's spin. False sprites —
+   * a wheel's axle, which sits on the prefab root — keep the part's own orientation.
+   * Additive to `schemaVersion` 2; the v3 animation descriptors are unaffected.
+   */
+  rotates: boolean;
 }
 
 export interface PartTexture {
   /** Composite bounds in world units; validated as a manifest sanity check. */
   bbox: [number, number];
   sprites: PartSprite[];
+  /**
+   * The axis the part's rotating sprites turn about, in the same frame as `cx`/`cy`
+   * (relative to the composite's layout anchor). Absent for parts that never spin.
+   */
+  pivot?: [number, number];
 }
 
 export interface PartTextureSet {
@@ -55,7 +67,7 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
   for (const [key, raw] of Object.entries(document.parts as Record<string, unknown>)) {
     const partTypeId = Number(key);
     if (!Number.isInteger(partTypeId) || partTypeId <= 0) throw new Error(`part-textures: bad partTypeId ${key}`);
-    const entry = raw as { bbox?: unknown; sprites?: unknown };
+    const entry = raw as { bbox?: unknown; sprites?: unknown; pivot?: unknown };
     if (!Array.isArray(entry.bbox) || entry.bbox.length !== 2) throw new Error(`part-textures: part ${key} bbox`);
     const bbox: [number, number] = [finite(entry.bbox[0], `part ${key} bbox width`), finite(entry.bbox[1], `part ${key} bbox height`)];
     if (!(bbox[0] > 0 && bbox[1] > 0)) throw new Error(`part-textures: part ${key} bbox not positive`);
@@ -78,9 +90,14 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
         sx: finite(sprite.sx, `part ${key} sprite ${index} sx`),
         sy: finite(sprite.sy, `part ${key} sprite ${index} sy`),
         rot: finite(sprite.rot ?? 0, `part ${key} sprite ${index} rot`),
+        rotates: sprite.rotates === true,
       };
     });
-    parts.set(partTypeId, { bbox, sprites });
+    const pivot =
+      Array.isArray(entry.pivot) && entry.pivot.length === 2
+        ? ([finite(entry.pivot[0], `part ${key} pivot x`), finite(entry.pivot[1], `part ${key} pivot y`)] as [number, number])
+        : undefined;
+    parts.set(partTypeId, { bbox, sprites, ...(pivot ? { pivot } : {}) });
   }
   return parts;
 }

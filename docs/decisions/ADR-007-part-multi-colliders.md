@@ -24,10 +24,11 @@ ADR-005 决策 2 为适配当时的物理契约（`BodyDefinition` 只表达无�
 ## 影响
 
 - 267 个零件中 149 个形状变化：62 个多碰撞体零件（车轮、伞、旋翼、脱钩器等）恢复第二碰撞体；带偏移的单碰撞体零件（猪、螺旋桨、火箭……）恢复原作局部偏移。物理手感与连接距离随之贴近原作。
-- 车轮通过支撑盒与上层零件连接，木轮 + 木框可直接叠放（回归测试：`CompoundAssemblerTests.WoodenWheelSupportColliderConnectsToFrameDirectlyAbove`、`SandboxRoomTests.SandboxWheelUnderFrameHingesToFrame` —— 后者随 ADR-008 改为断言两个刚体经关节相连，而非同一个刚体）。
+- 车轮通过支撑盒与上层零件连接，木轮 + 木框可直接叠放（回归测试：`CompoundAssemblerTests.WoodenWheelSupportColliderConnectsToFrameDirectlyAbove`、`SandboxRoomTests.SandboxWheelUnderFrameHingesToFrame` —— 后者随 ADR-008 改为断言两个刚体经关节相连，而非同一个刚体；轮体只带轮胎、支撑盒挂父体的细节见 ADR-009）。
 - 客户端无贴图时的占位渲染改为绘制零件的全部形状（含偏移）；`validateContent` 校验 `offset` 为三个有限数。
 - 生成链：`node tools/bple-shapes/extract-shapes.mjs --out artifacts/bple-part-shapes.json` → `node tools/bple-shapes/apply-shapes.mjs` → `node tools/web-parts/generate-play-parts.mjs`。
 - 已知残留偏差：胶囊仍折中成包围盒；静态件的偏移/多形状仍不支持（原作里这类零件不存在）。
+- 单成员簇的体姿按成员自身坐标系求（`CompoundAssembler.BuildCluster`）：体积加权的世界和会把坐标乘除一个来回，浮点残差会让「单个居中形状」的静态件误入 compound 路径并抛 `NotSupportedException`（斜坡/地板的坐标就是分数）。回归测试：`CompoundAssemblerTests.StaticPartAtFractionalPositionKeepsPrimitiveBody`。
 
 ## 参考
 

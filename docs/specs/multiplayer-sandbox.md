@@ -42,7 +42,7 @@ Build order: `player-ownership` → `sandbox-room` → `sandbox-web`
 - 服务端 `net10.0`，Bepu 房间，`GameRoom.Submit` / `Tick` / `TryPublishSnapshot`
 - 协议 v2（布局不变）：`PlacePartCommand(Tick, Sequence, PlayerId, PartTypeId, PositionX, PositionY, Angle, Scale)`，`Scale ∈ (0, 4]`
 - Web：Vue 3 + Canvas 2D + Pinia，`clients/web/`，不引用 .NET 程序集
-- 内容：`content/parts.json` + `content/levels/terrain-v1.json`（沿用；目标区因 `ObjectivesEnabled = false` 被忽略）
+- 内容：`content/parts.json` + `content/levels/terrain-v1.json`（沿用；含一条 34 m 三段长坡，见「关卡几何（terrain-v1）」；目标区因 `ObjectivesEnabled = false` 被忽略）
 
 ## Commands
 
@@ -62,6 +62,22 @@ pnpm dev
 ```
 
 `--demo-ws` 不得改语义（自动 Start + 只收快照）。`PlayHost.CreateSlopeRoom()` / `CreateTerrainRoom()` 保留给既有测试与后续竞速切片，不再由 `--play` 使用。
+
+## 关卡几何（terrain-v1）
+
+世界：x 右、y 上、z = 0；重力 `(0, -9.81, 0)`；bounds `[-30, -12, -8] … [30, 30, 8]`。
+
+| 元素 | 内容 |
+|---|---|
+| 地板 | `ground-slab`（part 2）×3，中心 `(-20, -3.5)`、`(0, -3.5)`、`(20, -3.5)`，连成 x ∈ [-30, 30]、顶面 y = -3 的整块地板 |
+| 台阶 | `terrain-box`（part 5）×3：`(4, -2.5)`、`(7, -1.5)`、`(10, -0.5)`，最高一级顶面 y = 0.5 |
+| 长坡 | `ramp-plank`（part 6，12 × 0.5 × 2）×3，同角度 `0.25` rad（≈14.3°）首尾相接：中心 `(-18.125, -1.758)`、`(-6.934, 1.1)`、`(4.257, 3.957)`；坡底在 x ≈ -24 与地板顶面齐平，坡顶 x ≈ 10、y ≈ 5.7，全长 ≈ 34 m、落差 ≈ 9.2 m |
+
+- 三段坡板沿坡向中心距 11.55（板长 12），端面重叠 0.45：坡面连续，滚动物体过缝不卡。
+- 坡底低端顶面与地板齐平（y = -3.0），从坡上到平地没有台阶。
+- 台阶在长坡下方，净空 ≥ 4.4 m；零件装配测试的落点（x ∈ [-9, -7]）在长坡低端上方，净空 ≥ 0.3 m——`SandboxRoomTests` 的两条真实房间测试直接摆在这些坐标上，改坡位必须复算。
+- 坡底到左边界只有 6 m 平跑段：高速下坡的载具会从左边界越界消失（与旧关卡 x = -10 的悬崖同性质）；要停住请在坡底自建挡墙。
+- `goalZone`（`[12, -0.5] … [16, 2.5]`）在沙盒里被忽略（Assumption 3），保持原值；客户端 `clients/web/src/builder/slope.ts` 的 `GOAL_ZONE` / `MAP_BOUNDS` 副本继续一致。
 
 ## Project Structure
 
@@ -205,7 +221,7 @@ Web：`gesture` 仍只产出判别联合；`App.vue` 只做状态机与命令映
 
 - 脚本夹具（无真实 socket）：玩家 1 Place+Start、玩家 2 Place 不 Start → 单帧同时含 `bodyId !== 0`（1 的）与 `bodyId === 0`（2 的），按 entityId 升序。
 - 玩家 1 RESET → 1 的实体消失、2 的实体与布局不变；双跑状态哈希一致。
-- Materialized 下 Place → `WrongMode`；动他人实体 → `RuleRejected` + `NotOwnedByPlayer`。
+- 关卡加载：`terrain-v1` 的分数坐标静态件（坡板）在 `SetupFromLevel` 里必须保持 primitive 静态体（Core 回归 `CompoundAssemblerTests.StaticPartAtFractionalPositionKeepsPrimitiveBody`；单成员簇的质心按成员自身坐标系求，不能有浮点残差）。
 - 出界：构造某玩家全部实体越界 → 该玩家被 RESET，他人不受影响。
 - `ObjectivesEnabled = false`：任何情况不产生 `Won`/`Failed`；`CurrentTick` 只增不减。
 - per-player 序列：重复幂等、跳号拒绝、玩家间互不影响。

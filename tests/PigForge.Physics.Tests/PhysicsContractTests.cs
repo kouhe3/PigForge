@@ -351,6 +351,68 @@ public sealed class PhysicsContractTests
     }
 
     [Fact]
+    public void JointedBodiesOverlapWithoutBeingPushedApart()
+    {
+        // A hinged wheel body carries only its tires; the wheel's mounts ride the parent body
+        // and overlap the tire on purpose (content: support box centre 0.038 above the axle of
+        // an r = 0.33 tire). Those two bodies are one mechanism, so the pair must not collide:
+        // otherwise the solver fights the mount out of the tire and the cart freezes.
+        ShapeDefinition[] mountBox = new ShapeDefinition[] { new BoxShapeDefinition(0.2f, 0.32f, 0.5f) };
+        PhysicsVector3 mountOffset = new(0f, 0.038f, 0f);
+
+        Assert.True(
+            StepsToRelativeDistance(jointed: true) < 0.02f,
+            "the hinge must hold the tire and its mount together");
+        Assert.True(
+            StepsToRelativeDistance(jointed: false) > 0.3f,
+            "overlapping bodies without a joint must be pushed apart");
+
+        float StepsToRelativeDistance(bool jointed)
+        {
+            using BepuPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));
+            PhysicsBodyId tire = world.CreateBody(new BodyDefinition(
+                PhysicsBodyMode.Dynamic,
+                new PhysicsVector3(0, 4, 0),
+                PhysicsQuaternion.Identity,
+                1f,
+                new ShapeDefinition[] { new SphereShapeDefinition(0.33f) }));
+            PhysicsBodyId mount = world.CreateBody(new BodyDefinition(
+                PhysicsBodyMode.Dynamic,
+                new PhysicsVector3(0, 4, 0) + mountOffset,
+                PhysicsQuaternion.Identity,
+                1f,
+                mountBox));
+            if (jointed)
+            {
+                world.CreateJoint(new JointDefinition(
+                    PhysicsJointKind.Revolute,
+                    mount,
+                    tire,
+                    PhysicsConstraintMask.None,
+                    breakForce: 0f,
+                    breakTorque: 0f,
+                    localAnchorA: PhysicsVector3.Zero,
+                    localAnchorB: PhysicsVector3.Zero,
+                    localAxisA: new PhysicsVector3(0f, 0f, 1f),
+                    localAxisB: new PhysicsVector3(0f, 0f, 1f)));
+            }
+
+            FixedTimeStep step = FixedTimeStep.FromSeconds(1f / 60f);
+            PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[2];
+            for (int tick = 0; tick < 120; tick++)
+            {
+                world.Step(step);
+                _ = world.DrainEvents(new PhysicsEvent[8]);
+            }
+
+            int count = world.CopySnapshots(snapshots);
+            PhysicsBodySnapshot tireSnapshot = Assert.Single(snapshots[..count], entry => entry.Body == tire);
+            PhysicsBodySnapshot mountSnapshot = Assert.Single(snapshots[..count], entry => entry.Body == mount);
+            return PhysicsVector3.Distance(tireSnapshot.Position, mountSnapshot.Position);
+        }
+    }
+
+    [Fact]
     public void BepuWorldDropsCompoundWithSphereChildOntoGround()
     {
         using BepuPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));

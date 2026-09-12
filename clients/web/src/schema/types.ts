@@ -107,6 +107,11 @@ export interface SnapshotEntity {
   linearVelocity: Vec3;
   angularVelocity: Vec3;
   scale: number;
+  /**
+   * World Z yaw (radians) of the frame this part's non-spinning sprites are attached to:
+   * the hinge's parent body for a hinged wheel, the part's own frame otherwise (PGFS v4).
+   */
+  attachYaw: number;
   /** Per-entity snapshot flags bit0: the part's switch is on. */
   active: boolean;
 }
@@ -131,6 +136,19 @@ export interface DrawEntity {
   bodyId: number;
   /** Switch state from the snapshot (false for parts without a switch). */
   active: boolean;
+  /**
+   * Orientation of the frame this part's non-spinning sprites are attached to, from the
+   * snapshot's `attachYaw` (PGFS v4). A rolling wheel's `yaw` integrates its roll, so its
+   * mounts need this angle instead to stay rigid to the chassis (see `drawFrame`). Absent
+   * for replay documents, which carry no attach frame.
+   */
+  attachYaw?: number;
+  /**
+   * Build orientation, remembered by the tracker while the entity's layout was still a
+   * preview. Only a fallback for sources without an attach frame (replay documents): the
+   * renderer then keeps the mounts at the angle the part was built at. See `live/restYaw.ts`.
+   */
+  restYaw?: number;
 }
 
 export type ClientCommand =

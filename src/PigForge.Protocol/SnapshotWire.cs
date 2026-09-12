@@ -11,27 +11,32 @@ public readonly record struct SnapshotEntity(
 	ReplayVector3 LinearVelocity,
 	ReplayVector3 AngularVelocity,
 	float Scale,
+	float AttachYaw = 0f,
 	byte Flags = 0);
 
 public readonly record struct SnapshotFrameHeader(ushort Version, uint Tick, byte Phase, uint EntityCount);
 
 /// <summary>
-/// Binary wire format for published authoritative room snapshots (v3).
+/// Binary wire format for published authoritative room snapshots (v4).
 /// Layout, little-endian: magic "PGFS" | version:u16 | tick:u32 | phase:u8 | entityCount:u32,
 /// then per entity: entityId:u32 | physicsBodyId:u32 | partTypeId:u32 | position:3f |
-/// rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f | flags:u8.
+/// rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f | attachYaw:f | flags:u8.
 /// Flags bit0 is the part switch state; bits 1-7 are reserved (written 0, ignored on read).
+/// `attachYaw` is the world Z yaw, in radians, of the frame the part's non-spinning sprites are
+/// rigidly attached to: the hinge's parent body frame for a hinged wheel (so its axle follows the
+/// chassis), the part's own frame otherwise. Rotation is the part's own body rotation, which for
+/// a wheel carries its accumulated spin, so the two differ exactly by the roll (ADR-009).
 /// The hot path is span-based: no JSON and no allocations.
 /// </summary>
 public static class SnapshotFrame
 {
-	public const ushort CurrentVersion = 3;
+	public const ushort CurrentVersion = 4;
 
 	public const byte BuildingPhase = 0x10;
 
 	public const int HeaderByteCount = 15;
 
-	public const int EntityByteCount = 13 + (4 * 14);
+	public const int EntityByteCount = 13 + (4 * 15);
 
 	public static int GetMaxByteCount(int entityCount) => HeaderByteCount + (entityCount * EntityByteCount);
 
@@ -112,7 +117,8 @@ public ref struct SnapshotFrameWriter
 		WriteVector3(span[40..], entity.LinearVelocity);
 		WriteVector3(span[52..], entity.AngularVelocity);
 		BinaryPrimitives.WriteSingleLittleEndian(span[64..], entity.Scale);
-		span[68] = entity.Flags;
+		BinaryPrimitives.WriteSingleLittleEndian(span[68..], entity.AttachYaw);
+		span[72] = entity.Flags;
 		_position += SnapshotFrame.EntityByteCount;
 		return true;
 	}
@@ -166,7 +172,8 @@ public ref struct SnapshotFrameReader
 			ReadVector3(span[40..]),
 			ReadVector3(span[52..]),
 			BinaryPrimitives.ReadSingleLittleEndian(span[64..]),
-			span[68]);
+			BinaryPrimitives.ReadSingleLittleEndian(span[68..]),
+			span[72]);
 		_position += SnapshotFrame.EntityByteCount;
 		_remaining--;
 		return true;

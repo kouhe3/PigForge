@@ -4,6 +4,8 @@ import type { DrawEntity, PartContentDocument, ReplayDocument, ReplayEvent } fro
 import { validatePartContent } from "@/schema/validateContent";
 import { validateReplay } from "@/schema/validateReplay";
 import { toDrawEntities } from "@/schema/toDrawEntities";
+import { SNAPSHOT_BUILDING_PHASE } from "@/schema/decodeSnapshot";
+import { createRestYawTracker } from "@/live/restYaw";
 import { viewState } from "@/viewState";
 
 export type ClientMode = "idle" | "replay" | "live";
@@ -20,6 +22,8 @@ export const useSessionStore = defineStore("session", () => {
   const liveTick = ref(0);
   const livePhase = ref(0);
   const events = ref<ReplayEvent[]>([]);
+  // Build orientations, so a rolling wheel's non-spinning sprites stay put (see the tracker).
+  const restYaw = createRestYawTracker();
 
   function loadContent(value: unknown): boolean {
     const nextErrors = validatePartContent(value);
@@ -57,7 +61,8 @@ export const useSessionStore = defineStore("session", () => {
     const frame = document.frames[next - 1] ?? document.frames[0];
     tick.value = frame.tick;
     events.value = frame.events;
-    viewState.entities = toDrawEntities(frame.snapshots);
+    // A replay has recorded bodies only, so the tracker falls back to each entity's first pose.
+    viewState.entities = restYaw.apply(toDrawEntities(frame.snapshots), false);
   }
 
   function applyLiveEntities(nextTick: number, entities: DrawEntity[], phase = 0): void {
@@ -65,7 +70,7 @@ export const useSessionStore = defineStore("session", () => {
     liveTick.value = nextTick;
     livePhase.value = phase;
     tick.value = nextTick;
-    viewState.entities = entities;
+    viewState.entities = restYaw.apply(entities, phase === SNAPSHOT_BUILDING_PHASE);
   }
 
   function setErrors(next: string[]): void {

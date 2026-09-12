@@ -85,6 +85,7 @@ public sealed class GameRoom : IDisposable
     private readonly Dictionary<uint, (PhysicsVector3 Offset, PhysicsQuaternion Rotation)> _compoundLocalByEntity = new();
     private readonly Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> _bodyPose = new();
     private readonly List<(PhysicsJointId Joint, PhysicsBodyId Wheel, PhysicsBodyId Parent)> _wheelJoints = new();
+    private readonly Dictionary<uint, (PhysicsBodyId Body, PhysicsQuaternion LocalRotation)> _attachByEntity = new();
     private readonly List<LiveCompound> _liveCompounds = new();
     private readonly List<PhysicsCommand> _appliedCommands = new();
     private readonly float _seamBreakImpulse;
@@ -465,13 +466,13 @@ public sealed class GameRoom : IDisposable
 
         _retryLayout.Sort((left, right) => left.Item1.CompareTo(right.Item1));
 
-        List<CompoundCluster> clusters = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
-        foreach (CompoundCluster cluster in clusters)
+        CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
+        foreach (CompoundCluster cluster in assembly.Clusters)
         {
             BindCluster(cluster, cluster.CreateBodyDefinition(_content));
         }
 
-        BindWheelHinges(entities);
+        BindWheelHinges(assembly.Hinges);
 
         EnsureBuffers();
         Mode = RoomMode.Running;
@@ -509,6 +510,7 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _attachByEntity.Clear();
         _liveCompounds.Clear();
 
         if (policy == BuildModePolicy.Keep)
@@ -584,6 +586,7 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _attachByEntity.Clear();
         _liveCompounds.Clear();
 
         Mode = RoomMode.Building;
@@ -790,13 +793,13 @@ public sealed class GameRoom : IDisposable
             entities.Add(new EntityId(entityValue));
         }
 
-        List<CompoundCluster> clusters = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
-        foreach (CompoundCluster cluster in clusters)
+        CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
+        foreach (CompoundCluster cluster in assembly.Clusters)
         {
             BindCluster(cluster, cluster.CreateBodyDefinition(_content));
         }
 
-        BindWheelHinges(entities);
+        BindWheelHinges(assembly.Hinges);
 
         _sandboxPlayers.MarkMaterialized(playerId);
         EnsureBuffers();
@@ -825,13 +828,13 @@ public sealed class GameRoom : IDisposable
     private void MaterializeLevelActors()
     {
         List<EntityId> entities = CollectPartEntities();
-        List<CompoundCluster> clusters = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
-        foreach (CompoundCluster cluster in clusters)
+        CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
+        foreach (CompoundCluster cluster in assembly.Clusters)
         {
             BindCluster(cluster, cluster.CreateBodyDefinition(_content));
         }
 
-        BindWheelHinges(entities);
+        BindWheelHinges(assembly.Hinges);
 
         EnsureBuffers();
         Mode = RoomMode.Running;
@@ -1068,6 +1071,7 @@ public sealed class GameRoom : IDisposable
                     ToReplay(snapshot.LinearVelocity),
                     ToReplay(snapshot.AngularVelocity),
                     _transforms.TryGet(new EntityId(entityValue), out EntityTransform transform) ? transform.Scale : 1f,
+                    AttachYawOf(entityValue, rotation, count),
                     _rules.IsPartActive(new EntityId(entityValue)) ? (byte)1 : (byte)0)))
             {
                 bytesWritten = 0;
@@ -1111,6 +1115,7 @@ public sealed class GameRoom : IDisposable
                     zero,
                     zero,
                     transform.Scale,
+                    YawOf(transform.Rotation),
                     _rules.IsPartActive(entity) ? (byte)1 : (byte)0)))
             {
                 bytesWritten = 0;
@@ -1180,6 +1185,7 @@ public sealed class GameRoom : IDisposable
                     linearVelocity,
                     angularVelocity,
                     transform.Scale,
+                    bodyId == 0 ? YawOf(rotation) : AttachYawOf(entityValue, rotation, count),
                     _rules.IsPartActive(entity) ? (byte)1 : (byte)0)))
             {
                 bytesWritten = 0;
@@ -1240,6 +1246,7 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _attachByEntity.Clear();
         _liveCompounds.Clear();
         _appliedCommands.Clear();
         _outcomeLog.Clear();
@@ -1281,11 +1288,13 @@ public sealed class GameRoom : IDisposable
 
     /// <summary>
     /// Creates the revolute joints that attach every wheel part's own body to a neighbour
-    /// body at the wheel axle, so wheels roll instead of skidding with the chassis.
+    /// body at the wheel axle, so wheels roll instead of skidding with the chassis. The axle
+    /// is the wheel's spin centre (its tire centre), not its part origin: hinging anywhere
+    /// else makes the tire orbit the joint like a cam.
     /// </summary>
-    private void BindWheelHinges(IReadOnlyList<EntityId> entities)
+    private void BindWheelHinges(IReadOnlyList<CompoundHinge> hinges)
     {
-        foreach (CompoundHinge hinge in CompoundAssembler.CollectHinges(entities, _construction, _content))
+        foreach (CompoundHinge hinge in hinges)
         {
             if (!_bodies.TryGet(hinge.Wheel, out PhysicsBodyLink wheelLink)
                 || !_bodies.TryGet(hinge.Parent, out PhysicsBodyLink parentLink)
@@ -1297,7 +1306,7 @@ public sealed class GameRoom : IDisposable
                 continue;
             }
 
-            PhysicsVector3 axle = transform.Position;
+            PhysicsVector3 axle = transform.Position + transform.Rotation.Rotate(hinge.LocalAxle);
             JointDefinition definition = new(
                 PhysicsJointKind.Revolute,
                 parentLink.Body,
@@ -1311,7 +1320,35 @@ public sealed class GameRoom : IDisposable
                 localAxisA: new PhysicsVector3(0f, 0f, 1f),
                 localAxisB: new PhysicsVector3(0f, 0f, 1f));
             _wheelJoints.Add((_world.CreateJoint(definition), wheelLink.Body, parentLink.Body));
+            // The wheel's mounts were handed to the parent body's compound at its own build
+            // rotation, so their world frame is the parent's live rotation carried by that
+            // local rotation — published as `AttachYaw` so the client draws the axle (and any
+            // other non-spinning sprite) rigid to the chassis instead of freezing it.
+            _attachByEntity[hinge.Wheel.Value] = (parentLink.Body, parentPose.Rotation.Inverse * transform.Rotation);
         }
+    }
+
+    /// <summary>
+    /// World Z yaw of a rotation, matching the client's `yawFromQuaternion`. Every sprite the
+    /// renderer draws is oriented in the plane, so the attach frame travels as this scalar even
+    /// though the physics state is a quaternion.
+    /// </summary>
+    private static float YawOf(PhysicsQuaternion rotation) =>
+        MathF.Atan2(
+            2f * ((rotation.W * rotation.Z) + (rotation.X * rotation.Y)),
+            1f - (2f * ((rotation.Y * rotation.Y) + (rotation.Z * rotation.Z))));
+
+    /// <summary>Yaw of the frame this entity's non-spinning sprites are attached to.</summary>
+    private float AttachYawOf(uint entityValue, PhysicsQuaternion rotation, int snapshotCount)
+    {
+        if (!_attachByEntity.TryGetValue(entityValue, out (PhysicsBodyId Body, PhysicsQuaternion LocalRotation) attach)
+            || !TryFindSnapshot(attach.Body, snapshotCount, out PhysicsBodySnapshot parent))
+        {
+            // Not hinged (or its chassis is gone): the part is rigid to its own body.
+            return YawOf(rotation);
+        }
+
+        return YawOf(parent.Rotation * attach.LocalRotation);
     }
 
     private void ForgetJointsForBody(PhysicsBodyId body)
@@ -1326,6 +1363,11 @@ public sealed class GameRoom : IDisposable
 
             _world.DestroyJoint(joint);
             _wheelJoints.RemoveAt(index);
+            // A free wheel is rigid to itself again: its mounts follow its own body.
+            if (_entityByBody.TryGetValue(wheel.Value, out EntityId wheelEntity))
+            {
+                _attachByEntity.Remove(wheelEntity.Value);
+            }
         }
     }
 

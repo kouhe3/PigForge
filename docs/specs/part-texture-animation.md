@@ -3,7 +3,7 @@
 > 状态：待确认（2026-09-09）。消费 `docs/intent/part-texture-animation.md`。
 > 调研依据：BPLE 原作 `Assets/Scripts/Assembly-CSharp/{SpriteAnimation,FanPropeller,CartWheel,Pig}.cs` + `Assets/GameObject/Part_*.prefab`；`c:/tmp/badpiggies-editor` 的 wgpu 渲染器（`crates/renderer/src/renderer/particles/{fan,mod}.rs`、`compounds.rs`）。
 > 权威契约：ADR-003（贴图资产不入库、清单可选、缺失回退形状渲染）、ADR-005（形状来自 BPLE 碰撞体）。本文件只补「贴图动画」缺口。
-> 零协议改动：PGFS v3 / PGFC v2 不变；动画不进回放、不进状态哈希、不上行。
+> 零协议改动：PGFS / PGFC 线格式不变（当前 PGFS v4 / PGFC v2）；动画不进回放、不进状态哈希、不上行。
 
 ## Capability Map
 
@@ -11,7 +11,7 @@
 |---|---|---|
 | anim-manifest | `tools/bple-textures/extract.mjs` 从 BPLE prefab 提取动画描述符 → `part-textures.json` v3；`renderer/atlas.ts` 解析/校验 | — |
 | anim-clock | 动画时钟与运行态门控（`renderer/animation/clock.ts` + `App.vue` 接线） | — |
-| anim-spin | 旋转运行时：风扇/螺旋桨/旋翼（开关状态机 + 透视压缩）。轮子不需要动画代码——物理铰链让刚体真旋转，快照 `rotation` 直接驱动贴图（ADR-008） | anim-manifest, anim-clock |
+| anim-spin | 旋转运行时：风扇/螺旋桨/旋翼（开关状态机 + 透视压缩）。轮子不需要动画代码——物理铰链让刚体真旋转，快照 `rotation` 直接驱动贴图（ADR-008/009） | anim-manifest, anim-clock |
 | anim-frames | 逐帧运行时：帧表播放器 + 猪/猪王表情触发规则 | anim-manifest, anim-clock |
 
 Build order: `anim-manifest` → `anim-clock` → (`anim-spin` ∥ `anim-frames`)。
@@ -33,7 +33,7 @@ Build order: `anim-manifest` → `anim-clock` → (`anim-spin` ∥ `anim-frames`
 `clients/web` 在保持服务端权威与零预测的前提下，把原作的部件动画搬回来：
 
 - 玩家打开风扇/螺旋桨/旋翼开关 → 叶片立刻满速「转」；关掉 → 按原作指数衰减约 2.5s 停住。
-- 轮子真滚动：车轮是自己的刚体、用铰链挂在车体上（ADR-008），渲染层直接按快照的 `yaw` 画精灵，无需本地推算转速。
+- 轮子真滚动：车轮是自己的刚体、用铰链挂在车体上（ADR-008/009，轮体绕轮胎中心自转），渲染层直接按快照的 `yaw` 画精灵，无需本地推算转速。
 - 猪在静止时随机眨眼；速度快时露齿笑/惊恐；速度突变时受击表情。
 - 建造期、回放暂停、拖动预览件（`bodyId === 0`）不动画；Start/RESET 后动画相位复位。
 
@@ -42,7 +42,7 @@ Build order: `anim-manifest` → `anim-clock` → (`anim-spin` ∥ `anim-frames`
 | 机制 | 原作实现 | 关键常量 | PigForge 对应 |
 |---|---|---|---|
 | 风扇/螺旋桨/旋翼 | `FanPropeller.cs:120-142` FixedUpdate 累加角度，`:319-324` LateUpdate 写 `m_fanVisualization.localRotation = m_origRot * AngleAxis(m_angle, axis)` | 开：`speed = m_maximumRotationSpeed`（`= 1000 * powerFactor + 700`，`FanPropeller.cs:92,108-112`；powerFactor=1 → **1700 °/s**）；关：`speed < 450 ? speed *= 0.9 : speed *= 0.98`（每 FixedUpdate，默认 0.02s）；`SetEnabled(false)` 立即 `speed = 800, angle = 292.3`（`:274-275`）；`angle += speed * dt`；`angle > 180 → angle -= 360`；轴：`m_isRotor ? Vector3.up : Vector3.right`（`Part_Rotor_01_SET.prefab:135` = 1，其余 = 0） | `animation/spin.ts` 状态机 + 透视压缩 |
-| 轮子 | `CartWheel.cs:89-110` 视觉角由接地速度推算；物理上轮子是独立刚体 | `m_angle += -360 * m_spinSpeed / m_circumference * dt`；`m_circumference = 2πr` | **不做客户端动画**：PigForge 的轮子有独立刚体 + revolute 关节（ADR-008），快照 `rotation` 就是真实滚动角，`draw.ts` 已按 `yaw` 旋转精灵 |
+| 轮子 | `CartWheel.cs:89-110` 视觉角由接地速度推算；物理上轮子是独立刚体 | `m_angle += -360 * m_spinSpeed / m_circumference * dt`；`m_circumference = 2πr` | **不做客户端动画**：PigForge 的轮子有独立刚体 + revolute 关节（ADR-008/009），快照 `rotation` 就是真实滚动角，`draw.ts` 已按 `yaw` 旋转精灵 |
 | 逐帧（猪脸） | `SpriteAnimation.cs:196-215` 预生成每帧 mesh、`:229-260` 按累计时间切 `sharedMesh`；`:143` `Play(name)` 是排队语义（当前动画播完才切）；`:181` 子动画同步同名 clip | `FrameTiming.time` 是**本帧时长**（不是绝对时间）；非循环播完**停在最后一帧**；无插值、无事件帧 | `animation/frames.ts` 播放器 |
 | 猪表情 | `Pig.cs:277-329` Update、`:409-438` SelectExpression、`:616-648` SetExpression、`:730-742` PlayAnimation、`:602-605` ReceiveObjectiveAchieved | 眨眼：`m_blinkTimer` 随机 **1.5–4.0s**，仅当前表情为 `Normal` 时触发；速度表情：`num = \|v\| + 0.3·\|vy\|`，`> 8` Grin、`> 0.5·(8+14)` FearfulGrin、`> 14` Fear（阈值来自 `Part_Pig_01_SET.prefab:443-445`）；切换后 **1s** 内不重选；**撞击**：`abs(\|v\| − 上一帧\|v\|) > 5` → `Hit` 1.0s（`:313-319`）；**坠落**：离地 > 0.25s 且 `−vy > 3` → `Fear_2`（`:428-431`）；**收集星星盒子 / 达成目标 → `Laugh` 3s**（`GoalBox.cs:104`、`OneTimeCollectable.cs:184` → `ObjectiveAchieved` → `Pig.cs:602-605`）。**注**：原作马达轮速度上限 `15·powerFactor`（`MotorWheel.cs:103`），8/14 是该上限的 53%/93% | `animation/frames.ts` 表情状态机 |
 | 暂停 | `GameTime.Pause(true)` → `Time.timeScale = 0` | 帧动画/旋转/火焰全部用 `Time.deltaTime` → 暂停即冻结 | `anim-clock` 门控 |
@@ -51,7 +51,7 @@ Build order: `anim-manifest` → `anim-clock` → (`anim-spin` ∥ `anim-frames`
 ### 与原作的已知偏差（有意，逐条记录）
 
 1. **帧动画按时间轴推算**：原作 `Update` 每帧最多推进一帧（低帧率下动画变慢）；PigForge 按累计时间推进（低帧率下动画不减速）。
-2. **轮子滚动由物理给出**：原作视觉角是从接地速度推算的；PigForge 的轮子是真刚体（铰链，ADR-008），滚动角直接来自快照，所以清单里不再有 `wheel` 动画描述符（与上一版 spec 相比是删减）。
+2. **轮子滚动由物理给出**：原作视觉角是从接地速度推算的；PigForge 的轮子是真刚体（铰链在轮胎中心，ADR-008/009），滚动角直接来自快照，所以清单里不再有 `wheel` 动画描述符（与上一版 spec 相比是删减）。
 3. **透视压缩以精灵自身中心为缩放中心**：原作绕 `FanVisualization` 节点原点旋转，节点原点与精灵中心存在 ≤0.22 世界单位的偏移（风扇/旋翼），近似误差在压缩到接近 0 时才可见。
 4. **坠落表情用 `−vy` 近似、收集/目标类表情不做**：原作的 `Fear2` 还要求「离地 > 0.25s」，协议没有接地状态，改为 `−vy > fallFearThreshold` 直接判定；`Laugh` 只在收集星星盒子/达成目标时触发（沙盒 `ObjectivesEnabled = false`、内容里没有收集物），v1 不做。
 5. **转速取 powerFactor = 1 的常量 1700 °/s**：原作随引擎功率因子浮动（`1000 * powerFactor + 700`），协议里没有该因子。
@@ -149,10 +149,17 @@ Fear        ⇔ num > expression.speedFearRatio    × vRef   (默认 0.50)
 - `clips`：命名帧表。每帧是**完整精灵描述符**（`atlas/x/y/w/h/cx/cy/sx/sy/rot`）+ `seconds`（本帧时长）。`loop: false` 播完停在最后一帧。
 - `expression`：只有带此块的部件才跑表情状态机；缺省 = 不跑。`*Ratio` 是相对 `vRef` 的比例，`speedReference` 是载具无激活电机时的绝对兜底速度（m/s），`hitDeltaV` 是撞击判定阈值（m/s，默认 5），`fallFearThreshold` 是坠落判定阈值（m/s，默认 3）。
 
+- `rotates`（**v2 已有，附加字段，不是动画描述符**）：精灵是否挂在原作运行时会转动的节点下（`WheelPivot`/`FakeWheelPivot`/`FanVisualization`）。`true` 的精灵跟着零件自转（轮子的滚动角来自刚体旋转，见 ADR-009），`false` 的（挂在 prefab 根上的车轴条）保持建造朝向；缺省视为 `false`。与下面的 `spin` 描述符无关：`spin` 是风扇/旋翼的**视觉压缩**动画，`rotates` 只声明精灵的挂点。
+
+- `pivot`（**v2 已有，部件级，不是动画描述符**）：原作运行时转动的那个节点在合成图坐标系里的位置（与 `cx`/`cy` 同一坐标系）。网格渲染**不使用**它——轴心以零件内容为准（轮胎形状的中心，见 ADR-009 决策 8），因为本清单是 gitignored 的生成文件；它是**调色板缩略图**的轴心，也是零件内容没有可判定轴心时的兜底。没有 `pivot` 的部件一切照旧。
+- `cx`/`cy`（**部件级，不是动画描述符**）：精灵的**美术中心**相对零件复合体锚点的偏移，已含原作运行时的网格 pivot 修正（`Sprite.SelectSprite`/`CreateMesh`，见 ADR-009 决策 11）。渲染器直接把它当精灵中心用；不要拿节点局部位置代替。
+- `sprites` 数组**顺序即绘制顺序（由远及近）**：原作相机在 `z = -15` 朝 +z（`IngameCamera.cs:440,1038`），z 越大越远，Unity 的透明队列先画远的；因此提取器按 **z 降序** 排列，客户端按数组顺序 blit。判据（原作自身数据）：`Part_MetalFrame_12_SET` 里名为 `Background` 的精灵 z 最大（最远、最先画），`Part_Pig_02_SET`/`Part_KingPig_02_SET` 的顺序是 Body(0) → Face/Eyes(-0.10) → Glasses(-0.12/-0.20) → Hat(-0.131)，与「帽子压眼镜、眼镜压脸」一致。顺序反了会让马达轮的轮胎盖住轮辐、车轴藏到轮子后面（用户报的回归）。
+
 校验（`renderer/atlas.ts`，沿用严格风格：坏数据抛错 → 加载器回退 `null`）：
 
+- `pivot` 为可选的两元有限数数组；缺失或长度不为 2 视为无旋转轴（不抛错）。它是**同坐标系**（同一锚点）下的轴心，因此只对网格渲染的兜底与调色板缩略图有意义，不能与零件内容里的轴心混算（见 ADR-009 决策 12）。
 - `schemaVersion` 接受 `2` 与 `3`；其他值抛错。v2 视为「无任何动画描述符」。
-- `spin.axis` ∈ `{"x","y"}`；`spin.maxDegreesPerSecond > 0`。
+- `rotates` 为可选布尔（缺省 `false`）；非布尔值按 `false` 处理，不影响版本门。
 - 帧表非空；每帧 `seconds > 0`；`loop` 为布尔；clip 名非空字符串。
 - `expression`：三个比例、`speedReference`、`hitDeltaV`、`fallFearThreshold` 均为有限正数。
 
@@ -205,7 +212,7 @@ scaleX = |cos(angle)|        // axis "y"
 - λ 由原作的每 FixedUpdate 因子连续化：`λ = -ln(factor) / 0.02`（`0.98 → 1.010135`、`0.9 → 5.268026`）。停止时间 ≈ `ln(1700/450)/1.010 + ln(450)/5.268 ≈ 2.5s`，与参考实现 2s 惯性同量级。
 - 未激活且 `speed < 0.5` → 归零（避免长尾浮点抖动）。
 
-轮子：**没有运行时动画**。轮子有自己的刚体 + revolute 关节（ADR-008），快照里的 `rotation` 就是真实滚动角；`draw.ts` 已按 `-entity.yaw` 旋转精灵，所以轮子贴图自动跟着转。`FakeWheelPivot` 的 ±8° 摆动属于原作视觉技巧，PigForge 不需要。
+轮子：**没有运行时动画**。轮子有自己的刚体 + revolute 关节，锚点在轮胎中心（ADR-008/009），快照里的 `rotation` 就是真实滚动角；`draw.ts` 已按 `-entity.yaw` 旋转精灵，所以轮子贴图自动跟着转。`FakeWheelPivot` 的 ±8° 摆动属于原作视觉技巧，PigForge 不需要。
 
 ### 逐帧运行时（`animation/frames.ts`）
 
@@ -303,7 +310,7 @@ export function resetAnimations(state: AnimationState): void;
 在现有 prefab 解析上追加：
 
 1. **FanPropeller**（`Part_Fan_*`、`Part_PlanePropeller_*`、`Part_Rotor_*`）：读 `m_fanVisualization` 指向的 Transform → 其 GameObject 上的 `Sprite` 打 `spin`；`axis = m_isRotor ? "y" : "x"`；`maxDegreesPerSecond = 1700`（`1000 · powerFactor + 700` 的 powerFactor = 1 情形，写死并加注释）。
-2. **轮子**（`Part_{CartWheel,MotorWheel,OffRoadWheel,StickyWheel,SmallWheel,NormalWheel}_*`）：**不产动画描述符**——滚动角来自物理刚体（ADR-008）。
+2. **轮子**（`Part_{CartWheel,MotorWheel,OffRoadWheel,StickyWheel,SmallWheel,NormalWheel}_*`）：**不产动画描述符**——滚动角来自物理刚体（ADR-008/009：轮体只带轮胎并绕轮胎中心自转）。
 3. **SpriteAnimation**：遍历 prefab 内的 `SpriteAnimation` 组件（脚本 guid `b724b453dd61eb03a1d123fa87323918`），把 `m_animations` 的每个 `FrameTiming.id` 解析成精灵矩形（复用现有 `extractSprite` 的 id → 图集矩形逻辑），生成 `clips`；`m_childAnimations` 只用于确认同名 clip 的同步语义，不额外产出。
 4. **Pig/KingPig**：读 `speedFunThreshold` / `speedFearThreshold` / `fallFearThreshold` 生成 `expression`。
 5. 找不到任何动画组件 → 该部件不带动画字段（现状不变）；prefab 解析失败沿用现有 `warnings` 累加。
@@ -333,7 +340,7 @@ export function resetAnimations(state: AnimationState): void;
 
 ### .NET
 
-轮子滚动依赖物理铰链（ADR-008），因此本切片**包含 .NET 改动**：`dotnet test PigForge.slnx` 必须全绿，并新增 `SandboxRoomTests.SandboxCartHingesWheelsAndDrives` / `SandboxWheelUnderFrameHingesToFrame` 与 Bepu 铰链用例。
+轮子滚动依赖物理铰链（ADR-008/009），因此本切片**包含 .NET 改动**：`dotnet test PigForge.slnx` 必须全绿，并新增 `SandboxRoomTests.SandboxCartHingesWheelsAndDrives` / `SandboxWheelUnderFrameHingesToFrame` 与 Bepu 铰链用例。
 
 ### 手验（Success Criteria）
 
@@ -365,9 +372,9 @@ export function resetAnimations(state: AnimationState): void;
 
 ## Success Criteria
 
-1. `pnpm test`、`pnpm build` 全绿；`dotnet test PigForge.slnx` 全绿（含 ADR-008 的铰链用例）。
+1. `pnpm test`、`pnpm build` 全绿；`dotnet test PigForge.slnx` 全绿（含 ADR-008/009 的铰链用例）。
 2. 风扇/螺旋桨/旋翼：开关打开后立即满速压缩旋转；关闭后约 2.5s 内指数衰减停住（可见「抖一下」）。
-3. 轮子：物理上真滚动（轮子刚体的 `rotation` 随行进变化，`ω_z ≠ 0`），贴图跟着刚体转——见 ADR-008 与 `SandboxRoomTests.SandboxCartHingesWheelsAndDrives`。
+3. 轮子：物理上真滚动（轮子刚体的 `rotation` 随行进变化，`ω_z ≠ 0`），贴图跟着刚体转——见 ADR-008/009 与 `SandboxRoomTests.SandboxCartHingesWheelsAndDrives` / `SandboxWoodenCartRollsDownTheLongSlope`。
 4. 猪：静止时每 1.5–4s 眨眼一次；速度按载具能力分档（满推 1 秒速度的 15% / 30% / 50%）依次露出 Grin / FearfulGrin / Fear；单帧速度突变 > 5 显示受击 Hit 1s；下落速度 > 3 m/s 显示 Fear_2。
 5. 建造期、回放暂停、拖动预览件（`bodyId === 0`）完全不动画；Start/RESET 后动画相位复位。
 6. 干净检出（无 `clients/web/public/assets/original/`）：渲染与行为与本切片前逐字一致，测试不依赖任何原版资产。
@@ -390,4 +397,4 @@ export function resetAnimations(state: AnimationState): void;
 - BPLE 原作：`Assets/Scripts/Assembly-CSharp/{SpriteAnimation,FanPropeller,CartWheel,MotorWheel,OffRoadWheel,StickyWheel,Pig,KingPig,GameTime}.cs`；`Assets/GameObject/{Part_Fan_01_SET,Part_PlanePropeller_01_SET,Part_Rotor_01_SET,Part_CartWheel_01_SET,Part_Pig_01_SET}.prefab`
 - 参考实现：`c:/tmp/badpiggies-editor/crates/renderer/src/renderer/particles/{fan.rs,mod.rs}`、`compounds.rs`（无部件帧动画；风扇 600 °/s + `|cos|` 压缩）
 - 本仓库：`docs/decisions/ADR-003-original-texture-assets.md`、`docs/decisions/ADR-005-part-shapes-from-bple-colliders.md`、`docs/specs/web-client-spec.md`、`docs/specs/play-part-switches.md`
-- 代码：`tools/bple-textures/extract.mjs`、`clients/web/src/renderer/{atlas,draw,thumbnails}.ts`、`clients/web/src/schema/{types,toDrawEntities}.ts`、`clients/web/src/App.vue`
+- 代码：`tools/bple-textures/extract.mjs`、`clients/web/src/renderer/{atlas,draw,thumbnails}.ts`、`clients/web/src/live/restYaw.ts`、`clients/web/src/schema/{types,toDrawEntities}.ts`、`clients/web/src/stores/session.ts`、`clients/web/src/App.vue`

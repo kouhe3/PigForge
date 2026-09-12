@@ -778,6 +778,131 @@ public sealed class SandboxRoomTests
         MapBounds: FarBounds,
         Spawns: spawns);
 
+    [Fact]
+    public void SandboxWoodenCartRollsDownTheLongSlope()
+    {
+        // The user-visible regression: a block on two wooden wheels froze on the slope (the
+        // wheels' mounted support boxes collided with their own tires on the parent body) and
+        // could not roll. Real content and the terrain-v1 level's 14.3 degree long slope.
+        using GameRoom room = PlayHost.CreateSandboxRoom();
+        uint player = PlayHost.NextPlayerId();
+        uint sequence = 0;
+        const float angle = 0.25f;
+
+        uint Place(uint partTypeId, float x, float y)
+        {
+            CommandOutcome outcome = room.Submit(PlayHost.BindPlayer(
+                new PlacePartCommand(0, ++sequence, 0, partTypeId, x, y, angle, 1f), player));
+            Assert.True(outcome.IsAccepted, $"place {partTypeId} at ({x},{y}): {outcome.Status}/{outcome.Error}");
+            return outcome.EntityId;
+        }
+
+        uint rear = Place(7, -8.6428f, 1.4741f);
+        uint front = Place(7, -7.6428f, 1.7295f);
+        uint block = Place(1, -8.3878f, 2.5612f);
+        Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, 0), player)).IsAccepted);
+
+        List<SnapshotEntity> start = PublishEntities(room, out _);
+        float startX = start.Single(entity => entity.EntityId == rear).Position.X;
+
+        for (int tick = 0; tick < 150; tick++)
+        {
+            room.Tick();
+        }
+
+        List<SnapshotEntity> rolled = PublishEntities(room, out _);
+        SnapshotEntity rearWheel = rolled.Single(entity => entity.EntityId == rear);
+        SnapshotEntity frontWheel = rolled.Single(entity => entity.EntityId == front);
+        uint chassisBody = rolled.Single(entity => entity.EntityId == block).PhysicsBodyId;
+
+        Assert.True(
+            rearWheel.Position.X < startX - 3f,
+            $"the cart must coast down the slope: {startX} -> {rearWheel.Position.X}");
+        // The block is one body; each wheel keeps its own body and rolls on it.
+        Assert.NotEqual(0u, chassisBody);
+        Assert.NotEqual(chassisBody, rearWheel.PhysicsBodyId);
+        Assert.NotEqual(chassisBody, frontWheel.PhysicsBodyId);
+        Assert.NotEqual(rearWheel.PhysicsBodyId, frontWheel.PhysicsBodyId);
+
+        // Free rolling, not skidding: each wheel spins at v / r about its axle (r = 0.33). A
+        // cart moving in -x rolls with a positive spin (the contact point is stationary).
+        foreach (SnapshotEntity wheel in new[] { rearWheel, frontWheel })
+        {
+            float speed = MathF.Sqrt(
+                (wheel.LinearVelocity.X * wheel.LinearVelocity.X) + (wheel.LinearVelocity.Y * wheel.LinearVelocity.Y));
+            float expected = speed / 0.33f;
+            Assert.True(speed > 2f, $"the wheel must be moving: {speed}");
+            Assert.InRange(wheel.AngularVelocity.Z, expected * 0.9f, expected * 1.1f);
+        }
+    }
+
+    /// <summary>
+    /// The user-visible regression: a wheel's axle (its non-spinning sprites) is welded to the
+    /// chassis in the original, so it must rotate with the chassis. The snapshot carries that
+    /// frame as `AttachYaw`; without it the client froze the axle at the wheel's build angle
+    /// while the chassis pitched. The chassis is placed at the opposite angle on purpose, so
+    /// the two are distinguishable from the very first frame.
+    /// </summary>
+    [Fact]
+    public void SandboxWheelAttachFrameFollowsTheChassis()
+    {
+        using GameRoom room = PlayHost.CreateSandboxRoom();
+        uint player = PlayHost.NextPlayerId();
+        uint sequence = 0;
+        uint Place(uint partTypeId, float x, float y, float angle)
+        {
+            CommandOutcome outcome = room.Submit(PlayHost.BindPlayer(
+                new PlacePartCommand(0, ++sequence, 0, partTypeId, x, y, angle, 1f), player));
+            Assert.True(outcome.IsAccepted, $"place {partTypeId} at ({x},{y}): {outcome.Status}/{outcome.Error}");
+            return outcome.EntityId;
+        }
+
+        // A cart dropped tilted from above the flat middle slab: it lands on a corner and rotates
+        // to a face, so the chassis turns while the wheel keeps its own build angle.
+        uint rear = Place(7, 0f, 2.2f, 0.9f);
+        uint block = Place(1, 0f, 3.2f, 0.9f);
+        CommandOutcome startOutcome = room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, 0), player));
+        Assert.True(startOutcome.IsAccepted, $"start: {startOutcome.Status}/{startOutcome.Error}");
+
+        // The mount starts rigid to the chassis: same frame the wheel was built at, because the
+        // chassis has not rotated yet.
+        List<SnapshotEntity> start = PublishEntities(room, out _);
+        SnapshotEntity startWheel = start.Single(entity => entity.EntityId == rear);
+        SnapshotEntity startChassis = start.Single(entity => entity.EntityId == block);
+        float wheelBuildYaw = YawOf(startWheel.Rotation);
+        float chassisBuildYaw = YawOf(startChassis.Rotation);
+        Assert.Equal(0.9f, wheelBuildYaw, 2);
+        Assert.Equal(0.9f, chassisBuildYaw, 2);
+        Assert.Equal(wheelBuildYaw, startWheel.AttachYaw, 2);
+        // A part that is not hinged is its own attach frame.
+        Assert.Equal(chassisBuildYaw, startChassis.AttachYaw, 3);
+
+        for (int tick = 0; tick < 150; tick++)
+        {
+            room.Tick();
+        }
+
+        List<SnapshotEntity> settled = PublishEntities(room, out _);
+        SnapshotEntity wheel = settled.Single(entity => entity.EntityId == rear);
+        SnapshotEntity chassis = settled.Single(entity => entity.EntityId == block);
+        float chassisYaw = YawOf(chassis.Rotation);
+        // The chassis must actually have rotated, or the contract below proves nothing.
+        Assert.True(
+            MathF.Abs(chassisYaw - chassisBuildYaw) > 0.1f,
+            $"chassis {chassisBuildYaw} -> {chassisYaw} (body {chassis.PhysicsBodyId}) wheel {YawOf(wheel.Rotation):F3} attach {wheel.AttachYaw:F3} body {wheel.PhysicsBodyId} startBody {startChassis.PhysicsBodyId} blockPos {chassis.Position.X:F2},{chassis.Position.Y:F2}");
+        // The axle turns by exactly the chassis' rotation since assembly...
+        Assert.Equal(wheelBuildYaw + (chassisYaw - chassisBuildYaw), wheel.AttachYaw, 2);
+        // ...while the body's own rotation carries the roll, leaving the attach frame behind.
+        Assert.True(
+            MathF.Abs(YawOf(wheel.Rotation) - wheel.AttachYaw) > 0.1f,
+            $"the wheel must spin relative to its attach frame: {YawOf(wheel.Rotation)} vs {wheel.AttachYaw}");
+    }
+
+    private static float YawOf(ReplayQuaternion rotation) =>
+        MathF.Atan2(
+            2f * ((rotation.W * rotation.Z) + (rotation.X * rotation.Y)),
+            1f - (2f * ((rotation.Y * rotation.Y) + (rotation.Z * rotation.Z))));
+
     private static PlacePartCommand PlacePart(uint sequence, uint playerId, uint partTypeId, float positionX, float positionY) =>
         new(
             Tick: 0,

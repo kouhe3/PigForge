@@ -23,6 +23,19 @@ export interface ThumbnailPlacement {
   h: number;
 }
 
+/**
+ * A sprite's centre in the composite's layout frame. Rotating sprites sit on the part's
+ * axle (`pivot`), exactly as the canvas draws them, so a wheel's disc lands on its tyre
+ * instead of on the sprite offset the original prefab happens to carry.
+ */
+export function spriteCentre(texture: PartTexture, sprite: PartTexture["sprites"][number]): { x: number; y: number } {
+  if (texture.pivot && sprite.rotates) {
+    return { x: texture.pivot[0], y: texture.pivot[1] };
+  }
+
+  return { x: sprite.cx, y: sprite.cy };
+}
+
 /** Composite extent in part-local world units, honouring per-sprite rotation. */
 export function compositeBounds(texture: PartTexture): ThumbnailBounds {
   let minX = Infinity;
@@ -30,14 +43,15 @@ export function compositeBounds(texture: PartTexture): ThumbnailBounds {
   let maxX = -Infinity;
   let maxY = -Infinity;
   for (const sprite of texture.sprites) {
+    const centre = spriteCentre(texture, sprite);
     const cos = Math.abs(Math.cos(sprite.rot));
     const sin = Math.abs(Math.sin(sprite.rot));
     const halfWidth = (sprite.sx * cos + sprite.sy * sin) / 2;
     const halfHeight = (sprite.sx * sin + sprite.sy * cos) / 2;
-    minX = Math.min(minX, sprite.cx - halfWidth);
-    maxX = Math.max(maxX, sprite.cx + halfWidth);
-    minY = Math.min(minY, sprite.cy - halfHeight);
-    maxY = Math.max(maxY, sprite.cy + halfHeight);
+    minX = Math.min(minX, centre.x - halfWidth);
+    maxX = Math.max(maxX, centre.x + halfWidth);
+    minY = Math.min(minY, centre.y - halfHeight);
+    maxY = Math.max(maxY, centre.y + halfHeight);
   }
 
   return { minX, minY, maxX, maxY };
@@ -55,14 +69,17 @@ export function thumbnailPlacements(texture: PartTexture, size: number, padding 
   const scale = Math.min(usable / width, usable / height);
   const centerX = (bounds.minX + bounds.maxX) / 2;
   const centerY = (bounds.minY + bounds.maxY) / 2;
-  return texture.sprites.map((sprite) => ({
-    sprite,
-    x: size / 2 + (sprite.cx - centerX) * scale,
-    // World +y is up, canvas +y is down.
-    y: size / 2 - (sprite.cy - centerY) * scale,
-    w: sprite.sx * scale,
-    h: sprite.sy * scale,
-  }));
+  return texture.sprites.map((sprite) => {
+    const centre = spriteCentre(texture, sprite);
+    return {
+      sprite,
+      x: size / 2 + (centre.x - centerX) * scale,
+      // World +y is up, canvas +y is down.
+      y: size / 2 - (centre.y - centerY) * scale,
+      w: sprite.sx * scale,
+      h: sprite.sy * scale,
+    };
+  });
 }
 
 /** Blits a part composite into an already-sized context. False when no sprite was drawable. */

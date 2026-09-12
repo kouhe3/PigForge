@@ -165,6 +165,35 @@ describe("canvas gestures: transform tools", () => {
     expect(preview?.y).toBeCloseTo(0.5);
     detach();
   });
+
+  it("carries shape offsets through the drag state so a wheel drag snaps by its union AABB", () => {
+    const wheelPart: PartDefinition = {
+      partTypeId: 7, name: "wheel", mode: "dynamic", mass: 1,
+      shapes: [
+        { kind: "box", halfExtents: [0.2, 0.32, 0.5], offset: [0, 0.1702, 0] },
+        { kind: "sphere", radius: 0.33, offset: [0.0106, -0.2057, 0] },
+      ],
+    };
+    const blockPart: PartDefinition = {
+      partTypeId: 1, name: "block", mode: "dynamic", mass: 1,
+      shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }],
+    };
+    const wheel: DrawEntity = { ...part, entityId: 7, partTypeId: 7, x: 0, y: 0 };
+    const block: DrawEntity = { ...part, entityId: 8, partTypeId: 1, x: 0, y: 1 };
+    const [x, y] = worldToCss(0, 0);
+    const { listeners, messages, detach } = attach([wheel, block], {
+      tool: () => "move",
+      isEditable: () => true,
+      partOf: (partTypeId) => (partTypeId === 7 ? wheelPart : blockPart),
+    });
+    listeners.pointerdown(pointerEvent("pointerdown", x, y));
+    listeners.pointermove(pointerEvent("pointermove", x + 5, y));
+    const preview = findMessage(messages, "ToolPreview")?.preview;
+    // The support box's top lands on the block's bottom face; the old first-shape answer was 0.18.
+    expect(preview?.y).toBeCloseTo(0.0098);
+    expect(preview?.y).not.toBeCloseTo(0.18, 2);
+    detach();
+  });
 });
 
 describe("canvas gestures: marquee select", () => {

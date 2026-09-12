@@ -9,8 +9,8 @@ const manifest = {
     "10": {
       bbox: [2, 1],
       sprites: [
-        { atlas: "A.png", x: 10, y: 20, w: 100, h: 50, cx: 0.5, cy: 0, sx: 1, sy: 1, rot: 0.25 },
-        { atlas: "A.png", x: 200, y: 300, w: 100, h: 50, cx: -0.5, cy: 0, sx: 1, sy: 1, rot: 0 },
+        { atlas: "A.png", x: 10, y: 20, w: 100, h: 50, cx: 0.5, cy: 0, sx: 1, sy: 1, rot: 0.25, rotates: true },
+        { atlas: "A.png", x: 200, y: 300, w: 100, h: 50, cx: -0.5, cy: 0, sx: 1, sy: 1, rot: 0, rotates: false },
       ],
     },
   },
@@ -31,6 +31,7 @@ describe("parsePartTextures", () => {
       sx: 1,
       sy: 1,
       rot: 0.25,
+      rotates: true,
     });
   });
 
@@ -40,6 +41,11 @@ describe("parsePartTextures", () => {
 
   it("rejects an unsupported schema version", () => {
     expect(() => parsePartTextures({ ...manifest, schemaVersion: 1 })).toThrow();
+  });
+
+  it("carries the flag that marks the sprites riding a rotating pivot", () => {
+    const sprites = parsePartTextures(manifest).get(10)!.sprites;
+    expect(sprites.map((sprite) => sprite.rotates)).toEqual([true, false]);
   });
 
   it("rejects a sprite with a non-positive source rect", () => {
