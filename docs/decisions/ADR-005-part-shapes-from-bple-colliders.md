@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted
+Accepted；**决策 2（单形状、无偏移）已由 [ADR-007](ADR-007-part-multi-colliders.md) 取代**（车轮等恢复多碰撞体与局部偏移）。
 
 ## 日期
 

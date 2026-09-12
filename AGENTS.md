@@ -28,7 +28,7 @@ clients/web -> (none; wire formats only, never .NET assemblies)
 4. `GameplayRules.Tick(...)` — emits `PhysicsCommand`s, `DestroyedEntities`, `DetachedEntities`
 5. Cleanup — unbind destroyed entities, detach, seam-split compounds when an applied impulse exceeds `BreakImpulse`
 
-Building mode manipulates pure `ConstructionRules` state (no physics bodies); `Start()` runs `CompoundAssembler.Assemble` (union-find over connections) into one physics body per cluster.
+Building mode manipulates pure `ConstructionRules` state (no physics bodies); `Start()` runs `CompoundAssembler.Assemble` (union-find over connections) into one physics body per cluster, and `CollectHinges` gives every wheel part its own body attached by a revolute joint (ADR-008).
 
 **Wire formats** (little-endian binary, hand-written with `BinaryPrimitives`/`Span`/`ref struct`; PGFS v3, PGFC v2):
 
@@ -51,7 +51,7 @@ Building mode manipulates pure `ConstructionRules` state (no physics bodies); `S
 - `tests/` — 5 xUnit projects (Core, Protocol, Replay, Physics, Server Tests)
 - `clients/web` — Vue 3 + TS + Vite + Pinia SPA (pnpm); build-mode tools (place/select/move/rotate/scale) in `src/editor/tools.ts` + `src/gesture/canvasGestures.ts` (marquee selection included); play-mode switch bar in `src/live/gadgets.ts` + `App.vue`
 - `unity/PigForge.UnityReference` — Unity 6000.5.6f1 reference exporter, isolated
-- `content/` — `parts.json` (267 entries: 44 bases with ids 1–46 — 3 and 29 dropped as PigForge-only inventions — plus 223 original variants 47–269; `variantOf`/`variantName` group skins under their base, `capabilities.activation` declares part switches, `tnt.chainDetonate`/`igniteOnImpact`, `blaster`, `glue` carry the original effects), `levels/slope-v1.json`, `levels/terrain-v1.json`
+- `content/` — `parts.json` (267 entries: 44 bases with ids 1–46 — 3 and 29 dropped as PigForge-only inventions — plus 223 original variants 47–269; `variantOf`/`variantName` group skins under their base, `capabilities.activation` declares part switches, `tnt.chainDetonate`/`igniteOnImpact`, `blaster`, `glue` carry the original effects; each shape may carry a part-local `offset` — wheels are a tire sphere plus a support box, see ADR-007), `levels/slope-v1.json`, `levels/terrain-v1.json`
 - `schemas/` — cross-runtime JSON Schema contracts: `part-content-v1`, `level-content-v1`, `physics-replay-v2`, `client-command-v1`
 - `tools/bple-variants/` — original variant registry importer (`import-variants.mjs` + curated `variant-overrides.json`): appends skins/effect variants to `content/parts.json` and the `variants` section of the texture map; idempotent, append-only
 - `tools/bple-shapes/`, `tools/bple-textures/` — original collider/sprite extractors; `tools/web-parts/` — regenerates the client's inlined part table from `content/parts.json` (run after any content append)
@@ -99,10 +99,10 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 - `src/PigForge.Server/PlayHost.cs` — WS play host (`CreateSandboxRoom` for `--play`, per-connection player ids); loads content via `FindRepositoryRoot` (walks up from `AppContext.BaseDirectory` — running outside the repo tree throws)
 - `src/PigForge.Physics.Abstractions/PhysicsContracts.cs` — `IPhysicsWorld` + all semantic types (shapes, joints, commands, events, snapshots, `PhysicsVector3`/`PhysicsQuaternion`)
 - `src/PigForge.Core/Runtime/GameplayRules.cs` — 1100-line rules engine (ADR-002 semantics, part switches; note `GameplayConfig.Default.MaxTicks = 0` vs `PlayHost` passing 1200)
-- `src/PigForge.Core/Construction/CompoundAssembler.cs` — cluster assembly/seam split
+- `src/PigForge.Core/Construction/CompoundAssembler.cs` — cluster assembly/seam split, wheel hinge collection, volume-centre body poses
 - `src/PigForge.Protocol/SnapshotWire.cs`, `CommandWire.cs` — wire codecs (fixed sizes: 15-byte header, 69-byte entity)
 - `Directory.Build.props` — net10.0, ImplicitUsings, Nullable, LangVersion latest, TreatWarningsAsErrors
-- `docs/decisions/ADR-001-*.md` — net10 physics boundary; `ADR-002-*.md` — no-damage runtime semantics (**binding** for any gameplay change)
+- `docs/decisions/ADR-001-*.md` — net10 physics boundary; `ADR-002-*.md` — no-damage runtime semantics (**binding** for any gameplay change); `ADR-005`/`ADR-007` — part shapes come from BPLE colliders (multi-collider parts keep their local offsets); `ADR-008` — wheels are separate bodies on revolute joints
 - `docs/intent/*.md` + `docs/specs/*.md` — confirmed intent and the authoritative per-slice spec (e.g. `advanced-building.md` for build-mode move/rotate/scale, `multi-select.md` for marquee selection and PGFA error messages, `play-part-switches.md` for part switches)
 - `clients/web/vite.config.ts` — dev server port 5173 + WS proxy; `clients/web/src/schema/decodeSnapshot.ts`/`encodeCommand.ts` — client wire codecs; `clients/web/src/editor/tools.ts` — tool math/snaps; `clients/web/src/live/gadgets.ts` — switch-bar grouping/hotkeys
 
