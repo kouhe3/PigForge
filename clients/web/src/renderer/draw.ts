@@ -1,4 +1,5 @@
 import type { DrawEntity, MarqueeRect, PartContentDocument, PartDefinition, PartShape } from "@/schema/types";
+import { poseFor, type AnimationState } from "./animation";
 import { layoutSprites, type PartTexture, type PartTextureSet } from "./atlas";
 import { type Camera, worldToScreen } from "./camera";
 
@@ -104,6 +105,7 @@ export function drawFrame(
   bounds?: { minX: number; minY: number; maxX: number; maxY: number },
   textures?: PartTextureSet | null,
   marquee?: MarqueeRect | null,
+  animations?: AnimationState | null,
 ): void {
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
@@ -181,20 +183,27 @@ export function drawFrame(
     // relative to the tire — the sprite pinned on the axle — and the pair keeps the relative
     // placement the manifest authored. Measuring a mount from the content axle instead would
     // mix two frames and drop a small wheel's fork underneath its tire.
-    const tire = turning && texture !== undefined
-      ? layoutSprites(texture, entity.scale).find((_, index) => turning[index])
-      : undefined;
+    const placed = texture !== undefined && atlasImages !== undefined ? layoutSprites(texture, entity.scale) : undefined;
+    const tire = turning && placed !== undefined ? placed.find((_, index) => turning[index]) : undefined;
     if (texture && atlasImages && texture.sprites.every((sprite) => atlasImages.get(sprite.atlas) !== undefined)) {
       // Original art: drawn at the BPLE world size and offsets, so part visuals match
-      layoutSprites(texture, entity.scale).forEach((placement, index) => {
-        const image = textures.atlases.get(placement.sprite.atlas);
+      placed?.forEach((placement, index) => {
+        // A pose is the manifest sprite unless the animation state replaced it with its clip's
+        // current frame, which carries its own rect, size and centre (see `animation/index.ts`).
+        const pose = animations ? poseFor(animations, entity, index, placement.sprite) : null;
+        const drawn = pose?.sprite ?? placement.sprite;
+        const image = textures.atlases.get(drawn.atlas);
         if (!image) return;
-        const w = placement.w * pixelScale;
-        const h = placement.h * pixelScale;
+        // Sprite offsets are in manifest metres, so everything scales with the part like the
+        // content shapes do; the spin foreshortening shrinks one axis about the sprite centre.
+        const centreX = drawn.cx * entity.scale;
+        const centreY = drawn.cy * entity.scale;
+        const w = drawn.sx * pixelScale * (pose?.scaleX ?? 1);
+        const h = drawn.sy * pixelScale * (pose?.scaleY ?? 1);
         // Position and orientation in the world frame, both taken from the part origin.
-        let offsetX = Math.cos(entity.yaw) * placement.x - Math.sin(entity.yaw) * placement.y;
-        let offsetY = Math.sin(entity.yaw) * placement.x + Math.cos(entity.yaw) * placement.y;
-        let angle = entity.yaw;
+        let offsetX = Math.cos(entity.yaw) * centreX - Math.sin(entity.yaw) * centreY;
+        let offsetY = Math.sin(entity.yaw) * centreX + Math.cos(entity.yaw) * centreY;
+        let angle = entity.yaw + (pose?.rot ?? 0);
         if (axleOffset) {
           if (turning?.[index] || tire === undefined) {
             // The tire spins on the axle: it stays centred there instead of orbiting it.
@@ -202,7 +211,7 @@ export function drawFrame(
             offsetY = axleOffset.y;
           } else {
             // Mounts sit still: keep the offset from the tire the manifest authored.
-            const fixed = rotatePoint(placement.x - tire.x, placement.y - tire.y, rest);
+            const fixed = rotatePoint(centreX - tire.x, centreY - tire.y, rest);
             offsetX = axleOffset.x + fixed.x;
             offsetY = axleOffset.y + fixed.y;
             angle = rest;
@@ -211,18 +220,8 @@ export function drawFrame(
 
         ctx.save();
         ctx.translate(offsetX * pixelScale, -offsetY * pixelScale);
-        ctx.rotate(-(angle + placement.sprite.rot));
-        ctx.drawImage(
-          image,
-          placement.sprite.x,
-          placement.sprite.y,
-          placement.sprite.w,
-          placement.sprite.h,
-          -w / 2,
-          -h / 2,
-          w,
-          h,
-        );
+        ctx.rotate(-(angle + drawn.rot));
+        ctx.drawImage(image, drawn.x, drawn.y, drawn.w, drawn.h, -w / 2, -h / 2, w, h);
         ctx.restore();
       });
     } else {

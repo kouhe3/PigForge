@@ -15,6 +15,15 @@
 //     (columns 12/13) and the sprite pivot.
 //   - UnmanagedSprite prefabs carry exact grid UVs in the prefab itself.
 //   - The atlas PNG is the sprite GameObject's MeshRenderer material -> _MainTex.
+//   - Animation descriptors (schemaVersion 3):
+//       spin  — the node `FanPropeller.m_fanVisualization` points at marks the blades; the
+//               original compresses their scale by |cos(angle)| instead of rotating them.
+//       clips — a SpriteAnimation component marks the sprite whose mesh it swaps; its frame
+//               ids resolve against sprites.txt/spritemapping.txt and reuse the owning
+//               Sprite's material, scales and pivots, because the original rebuilds that
+//               one mesh in place (SpriteAnimation.cs:196-215 -> Sprite.SelectSprite).
+//       expression — the Pig/KingPig component marks a part as running the expression machine.
+//     A frame id's own materialId column is a runtime material and never resolves to an asset.
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -64,6 +73,10 @@ function scriptGuid(scriptName) {
 const SPRITE_SCRIPT = scriptGuid("Sprite");
 const UNMANAGED_SCRIPT = scriptGuid("UnmanagedSprite");
 const NAMED_SCRIPT = scriptGuid("INSerializedSprite");
+const SPRITE_ANIMATION_SCRIPT = scriptGuid("SpriteAnimation");
+const FAN_PROPELLER_SCRIPT = scriptGuid("FanPropeller");
+const PIG_SCRIPT = scriptGuid("Pig");
+const KING_PIG_SCRIPT = scriptGuid("KingPig");
 
 // ------------------------------------------------------------ sprite tables
 
@@ -160,22 +173,31 @@ function parsePrefab(text) {
   for (const [fileId, transform] of transforms) {
     if (transform.gameObject) transformByGameObject.set(transform.gameObject, fileId);
   }
-  const sprites = [];
+  // Every MonoBehaviour, so the animation pass can read SpriteAnimation/FanPropeller/Pig next
+  // to the sprite components (the sprite list below is a filter over the same blocks).
+  const behaviours = [];
   for (const { classId, body } of blocks) {
     if (classId !== 114) continue;
     const script = /m_Script: \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(body)?.[1];
-    if (script !== SPRITE_SCRIPT && script !== UNMANAGED_SCRIPT && script !== NAMED_SCRIPT) continue;
     const gameObject = /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1];
-    if (!gameObject) continue;
-    sprites.push({
-      kind: script === SPRITE_SCRIPT ? "sprite" : script === UNMANAGED_SCRIPT ? "grid" : "named",
+    if (!script || !gameObject) continue;
+    behaviours.push({
+      script,
       gameObject,
+      body,
       fields: Object.fromEntries(
         [...body.matchAll(/^\s*(m_[A-Za-z0-9_]+):\s*(.*)$/gm)].map((m) => [m[1], m[2].trim()]),
       ),
     });
   }
-  return { gameObjects, transforms, transformByGameObject, renderers, sprites };
+  const sprites = behaviours
+    .filter(({ script }) => script === SPRITE_SCRIPT || script === UNMANAGED_SCRIPT || script === NAMED_SCRIPT)
+    .map(({ script, gameObject, fields }) => ({
+      kind: script === SPRITE_SCRIPT ? "sprite" : script === UNMANAGED_SCRIPT ? "grid" : "named",
+      gameObject,
+      fields,
+    }));
+  return { gameObjects, transforms, transformByGameObject, renderers, sprites, behaviours };
 }
 
 function textureOfMaterial(materialGuid) {
@@ -203,14 +225,38 @@ function pngSize(path) {
  */
 const SPINNING_NODES = new Set(["WheelPivot", "FakeWheelPivot", "FanVisualization"]);
 
+/** FanPropeller.cs:92,108-112 with `powerFactor` 1 (`1000 * powerFactor + 700`): the original
+ * derives its maximum speed from the engine's power factor instead of serializing it. */
+const FAN_SPIN_DEGREES_PER_SECOND = 1700;
+/** `FrameTiming.time` default (SpriteAnimation.cs:37) for a frame that carries no time. */
+const DEFAULT_FRAME_SECONDS = 0.2;
+/**
+ * Pig expression thresholds. The original compares absolute m/s (`speedFunThreshold` 8,
+ * `speedFearThreshold` 14 — Pig.cs:416-424, `Part_Pig_01_SET.prefab:443-445`), which PigForge
+ * crosses within a tenth of a second because it has no original motor speed limit; these are
+ * the calibrated ratios of `vRef` instead (spec "阈值标定（实测）"). Parts may tune them.
+ */
+const PIG_EXPRESSION = {
+  speedFunRatio: 0.15,
+  speedFearfulRatio: 0.3,
+  speedFearRatio: 0.5,
+  speedReference: 20,
+  hitDeltaV: 5,
+};
+/** `Pig.fallFearThreshold` fallback for a pig prefab that omits it (Pig.cs:41). */
+const DEFAULT_FALL_FEAR_THRESHOLD = 3;
+
 /** Sprite centre offset from the prefab root, in BPLE world units (root's own offset
- * excluded), plus whether the sprite rides a node the original rotates. */
+ * excluded), whether the sprite rides a node the original rotates, and the transform ids
+ * from the sprite up to the root (the animation pass matches `m_fanVisualization` on them). */
 function localOffset(prefab, gameObject) {
   let transformId = prefab.transformByGameObject.get(gameObject);
   const chain = [];
+  const chainIds = [];
   while (transformId && prefab.transforms.has(transformId)) {
     const transform = prefab.transforms.get(transformId);
     chain.push(transform);
+    chainIds.push(transformId);
     transformId = transform.father;
   }
   // Walk from the root down so each step's accumulated offset is that node's own offset
@@ -238,6 +284,7 @@ function localOffset(prefab, gameObject) {
     angle,
     spin: pivot !== null,
     pivot,
+    chain: chainIds,
   };
 }
 
@@ -255,6 +302,44 @@ function activeChain(prefab, gameObject) {
 const warnings = [];
 const usedAtlases = new Map();
 
+/**
+ * The art one `Sprite` component row draws: its atlas rect, its quad size in source pixels,
+ * and its centre offset from the node it hangs on, in BPLE world units. `Sprite.SelectSprite`/
+ * `CreateMesh` rebuild the quad at runtime around the database pivot, offsetting it by
+ * (selection centre - packed-rect centre + pivot) source pixels, so a node's local position
+ * alone is NOT the artwork's centre — ignoring it stacks a wheel's tyre on its fork instead of
+ * hanging it on the axle. UnmanagedSprite/INSerializedSprite centre their quads on the node and
+ * carry no pivot, so only this path corrects.
+ *
+ * `fields` are the owning Sprite component's serialized fields and `rowId` the sprite-database
+ * row to draw: a SpriteAnimation frame passes the frame's id with the same component's fields,
+ * because the original rebuilds that one mesh in place and keeps its scales, pivots and node.
+ */
+function spriteRowArt(fields, rowId, offset, atlasSize, what) {
+  const cell = spriteCells.get(rowId);
+  const uv = spriteUv.get(rowId);
+  if (!cell || !uv) {
+    warnings.push(`${what}: sprite ${rowId} missing from sprites.txt/spritemapping.txt`);
+    return undefined;
+  }
+  const [u, v, uw, uh] = uv;
+  const x = Math.round(u * atlasSize.width);
+  const yBottom = Math.round(v * atlasSize.height);
+  const w = Math.round(uw * atlasSize.width);
+  const h = Math.round(uh * atlasSize.height);
+  const scaleX = Number(fields.m_scaleX ?? 1);
+  const scaleY = Number(fields.m_scaleY ?? 1);
+  const pivotOffsetX = cell.selectionX + cell.selectionWidth / 2 - (cell.uvX + cell.w / 2) + cell.pivotX + Number(fields.m_pivotX ?? 0);
+  const pivotOffsetY = cell.selectionY + cell.selectionHeight / 2 - (cell.uvY + cell.h / 2) + cell.pivotY + Number(fields.m_pivotY ?? 0);
+  return {
+    rect: { x, y: atlasSize.height - yBottom - h, w, h },
+    quadW: scaleX * cell.w,
+    quadH: scaleY * cell.h,
+    artX: offset.x - scaleX * pivotOffsetX * UNITS_PER_PIXEL,
+    artY: offset.y - scaleY * pivotOffsetY * UNITS_PER_PIXEL,
+  };
+}
+
 function extractSprite(prefab, sprite) {
   if (!activeChain(prefab, sprite.gameObject)) return undefined;
   const materialGuid = prefab.renderers.get(sprite.gameObject);
@@ -267,11 +352,6 @@ function extractSprite(prefab, sprite) {
   const atlas = texturePath.split(/[\\/]/).pop();
   const offset = localOffset(prefab, sprite.gameObject);
   const f = sprite.fields;
-  // Sprite.SelectSprite/CreateMesh rebuild each sprite's quad at runtime around the database
-  // pivot, offsetting it by (selection centre - packed-rect centre + pivot) source pixels,
-  // so a node's local position alone is NOT the artwork's centre. Ignoring it stacks a wheel's
-  // tyre on its fork instead of hanging it on the axle. UnmanagedSprite/INSerializedSprite
-  // centre their quads on the node and carry no pivot, so only the Sprite path corrects.
   let artX = offset.x;
   let artY = offset.y;
   let rect;
@@ -301,28 +381,13 @@ function extractSprite(prefab, sprite) {
     quadH = named.h * named.scaleY;
     unitsPerPixel = 20 / named.screenHeight;
   } else {
-    const cell = spriteCells.get(f.m_id);
-    const uv = spriteUv.get(f.m_id);
-    if (!cell || !uv) {
-      warnings.push(`sprite ${f.m_id} missing from sprites.txt/spritemapping.txt`);
-      return undefined;
-    }
-    const [u, v, uw, uh] = uv;
-    const x = Math.round(u * size.width);
-    const yBottom = Math.round(v * size.height);
-    const w = Math.round(uw * size.width);
-    const h = Math.round(uh * size.height);
-    rect = { x, y: size.height - yBottom - h, w, h };
-    const scaleX = Number(f.m_scaleX ?? 1);
-    const scaleY = Number(f.m_scaleY ?? 1);
-    quadW = scaleX * cell.w;
-    quadH = scaleY * cell.h;
-    // The pivot the original rotates this quad about, in source pixels, in the same
-    // frame as the packed rect (its centre) — a node offset in world units.
-    const pivotOffsetX = cell.selectionX + cell.selectionWidth / 2 - (cell.uvX + cell.w / 2) + cell.pivotX + Number(f.m_pivotX ?? 0);
-    const pivotOffsetY = cell.selectionY + cell.selectionHeight / 2 - (cell.uvY + cell.h / 2) + cell.pivotY + Number(f.m_pivotY ?? 0);
-    artX = offset.x - scaleX * pivotOffsetX * UNITS_PER_PIXEL;
-    artY = offset.y - scaleY * pivotOffsetY * UNITS_PER_PIXEL;
+    const art = spriteRowArt(f, f.m_id, offset, size, prefab.gameObjects.get(sprite.gameObject)?.name ?? "sprite");
+    if (!art) return undefined;
+    rect = art.rect;
+    quadW = art.quadW;
+    quadH = art.quadH;
+    artX = art.artX;
+    artY = art.artY;
   }
   if (!(rect.w > 0 && rect.h > 0 && quadW > 0 && quadH > 0)) return undefined;
   const transformId = prefab.transformByGameObject.get(sprite.gameObject);
@@ -332,6 +397,12 @@ function extractSprite(prefab, sprite) {
     root: prefab.transforms.get(transformId)?.father === "0",
     rotates: offset.spin,
     pivot: offset.pivot,
+    // Internal — the animation pass resolves fan blades and frame animations from these:
+    // the node it hangs on with its offset and prefab chain, and its own Sprite component
+    // fields (a frame reuses the row's scales and pivots). The emitter drops them.
+    gameObject: sprite.gameObject,
+    node: offset,
+    fields: f,
     atlas,
     x: rect.x,
     y: rect.y,
@@ -344,6 +415,90 @@ function extractSprite(prefab, sprite) {
     rot: offset.angle,
     z: offset.z,
   };
+}
+
+/**
+ * `SpriteAnimation.m_animations` (SpriteAnimation.cs:12-31): named clips, each a list of
+ * `{ id, time }` frames. Read line by line because the serialized block is nested YAML: it
+ * holds two-space list items with deeper fields, and everything else is the next field of the
+ * component (`m_childAnimations`, `m_AutoPlay`, ...).
+ */
+function parseAnimations(body) {
+  const lines = body.split("\n");
+  const start = lines.findIndex((line) => line.trim() === "m_animations:");
+  if (start < 0) return [];
+  const animations = [];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!line.startsWith("    ") && !line.startsWith("  - ")) break;
+    const field = /^\s*(?:- )?([A-Za-z0-9_]+):\s*(.*)$/.exec(line);
+    if (!field) continue;
+    const [, name, value] = field;
+    if (name === "name") {
+      animations.push({ name: value, loop: false, frames: [] });
+      continue;
+    }
+    if (animations.length === 0) continue;
+    const animation = animations[animations.length - 1];
+    if (name === "loop") {
+      animation.loop = value === "1";
+    } else if (name === "id") {
+      animation.frames.push({ id: value, seconds: 0 });
+    } else if (name === "time") {
+      animation.frames[animation.frames.length - 1].seconds = Number(value);
+    }
+  }
+  return animations.filter((animation) => animation.name.length > 0 && animation.frames.length > 0);
+}
+
+/**
+ * One clip frame as the original builds it: the frame id's own sprite-database row drawn by the
+ * owning Sprite component, so the node, material, scales and pivots stay the component's and
+ * only the rect and quad size come from the frame (`SpriteAnimation.InitializeAnimations` calls
+ * `SelectSprite(frameId)`, which rebuilds that component's mesh — SpriteAnimation.cs:196-215).
+ */
+function frameSprite(owner, clipName, frame) {
+  const atlas = usedAtlases.get(owner.atlas);
+  const art = atlas && spriteRowArt(owner.fields, frame.id, owner.node, atlas.size, `${owner.name} ${clipName}`);
+  if (!art || !(art.rect.w > 0 && art.rect.h > 0 && art.quadW > 0 && art.quadH > 0)) return undefined;
+  return {
+    atlas: owner.atlas,
+    x: art.rect.x,
+    y: art.rect.y,
+    w: art.rect.w,
+    h: art.rect.h,
+    cx: art.artX,
+    cy: art.artY,
+    sx: art.quadW * UNITS_PER_PIXEL,
+    sy: art.quadH * UNITS_PER_PIXEL,
+    rot: owner.rot,
+    seconds: frame.seconds > 0 ? frame.seconds : DEFAULT_FRAME_SECONDS,
+  };
+}
+
+/**
+ * The node a fan, propeller or rotor turns and the axis it turns about: the original writes
+ * `m_fanVisualization.localRotation` and compresses the blades' scale by |cos(angle)| every
+ * frame (FanPropeller.cs:120-142, 319-324). `m_isRotor` picks up for a rotor and right for the
+ * rest (`Part_Rotor_01_SET.prefab` `m_isRotor: 1`).
+ */
+function fanSpin(prefab) {
+  const fan = prefab.behaviours.find((behaviour) => behaviour.script === FAN_PROPELLER_SCRIPT);
+  if (!fan) return undefined;
+  const nodeId = /\{fileID: (\d+)\}/.exec(fan.fields.m_fanVisualization ?? "")?.[1];
+  if (!nodeId) {
+    warnings.push(`FanPropeller without m_fanVisualization on ${prefab.gameObjects.get(fan.gameObject)?.name}`);
+    return undefined;
+  }
+  return { nodeId, axis: fan.fields.m_isRotor === "1" ? "y" : "x", maxDegreesPerSecond: FAN_SPIN_DEGREES_PER_SECOND };
+}
+
+/** The expression block of a pig: only a Pig/KingPig component runs the expression machine. */
+function pigExpression(prefab) {
+  const pig = prefab.behaviours.find((behaviour) => behaviour.script === PIG_SCRIPT || behaviour.script === KING_PIG_SCRIPT);
+  if (!pig) return undefined;
+  const fall = Number(pig.fields.fallFearThreshold);
+  return { ...PIG_EXPRESSION, fallFearThreshold: Number.isFinite(fall) && fall > 0 ? fall : DEFAULT_FALL_FEAR_THRESHOLD };
 }
 
 function extractPart(prefabName) {
@@ -375,6 +530,43 @@ function extractPart(prefabName) {
     return undefined;
   }
   const sprites = filtered;
+  // Fan blades: the sprites hanging on the node the FanPropeller turns get the spin
+  // descriptor (the compressor reads their axis and speed). Wheels get none — their sprites
+  // ride a hinged body whose snapshot rotation is the roll (ADR-008/009).
+  const fan = fanSpin(prefab);
+  if (fan) {
+    for (const sprite of sprites) {
+      // The FanPropeller's node is the authority on what turns in a fan prefab: the name-based
+      // flag alone both misses a differently named node it does drive (Rotor_09's blades) and
+      // marks a same-named node it never touches (that prefab's hub).
+      sprite.rotates = sprite.node.chain.includes(fan.nodeId);
+      sprite.spin =
+        sprite.rotates ? { axis: fan.axis, maxDegreesPerSecond: fan.maxDegreesPerSecond } : undefined;
+    }
+    if (!sprites.some((sprite) => sprite.spin)) {
+      warnings.push(`no sprite under the fan node ${fan.nodeId} in ${prefabName}`);
+    }
+  }
+  // Original frame animations: the Sprite component that also drives SpriteAnimation swaps the
+  // mesh of that very node through the clip's frames (SpriteAnimation.cs:196-215), so the clips
+  // ride that sprite and every child animation with the same clip names follows it in lockstep.
+  for (const behaviour of prefab.behaviours) {
+    if (behaviour.script !== SPRITE_ANIMATION_SCRIPT) continue;
+    const owner = sprites.find((sprite) => sprite.gameObject === behaviour.gameObject);
+    if (!owner) {
+      warnings.push(`SpriteAnimation without an extracted sprite in ${prefabName}`);
+      continue;
+    }
+    const clips = {};
+    for (const animation of parseAnimations(behaviour.body)) {
+      const frames = animation.frames.map((frame) => frameSprite(owner, animation.name, frame)).filter(Boolean);
+      if (frames.length !== animation.frames.length) {
+        warnings.push(`${owner.name}: clip ${animation.name} dropped ${animation.frames.length - frames.length} frame(s)`);
+      }
+      if (frames.length > 0) clips[animation.name] = { loop: animation.loop, frames };
+    }
+    if (Object.keys(clips).length > 0) owner.clips = clips;
+  }
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -399,9 +591,21 @@ function extractPart(prefabName) {
   // in order. Reversing this stacks a wheel's tire over the spokes that show through its rim
   // hole and hides its axle behind the wheel (the reported motor-wheel regression).
   sprites.sort((a, b) => b.z - a.z);
+  const expression = pigExpression(prefab);
+  // Clip frames carry their art centre in the node's frame like every other sprite; shift them
+  // onto the composite anchor (where the emitted `cx`/`cy` live) before the emitter rounds them.
+  for (const sprite of sprites) {
+    for (const clip of Object.values(sprite.clips ?? {})) {
+      for (const frame of clip.frames) {
+        frame.cx -= centreX;
+        frame.cy -= centreY;
+      }
+    }
+  }
   return {
     bbox: [round(bbox[0]), round(bbox[1])],
     ...(pivot ? { pivot: [round(pivot[0] - centreX), round(pivot[1] - centreY)] } : {}),
+    ...(expression ? { expression } : {}),
     sprites: sprites.map((s) => ({
       atlas: s.atlas,
       x: s.x,
@@ -414,6 +618,32 @@ function extractPart(prefabName) {
       sy: round(s.sy),
       rot: round(s.rot),
       rotates: s.rotates,
+      ...(s.spin ? { spin: s.spin } : {}),
+      ...(s.clips
+        ? {
+            clips: Object.fromEntries(
+              Object.entries(s.clips).map(([name, clip]) => [
+                name,
+                {
+                  loop: clip.loop,
+                  frames: clip.frames.map((frame) => ({
+                    atlas: frame.atlas,
+                    x: frame.x,
+                    y: frame.y,
+                    w: frame.w,
+                    h: frame.h,
+                    cx: round(frame.cx),
+                    cy: round(frame.cy),
+                    sx: round(frame.sx),
+                    sy: round(frame.sy),
+                    rot: round(frame.rot),
+                    seconds: frame.seconds,
+                  })),
+                },
+              ]),
+            ),
+          }
+        : {}),
     })),
   };
 }
@@ -437,7 +667,9 @@ for (const [partTypeId, prefabName] of Object.entries(assignments)) {
 
 const manifest = {
   format: "pigforge.part-textures",
-  schemaVersion: 2,
+  // v3 adds the optional animation descriptors (sprite `spin`/`clips`, part `expression`);
+  // a v2 client ignores them, a v2 manifest is a v3 one without animation.
+  schemaVersion: 3,
   source: basename(BPLE),
   unitsPerPixel: UNITS_PER_PIXEL,
   atlases: Object.fromEntries([...usedAtlases].map(([name, entry]) => [name, entry.size])),

@@ -1,6 +1,6 @@
 # Spec: 部件贴图动画（本机）
 
-> 状态：待确认（2026-09-09）。消费 `docs/intent/part-texture-animation.md`。
+> 状态：已确认（2026-09-30 用户确认：透视压缩沿用「以精灵自身中心」的近似，节点原点版本另议；轮子高速频闪钳制不属本切片，另开切片）。消费 `docs/intent/part-texture-animation.md`。
 > 调研依据：BPLE 原作 `Assets/Scripts/Assembly-CSharp/{SpriteAnimation,FanPropeller,CartWheel,Pig}.cs` + `Assets/GameObject/Part_*.prefab`；`c:/tmp/badpiggies-editor` 的 wgpu 渲染器（`crates/renderer/src/renderer/particles/{fan,mod}.rs`、`compounds.rs`）。
 > 权威契约：ADR-003（贴图资产不入库、清单可选、缺失回退形状渲染）、ADR-005（形状来自 BPLE 碰撞体）。本文件只补「贴图动画」缺口。
 > 零协议改动：PGFS / PGFC 线格式不变（当前 PGFS v4 / PGFC v2）；动画不进回放、不进状态哈希、不上行。
@@ -223,8 +223,10 @@ play(name): 有该 clip 就 { clip = name; frame = 0; elapsed = 0 }，没有就�
 step(dt):   elapsed += dt
             while (elapsed >= frames[frame].seconds) { elapsed -= frames[frame].seconds;
               frame < 末帧 ? frame++ : (loop ? frame = 0 : 停在末帧并 break) }
-pose.sprite = frames[frame]      // 帧是完整精灵描述符，替换源矩形与放置尺寸
+  pose.sprite = frames[frame]      // 帧是完整精灵描述符，替换源矩形与放置尺寸
 ```
+
+**重播（实现注记）**：`SpriteAnimation.Play` 是排队语义——同名 clip 再播一次必须从第 0 帧重来（`Pig.cs:283-296` 的眨眼绕开 `SetExpression` 直接 `Play("Blink")`；`Pig.cs:730-742` 的 `Hit` 协程结束后 `SetExpression(Normal)`）。因此表达式的 `ExpressionState` 带一个 `requestId`，每次「请求播放」都自增；渲染侧只在 `requestId` 变化时 `playClip`，而不是只在 clip 名变化时。否则第二次眨眼不会重新闭眼（玩家停在 Blink 末帧），`Hit` 也会把受击表情永久留在脸上。
 
 - 子动画同步沿用原作语义：同一个部件内**所有**带同名 clip 的精灵一起切（猪的 Face 与 Eyes）。
 - 部件没有 `clips` → 返回清单里的原始精灵。
@@ -294,6 +296,7 @@ export function createAnimationState(): AnimationState;
 export function updateAnimations(
   state: AnimationState,
   entities: readonly DrawEntity[],
+  content: PartContentDocument | null,   // vRef 需要零件表（Σ推力 / Σ质量），见「阈值标定」
   textures: PartTextureSet | null,
   dtSeconds: number,          // 0 = 冻结
 ): void;
@@ -310,6 +313,8 @@ export function resetAnimations(state: AnimationState): void;
 在现有 prefab 解析上追加：
 
 1. **FanPropeller**（`Part_Fan_*`、`Part_PlanePropeller_*`、`Part_Rotor_*`）：读 `m_fanVisualization` 指向的 Transform → 其 GameObject 上的 `Sprite` 打 `spin`；`axis = m_isRotor ? "y" : "x"`；`maxDegreesPerSecond = 1700`（`1000 · powerFactor + 700` 的 powerFactor = 1 情形，写死并加注释）。
+   - 实现注记：`m_fanVisualization` 是 Transform fileID，提取器用它（而不是 `FanVisualization` 这个名字）决定哪些精灵在转：`Rotor_09` 的叶片挂在一个**不叫**这个名字的节点上，而同 prefab 里那个叫 `FanVisualization` 的节点根本不是组件驱动的那颗——按名字判会把叶片判成静止、把轮毂判成转动。命中的精灵同时拿到 `rotates: true` 与 `spin`。
+   - 帧描述符复用**宿主 Sprite 组件**的 `m_scaleX/m_scaleY/m_pivotX/m_pivotY` 与节点偏移，只有矩形与 quad 尺寸来自帧自己的 sprite-database 行：原作是同一颗组件上 `SelectSprite(frameId)` 重建网格（`SpriteAnimation.cs:196-215`），材质不变，因此帧的贴图仍是宿主精灵的图集（帧行里的 materialId 是运行时材质，解析不到资源）。
 2. **轮子**（`Part_{CartWheel,MotorWheel,OffRoadWheel,StickyWheel,SmallWheel,NormalWheel}_*`）：**不产动画描述符**——滚动角来自物理刚体（ADR-008/009：轮体只带轮胎并绕轮胎中心自转）。
 3. **SpriteAnimation**：遍历 prefab 内的 `SpriteAnimation` 组件（脚本 guid `b724b453dd61eb03a1d123fa87323918`），把 `m_animations` 的每个 `FrameTiming.id` 解析成精灵矩形（复用现有 `extractSprite` 的 id → 图集矩形逻辑），生成 `clips`；`m_childAnimations` 只用于确认同名 clip 的同步语义，不额外产出。
 4. **Pig/KingPig**：读 `speedFunThreshold` / `speedFearThreshold` / `fallFearThreshold` 生成 `expression`。
@@ -329,6 +334,7 @@ export function resetAnimations(state: AnimationState): void;
 ### Web（vitest，`pnpm test`）
 
 - `renderer/atlas.test.ts`：v3 清单解析（`spin`/`clips`/`expression` 合法）；`schemaVersion` 2 仍可解析且无动画；`axis` 非法、空帧表、`seconds ≤ 0`、阈值非有限数 → 抛错；v1/未知版本 → 抛错。
+- `renderer/animation/index.test.ts`：组合层——开关驱动压缩、关闭沿抖动角、`dt = 0` 冻结、预览件不建状态、实体消失即回收、`resetAnimations` 清空、无清单（干净检出）不做事、眨眼每 1.5–4 s 重播第 0 帧、`Hit` 一秒后交回表情、按 body 的 Σ推力/Σ质量定 vRef、无激活电机用兜底速度。
 - `renderer/animation/spin.test.ts`：
   - 激活 → 满速；关闭沿 → `speed = 800`、`angle = 292.3`；
   - 衰减：从 1700 到 450 用时 ≈ `ln(1700/450)/1.010135`，全程到静止 ≈ 2.5s（容差 ±5%）；

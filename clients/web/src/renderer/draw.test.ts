@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
+import { createAnimationState, updateAnimations } from "./animation";
 import { drawFrame, wheelAxle } from "./draw";
 import { createCamera } from "./camera";
 import type { DrawEntity, PartContentDocument } from "@/schema/types";
@@ -439,5 +440,86 @@ describe("drawFrame multi-shape placeholders", () => {
     // camera { x: 4, y: 2, scale: 36 } over 800x600 puts the wheel at screen (400,300).
     expect(translations).toContainEqual([0.01 * 36, 0.2 * 36]);
     expect(translations).toContainEqual([0, -0.17 * 36]);
+  });
+});
+
+describe("drawFrame animation", () => {
+  const image = {} as CanvasImageSource;
+  /** A fan blade as the extractor emits it: `rotates` plus the spin descriptor (schema v3). */
+  const bladeTextures = {
+    atlases: new Map([["A.png", image]]),
+    parts: new Map([
+      [
+        1,
+        {
+          bbox: [2, 1] as [number, number],
+          sprites: [
+            { atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0, rotates: true, spin: { axis: "x" as const, maxDegreesPerSecond: 1700 } },
+          ],
+        },
+      ],
+    ]),
+  };
+
+  it("compresses only the spin axis of a blade", () => {
+    const { ctx, draws } = makeCtx();
+    const spinning = { ...block, active: true };
+    const state = createAnimationState();
+    // One step at 1700 deg/s over 45/1700 s: the blade has turned 45 degrees, |cos| = 0.7071.
+    updateAnimations(state, [spinning], content, bladeTextures, 45 / 1700);
+    drawFrame(ctx, createCamera(), [spinning], content, [], undefined, undefined, bladeTextures, null, state);
+    expect(draws[0][6]).toBeCloseTo(72); // width: the 2-unit sprite at camera scale 36
+    expect(draws[0][7]).toBeCloseTo(76.3675); // height: 108 compressed by |cos 45|
+    expect(draws[0][5]).toBeCloseTo(-38.1838);
+  });
+
+  it("draws the static sprite while the clock is frozen", () => {
+    const { ctx, draws } = makeCtx();
+    const idle = { ...block, active: true };
+    const state = createAnimationState();
+    // dt 0 is how build mode, a paused replay and a dragged preview reach the renderer.
+    updateAnimations(state, [idle], content, bladeTextures, 0);
+    drawFrame(ctx, createCamera(), [idle], content, [], undefined, undefined, bladeTextures, null, state);
+    expect(draws[0]).toEqual([10, 20, 100, 100, -36, -54, 72, 108]);
+  });
+
+  /** A frame-animated sprite: the shipped pig's face, whose clips swap the whole descriptor. */
+  const faceTextures = {
+    atlases: new Map([["A.png", image]]),
+    parts: new Map([
+      [
+        1,
+        {
+          bbox: [1, 1] as [number, number],
+          sprites: [
+            {
+              atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0, rotates: false,
+              clips: {
+                Normal: {
+                  loop: false,
+                  frames: [
+                    { atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0, seconds: 0.05 },
+                    { atlas: "A.png", x: 200, y: 20, w: 80, h: 60, cx: 0.5, cy: 0, sx: 1.5, sy: 2, rot: 0, seconds: 0.05 },
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      ],
+    ]),
+  };
+
+  it("draws the clip's current frame instead of the manifest sprite", () => {
+    const { ctx, draws, translations } = makeCtx();
+    const state = createAnimationState();
+    // Past the first frame's 0.05 s the player holds frame 1 and its own rect and size.
+    updateAnimations(state, [block], content, faceTextures, 0.06);
+    drawFrame(ctx, createCamera(), [block], content, [], undefined, undefined, faceTextures, null, state);
+    expect(draws[0]).toEqual([200, 20, 80, 60, -27, -36, 54, 72]);
+    // The frame's own centre (0.5 world units) replaces the static sprite's offset.
+    const last = translations[translations.length - 1];
+    expect(last[0]).toBeCloseTo(18);
+    expect(last[1]).toBeCloseTo(0);
   });
 });

@@ -9,6 +9,8 @@ import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
 import { createPlayerSession, type CommandKind } from "./live/playerSession";
 import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
+import { createAnimationState, resetAnimations, updateAnimations } from "./renderer/animation";
+import { createAnimationClock } from "./renderer/animation/clock";
 import { loadPartTextures, type PartTextureSet } from "./renderer/atlas";
 import { partThumbnailDataUrl } from "./renderer/thumbnails";
 import { drawFrame } from "./renderer/draw";
@@ -44,6 +46,10 @@ let disconnectLive: (() => void) | null = null;
 let sendCommand: ((command: ClientCommand) => void) | null = null;
 // Original-art sprite manifest: optional, absent in a clean checkout.
 const partTextures = shallowRef<PartTextureSet | null>(null);
+// Animation state and its wall clock; both stay outside Vue reactivity like the view state.
+const animations = createAnimationState();
+const animationClock = createAnimationClock();
+let animationsRunning = false;
 // Palette/gadget button icons, cached per partTypeId; empty strings never enter the map.
 const partIcons = new Map<number, string | null>();
 
@@ -205,7 +211,7 @@ function togglePartFromCanvas(entityId: number): void {
   dispatch((sequence) => ({ kind: 8, sequence, playerId: 0, tick: 0, entityId, active }), 8, entityId);
 }
 
-function paint(): void {
+function paint(now: number): void {
   const node = canvas.value;
   if (!node) {
     return;
@@ -232,6 +238,17 @@ function paint(): void {
           : entity,
       )
     : viewState.entities;
+  // Animation is presentation only: it advances while the view shows running physics — a
+  // materialized sandbox build or a playing replay — and freezes everywhere else (build mode,
+  // pause, single stepping, a part being dragged). The clock gates on the same flag, and the
+  // rising edge clears every phase, so Start/RESET and replay play restart from zero.
+  const running = activeTab.value === "live" ? playerPhase.value === "materialized" : clock !== null && clock.playing;
+  const dt = animationClock.step(now, running);
+  if (running && !animationsRunning) {
+    resetAnimations(animations);
+}
+  animationsRunning = running;
+  updateAnimations(animations, entities, session.content, partTextures.value, dt);
   // The sandbox has no goal semantics, so the live view omits the local GOAL_ZONE.
   drawFrame(
     ctx,
@@ -243,6 +260,7 @@ function paint(): void {
     MAP_BOUNDS,
     partTextures.value,
     viewState.marquee,
+    animations,
   );
   raf = requestAnimationFrame(paint);
 }

@@ -106,7 +106,7 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 - `docs/intent/*.md` + `docs/specs/*.md` — confirmed intent and the authoritative per-slice spec (e.g. `advanced-building.md` for build-mode move/rotate/scale, `multi-select.md` for marquee selection and PGFA error messages, `play-part-switches.md` for part switches)
 - `clients/web/vite.config.ts` — dev server port 5173 + WS proxy; `clients/web/src/schema/decodeSnapshot.ts`/`encodeCommand.ts` — client wire codecs; `clients/web/src/editor/tools.ts` — tool math/snaps; `clients/web/src/live/gadgets.ts` — switch-bar grouping/hotkeys
 
-- `clients/web/src/renderer/` — Canvas 2D frame painter (`draw.ts`: original-art sprites, spinning sprites pinned to the axle `wheelAxle` derives from the part content, shape fallback), optional BPLE texture manifest (`atlas.ts`), thumbnails; `clients/web/src/live/restYaw.ts` — build-orientation tracker that keeps a rolling wheel's non-spinning sprites (its axle) off the roll
+- `clients/web/src/renderer/` — Canvas 2D frame painter (`draw.ts`: original-art sprites, spinning sprites pinned to the axle `wheelAxle` derives from the part content, shape fallback), optional BPLE texture manifest (`atlas.ts`, accepts `schemaVersion` 2 and 3), `animation/` (fan/rotor blade spin, pig face clips + expression machine, wall-clock gating — presentation only, never on the wire), thumbnails; `clients/web/src/live/restYaw.ts` — build-orientation tracker that keeps a rolling wheel's non-spinning sprites (its axle) off the roll
 
 ## Runtime/Tooling Preferences
 
@@ -124,5 +124,5 @@ No CI exists. Web has no ESLint/Prettier; .NET has no analyzer packages — `Tre
 - **Assertions**: xUnit `Assert.*` only, expected-before-actual; physics outcomes via `Assert.InRange`/`precision:`; allocation checks via `GC.GetAllocatedBytesForCurrentThread()` delta == 0.
 - **Fixture files**: JSON as C# raw string literals, or repo-relative paths resolved by walking up from `AppContext.BaseDirectory` (`FindRepositoryFile`/`FindRepositoryRoot`); never embedded resources.
 - **Coverage**: `coverlet.collector` is referenced but unconfigured — no gate; can run `dotnet test PigForge.slnx --collect:"XPlat Code Coverage"`.
-- **Web tests**: Vitest `environment: "node"` (not jsdom, despite jsdom dependency), colocated `*.test.ts` (118 cases).
+- **Web tests**: Vitest `environment: "node"` (not jsdom, despite jsdom dependency), colocated `*.test.ts` (189 cases).
 - Known staleness: `tests/PigForge.Core.Tests` pins older xunit 2.5.3/SDK 17.8.0 than siblings; `Protocol.Tests`/`Replay.Tests` csproj missing `<IsTestProject>`; Unity reference exporter still emits replay v1 vs .NET v2.

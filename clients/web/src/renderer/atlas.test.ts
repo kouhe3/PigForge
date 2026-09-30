@@ -74,6 +74,76 @@ describe("layoutSprites", () => {
   });
 });
 
+// A v3 manifest: the same static sprites plus the animation descriptors of the extractor
+// (a fan blade's spin, the pig's face clips and its expression thresholds).
+const frame = { atlas: "A.png", x: 587, y: 289, w: 85, h: 48, cx: 0, cy: -0.1468, sx: 0.8854, sy: 0.5, rot: 0, seconds: 0.1 };
+const blinkSecond = { ...frame, x: 1358, y: 740, w: 86, h: 46, seconds: 0.2 };
+const expression = { speedFunRatio: 0.15, speedFearfulRatio: 0.3, speedFearRatio: 0.5, speedReference: 20, hitDeltaV: 5, fallFearThreshold: 3 };
+const animatedManifest = {
+  format: "pigforge.part-textures",
+  schemaVersion: 3,
+  atlases: { "A.png": { width: 2048, height: 2048 } },
+  parts: {
+    "4": {
+      bbox: [2, 1] as [number, number],
+      expression,
+      sprites: [
+        { atlas: "A.png", x: 587, y: 289, w: 85, h: 48, cx: 0, cy: -0.1468, sx: 0.8854, sy: 0.5, rot: 0, rotates: false, clips: { Normal: { loop: false, frames: [frame] }, Blink: { loop: false, frames: [frame, blinkSecond] } } },
+        { atlas: "A.png", x: 10, y: 20, w: 100, h: 50, cx: 0, cy: 0, sx: 1, sy: 1, rot: 0, rotates: true, spin: { axis: "x", maxDegreesPerSecond: 1700 } },
+      ],
+    },
+  },
+};
+
+describe("parsePartTextures animation descriptors", () => {
+  it("reads the spin descriptor of a fan blade", () => {
+    const sprites = parsePartTextures(animatedManifest).get(4)!.sprites;
+    expect(sprites[1].spin).toEqual({ axis: "x", maxDegreesPerSecond: 1700 });
+    expect(sprites[1].clips).toBeUndefined();
+    expect(sprites[0].spin).toBeUndefined();
+  });
+
+  it("reads the clips of a sprite that swaps frames", () => {
+    const clips = parsePartTextures(animatedManifest).get(4)!.sprites[0].clips!;
+    expect(Object.keys(clips)).toEqual(["Normal", "Blink"]);
+    expect(clips.Normal).toEqual({ loop: false, frames: [frame] });
+    expect(clips.Blink).toEqual({ loop: false, frames: [frame, blinkSecond] });
+  });
+
+  it("reads the expression thresholds of a pig", () => {
+    expect(parsePartTextures(animatedManifest).get(4)!.expression).toEqual(expression);
+  });
+
+  it("still accepts a v2 manifest as a v3 one without any animation", () => {
+    const part = parsePartTextures(manifest).get(10)!;
+    expect(part.sprites).toHaveLength(2);
+    expect(part.expression).toBeUndefined();
+    expect(part.sprites.some((sprite) => sprite.spin !== undefined || sprite.clips !== undefined)).toBe(false);
+  });
+
+  it("rejects a spin axis the renderer cannot compress", () => {
+    const broken = { ...animatedManifest, parts: { "4": { ...animatedManifest.parts["4"], sprites: [{ ...animatedManifest.parts["4"].sprites[1], spin: { axis: "z", maxDegreesPerSecond: 1700 } }] } } };
+    expect(() => parsePartTextures(broken)).toThrow(/spin axis/);
+  });
+
+  it("rejects an empty frame table and a non-positive frame duration", () => {
+    const face = animatedManifest.parts["4"].sprites[0];
+    const empty = { ...animatedManifest, parts: { "4": { ...animatedManifest.parts["4"], sprites: [{ ...face, clips: { Normal: { loop: false, frames: [] } } }] } } };
+    expect(() => parsePartTextures(empty)).toThrow(/has no frames/);
+    const zero = { ...animatedManifest, parts: { "4": { ...animatedManifest.parts["4"], sprites: [{ ...face, clips: { Normal: { loop: false, frames: [{ ...frame, seconds: 0 }] } } }] } } };
+    expect(() => parsePartTextures(zero)).toThrow(/seconds is not positive/);
+  });
+
+  it("rejects an expression threshold that is not a positive number", () => {
+    const broken = { ...animatedManifest, parts: { "4": { ...animatedManifest.parts["4"], expression: { ...expression, hitDeltaV: 0 } } } };
+    expect(() => parsePartTextures(broken)).toThrow(/hitDeltaV is not positive/);
+  });
+
+  it("rejects a schema version past the animation one", () => {
+    expect(() => parsePartTextures({ ...animatedManifest, schemaVersion: 4 })).toThrow(/unsupported schemaVersion/);
+  });
+});
+
 describe("loadPartTextures", () => {
   it("returns null when the manifest is absent", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false }) as Response));
@@ -102,6 +172,32 @@ describe("loadPartTextures", () => {
       vi.fn(async () => ({ ok: true, json: async () => ({ format: "pigforge.part-textures" }) }) as Response),
     );
     expect(await loadPartTextures("/assets/original/part-textures.json", vi.fn())).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it("loads the atlas a clip frame lives in, not only the static ones", async () => {
+    const frameInAnotherAtlas = {
+      ...animatedManifest,
+      parts: {
+        "4": {
+          ...animatedManifest.parts["4"],
+          sprites: [
+            {
+              ...animatedManifest.parts["4"].sprites[0],
+              clips: { Normal: { loop: false, frames: [{ ...frame, atlas: "B.png" }] } },
+            },
+          ],
+        },
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => frameInAnotherAtlas }) as Response),
+    );
+    const loader = vi.fn(async (url: string) => ({ url }) as unknown as CanvasImageSource);
+    const textures = await loadPartTextures("/assets/original/part-textures.json", loader);
+    expect(loader).toHaveBeenCalledWith("/assets/original/B.png");
+    expect(textures?.atlases.has("B.png")).toBe(true);
     vi.unstubAllGlobals();
   });
 });
