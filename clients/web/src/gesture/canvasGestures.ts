@@ -2,9 +2,9 @@ import { type Camera, screenToWorld } from "@/renderer/camera";
 import {
   MIN_POINTER_DISTANCE,
   type Pose,
-  type SnapBox,
   type ToolId,
   type Vec2,
+  contactBoxes,
   isTransformTool,
   movePose,
   entitiesInBox,
@@ -331,19 +331,4 @@ function marqueeRect(start: Vec2, end: Vec2): MarqueeRect {
 function pointerCss(canvas: HTMLCanvasElement, event: PointerEvent): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-}
-
-/** Build-plane boxes of every entity whose part carries a snappable shape. */
-function contactBoxes(
-  entities: readonly DrawEntity[],
-  partOf: (partTypeId: number) => PartDefinition | undefined,
-): SnapBox[] {
-  const boxes: SnapBox[] = [];
-  for (const entity of entities) {
-    const box = snapBoxOf(entity, partOf(entity.partTypeId));
-    if (box !== null) {
-      boxes.push(box);
-    }
-  }
-  return boxes;
 }

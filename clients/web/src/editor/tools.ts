@@ -136,6 +136,18 @@ export function entitiesInBox(
 /** Flush-contact snap distance for a move drag (world metres, below the 0.5 grid step). */
 export const PART_SNAP = 0.35;
 
+/**
+ * The build-pose fields the snap math reads: any placed entity, or the candidate pose of a part
+ * that is not placed yet (a click about to become a `PlacePart` command).
+ */
+export interface SnapEntity {
+  entityId: number;
+  x: number;
+  y: number;
+  yaw: number;
+  scale: number;
+}
+
 /** Union AABB of a part's build-plane shape union, plus the id to exclude from contact tests. */
 export interface SnapTarget {
   entityId: number;
@@ -159,7 +171,7 @@ export interface SnapBox extends SnapTarget {
  * `PartFootprint`: every shape's part-local offset is rotated by `entity.yaw` and scaled,
  * boxes project to rotated-rect AABBs and spheres to squares of `radius * scale`.
  */
-export function snapBoxOf(entity: DrawEntity, part: PartDefinition | undefined): SnapBox | null {
+export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined): SnapBox | null {
   if (part === undefined) {
     return null;
   }
@@ -274,4 +286,35 @@ export function snapMoveToParts(
   }
 
   return { x: bestX, y: bestY };
+}
+
+/** Build-plane boxes of every entity whose part carries a snappable shape. */
+export function contactBoxes(
+  entities: readonly DrawEntity[],
+  partOf: (partTypeId: number) => PartDefinition | undefined,
+): SnapBox[] {
+  const boxes: SnapBox[] = [];
+  for (const entity of entities) {
+    const box = snapBoxOf(entity, partOf(entity.partTypeId));
+    if (box !== null) {
+      boxes.push(box);
+    }
+  }
+  return boxes;
+}
+
+/**
+ * Placement candidate for a build click. A tap has no drag to align with, so the part never
+ * lands free-hand: both axes go to the absolute 0.5 grid, and the candidate then snaps flush
+ * against a neighbouring part when one is within `PART_SNAP` of it — the same flush rule a move
+ * drag applies, and the only contact the server connects on (`ConstructionRules`
+ * ConnectionProximity = 0.15 m). One click is therefore enough to line a part up.
+ */
+export function placePose(pose: Pose, self: SnapTarget | null, others: readonly SnapBox[]): Vec2 {
+  const x = snapMove(pose.x, true);
+  const y = snapMove(pose.y, true);
+  if (self === null) {
+    return { x, y };
+  }
+  return snapMoveToParts(x, y, self, others);
 }

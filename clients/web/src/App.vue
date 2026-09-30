@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import { variantLabel, variantsOf } from "./builder/palette";
 import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
-import { MOVE_SNAP, TOOLS, type ToolId, toolByHotkey } from "./editor/tools";
+import { MOVE_SNAP, TOOLS, type ToolId, contactBoxes, placePose, snapBoxOf, toolByHotkey } from "./editor/tools";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
 import { gadgetGroups, type GadgetGroup } from "./live/gadgets";
 import { connectPlaySocket } from "./live/playSocket";
@@ -114,7 +114,20 @@ function resetSimulation(): void {
   dispatch((sequence) => ({ kind: 5, sequence, playerId: 0, tick: session.liveTick }), 5);
 }
 
+/**
+ * PGFC kind 0. A click carries no drag to align with, so placement snaps on the client: both
+ * axes to the 0.5 grid, then flush against a neighbouring part the click points at (flush
+ * contact is what makes the server connect two parts). The server still validates the command
+ * and owns identity, geometry and the phase.
+ */
 function placePart(x: number, y: number): void {
+  const pose = { x, y, yaw: placeAngle.value, scale: placeScale.value };
+  const self = snapBoxOf({ entityId: 0, ...pose }, partById.value.get(selectedPart.value));
+  const snapped = placePose(
+    pose,
+    self,
+    contactBoxes(viewState.entities, (partTypeId) => partById.value.get(partTypeId)),
+  );
   dispatch(
     (sequence) => ({
       kind: 0,
@@ -122,8 +135,8 @@ function placePart(x: number, y: number): void {
       playerId: 0,
       tick: 0,
       partTypeId: selectedPart.value,
-      x,
-      y,
+      x: snapped.x,
+      y: snapped.y,
       angle: placeAngle.value,
       scale: placeScale.value,
     }),
