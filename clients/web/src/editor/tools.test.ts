@@ -186,21 +186,19 @@ describe("part contact snap", () => {
     expect(movePose(start, 0.43, -0.45, true)).toEqual({ x: 1, y: 0, yaw: 1, scale: 2 });
   });
 
-  it("never places free-hand: a click lands on the 0.5 grid", () => {
+  it("never places free-hand: a click lands on a cell centre", () => {
     const pose = { x: 0.93, y: 0.05, yaw: 0, scale: 1 };
-    expect(placePose(pose, self, [])).toEqual({ x: 1, y: 0 });
-    expect(placePose({ ...pose, x: -0.4, y: 1.31 }, self, [])).toEqual({ x: -0.5, y: 1.5 });
-    // A part the content has no shape for still lands on the grid.
-    expect(placePose(pose, null, [neighbour])).toEqual({ x: 1, y: 0 });
+    expect(placePose(pose)).toEqual({ x: 1, y: 0 });
+    expect(placePose({ ...pose, x: -0.4, y: 1.31 })).toEqual({ x: 0, y: 1 });
   });
 
-  it("places flush against the neighbour the click points at", () => {
-    // From the grid point (1, 0) the neighbour's right face is 0.075 m away, inside PART_SNAP,
-    // so the placed box lands exactly on it while the free axis keeps its grid value.
-    const placed = placePose({ x: 0.93, y: 0.05, yaw: 0, scale: 1 }, self, [neighbour]);
-    expect(placed.x).toBeCloseTo(0.925);
-    expect(placed.y).toBe(0);
-    // The neighbour's other axis is 5 m away: the click grids instead of snapping sideways.
-    expect(placePose({ x: 0.93, y: 0.05, yaw: 0, scale: 1 }, self, [{ ...neighbour, y: 5 }])).toEqual({ x: 1, y: 0 });
+  it("never lands on a half cell, so a 1x1 part always fills exactly one cell", () => {
+    for (const raw of [0.24, 0.49, 0.5, 0.51, 0.75, 1.49, 2.5, -0.4, -0.51, -1.5]) {
+      const placed = placePose({ x: raw, y: raw, yaw: 0, scale: 1 });
+      expect(Number.isInteger(placed.x)).toBe(true);
+      expect(Number.isInteger(placed.y)).toBe(true);
+      expect(Object.is(placed.x, -0)).toBe(false);
+    }
   });
+
 });

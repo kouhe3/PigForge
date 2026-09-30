@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import { variantLabel, variantsOf } from "./builder/palette";
 import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
-import { MOVE_SNAP, TOOLS, type ToolId, contactBoxes, placePose, snapBoxOf, toolByHotkey } from "./editor/tools";
+import { MOVE_SNAP, TOOLS, type ToolId, placePose, toolByHotkey } from "./editor/tools";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
 import { gadgetGroups, type GadgetGroup } from "./live/gadgets";
 import { connectPlaySocket } from "./live/playSocket";
@@ -128,12 +128,7 @@ function resetSimulation(): void {
  */
 function placePart(x: number, y: number): void {
   const pose = { x, y, yaw: placeAngle.value, scale: placeScale.value };
-  const self = snapBoxOf({ entityId: 0, ...pose }, partById.value.get(selectedPart.value));
-  const snapped = placePose(
-    pose,
-    self,
-    contactBoxes(viewState.entities, (partTypeId) => partById.value.get(partTypeId)),
-  );
+  const snapped = placePose(pose);
   dispatch(
     (sequence) => ({
       kind: 0,

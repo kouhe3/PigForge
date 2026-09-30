@@ -21,6 +21,14 @@ export const TOOLS: readonly ToolDefinition[] = [
   { id: "scale", label: "缩放", hotkey: "5" },
 ];
 
+/**
+ * Build cell size, mirroring `ConstructionRules.CellSize` on the server: a 1x1 part centred on
+ * a whole number fills exactly one cell. Placement snaps to these centres, never to a cell
+ * boundary, so a 1x1 part always fills one cell instead of straddling four.
+ */
+export const CELL_SIZE = 1;
+
+/** Fine grid for `Alt` transform drags; half a cell, so it is never used to place parts. */
 export const MOVE_SNAP = 0.5;
 export const ROTATE_SNAP = Math.PI / 12;
 export const SCALE_SNAP = 0.25;
@@ -55,6 +63,13 @@ export function toolByHotkey(key: string): ToolId | null {
 /** Absolute grid snap; disabled (`Alt`) keeps the raw value. */
 export function snapMove(value: number, snap: boolean): number {
   return snap ? Math.round(value / MOVE_SNAP) * MOVE_SNAP : value;
+}
+
+/** Snaps to the nearest cell centre. Half-cell offsets are deliberately unreachable. */
+export function snapToCell(value: number): number {
+  const snapped = Math.round(value / CELL_SIZE) * CELL_SIZE;
+  // Normalise -0 so positions compare and serialise like their positive twins.
+  return snapped === 0 ? 0 : snapped;
 }
 
 export function snapAngle(angle: number, snap: boolean): number {
@@ -304,17 +319,13 @@ export function contactBoxes(
 }
 
 /**
- * Placement candidate for a build click. A tap has no drag to align with, so the part never
- * lands free-hand: both axes go to the absolute 0.5 grid, and the candidate then snaps flush
- * against a neighbouring part when one is within `PART_SNAP` of it — the same flush rule a move
- * drag applies, and the only contact the server connects on (`ConstructionRules`
- * ConnectionProximity = 0.15 m). One click is therefore enough to line a part up.
+ * Placement candidate for a build click: both axes go to the nearest cell centre and nothing
+ * else. A tap has no drag to align against, and a cell grid already makes neighbours line up
+ * exactly (a 1x1 part on a whole number fills one cell, so the next one is flush by
+ * construction), so contact snapping is deliberately not applied here — it used to drag a
+ * click onto half cells whenever terrain or a slanted part sat within `PART_SNAP`. Free-form
+ * flush fitting stays available through the move tool.
  */
-export function placePose(pose: Pose, self: SnapTarget | null, others: readonly SnapBox[]): Vec2 {
-  const x = snapMove(pose.x, true);
-  const y = snapMove(pose.y, true);
-  if (self === null) {
-    return { x, y };
-  }
-  return snapMoveToParts(x, y, self, others);
+export function placePose(pose: Pose): Vec2 {
+  return { x: snapToCell(pose.x), y: snapToCell(pose.y) };
 }
