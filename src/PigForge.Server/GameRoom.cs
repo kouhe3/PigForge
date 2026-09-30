@@ -75,6 +75,7 @@ public sealed class GameRoom : IDisposable
     private readonly BlasterStore _blasters;
     private readonly GlueStore _glues;
     private readonly ActivationStore _activations;
+    private readonly RestitutionStore _restitutions;
     private readonly ConstructionRules _construction;
     private readonly GameplayRules _rules;
     private readonly CommandValidator _validator = new();
@@ -131,9 +132,15 @@ public sealed class GameRoom : IDisposable
         _blasters = new BlasterStore(_entities);
         _glues = new GlueStore(_entities);
         _activations = new ActivationStore(_entities);
+        _restitutions = new RestitutionStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
+        // Elasticity is owned by whichever side can express it: a backend with a native
+        // restitution term applies it in the solver, otherwise the rules layer synthesizes it.
         _rules = new GameplayRules(
-            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _blasters, _glues, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _activations, _bodies, options.GameplayConfig);
+            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _blasters, _glues, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _activations, _restitutions, _bodies, options.GameplayConfig with
+            {
+                RestitutionAppliedNatively = _world.Capabilities.AppliesRestitutionNatively,
+            });
     }
 
     public RoomMode Mode { get; private set; } = RoomMode.Building;
@@ -164,6 +171,8 @@ public sealed class GameRoom : IDisposable
         EntityId entity = _entities.Create();
         _parts.Set(entity, new PartLink(spec.PartTypeId));
         _transforms.Set(entity, new EntityTransform(spec.Position, PhysicsQuaternion.FromZAngle(spec.Angle)));
+        PartDefinition part = _content.GetPart(spec.PartTypeId);
+        _rules.AddRestitution(entity, part.Restitution, part.Mass);
 
         switch (spec.Role)
         {
@@ -341,7 +350,11 @@ public sealed class GameRoom : IDisposable
 
     private void RegisterPlacedRole(EntityId entity, uint partTypeId)
     {
-        PartCapabilities? capabilities = _content.GetPart(partTypeId).Capabilities;
+        PartDefinition part = _content.GetPart(partTypeId);
+        // Elasticity is plain material data, so it registers whether or not the part carries
+        // any capability at all.
+        _rules.AddRestitution(entity, part.Restitution, part.Mass);
+        PartCapabilities? capabilities = part.Capabilities;
         if (capabilities is null)
         {
             return;

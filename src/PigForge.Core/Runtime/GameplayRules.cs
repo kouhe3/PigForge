@@ -30,7 +30,11 @@ public sealed record GameplayConfig(
     float EggBreakImpactSpeed = 6f,
     float SeamBreakImpulse = 10f,
     uint MaxTicks = 0,
-    bool ObjectivesEnabled = true)
+    bool ObjectivesEnabled = true,
+    // True when the physics backend already applies restitution in its solver (see
+    // PhysicsCapabilities.AppliesRestitutionNatively): the rules layer then leaves elasticity
+    // alone instead of adding a second, synthesized bounce on top of it.
+    bool RestitutionAppliedNatively = false)
 {
     public static GameplayConfig Default { get; } = new(
         GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
@@ -71,6 +75,7 @@ public sealed class GameplayTickOutput
 /// </summary>
 public sealed class GameplayRules
 {
+
     private readonly EntityStore _entities;
     private readonly MotorStore _motors;
     private readonly BalloonStore _balloons;
@@ -91,6 +96,7 @@ public sealed class GameplayRules
     private readonly DetacherStore _detachers;
     private readonly GrappleStore _grapples;
     private readonly ActivationStore _activations;
+    private readonly RestitutionStore _restitutions;
     private readonly PhysicsBodyStore _bodies;
     private readonly GameplayConfig _config;
 
@@ -100,6 +106,30 @@ public sealed class GameplayRules
     private readonly HashSet<uint> _brokenJoints = new();
     private readonly HashSet<uint> _dynamicBodies = new();
     private readonly Dictionary<uint, PhysicsVector3> _previousVelocities = new();
+    // Elasticity is a per-part content property, but a contact names bodies: a pig welded into
+    // a craft shares one compound body with plain structure. The body therefore carries the
+    // strongest restitution and the summed mass of its members, and the members are tracked so
+    // a seam split or a rebind recomputes them instead of dropping the value.
+    private readonly Dictionary<uint, List<uint>> _membersByBody = new();
+    private readonly Dictionary<uint, float> _restitutionByBody = new();
+    private readonly Dictionary<uint, float> _massByBody = new();
+    private readonly HashSet<uint> _bouncedBodies = new();
+
+    /// <summary>Floor that keeps a massless part from producing an unbounded bounce impulse.</summary>
+    private const float MinimumPartMass = 0.001f;
+
+    /// <summary>A landing slower than this is not an impact worth bouncing (matches the order of
+    /// the level's own impact thresholds).</summary>
+    private const float MinimumBounceApproachSpeed = 0.5f;
+
+    /// <summary>Per-tick decay of the remembered approach speed. A contact event can arrive a tick
+    /// after the impact (measured: a 9.32 m/s landing was reported as 2.56 m/s because the solver
+    /// had already absorbed the rest), so the true impact speed has to outlive the event by a tick
+    /// or two without staying sticky for a later, gentler touch.</summary>
+    private const float PeakApproachDecay = 0.93f;
+
+    private readonly Dictionary<uint, PhysicsVector3> _peakApproachByBody = new();
+
     private int _alivePigs;
 
     public GameplayRules(
@@ -123,6 +153,7 @@ public sealed class GameplayRules
         DetacherStore detachers,
         GrappleStore grapples,
         ActivationStore activations,
+        RestitutionStore restitutions,
         PhysicsBodyStore bodies,
         GameplayConfig config)
     {
@@ -146,6 +177,7 @@ public sealed class GameplayRules
         _detachers = detachers ?? throw new ArgumentNullException(nameof(detachers));
         _grapples = grapples ?? throw new ArgumentNullException(nameof(grapples));
         _activations = activations ?? throw new ArgumentNullException(nameof(activations));
+        _restitutions = restitutions ?? throw new ArgumentNullException(nameof(restitutions));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
@@ -170,6 +202,36 @@ public sealed class GameplayRules
         {
             _dynamicBodies.Add(body.Value);
         }
+
+        if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members))
+        {
+            members = new List<uint>();
+            _membersByBody.Add(body.Value, members);
+        }
+
+        if (!members.Contains(entity.Value))
+        {
+            members.Add(entity.Value);
+        }
+
+        RecomputeBodyMaterial(body);
+    }
+
+    /// <summary>Elasticity of a part. <paramref name="mass"/> is the part's own mass, used to
+    /// derive the pair's reduced mass when the rules layer has to synthesize a bounce.</summary>
+    public void AddRestitution(EntityId entity, float restitution, float mass)
+    {
+        if (!float.IsFinite(restitution) || restitution is < 0f or > 1f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(restitution), "A restitution must be finite and within [0, 1].");
+        }
+
+        if (!float.IsFinite(mass) || mass < 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(mass), "A part mass must be finite and non-negative.");
+        }
+
+        _restitutions.Set(entity, new RestitutionState(restitution, mass));
     }
 
     public void AddPig(EntityId entity)
@@ -295,6 +357,7 @@ public sealed class GameplayRules
         _touchedBodies.Clear();
         IngestSnapshots(snapshots);
         ProcessEvents(events, output);
+        ReArmBounces();
         RunMotors(output);
         RunBalloons(output);
         RunFans(output);
@@ -317,6 +380,13 @@ public sealed class GameplayRules
         foreach (var entry in _kinematicsByBody)
         {
             _previousVelocities[entry.Key] = entry.Value.Velocity;
+            PhysicsVector3 decayed = _peakApproachByBody.TryGetValue(entry.Key, out PhysicsVector3 peak)
+                ? peak * PeakApproachDecay
+                : PhysicsVector3.Zero;
+            _peakApproachByBody[entry.Key] = PhysicsVector3.Distance(entry.Value.Velocity, PhysicsVector3.Zero)
+                >= PhysicsVector3.Distance(decayed, PhysicsVector3.Zero)
+                ? entry.Value.Velocity
+                : decayed;
         }
     }
 
@@ -359,6 +429,7 @@ public sealed class GameplayRules
                         ChallengeEggsOnImpact(physicsEvent.BodyB, pairImpact, output);
                         DetachOnImpact(physicsEvent.BodyA, pairImpact, output);
                         DetachOnImpact(physicsEvent.BodyB, pairImpact, output);
+                        ApplyBounce(physicsEvent, output);
                     }
 
                     break;
@@ -393,6 +464,208 @@ public sealed class GameplayRules
 
         _tnt.Set(entity, tnt with { Ignited = true });
     }
+
+    /// <summary>
+    /// Synthesizes the bounce a backend without a restitution term cannot express, by asking for
+    /// the outgoing velocity the restitution demands rather than adding an impulse. Two facts
+    /// drive the shape: rule commands run before the next step's solver, and a contact constraint
+    /// owns the normal velocity for as long as the pair touches — measured, a 9.32 m/s landing
+    /// that was given the demanded separation speed kept 1.12 m/s of it, and raising
+    /// <c>MaximumRecoveryVelocity</c> from 2 to 30 changed the result by nothing. So the pair is
+    /// suppressed for exactly the step that carries the impulse: nothing constrains the normal
+    /// velocity, the demanded separation speed survives, and the next step collides normally
+    /// again with the pair already apart.
+    /// </summary>
+    private void ApplyBounce(PhysicsEvent physicsEvent, GameplayTickOutput output)
+    {
+        if (_config.RestitutionAppliedNatively || physicsEvent.ApproachSpeed <= MinimumBounceApproachSpeed)
+        {
+            return;
+        }
+
+        uint bodyA = physicsEvent.BodyA.Value;
+        uint bodyB = physicsEvent.BodyB.Value;
+        bool dynamicA = _dynamicBodies.Contains(bodyA);
+        bool dynamicB = _dynamicBodies.Contains(bodyB);
+        if (!dynamicA && !dynamicB)
+        {
+            return;
+        }
+
+        // Re-arm guard: while a body keeps touching something it must not bounce once per tick
+        // (the same shape as the spring bounce guard). Cleared by ReArmBounces the moment the
+        // body leaves contact.
+        if ((dynamicA && _bouncedBodies.Contains(bodyA)) || (dynamicB && _bouncedBodies.Contains(bodyB)))
+        {
+            return;
+        }
+
+        // The bounciest surface in the pair dominates: a pig riding inside a wooden craft is
+        // what makes that craft rebound (ADR-002), and every other part carries restitution 0.
+        float restitution = MathF.Max(
+            _restitutionByBody.GetValueOrDefault(bodyA),
+            _restitutionByBody.GetValueOrDefault(bodyB));
+        if (restitution <= 0f)
+        {
+            return;
+        }
+
+        float inverseMassA = dynamicA ? 1f / MathF.Max(_massByBody.GetValueOrDefault(bodyA), MinimumPartMass) : 0f;
+        float inverseMassB = dynamicB ? 1f / MathF.Max(_massByBody.GetValueOrDefault(bodyB), MinimumPartMass) : 0f;
+        float inverseTotal = inverseMassA + inverseMassB;
+        if (inverseTotal <= 0f)
+        {
+            return;
+        }
+
+        PhysicsVector3 normal = physicsEvent.ContactNormal;
+        float separation = RelativeNormalSpeed(physicsEvent.BodyA, physicsEvent.BodyB, normal);
+        // The backend reports the approach speed it saw in the narrow phase, which is a tick late:
+        // a measured 9.32 m/s landing arrived as 2.56 m/s and a 11.94 m/s one as 10.86 m/s. This
+        // layer's own previous-tick velocities are unambiguous (TNT ignition already trusts them),
+        // so the impact speed is the velocity the body carried into this tick.
+        float approachSpeed = MathF.Max(
+            ApproachFromHistory(bodyA, bodyB, normal, dynamicA, dynamicB),
+            physicsEvent.ApproachSpeed);
+        approachSpeed = MathF.Max(approachSpeed, PeakApproach(bodyA, bodyB, normal, dynamicA, dynamicB));
+        float deltaVelocity = (restitution * approachSpeed) - separation;
+        if (deltaVelocity <= 0f)
+        {
+            return;
+        }
+
+        output.Commands.Add(PhysicsCommand.SuppressContact(physicsEvent.BodyA, physicsEvent.BodyB));
+        float magnitude = deltaVelocity / inverseTotal;
+        if (dynamicA)
+        {
+            if (_kinematicsByBody.TryGetValue(bodyA, out var kinematicsA))
+            {
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    physicsEvent.BodyA, normal * magnitude, kinematicsA.Position));
+            }
+
+            _bouncedBodies.Add(bodyA);
+        }
+
+        if (dynamicB)
+        {
+            if (_kinematicsByBody.TryGetValue(bodyB, out var kinematicsB))
+            {
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    physicsEvent.BodyB, normal * -magnitude, kinematicsB.Position));
+            }
+
+            _bouncedBodies.Add(bodyB);
+        }
+    }
+
+    /// <summary>How fast the pair was closing along <paramref name="normal"/> at the strongest
+    /// recent tick, from the decaying per-body peak. This is what rescues a bounce whose contact
+    /// event arrived after the solver had already eaten the approach speed.</summary>
+    private float PeakApproach(uint bodyA, uint bodyB, PhysicsVector3 normal, bool dynamicA, bool dynamicB)
+    {
+        float approach = 0f;
+        if (dynamicA && _peakApproachByBody.TryGetValue(bodyA, out PhysicsVector3 peakA))
+        {
+            approach = MathF.Max(approach, -PhysicsVector3.Dot(peakA, normal));
+        }
+
+        if (dynamicB && _peakApproachByBody.TryGetValue(bodyB, out PhysicsVector3 peakB))
+        {
+            approach = MathF.Max(approach, PhysicsVector3.Dot(peakB, normal));
+        }
+
+        return approach;
+    }
+
+    /// <summary>How fast the pair was closing along <paramref name="normal"/> before this tick's
+    /// solve, taken from the velocities the bodies carried into it. <paramref name="normal"/>
+    /// pushes <c>bodyA</c> away from <c>bodyB</c>, so a body moving into the contact shows a
+    /// positive projection.</summary>
+    private float ApproachFromHistory(uint bodyA, uint bodyB, PhysicsVector3 normal, bool dynamicA, bool dynamicB)
+    {
+        float approach = 0f;
+        if (dynamicA && _previousVelocities.TryGetValue(bodyA, out PhysicsVector3 previousA))
+        {
+            approach = MathF.Max(approach, -PhysicsVector3.Dot(previousA, normal));
+        }
+
+        if (dynamicB && _previousVelocities.TryGetValue(bodyB, out PhysicsVector3 previousB))
+        {
+            approach = MathF.Max(approach, PhysicsVector3.Dot(previousB, normal));
+        }
+
+        return approach;
+    }
+
+    /// <summary>Relative normal speed of the pair along <paramref name="normal"/>, positive when
+    /// the pair is separating. Read from this tick's snapshots, i.e. after the solver ran, which
+    /// is what the bounce target has to be measured against.</summary>
+    private float RelativeNormalSpeed(PhysicsBodyId bodyA, PhysicsBodyId bodyB, PhysicsVector3 normal)
+    {
+        PhysicsVector3 velocityA = _kinematicsByBody.TryGetValue(bodyA.Value, out var kinematicsA)
+            ? kinematicsA.Velocity
+            : PhysicsVector3.Zero;
+        PhysicsVector3 velocityB = _kinematicsByBody.TryGetValue(bodyB.Value, out var kinematicsB)
+            ? kinematicsB.Velocity
+            : PhysicsVector3.Zero;
+        return PhysicsVector3.Dot(velocityA - velocityB, normal);
+    }
+
+    /// <summary>Drops bounce marks for bodies that are no longer touching anything, so a
+    /// later touchdown bounces again.</summary>
+    private void ReArmBounces()
+    {
+        if (_bouncedBodies.Count == 0)
+        {
+            return;
+        }
+
+        _bouncedBodies.RemoveWhere(body => !_touchedBodies.Contains(body));
+    }
+
+    /// <summary>Recomputes a body's elasticity and mass from its members: the compound keeps
+    /// the strongest restitution in it and the sum of its members' masses.</summary>
+    private void RecomputeBodyMaterial(PhysicsBodyId body)
+    {
+        if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members) || members.Count == 0)
+        {
+            _membersByBody.Remove(body.Value);
+            _restitutionByBody.Remove(body.Value);
+            _massByBody.Remove(body.Value);
+            _bouncedBodies.Remove(body.Value);
+            return;
+        }
+
+        float restitution = 0f;
+        float mass = 0f;
+        for (int index = 0; index < members.Count; index++)
+        {
+            if (!_restitutions.TryGet(new EntityId(members[index]), out RestitutionState state))
+            {
+                continue;
+            }
+
+            restitution = MathF.Max(restitution, state.Restitution);
+            mass += state.Mass;
+        }
+
+        _restitutionByBody[body.Value] = restitution;
+        _massByBody[body.Value] = mass;
+    }
+
+    /// <summary>Drops one member from its cluster bookkeeping (seam split, detach, destroy).</summary>
+    private void UnlinkBodyMember(EntityId entity, PhysicsBodyId body)
+    {
+        if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members))
+        {
+            return;
+        }
+
+        members.Remove(entity.Value);
+        RecomputeBodyMaterial(body);
+    }
+
     private void RunMotors(GameplayTickOutput output)
     {
         HashSet<uint> reverseBodies = CollectGearboxBodies();
@@ -1057,7 +1330,12 @@ public sealed class GameplayRules
     {
         if (output.Commands.Count > 0)
         {
-            output.Commands.RemoveAll(command => !_dynamicBodies.Contains(command.Body.Value));
+            // A pair command survives while either end is still a live dynamic body: the bounce's
+            // suppression names the static floor too, and dropping it there would silently undo
+            // the bounce. Single-body commands keep their original rule.
+            output.Commands.RemoveAll(command => command.Kind == PhysicsCommandKind.SuppressContact
+                ? !_dynamicBodies.Contains(command.Body.Value) && !_dynamicBodies.Contains(command.SecondBody.Value)
+                : !_dynamicBodies.Contains(command.Body.Value));
         }
     }
 
@@ -1110,6 +1388,7 @@ public sealed class GameplayRules
 
         if (_bodies.TryGet(entity, out PhysicsBodyLink link))
         {
+            UnlinkBodyMember(entity, link.Body);
             _entitiesByBody.Remove(link.Body.Value);
             _dynamicBodies.Remove(link.Body.Value);
         }
@@ -1133,6 +1412,7 @@ public sealed class GameplayRules
         _blasters.Remove(entity);
         _glues.Remove(entity);
         _activations.Remove(entity);
+        _restitutions.Remove(entity);
     }
 
     /// <summary>
@@ -1143,6 +1423,7 @@ public sealed class GameplayRules
     /// </summary>
     public void ResetForRebuild()
     {
+        ClearBodyMaterials();
         _entitiesByBody.Clear();
         _dynamicBodies.Clear();
         _kinematicsByBody.Clear();
@@ -1213,6 +1494,7 @@ public sealed class GameplayRules
     /// <summary>Drops all gameplay state for a full level reset (clear policy).</summary>
     public void ResetAll()
     {
+        ClearBodyMaterials();
         _entitiesByBody.Clear();
         _dynamicBodies.Clear();
         _kinematicsByBody.Clear();
@@ -1252,6 +1534,7 @@ public sealed class GameplayRules
 
         if (_bodies.TryGet(entity, out PhysicsBodyLink link))
         {
+            UnlinkBodyMember(entity, link.Body);
             _entitiesByBody.Remove(link.Body.Value);
             _dynamicBodies.Remove(link.Body.Value);
         }
@@ -1275,8 +1558,18 @@ public sealed class GameplayRules
         _blasters.Remove(entity);
         _glues.Remove(entity);
         _activations.Remove(entity);
+        _restitutions.Remove(entity);
         _bodies.Remove(entity);
         _entities.Destroy(entity);
         output.DestroyedEntities.Add(entity);
+    }
+
+    private void ClearBodyMaterials()
+    {
+        _membersByBody.Clear();
+        _restitutionByBody.Clear();
+        _massByBody.Clear();
+        _bouncedBodies.Clear();
+        _peakApproachByBody.Clear();
     }
 }

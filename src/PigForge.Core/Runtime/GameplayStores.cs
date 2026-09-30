@@ -124,3 +124,11 @@ public sealed class GlueStore(EntityStore entities) : ComponentStore<GlueMarker>
 public readonly record struct ActivationState(bool Active);
 
 public sealed class ActivationStore(EntityStore entities) : ComponentStore<ActivationState>(entities);
+
+/// <summary>Elasticity of a part: its content restitution and its own mass. A backend that
+/// owns the restitution term (Jolt) applies it in the solver; for one that does not
+/// (BepuPhysics v2 has no restitution term) the rules layer turns the reported pre-solve
+/// contact impact into a bounce impulse scaled by the pair's reduced mass.</summary>
+public readonly record struct RestitutionState(float Restitution, float Mass);
+
+public sealed class RestitutionStore(EntityStore entities) : ComponentStore<RestitutionState>(entities);

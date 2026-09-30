@@ -89,7 +89,10 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
     public PhysicsCapabilities Capabilities { get; } = new(
         new HashSet<PhysicsJointKind>(),
         SupportsContinuousCollision: true,
-        SupportsPerBodyInertia: true);
+        SupportsPerBodyInertia: true,
+        // Jolt owns the restitution term (see BodyCreationSettings.Restitution below), so the
+        // rules layer must not synthesize a second bounce on top of it.
+        AppliesRestitutionNatively: true);
 
     public PhysicsBodyId CreateBody(BodyDefinition definition)
     {
@@ -186,6 +189,14 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         for (int index = 0; index < commands.Length; index++)
         {
             PhysicsCommand command = commands[index];
+            if (command.Kind == PhysicsCommandKind.SuppressContact)
+            {
+                // Jolt owns the restitution term (see Capabilities.AppliesRestitutionNatively), so
+                // the rules layer never sends this: a bounce is the solver's own business here.
+                throw new NotSupportedException(
+                    "Jolt applies restitution in its solver, so contact suppression is never requested.");
+            }
+
             if (command.Kind != PhysicsCommandKind.ApplyImpulse)
             {
                 throw new ArgumentOutOfRangeException(nameof(commands), command.Kind, "Unknown physics command kind.");

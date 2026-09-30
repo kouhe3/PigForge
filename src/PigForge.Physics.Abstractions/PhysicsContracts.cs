@@ -40,7 +40,14 @@ public enum PhysicsJointKind
 
 public enum PhysicsCommandKind
 {
-	ApplyImpulse
+	ApplyImpulse,
+
+	/// <summary>Skips contact generation for one body pair during the next step. The rules layer
+	/// needs it to deliver a bounce: a contact constraint owns the normal velocity for as long as
+	/// the pair touches, so a separation speed injected while it is still touching is pulled back
+	/// to the constraint's own goal. The pair separates during the skipped step, and the next
+	/// step collides normally again.</summary>
+	SuppressContact,
 }
 
 public enum PhysicsEventKind
@@ -152,7 +159,11 @@ public readonly record struct FixedTimeStep(float Seconds)
 	}
 }
 
-/// <summary>Per-body surface properties. Restitution is solver-dependent: Jolt applies it natively, Bepu v2 has no restitution support.</summary>
+/// <summary>Per-body surface properties. Restitution is honoured by the backend when
+/// <see cref="PhysicsCapabilities.AppliesRestitutionNatively"/> is true (Jolt); a backend
+/// without native support (Bepu v2 has no restitution term at all) still reports the
+/// pre-solve contact normal and approach speed so the rules layer can synthesize the
+/// same bounce as a deterministic impulse pair (see GameplayRules restitution).</summary>
 public sealed record PhysicsMaterial(float Restitution, float Friction)
 {
 	public static PhysicsMaterial Default { get; } = new(Restitution: 0f, Friction: 0.8f);
@@ -452,17 +463,24 @@ public readonly record struct PhysicsCommand
 	private PhysicsCommand(
 		PhysicsCommandKind kind,
 		PhysicsBodyId body,
+		PhysicsBodyId secondBody,
 		PhysicsVector3 impulse,
 		PhysicsVector3 worldPoint)
 	{
 		Kind = kind;
 		Body = body;
+		SecondBody = secondBody;
 		Impulse = impulse;
 		WorldPoint = worldPoint;
 	}
 
 	public PhysicsCommandKind Kind { get; }
 	public PhysicsBodyId Body { get; }
+
+	/// <summary>The other end of a <see cref="PhysicsCommandKind.SuppressContact"/> pair; invalid
+	/// for every other command kind.</summary>
+	public PhysicsBodyId SecondBody { get; }
+
 	public PhysicsVector3 Impulse { get; }
 	public PhysicsVector3 WorldPoint { get; }
 
@@ -486,7 +504,18 @@ public readonly record struct PhysicsCommand
 			throw new ArgumentOutOfRangeException(nameof(worldPoint), "An impulse point must contain only finite values.");
 		}
 
-		return new(PhysicsCommandKind.ApplyImpulse, body, impulse, worldPoint);
+		return new(PhysicsCommandKind.ApplyImpulse, body, default, impulse, worldPoint);
+	}
+
+	/// <summary>Skips contact generation between two bodies for exactly one step.</summary>
+	public static PhysicsCommand SuppressContact(PhysicsBodyId body, PhysicsBodyId secondBody)
+	{
+		if (!body.IsValid || !secondBody.IsValid || body == secondBody)
+		{
+			throw new ArgumentException("A suppressed contact must reference two different valid bodies.");
+		}
+
+		return new(PhysicsCommandKind.SuppressContact, body, secondBody, default, default);
 	}
 }
 
@@ -503,12 +532,16 @@ public readonly record struct PhysicsEvent
 		PhysicsEventKind kind,
 		PhysicsBodyId bodyA,
 		PhysicsBodyId bodyB,
-		PhysicsJointId joint)
+		PhysicsJointId joint,
+		PhysicsVector3 contactNormal,
+		float approachSpeed)
 	{
 		Kind = kind;
 		BodyA = bodyA;
 		BodyB = bodyB;
 		Joint = joint;
+		ContactNormal = contactNormal;
+		ApproachSpeed = approachSpeed;
 	}
 
 	public PhysicsEventKind Kind { get; }
@@ -516,9 +549,32 @@ public readonly record struct PhysicsEvent
 	public PhysicsBodyId BodyB { get; }
 	public PhysicsJointId Joint { get; }
 
-	public static PhysicsEvent ContactStarted(PhysicsBodyId bodyA, PhysicsBodyId bodyB) => Contact(PhysicsEventKind.ContactStarted, bodyA, bodyB);
-	public static PhysicsEvent ContactPersisted(PhysicsBodyId bodyA, PhysicsBodyId bodyB) => Contact(PhysicsEventKind.ContactPersisted, bodyA, bodyB);
-	public static PhysicsEvent ContactEnded(PhysicsBodyId bodyA, PhysicsBodyId bodyB) => Contact(PhysicsEventKind.ContactEnded, bodyA, bodyB);
+	/// <summary>Unit contact normal oriented so that pushing <see cref="BodyA"/> along
+	/// <c>+ContactNormal</c> and <see cref="BodyB"/> along <c>-ContactNormal</c> separates the
+	/// pair. Only contact events carry it; other kinds report <see cref="PhysicsVector3.Zero"/>.</summary>
+	public PhysicsVector3 ContactNormal { get; }
+
+	/// <summary>Relative approach speed along <see cref="ContactNormal"/>, measured before the
+	/// solver ran, in metres per second; zero for a pair that is merely resting or sliding.
+	/// Only contact events carry it.</summary>
+	public float ApproachSpeed { get; }
+
+	public static PhysicsEvent ContactStarted(
+		PhysicsBodyId bodyA,
+		PhysicsBodyId bodyB,
+		PhysicsVector3 contactNormal = default,
+		float approachSpeed = 0f) =>
+		Contact(PhysicsEventKind.ContactStarted, bodyA, bodyB, contactNormal, approachSpeed);
+
+	public static PhysicsEvent ContactPersisted(
+		PhysicsBodyId bodyA,
+		PhysicsBodyId bodyB,
+		PhysicsVector3 contactNormal = default,
+		float approachSpeed = 0f) =>
+		Contact(PhysicsEventKind.ContactPersisted, bodyA, bodyB, contactNormal, approachSpeed);
+
+	public static PhysicsEvent ContactEnded(PhysicsBodyId bodyA, PhysicsBodyId bodyB) =>
+		Contact(PhysicsEventKind.ContactEnded, bodyA, bodyB, default, 0f);
 
 	public static PhysicsEvent JointBroken(PhysicsJointId joint)
 	{
@@ -527,20 +583,40 @@ public readonly record struct PhysicsEvent
 			throw new ArgumentException("A joint break event must reference a valid joint.", nameof(joint));
 		}
 
-		return new(PhysicsEventKind.JointBroken, default, default, joint);
+		return new(PhysicsEventKind.JointBroken, default, default, joint, default, 0f);
 	}
 
 	public static PhysicsEvent BodyCreated(PhysicsBodyId body) => Lifecycle(PhysicsEventKind.BodyCreated, body);
 	public static PhysicsEvent BodyDestroyed(PhysicsBodyId body) => Lifecycle(PhysicsEventKind.BodyDestroyed, body);
 
-	private static PhysicsEvent Contact(PhysicsEventKind kind, PhysicsBodyId bodyA, PhysicsBodyId bodyB)
+	private static PhysicsEvent Contact(
+		PhysicsEventKind kind,
+		PhysicsBodyId bodyA,
+		PhysicsBodyId bodyB,
+		PhysicsVector3 contactNormal,
+		float approachSpeed)
 	{
 		if (!bodyA.IsValid || !bodyB.IsValid || bodyA == bodyB)
 		{
 			throw new ArgumentException("A contact event must reference two different valid bodies.");
 		}
 
-		return new(kind, bodyA, bodyB, default);
+		if (!contactNormal.IsFinite)
+		{
+			throw new ArgumentOutOfRangeException(nameof(contactNormal), "A contact normal must contain only finite values.");
+		}
+
+		if (!float.IsFinite(approachSpeed) || approachSpeed < 0f)
+		{
+			throw new ArgumentOutOfRangeException(nameof(approachSpeed), "An approach speed must be finite and non-negative.");
+		}
+
+		if (approachSpeed > 0f && contactNormal == PhysicsVector3.Zero)
+		{
+			throw new ArgumentException("A contact event with a non-zero approach speed needs a contact normal.", nameof(contactNormal));
+		}
+
+		return new(kind, bodyA, bodyB, default, contactNormal, approachSpeed);
 	}
 
 	private static PhysicsEvent Lifecycle(PhysicsEventKind kind, PhysicsBodyId body)
@@ -550,14 +626,18 @@ public readonly record struct PhysicsEvent
 			throw new ArgumentException("A body lifecycle event must reference a valid body.", nameof(body));
 		}
 
-		return new(kind, body, default, default);
+		return new(kind, body, default, default, default, 0f);
 	}
 }
 
 public sealed record PhysicsCapabilities(
 	IReadOnlySet<PhysicsJointKind> SupportedJointKinds,
 	bool SupportsContinuousCollision,
-	bool SupportsPerBodyInertia);
+	bool SupportsPerBodyInertia,
+	/// <summary>True when the backend owns the restitution term and applies it itself (Jolt);
+	/// false when the rules layer must synthesize the bounce instead (Bepu v2 has no
+	/// restitution term), so the two are never applied together.</summary>
+	bool AppliesRestitutionNatively);
 
 public interface IPhysicsWorld : IDisposable
 {

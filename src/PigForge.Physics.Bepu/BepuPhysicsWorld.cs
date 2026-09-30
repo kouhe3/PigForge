@@ -25,12 +25,18 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     // wheels spinning (see ADR-009) the two overlap on purpose. Contacts between them would
     // be a permanent, deeply penetrating collision.
     private readonly HashSet<long> _jointedPairs = new();
+    // Pairs whose contact must be skipped for the step a bounce is delivered, so the injected
+    // separation speed is not pulled back to the contact's own velocity goal. Cleared every tick.
+    private readonly HashSet<long> _suppressedPairs = new();
     private readonly Dictionary<int, PhysicsBodyId> _dynamicIdsByHandle = new();
     private readonly Dictionary<int, PhysicsBodyId> _staticIdsByHandle = new();
     private readonly List<PhysicsBodyId> _bodyOrder = new();
     private readonly List<PhysicsEvent> _events = new();
     private readonly HashSet<ContactPair> _activeContacts = new();
     private readonly HashSet<ContactPair> _currentContacts = new();
+    // Pre-solve impact data per contact pair, filled by the narrow phase and consumed when
+    // the contact events are emitted. Cleared at the start of every step.
+    private readonly Dictionary<ContactPair, ContactImpact> _contactImpacts = new();
     private readonly List<ContactPair> _orderedContacts = new();
     private readonly Dictionary<PhysicsJointId, ConstraintHandle> _joints = new();
     private readonly List<(PhysicsJointId Joint, BodyHandle A, BodyHandle B)> _jointBodies = new();
@@ -56,7 +62,10 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     public PhysicsCapabilities Capabilities { get; } = new(
         new HashSet<PhysicsJointKind> { PhysicsJointKind.Revolute },
         SupportsContinuousCollision: false,
-        SupportsPerBodyInertia: true);
+        SupportsPerBodyInertia: true,
+        // BepuPhysics v2 has no restitution term in PairMaterialProperties, so the rules
+        // layer synthesizes the bounce from the reported contact impact instead.
+        AppliesRestitutionNatively: false);
 
     public PhysicsBodyId CreateBody(BodyDefinition definition)
     {
@@ -225,6 +234,44 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             ? ((long)left.Value << 32) | (uint)right.Value
             : ((long)right.Value << 32) | (uint)left.Value;
 
+    /// <summary>Statics get their own key space so a dynamic-vs-static pair can be keyed too —
+    /// a bounce pairs the pig with the floor, and the floor is static.</summary>
+    private const long StaticKeyBit = 1L << 40;
+
+    private static long CollidableKey(in CollidableReference reference) =>
+        reference.Mobility == CollidableMobility.Static
+            ? StaticKeyBit | (uint)reference.StaticHandle.Value
+            : reference.BodyHandle.Value;
+
+    private static long CollidablePairKey(in CollidableReference left, in CollidableReference right)
+    {
+        long first = CollidableKey(left);
+        long second = CollidableKey(right);
+        return first <= second
+            ? (first << 32) | (uint)second
+            : (second << 32) | (uint)first;
+    }
+
+    /// <summary>Maps a PigForge body id into the same key space as <see cref="CollidableKey"/>,
+    /// so a suppression queued from rule commands matches the collidables the narrow phase sees.</summary>
+    private bool TryCollidableKey(PhysicsBodyId body, out long key)
+    {
+        if (_dynamicBodies.TryGetValue(body, out BodyHandle dynamicHandle))
+        {
+            key = dynamicHandle.Value;
+            return true;
+        }
+
+        if (_staticBodies.TryGetValue(body, out StaticHandle staticHandle))
+        {
+            key = StaticKeyBit | (uint)staticHandle.Value;
+            return true;
+        }
+
+        key = 0;
+        return false;
+    }
+
     /// <summary>True when two collidables are the two ends of a PigForge joint.</summary>
     private bool AreJointed(in CollidableReference left, in CollidableReference right)
     {
@@ -235,6 +282,12 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
 
         return _jointedPairs.Contains(PairKey(left.BodyHandle, right.BodyHandle));
     }
+
+    /// <summary>True when the pair's contact must be skipped for this step (see
+    /// <see cref="PhysicsCommandKind.SuppressContact"/>). A bounce pairs a dynamic part with
+    /// static terrain, so unlike <see cref="AreJointed"/> this must not require two dynamics.</summary>
+    private bool IsSuppressed(in CollidableReference left, in CollidableReference right) =>
+        _suppressedPairs.Contains(CollidablePairKey(left, right));
 
     public void DestroyJoint(PhysicsJointId joint)
     {
@@ -264,9 +317,24 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     public void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands)
     {
         ThrowIfDisposed();
+        // Suppressions are one-step: whatever was queued for the previous step has been consumed.
+        _suppressedPairs.Clear();
         for (int index = 0; index < commands.Length; index++)
         {
             PhysicsCommand command = commands[index];
+            if (command.Kind == PhysicsCommandKind.SuppressContact)
+            {
+                if (TryCollidableKey(command.Body, out long first)
+                    && TryCollidableKey(command.SecondBody, out long second))
+                {
+                    _suppressedPairs.Add(first <= second
+                        ? (first << 32) | (uint)second
+                        : (second << 32) | (uint)first);
+                }
+
+                continue;
+            }
+
             if (command.Kind != PhysicsCommandKind.ApplyImpulse)
             {
                 throw new ArgumentOutOfRangeException(nameof(commands), command.Kind, "Unknown physics command kind.");
@@ -291,6 +359,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     {
         ThrowIfDisposed();
         _currentContacts.Clear();
+        _contactImpacts.Clear();
         _simulation.Timestep(timeStep.Seconds);
 
         _orderedContacts.Clear();
@@ -298,9 +367,10 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _orderedContacts.Sort(ContactPairComparer.Instance);
         foreach (ContactPair contact in _orderedContacts)
         {
+            ContactImpact impact = _contactImpacts.GetValueOrDefault(contact);
             _events.Add(_activeContacts.Contains(contact)
-                ? PhysicsEvent.ContactPersisted(contact.A, contact.B)
-                : PhysicsEvent.ContactStarted(contact.A, contact.B));
+                ? PhysicsEvent.ContactPersisted(contact.A, contact.B, impact.Normal, impact.ApproachSpeed)
+                : PhysicsEvent.ContactStarted(contact.A, contact.B, impact.Normal, impact.ApproachSpeed));
         }
 
         _orderedContacts.Clear();
@@ -390,9 +460,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _joints.Clear();
         _jointBodies.Clear();
         _jointedPairs.Clear();
+        _suppressedPairs.Clear();
         _events.Clear();
         _activeContacts.Clear();
         _currentContacts.Clear();
+        _contactImpacts.Clear();
         _orderedContacts.Clear();
     }
 
@@ -405,6 +477,64 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             _currentContacts.Add(ContactPair.Create(bodyA, bodyB));
         }
     }
+
+    /// <summary>
+    /// Records the pre-solve impact of one contact manifold for the pair's key order. The
+    /// normal is oriented against the pre-solve relative velocity instead of trusting the
+    /// engine's manifold convention: <c>+Normal</c> always pushes <see cref="ContactPair.A"/>
+    /// away from <see cref="ContactPair.B"/>. A resting or sliding manifold records nothing,
+    /// and the reduction below keeps the strongest approach, so the emitted event cannot
+    /// depend on manifold iteration order.
+    /// </summary>
+    private void RecordContactImpact(CollidablePair pair, Vector3 normal)
+    {
+        if (!TryGetBodyId(pair.A, out PhysicsBodyId bodyA)
+            || !TryGetBodyId(pair.B, out PhysicsBodyId bodyB)
+            || bodyA == bodyB)
+        {
+            return;
+        }
+
+        ContactPair key = ContactPair.Create(bodyA, bodyB);
+        Vector3 velocityA = GetPreSolveLinearVelocity(pair.A);
+        Vector3 velocityB = GetPreSolveLinearVelocity(pair.B);
+        Vector3 relative = key.A == bodyA ? velocityA - velocityB : velocityB - velocityA;
+        float along = Vector3.Dot(relative, normal);
+        float approachSpeed = MathF.Abs(along);
+        if (approachSpeed <= 0f)
+        {
+            return;
+        }
+
+        Vector3 oriented = along < 0f ? normal : -normal;
+        PhysicsVector3 candidate = new(oriented.X, oriented.Y, oriented.Z);
+        if (_contactImpacts.TryGetValue(key, out ContactImpact existing)
+            && (existing.ApproachSpeed > approachSpeed
+                || (existing.ApproachSpeed == approachSpeed && CompareContactNormals(existing.Normal, candidate) >= 0)))
+        {
+            return;
+        }
+
+        _contactImpacts[key] = new ContactImpact(candidate, approachSpeed);
+    }
+
+    private static int CompareContactNormals(PhysicsVector3 left, PhysicsVector3 right)
+    {
+        int x = left.X.CompareTo(right.X);
+        if (x != 0)
+        {
+            return x;
+        }
+
+        int y = left.Y.CompareTo(right.Y);
+        return y != 0 ? y : left.Z.CompareTo(right.Z);
+    }
+
+    /// <summary>Linear velocity before the solver ran, read from inside the narrow phase.</summary>
+    private Vector3 GetPreSolveLinearVelocity(CollidableReference reference) =>
+        reference.Mobility == CollidableMobility.Static
+            ? default
+            : _simulation.Bodies[reference.BodyHandle].Velocity.Linear;
 
     internal float CombineFriction(CollidablePair pair)
     {
@@ -548,6 +678,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             : new(second, first);
     }
 
+    /// <summary>Contact normal oriented so that pushing <see cref="ContactPair.A"/> along
+    /// <c>+Normal</c> separates the pair, plus the relative approach speed measured before
+    /// the solver ran.</summary>
+    private readonly record struct ContactImpact(PhysicsVector3 Normal, float ApproachSpeed);
+
     private sealed class ContactPairComparer : IComparer<ContactPair>
     {
         public static ContactPairComparer Instance { get; } = new();
@@ -571,7 +706,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
 
         public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin)
             => (a.Mobility == CollidableMobility.Dynamic || b.Mobility == CollidableMobility.Dynamic)
-            && !_world.AreJointed(a, b);
+            && !_world.AreJointed(a, b)
+            && !_world.IsSuppressed(a, b);
 
         public bool AllowContactGeneration(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB) => true;
 
@@ -585,8 +721,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             pairMaterial = new PairMaterialProperties
             {
                 // Per-body friction from content, combined as the pair average.
-                // BepuPhysics v2 has no restitution support; see PhysicsMaterial docs.
+                // BepuPhysics v2 exposes no restitution term; the rules layer turns the
+                // recorded contact impact into a bounce impulse instead (see PhysicsMaterial).
                 FrictionCoefficient = _world.CombineFriction(pair),
+                // BepuPhysics v2 has no restitution term, so the clamp only bounds penetration
+                // recovery; raising it to 30 changed a measured landing bounce by nothing at all.
                 MaximumRecoveryVelocity = 2f,
                 SpringSettings = new SpringSettings(30, 1)
             };
@@ -596,6 +735,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
                 if (manifold.GetDepth(ref manifold, contactIndex) >= 0)
                 {
                     _world.RecordContact(pair);
+                    _world.RecordContactImpact(pair, manifold.GetNormal(ref manifold, contactIndex));
                     break;
                 }
             }

@@ -519,7 +519,8 @@ public sealed class GameRoomTests
         public PhysicsCapabilities Capabilities { get; } = new(
             new HashSet<PhysicsJointKind>(),
             SupportsContinuousCollision: false,
-            SupportsPerBodyInertia: false);
+            SupportsPerBodyInertia: false,
+            AppliesRestitutionNatively: false);
 
         public void QueueSnapshot(PhysicsBodySnapshot snapshot)
         {

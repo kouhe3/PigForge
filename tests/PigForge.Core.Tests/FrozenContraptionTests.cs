@@ -174,6 +174,7 @@ public sealed class FrozenContraptionTests
         new DetacherStore(entities),
         new GrappleStore(entities),
         new ActivationStore(entities),
+        new RestitutionStore(entities),
         bodies,
         GameplayConfig.Default);
 

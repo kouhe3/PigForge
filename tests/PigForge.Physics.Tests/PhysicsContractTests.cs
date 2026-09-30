@@ -493,7 +493,8 @@ public sealed class PhysicsContractTests
         public PhysicsCapabilities Capabilities { get; } = new(
             new HashSet<PhysicsJointKind> { PhysicsJointKind.Fixed },
             SupportsContinuousCollision: false,
-            SupportsPerBodyInertia: false);
+            SupportsPerBodyInertia: false,
+            AppliesRestitutionNatively: false);
 
         public IReadOnlyList<string> Phases => _phases;
 

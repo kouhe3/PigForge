@@ -41,7 +41,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -569,7 +569,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0,
         "friction": 0.4
       },
       "capabilities": {
@@ -665,7 +665,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": {
-        "restitution": 0.2,
+        "restitution": 0,
         "friction": 0.6
       },
       "capabilities": {
@@ -2715,7 +2715,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2740,7 +2740,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2765,7 +2765,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2790,7 +2790,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2815,7 +2815,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2840,7 +2840,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2865,7 +2865,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2890,7 +2890,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2915,7 +2915,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2940,7 +2940,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2965,7 +2965,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -2990,7 +2990,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -3015,7 +3015,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -3040,7 +3040,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -3060,7 +3060,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -3085,7 +3085,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -3105,7 +3105,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -3130,7 +3130,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -3155,7 +3155,7 @@
       "mode": "dynamic",
       "mass": 1,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0.5,
         "friction": 0.4
       },
       "capabilities": {
@@ -6120,7 +6120,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0,
         "friction": 0.4
       },
       "capabilities": {
@@ -6149,7 +6149,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0,
         "friction": 0.4
       },
       "capabilities": {
@@ -6178,7 +6178,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0,
         "friction": 0.4
       },
       "capabilities": {
@@ -6207,7 +6207,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0,
         "friction": 0.4
       },
       "capabilities": {
@@ -6236,7 +6236,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0,
         "friction": 0.4
       },
       "capabilities": {
@@ -6265,7 +6265,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": {
-        "restitution": 0.8,
+        "restitution": 0,
         "friction": 0.4
       },
       "capabilities": {
@@ -6674,7 +6674,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": {
-        "restitution": 0.2,
+        "restitution": 0,
         "friction": 0.6
       },
       "capabilities": {
@@ -6703,7 +6703,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": {
-        "restitution": 0.2,
+        "restitution": 0,
         "friction": 0.6
       },
       "capabilities": {
@@ -6732,7 +6732,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": {
-        "restitution": 0.2,
+        "restitution": 0,
         "friction": 0.6
       },
       "capabilities": {
@@ -6761,7 +6761,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": {
-        "restitution": 0.2,
+        "restitution": 0,
         "friction": 0.6
       },
       "capabilities": {
@@ -6791,7 +6791,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": {
-        "restitution": 0.2,
+        "restitution": 0,
         "friction": 0.6
       },
       "capabilities": {

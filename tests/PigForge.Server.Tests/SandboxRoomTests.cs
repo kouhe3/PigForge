@@ -987,7 +987,8 @@ public sealed class SandboxRoomTests
         public PhysicsCapabilities Capabilities { get; } = new(
             new HashSet<PhysicsJointKind>(),
             SupportsContinuousCollision: false,
-            SupportsPerBodyInertia: false);
+            SupportsPerBodyInertia: false,
+            AppliesRestitutionNatively: false);
 
         public void QueueSnapshot(PhysicsBodySnapshot snapshot)
         {

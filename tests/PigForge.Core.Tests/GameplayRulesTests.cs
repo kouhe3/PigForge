@@ -365,6 +365,7 @@ public sealed class GameplayRulesTests
                 new DetacherStore(entities),
                 new GrappleStore(entities),
                 new ActivationStore(entities),
+                new RestitutionStore(entities),
                 _bodies,
                 config);
         }
@@ -430,6 +431,7 @@ public sealed class GameplayRulesTests
                 new DetacherStore(_entities),
                 new GrappleStore(_entities),
                 new ActivationStore(_entities),
+                new RestitutionStore(_entities),
                 _bodies,
                 new GameplayConfig(level.GoalZone, level.MapBounds, TntBlastRadius: 4f, TntBlastImpulse: 25f, TntIgniteImpactSpeed: 5f));
             foreach (LevelSpawnDefinition spawn in level.Spawns)
