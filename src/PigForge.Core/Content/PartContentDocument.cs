@@ -32,6 +32,45 @@ public enum PartActivation
 }
 
 /// <summary>
+/// The original's <c>BasePart.m_jointConnectionType</c> (BasePart.cs:111-116): whether a
+/// part offers a weld (<see cref="Source"/>), accepts one (<see cref="Target"/>), or
+/// refuses every weld (<see cref="None"/>). It is a per-part value, not a frame-vs-rest
+/// flag: two parts may be jointed only when neither is <see cref="None"/> and at least
+/// one is <see cref="Source"/> (Contraption.cs:690).
+/// </summary>
+public enum JointConnectionType
+{
+    None = 0,
+    Source = 1,
+    Target = 2
+}
+
+/// <summary>
+/// Which way a runtime attachment searches for its anchor (Sandbag.cs:96 searches
+/// <c>m_direction = Vector3.up</c> and hangs below what it finds; Balloon.cs:104 searches
+/// downward and floats above what it finds), and on which side of the anchor it rests.
+/// </summary>
+public enum AttachmentDirection
+{
+    Up,
+    Down
+}
+
+/// <summary>
+/// A runtime attachment: the part is tied to a released chassis by a rope joint built at
+/// start of simulation, not by the design-time <see cref="JointConnectionType"/> rule
+/// (balloon string, sandbag tie — Sandbag.cs:136-164, Balloon.cs:143-166). The build
+/// searches one direction for its anchor and hangs/floats a fixed offset away.
+/// </summary>
+public sealed record PartAttachment(
+    AttachmentDirection Direction,
+    float MaxDistance = 0f,
+    PhysicsVector3 Offset = default,
+    float? DistanceFactor = null,
+    float? DistanceOffset = null,
+    float? PigDistanceBonus = null);
+
+/// <summary>
 /// Gameplay capabilities a part carries (ADR-002): a pig is indestructible bouncy
 /// cargo, a wheel gates motor thrust to ground contact, a motor pushes the body each
 /// tick, and TNT is a pure momentum source with a fuse. Absence of a flag means the
@@ -72,7 +111,10 @@ public sealed record PartCapabilities(
     float? BlasterRadius = null,
     float? BlasterImpulse = null,
     float? BlasterChainRadius = null,
-    bool IsGlue = false)
+    bool IsGlue = false,
+    JointConnectionType JointConnectionType = JointConnectionType.None,
+    bool CanEnclose = false,
+    PartAttachment? Attachment = null)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 
@@ -95,6 +137,13 @@ public sealed record PartCapabilities(
     public bool HasGrapple => GrappleImpulse is float impulse && impulse != 0f;
 
     public bool HasBlaster => BlasterRadius is float radius && radius != 0f;
+
+    /// <summary>
+    /// The original derives this: <c>BasePart.CanBeEnclosed()</c> is true for every part
+    /// except a frame, and only a frame's <c>CanEncloseParts()</c> returns true
+    /// (BasePart.cs:1143-1166, Frame.cs:32). Derived here, never authored in content.
+    /// </summary>
+    public bool CanBeEnclosed => !CanEnclose;
 }
 
 public sealed record PartShapeDefinition(

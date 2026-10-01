@@ -8,6 +8,7 @@
       "name": "wooden-block",
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -33,7 +34,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -74,7 +75,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -93,7 +94,7 @@
       "name": "engine",
       "mode": "dynamic",
       "mass": 1.2,
-      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "none", "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -106,7 +107,7 @@
       "name": "tnt",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -120,7 +121,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -133,7 +134,7 @@
       "name": "fan",
       "mode": "dynamic",
       "mass": 0.8,
-      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -148,7 +149,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.9, "friction": 0.2 },
-      "capabilities": { "spring": 12.0 },
+      "capabilities": { "jointConnectionType": "source", "spring": 12.0 },
       "shapes": [
         {
           "kind": "box",
@@ -162,7 +163,7 @@
       "name": "rocket",
       "mode": "dynamic",
       "mass": 0.9,
-      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -177,7 +178,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -197,7 +198,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -217,7 +218,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.05, "friction": 2.5 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -237,7 +238,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -257,6 +258,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -270,7 +272,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -284,7 +286,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -298,6 +300,7 @@
       "mode": "dynamic",
       "mass": 3.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -312,6 +315,7 @@
       "mode": "dynamic",
       "mass": 6.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.55, "offset": [0.35, -0.3, -0.02] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -326,6 +330,7 @@
       "mode": "dynamic",
       "mass": 9.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.65, "offset": [0.0, -0.35, -0.03] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -340,7 +345,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.0, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "box",
@@ -355,7 +360,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -370,7 +375,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -385,7 +390,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.0, "friction": 0.6 },
-      "capabilities": { "egg": true },
+      "capabilities": { "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "box",
@@ -400,7 +405,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.9, "friction": 0.3 },
-      "capabilities": { "spring": 25.0 },
+      "capabilities": { "jointConnectionType": "target", "spring": 25.0 },
       "shapes": [
         {
           "kind": "box",
@@ -414,7 +419,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -429,7 +434,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -444,7 +449,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.05, "friction": 0.4 },
-      "capabilities": { "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -459,7 +464,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "tail": 0.03 },
+      "capabilities": { "jointConnectionType": "target", "tail": 0.03 },
       "shapes": [
         {
           "kind": "box",
@@ -474,7 +479,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.05, "friction": 0.4 },
-      "capabilities": { "tail": 0.05 },
+      "capabilities": { "jointConnectionType": "target", "tail": 0.05 },
       "shapes": [
         {
           "kind": "box",
@@ -488,7 +493,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.2, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -508,7 +513,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.35, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.35, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -528,7 +533,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -547,7 +552,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -562,7 +567,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -576,7 +581,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "bellows": 8.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -590,6 +595,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.2, "friction": 0.9 },
+      "capabilities": { "jointConnectionType": "target" },
       "shapes": [
         {
           "kind": "box",
@@ -603,7 +609,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.15, "friction": 0.6 },
-      "capabilities": { "tnt": { "fuseTicks": 1 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 1 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -618,7 +624,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "detacher": true, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "source", "detacher": true, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -638,7 +644,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 3.0 },
+      "capabilities": { "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -652,7 +658,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 5.0 },
+      "capabilities": { "jointConnectionType": "target", "light": 5.0 },
       "shapes": [
         {
           "kind": "box",
@@ -666,7 +672,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0.70710678, "directionY": 0.70710678 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "grapple": { "impulse": 22.0, "directionX": 0.70710678, "directionY": 0.70710678 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -681,7 +687,7 @@
       "variantName": "Nitro TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -696,7 +702,7 @@
       "variantName": "Bomb TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -711,7 +717,7 @@
       "variantName": "Gift TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -726,7 +732,7 @@
       "variantName": "Pumpkin TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -741,7 +747,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -756,7 +762,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -771,7 +777,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -786,7 +792,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -801,7 +807,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -816,7 +822,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -831,7 +837,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -846,7 +852,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -861,7 +867,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -876,7 +882,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -891,7 +897,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -906,7 +912,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -921,7 +927,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -936,7 +942,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -951,7 +957,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -966,7 +972,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -981,7 +987,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -996,7 +1002,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1011,7 +1017,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1026,7 +1032,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1041,7 +1047,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.7, "friction": 0.1 },
-      "capabilities": { "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1055,7 +1061,7 @@
       "variantOf": 11,
       "mode": "dynamic",
       "mass": 0.8,
-      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1070,7 +1076,7 @@
       "variantOf": 11,
       "mode": "dynamic",
       "mass": 0.8,
-      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1085,7 +1091,7 @@
       "variantOf": 11,
       "mode": "dynamic",
       "mass": 0.8,
-      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1100,7 +1106,7 @@
       "variantOf": 11,
       "mode": "dynamic",
       "mass": 0.8,
-      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1115,7 +1121,7 @@
       "variantOf": 11,
       "mode": "dynamic",
       "mass": 0.8,
-      "capabilities": { "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "fan": { "thrustPerTick": 1.2, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1130,6 +1136,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1143,6 +1150,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1156,6 +1164,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1169,6 +1178,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1182,6 +1192,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1195,6 +1206,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1208,6 +1220,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1221,6 +1234,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1234,6 +1248,7 @@
       "variantOf": 1,
       "mode": "dynamic",
       "mass": 1.0,
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -1248,7 +1263,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "bellows": 8.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -1263,7 +1278,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "bellows": 8.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -1278,7 +1293,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "bellows": 8.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -1293,7 +1308,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "bellows": 8.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -1308,7 +1323,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "bellows": 8.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -1323,7 +1338,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 32.0, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "bellows": 32.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -1338,7 +1353,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.4, "friction": 0.6 },
-      "capabilities": { "bellows": 8.0, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "bellows": 8.0, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -1353,7 +1368,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1374,7 +1389,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1395,7 +1410,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1416,7 +1431,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1437,7 +1452,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1458,7 +1473,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1479,7 +1494,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1500,7 +1515,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1521,7 +1536,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1542,7 +1557,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -1563,6 +1578,7 @@
       "mode": "dynamic",
       "mass": 3.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1577,6 +1593,7 @@
       "mode": "dynamic",
       "mass": 3.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1591,6 +1608,7 @@
       "mode": "dynamic",
       "mass": 3.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1605,6 +1623,7 @@
       "mode": "dynamic",
       "mass": 13.6364,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1619,6 +1638,7 @@
       "mode": "dynamic",
       "mass": 3.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1633,7 +1653,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1649,7 +1669,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1665,7 +1685,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1681,7 +1701,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1697,7 +1717,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1713,7 +1733,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1729,7 +1749,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1745,7 +1765,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1761,7 +1781,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1777,7 +1797,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1793,7 +1813,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1809,7 +1829,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1825,7 +1845,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1841,7 +1861,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1856,7 +1876,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1872,7 +1892,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1887,7 +1907,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1903,7 +1923,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1919,7 +1939,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1935,6 +1955,7 @@
       "mode": "dynamic",
       "mass": 6.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.55, "offset": [0.35, -0.3, -0.02] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1949,6 +1970,7 @@
       "mode": "dynamic",
       "mass": 6.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.55, "offset": [0.35, -0.3, -0.02] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1963,6 +1985,7 @@
       "mode": "dynamic",
       "mass": 6.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.55, "offset": [0.35, -0.3, -0.02] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1977,6 +2000,7 @@
       "mode": "dynamic",
       "mass": 9.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.65, "offset": [0.0, -0.35, -0.03] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1991,6 +2015,7 @@
       "mode": "dynamic",
       "mass": 9.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.65, "offset": [0.0, -0.35, -0.03] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -2005,6 +2030,7 @@
       "mode": "dynamic",
       "mass": 9.0,
       "material": { "restitution": 0.05, "friction": 1.5 },
+      "capabilities": { "attachment": { "direction": "up", "maxDistance": 0.65, "offset": [0.0, -0.35, -0.03] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
@@ -2019,7 +2045,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2035,7 +2061,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2051,7 +2077,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2067,7 +2093,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2083,7 +2109,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2099,7 +2125,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2115,7 +2141,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2131,7 +2157,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2147,7 +2173,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.5, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2163,7 +2189,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -2179,7 +2205,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -2195,7 +2221,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -2211,7 +2237,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -2227,7 +2253,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "tail": 0.03 },
+      "capabilities": { "jointConnectionType": "target", "tail": 0.03 },
       "shapes": [
         {
           "kind": "box",
@@ -2243,7 +2269,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "tail": 0.03 },
+      "capabilities": { "jointConnectionType": "target", "tail": 0.03 },
       "shapes": [
         {
           "kind": "box",
@@ -2259,7 +2285,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.2, "friction": 0.3 },
-      "capabilities": { "tail": 0.03 },
+      "capabilities": { "jointConnectionType": "target", "tail": 0.03 },
       "shapes": [
         {
           "kind": "box",
@@ -2274,7 +2300,7 @@
       "variantOf": 8,
       "mode": "dynamic",
       "mass": 1.2,
-      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "none", "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2288,7 +2314,7 @@
       "variantOf": 8,
       "mode": "dynamic",
       "mass": 1.2,
-      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "none", "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2302,7 +2328,7 @@
       "variantOf": 8,
       "mode": "dynamic",
       "mass": 1.2,
-      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "none", "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2316,7 +2342,7 @@
       "variantOf": 8,
       "mode": "dynamic",
       "mass": 1.2,
-      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "none", "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2330,7 +2356,7 @@
       "variantOf": 8,
       "mode": "dynamic",
       "mass": 1.2,
-      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "none", "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2344,7 +2370,7 @@
       "variantOf": 8,
       "mode": "dynamic",
       "mass": 1.2,
-      "capabilities": { "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "none", "motor": { "thrustPerTick": 2.0, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2358,7 +2384,7 @@
       "variantOf": 13,
       "mode": "dynamic",
       "mass": 0.9,
-      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2373,7 +2399,7 @@
       "variantOf": 13,
       "mode": "dynamic",
       "mass": 0.9,
-      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2388,7 +2414,7 @@
       "variantOf": 13,
       "mode": "dynamic",
       "mass": 0.9,
-      "capabilities": { "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2404,6 +2430,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2418,6 +2445,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2432,6 +2460,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2446,6 +2475,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2460,6 +2490,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2474,6 +2505,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2488,6 +2520,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2502,6 +2535,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2516,6 +2550,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2530,7 +2565,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
-      "capabilities": { "light": 2.14 },
+      "capabilities": { "jointConnectionType": "source", "light": 2.14 , "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2545,6 +2580,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0.05, "friction": 0.8 },
+      "capabilities": { "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
           "kind": "box",
@@ -2559,7 +2595,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -2580,7 +2616,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -2601,7 +2637,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -2622,7 +2658,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -2643,7 +2679,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -2664,7 +2700,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -2685,7 +2721,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.1, "friction": 1.0 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -2711,7 +2747,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.05, "friction": 0.4 },
-      "capabilities": { "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -2727,7 +2763,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.05, "friction": 0.4 },
-      "capabilities": { "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -2743,7 +2779,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.05, "friction": 0.4 },
-      "capabilities": { "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "capabilities": { "jointConnectionType": "target", "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
       "shapes": [
         {
           "kind": "box",
@@ -2759,7 +2795,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.05, "friction": 0.4 },
-      "capabilities": { "tail": 0.05 },
+      "capabilities": { "jointConnectionType": "target", "tail": 0.05 },
       "shapes": [
         {
           "kind": "box",
@@ -2774,7 +2810,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.05, "friction": 0.4 },
-      "capabilities": { "tail": 0.05 },
+      "capabilities": { "jointConnectionType": "target", "tail": 0.05 },
       "shapes": [
         {
           "kind": "box",
@@ -2789,7 +2825,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.05, "friction": 0.4 },
-      "capabilities": { "tail": 0.05 },
+      "capabilities": { "jointConnectionType": "target", "tail": 0.05 },
       "shapes": [
         {
           "kind": "box",
@@ -2804,7 +2840,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2824,7 +2860,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2844,7 +2880,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2864,7 +2900,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2884,7 +2920,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2904,7 +2940,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2924,7 +2960,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2944,7 +2980,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2964,7 +3000,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "balloon": 3.5, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "balloon": 3.5, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2984,7 +3020,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -3005,7 +3041,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -3026,7 +3062,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -3047,7 +3083,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -3068,7 +3104,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -3089,7 +3125,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -3110,7 +3146,7 @@
       "variantName": "Alien TNT",
       "mode": "dynamic",
       "mass": 1.0,
-      "capabilities": { "tnt": { "fuseTicks": 5, "igniteOnImpact": false }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "igniteOnImpact": false }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3125,7 +3161,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -3146,7 +3182,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -3167,7 +3203,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -3188,7 +3224,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -3209,7 +3245,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -3230,7 +3266,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "box",
@@ -3251,7 +3287,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.9, "friction": 0.2 },
-      "capabilities": { "spring": 12.0 },
+      "capabilities": { "jointConnectionType": "source", "spring": 12.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3267,7 +3303,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.9, "friction": 0.2 },
-      "capabilities": { "spring": 12.0 },
+      "capabilities": { "jointConnectionType": "source", "spring": 12.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3283,7 +3319,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.9, "friction": 0.2 },
-      "capabilities": { "spring": 12.0 },
+      "capabilities": { "jointConnectionType": "source", "spring": 12.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3299,7 +3335,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.2, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3320,7 +3356,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.2, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3341,7 +3377,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.2, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3362,7 +3398,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.2, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3383,7 +3419,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.2, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3404,7 +3440,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.2, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.2, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3425,6 +3461,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.2, "friction": 0.9 },
+      "capabilities": { "jointConnectionType": "target" },
       "shapes": [
         {
           "kind": "box",
@@ -3439,6 +3476,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.2, "friction": 0.9 },
+      "capabilities": { "jointConnectionType": "target" },
       "shapes": [
         {
           "kind": "box",
@@ -3453,6 +3491,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0.2, "friction": 0.9 },
+      "capabilities": { "jointConnectionType": "target" },
       "shapes": [
         {
           "kind": "box",
@@ -3467,7 +3506,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3483,7 +3522,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3499,7 +3538,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3515,7 +3554,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3531,7 +3570,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.0, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "box",
@@ -3547,7 +3586,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.0, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "box",
@@ -3563,7 +3602,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.0, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "box",
@@ -3579,7 +3618,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.0, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "box",
@@ -3595,7 +3634,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.0, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "box",
@@ -3611,7 +3650,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0.0, "friction": 0.4 },
-      "capabilities": { "pig": true },
+      "capabilities": { "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "box",
@@ -3627,7 +3666,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3643,7 +3682,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3659,7 +3698,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0.2, "friction": 0.4 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3675,7 +3714,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3691,7 +3730,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3707,7 +3746,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3723,7 +3762,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.3, "friction": 0.6 },
-      "capabilities": { "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3739,7 +3778,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.35, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.35, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3760,7 +3799,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.35, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.35, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3781,7 +3820,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.5 },
-      "capabilities": { "umbrella": 0.35, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "umbrella": 0.35, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3802,7 +3841,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.0, "friction": 0.6 },
-      "capabilities": { "egg": true },
+      "capabilities": { "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "box",
@@ -3818,7 +3857,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.0, "friction": 0.6 },
-      "capabilities": { "egg": true },
+      "capabilities": { "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "box",
@@ -3834,7 +3873,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.0, "friction": 0.6 },
-      "capabilities": { "egg": true },
+      "capabilities": { "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "box",
@@ -3850,7 +3889,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.0, "friction": 0.6 },
-      "capabilities": { "egg": true },
+      "capabilities": { "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "box",
@@ -3867,7 +3906,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.0, "friction": 0.6 },
-      "capabilities": { "egg": true, "glue": true },
+      "capabilities": { "jointConnectionType": "none", "egg": true, "glue": true },
       "shapes": [
         {
           "kind": "box",
@@ -3883,7 +3922,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.9, "friction": 0.3 },
-      "capabilities": { "spring": 25.0 },
+      "capabilities": { "jointConnectionType": "target", "spring": 25.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3898,7 +3937,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.9, "friction": 0.3 },
-      "capabilities": { "spring": 25.0 },
+      "capabilities": { "jointConnectionType": "target", "spring": 25.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3913,7 +3952,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.9, "friction": 0.3 },
-      "capabilities": { "spring": 25.0 },
+      "capabilities": { "jointConnectionType": "target", "spring": 25.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3928,7 +3967,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.9, "friction": 0.3 },
-      "capabilities": { "spring": 25.0 },
+      "capabilities": { "jointConnectionType": "target", "spring": 25.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3943,7 +3982,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.05, "friction": 2.5 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -3964,7 +4003,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.05, "friction": 2.5 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -3985,7 +4024,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0.05, "friction": 2.5 },
-      "capabilities": { "wheel": true },
+      "capabilities": { "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -4006,7 +4045,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4021,7 +4060,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4036,7 +4075,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4051,7 +4090,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4066,7 +4105,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "grapple": { "impulse": 22.0, "directionX": 0, "directionY": 0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4081,7 +4120,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "detacher": true, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "source", "detacher": true, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4102,7 +4141,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "detacher": true, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "source", "detacher": true, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4123,6 +4162,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
+      "capabilities": { "jointConnectionType": "source" },
       "shapes": [
         {
           "kind": "box",
@@ -4143,7 +4183,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0.1, "friction": 1.2 },
-      "capabilities": { "detacher": true, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "source", "detacher": true, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4164,7 +4204,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4179,7 +4219,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4194,7 +4234,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4209,7 +4249,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4224,7 +4264,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0.3, "friction": 0.7 },
-      "capabilities": { "gearbox": true, "activation": "toggle" },
+      "capabilities": { "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4239,7 +4279,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 3.0 },
+      "capabilities": { "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -4254,7 +4294,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 3.0 },
+      "capabilities": { "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -4269,7 +4309,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 3.0 },
+      "capabilities": { "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -4284,7 +4324,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 3.0 },
+      "capabilities": { "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -4299,7 +4339,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 5.0 },
+      "capabilities": { "jointConnectionType": "target", "light": 5.0 },
       "shapes": [
         {
           "kind": "box",
@@ -4314,7 +4354,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 5.0 },
+      "capabilities": { "jointConnectionType": "target", "light": 5.0 },
       "shapes": [
         {
           "kind": "box",
@@ -4329,7 +4369,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0.2, "friction": 0.6 },
-      "capabilities": { "light": 5.0 },
+      "capabilities": { "jointConnectionType": "target", "light": 5.0 },
       "shapes": [
         {
           "kind": "box",
@@ -4344,7 +4384,7 @@
       "variantName": "Blaster TNT",
       "mode": "dynamic",
       "mass": 2.0,
-      "capabilities": { "blaster": { "radius": 3.5, "impulse": 30.0, "chainRadius": 8.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionType": "target", "blaster": { "radius": 3.5, "impulse": 30.0, "chainRadius": 8.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",

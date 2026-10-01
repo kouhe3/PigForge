@@ -55,6 +55,10 @@ public sealed class ConstructionRules
 
     public const float MaxScale = 4f;
 
+    /// <summary>Cells an attachment searches for its anchor (INSettingsBExp.json:
+    /// <c>SandbagConnectionDistance</c>/<c>BalloonConnectionDistance</c> = 10).</summary>
+    public const int AttachmentSearchCells = 10;
+
     private const float BucketSize = 4f;
 
     private readonly EntityStore _entities;
@@ -69,6 +73,11 @@ public sealed class ConstructionRules
     private readonly Dictionary<uint, PartFootprint> _footprintByEntity = new();
     private readonly Dictionary<uint, HashSet<uint>> _connectionsByEntity = new();
     private readonly HashSet<uint> _frozenEntities = new();
+
+    // Enclosure is build-phase state like occupancy: one level deep, one part per frame
+    // (spec §2.2-5). The paired lookups let both directions be queried and released.
+    private readonly Dictionary<uint, uint> _enclosedBy = new();
+    private readonly Dictionary<uint, uint> _enclosedPart = new();
 
     private readonly Dictionary<uint, uint> _ownerByEntity = new();
     private readonly Dictionary<uint, int> _partCountByOwner = new();
@@ -145,6 +154,100 @@ public sealed class ConstructionRules
             : Array.Empty<uint>();
     }
 
+    /// <summary>The frame this entity is enclosed in, or null when it is free-standing cargo.</summary>
+    public EntityId? EnclosedBy(EntityId entity) =>
+        _enclosedBy.TryGetValue(entity.Value, out uint frame) ? new EntityId(frame) : null;
+
+    /// <summary>The part enclosed in this frame, or null when the frame's slot is free.</summary>
+    public EntityId? EnclosedPart(EntityId frame) =>
+        _enclosedPart.TryGetValue(frame.Value, out uint part) ? new EntityId(part) : null;
+
+    /// <summary>
+    /// The first legal runtime-attachment anchor along a direction, or null. The original walks
+    /// the build grid one cell at a time (Sandbag.cs:96-102, Balloon.cs:104-107) up to
+    /// <c>SandbagConnectionDistance</c>/<c>BalloonConnectionDistance</c> = 10 cells
+    /// (INSettingsBExp.json), discarding every part that is neither chassis nor pig — a wheel, a
+    /// TNT, another sandbag — and stopping at the first that is. A balloon's extra Kicker
+    /// exemption needs no case here: the kicker is a <see cref="JointConnectionType.Source"/>
+    /// part in our content, so the chassis test already accepts it. Deterministic: cells are
+    /// walked outward from the part's own cell and each cell's parts are taken in ascending
+    /// EntityId order.
+    /// </summary>
+    public EntityId? FindAttachmentTarget(EntityId attach, int directionX, int directionY)
+    {
+        if ((directionX == 0 && directionY == 0)
+            || !_transforms.TryGet(attach, out EntityTransform origin)
+            || !_ownerByEntity.TryGetValue(attach.Value, out uint owner))
+        {
+            return null;
+        }
+
+        int cellX = (int)MathF.Floor(origin.Position.X / CellSize);
+        int cellY = (int)MathF.Floor(origin.Position.Y / CellSize);
+        int stepX = Math.Sign(directionX);
+        int stepY = Math.Sign(directionY);
+        for (int distance = 1; distance <= AttachmentSearchCells; distance++)
+        {
+            EntityId anchor = FindAnchorInCell(cellX + (stepX * distance), cellY + (stepY * distance), attach.Value, owner);
+            if (anchor.IsValid)
+            {
+                return anchor;
+            }
+        }
+
+        return null;
+    }
+
+    private EntityId FindAnchorInCell(int cellX, int cellY, uint attach, uint owner)
+    {
+        float minX = cellX * CellSize;
+        float minY = cellY * CellSize;
+        float maxX = minX + CellSize;
+        float maxY = minY + CellSize;
+        EntityId anchor = default;
+        HashSet<uint>? tested = null;
+        for (int bucketY = BucketIndex(minY); bucketY <= BucketIndex(maxY); bucketY++)
+        {
+            for (int bucketX = BucketIndex(minX); bucketX <= BucketIndex(maxX); bucketX++)
+            {
+                if (!_entitiesByBucket.TryGetValue(PackBucket(bucketX, bucketY), out List<uint>? bucket))
+                {
+                    continue;
+                }
+
+                foreach (uint entityValue in bucket)
+                {
+                    if (entityValue == attach
+                        || (tested ??= new HashSet<uint>()).Add(entityValue) is false
+                        || !IsOwnedBy(entityValue, owner)
+                        || (anchor.IsValid && entityValue > anchor.Value)
+                        || !_footprintByEntity.TryGetValue(entityValue, out PartFootprint footprint)
+                        || !_parts.TryGet(new EntityId(entityValue), out PartLink link))
+                    {
+                        continue;
+                    }
+
+                    (float otherMinX, float otherMinY, float otherMaxX, float otherMaxY) = footprint.Bounds();
+                    if (otherMinX >= maxX || otherMaxX <= minX || otherMinY >= maxY || otherMaxY <= minY)
+                    {
+                        continue;
+                    }
+
+                    PartCapabilities? capabilities = _content.GetPart(link.PartTypeId).Capabilities;
+                    if (capabilities?.JointConnectionType != JointConnectionType.Source
+                        && capabilities?.IsPig != true)
+                    {
+                        continue;
+                    }
+
+                    anchor = new EntityId(entityValue);
+                }
+            }
+        }
+
+        return anchor;
+    }
+
     public ConstructionResult Place(uint partTypeId, float positionX, float positionY, float angle, float scale, uint owner)
     {
         if (!float.IsFinite(angle))
@@ -185,7 +288,10 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.PartLimitReached);
         }
 
-        if (CollectOverlapping(footprint, -OverlapTolerance, exclude: 0).Count > 0)
+        List<uint> overlaps = CollectOverlapping(footprint, -OverlapTolerance, exclude: 0);
+        uint enclosingFrame = 0;
+        if (overlaps.Count > 0
+            && !TryResolveEnclosure(part, owner, overlaps, self: 0, out enclosingFrame))
         {
             return Failure(ConstructionError.CellsOccupied);
         }
@@ -222,6 +328,12 @@ public sealed class ConstructionRules
         }
 
         _connectionsByEntity.Add(entity.Value, new HashSet<uint>(neighbours));
+        if (enclosingFrame != 0)
+        {
+            _enclosedBy[entity.Value] = enclosingFrame;
+            _enclosedPart[enclosingFrame] = entity.Value;
+        }
+
         return new ConstructionResult(entity, ConstructionError.None);
     }
 
@@ -299,7 +411,10 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.FootprintTooLarge);
         }
 
-        if (CollectOverlapping(candidate, -OverlapTolerance, exclude: entity.Value).Count > 0)
+        List<uint> overlaps = CollectOverlapping(candidate, -OverlapTolerance, exclude: entity.Value);
+        uint enclosingFrame = 0;
+        if (overlaps.Count > 0
+            && !TryResolveEnclosure(part, owner, overlaps, self: entity.Value, out enclosingFrame))
         {
             return Failure(ConstructionError.TransformBlocked);
         }
@@ -323,6 +438,9 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.ConnectionLimitReached);
         }
 
+        // A transform always drops the old enclosure (the part or the frame moved); it is
+        // re-recorded below when the new pose still lands inside a frame.
+        ReleaseEnclosureLinks(entity.Value);
         UnsetFootprint(entity.Value);
         SetFootprint(entity.Value, candidate);
         _transforms.Set(entity, new EntityTransform(
@@ -331,6 +449,12 @@ public sealed class ConstructionRules
             targetScale));
 
         Reconnect(entity.Value);
+        if (enclosingFrame != 0)
+        {
+            _enclosedBy[entity.Value] = enclosingFrame;
+            _enclosedPart[enclosingFrame] = entity.Value;
+        }
+
         foreach (uint previous in previousNeighbours)
         {
             Reconnect(previous);
@@ -415,6 +539,8 @@ public sealed class ConstructionRules
         _footprintByEntity.Clear();
         _connectionsByEntity.Clear();
         _frozenEntities.Clear();
+        _enclosedBy.Clear();
+        _enclosedPart.Clear();
         _ownerByEntity.Clear();
         _partCountByOwner.Clear();
         foreach (uint entityValue in destroyed)
@@ -502,9 +628,89 @@ public sealed class ConstructionRules
             {
                 hash = unchecked(hash * 31 + connection);
             }
+
+            // The enclosure relation is part of the build state: a frame's slot being taken
+            // changes the assembly, so it must change the layout hash too.
+            uint enclosedByFrame = _enclosedBy.TryGetValue(entityValue, out uint enclosingFrame) ? enclosingFrame : 0;
+            if (enclosedByFrame != 0)
+            {
+                hash = unchecked(hash * 31 + enclosedByFrame);
+            }
         }
 
         return hash;
+    }
+
+    /// <summary>
+    /// Resolves a footprint that overlaps existing parts to the frame that will enclose the
+    /// candidate, or rejects it. Original rules: only a frame encloses (Frame.cs:32 /
+    /// BasePart.cs:1143), the candidate must be enclosable (BasePart.cs:1148-1166), a frame
+    /// holds one part at a time and never a same-type second one (Contraption.cs:1729-1749,
+    /// ConstructionUI.cs:1212). Anything else — a pig against a pig, a free overlap with a
+    /// non-frame, a frame against a frame — stays a plain occupancy conflict.
+    /// <paramref name="self"/> is the entity being transformed: it may keep its own frame slot.
+    /// </summary>
+    private bool TryResolveEnclosure(PartDefinition candidate, uint owner, List<uint> overlaps, uint self, out uint frame)
+    {
+        frame = 0;
+        if (candidate.Capabilities?.CanEnclose == true)
+        {
+            return false;
+        }
+
+        overlaps.Sort();
+        foreach (uint candidateValue in overlaps)
+        {
+            if (!_parts.TryGet(new EntityId(candidateValue), out PartLink link)
+                || !IsOwnedBy(candidateValue, owner))
+            {
+                return false;
+            }
+
+            if (_content.GetPart(link.PartTypeId).Capabilities?.CanEnclose != true)
+            {
+                return false;
+            }
+
+            // A frozen frame is kept wreckage (issue #7): it still occupies its cells, but it is
+            // not editable, so it cannot take on a new enclosed part either.
+            if (_frozenEntities.Contains(candidateValue))
+            {
+                return false;
+            }
+
+            if (_enclosedPart.TryGetValue(candidateValue, out uint held))
+            {
+                if (held == self)
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            if (frame == 0)
+            {
+                frame = candidateValue;
+            }
+        }
+
+        return frame != 0;
+    }
+
+    /// <summary>Drops an entity's enclosure in both directions: the slot it sits in, and the
+    /// slot it hosts when it is a frame. Idempotent.</summary>
+    private void ReleaseEnclosureLinks(uint entityValue)
+    {
+        if (_enclosedBy.Remove(entityValue, out uint frame))
+        {
+            _enclosedPart.Remove(frame);
+        }
+
+        if (_enclosedPart.Remove(entityValue, out uint heldPart))
+        {
+            _enclosedBy.Remove(heldPart);
+        }
     }
 
     private void Reconnect(uint entityValue)
@@ -570,6 +776,7 @@ public sealed class ConstructionRules
     /// <summary>Removes construction bookkeeping only; the entity store is never touched here.</summary>
     private void DetachEntity(uint entityValue)
     {
+        ReleaseEnclosureLinks(entityValue);
         UnsetFootprint(entityValue);
         UnlinkAll(entityValue);
         _connectionsByEntity.Remove(entityValue);

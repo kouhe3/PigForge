@@ -103,7 +103,46 @@
         "grapple": { "$ref": "#/$defs/grappleCapability" },
         "blaster": { "$ref": "#/$defs/blasterCapability" },
         "glue": { "type": "boolean" },
-        "activation": { "enum": ["toggle", "trigger"] }
+        "activation": { "enum": ["toggle", "trigger"] },
+        "jointConnectionType": {
+          "description": "Original BasePart.m_jointConnectionType: whether this part offers (source), accepts (target), or refuses (none) a weld. Two adjacent parts merge only when neither is none and at least one is source.",
+          "enum": ["none", "source", "target"]
+        },
+        "canEnclose": {
+          "description": "True only for frames (WoodenFrame/MetalFrame prefabs). CanBeEnclosed is derived as !canEnclose in code, never authored.",
+          "type": "boolean"
+        },
+        "attachment": {
+          "description": "Runtime attachment (balloon string, sandbag tie): searched for an anchor part at start of simulation and tied to it with a rope joint (minDistance 0).",
+          "$ref": "#/$defs/attachmentCapability"
+        }
+      }
+    },
+  "attachmentCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["direction"],
+    "properties": {
+      "direction": {
+        "description": "Which way the build searches for its anchor: up = hangs from the part above it (sandbag), down = floats above the part below it (balloon).",
+        "enum": ["up", "down"]
+      },
+      "maxDistance": {
+        "description": "Constant rope length limit.",
+        "type": "number",
+        "minimum": 0
+      },
+      "offset": {
+        "description": "Where the rope's anchor sits in the anchor part's local frame; the attached part rests at most maxDistance away from that point.",
+        "$ref": "#/$defs/vector3"
+      },
+      "distanceFactor": {
+        "description": "Scaled rope limit: maxDistance = distanceFactor * (build separation + distanceOffset) + pigDistanceBonus when the anchor is a pig. Mutually exclusive with maxDistance.",
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "distanceOffset": { "type": "number" },
+      "pigDistanceBonus": { "type": "number", "minimum": 0 }
     }
   },
   "grappleCapability": {

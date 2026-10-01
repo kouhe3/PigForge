@@ -40,7 +40,13 @@ public sealed class PartContentTests
         Assert.Equal(32f, library.Document.Parts.Single(part => part.Name == "bellows-v07").Capabilities!.BellowsBoostImpulse);
 
         // The marker kicker (original customPartIndex 3) is inert: no detacher capability.
-        Assert.Null(library.Document.Parts.Single(part => part.Name == "detacher-v4").Capabilities);
+        // Every mapped part now carries a joint capability, so inertness is asserted on the
+        // gameplay roles rather than on the object being absent.
+        PartCapabilities markerKicker = library.Document.Parts.Single(part => part.Name == "detacher-v4").Capabilities!;
+        Assert.False(markerKicker.IsDetacher);
+        Assert.False(markerKicker.IsWheel);
+        Assert.False(markerKicker.IsPig);
+        Assert.Null(markerKicker.MotorThrustPerTick);
     }
 
     [Fact]
@@ -106,6 +112,77 @@ public sealed class PartContentTests
     }
 
     [Fact]
+    public void JointEnclosureAndAttachmentCapabilitiesParse()
+    {
+        PartContentDocument document = PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source", "canEnclose": true }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+                { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "none", "pig": true }, "shapes": [ { "kind": "sphere", "radius": 0.42 } ] },
+                { "partTypeId": 3, "name": "sandbag", "mode": "dynamic", "mass": 3, "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] } }, "shapes": [ { "kind": "sphere", "radius": 0.13 } ] },
+                { "partTypeId": 4, "name": "balloon", "mode": "dynamic", "mass": 0.3, "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "down", "offset": [0, 0.5, 0], "distanceFactor": 1, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 } }, "shapes": [ { "kind": "sphere", "radius": 0.5 } ] }
+            ]
+        }
+        """);
+
+        PartCapabilities frame = document.Parts[0].Capabilities!;
+        Assert.Equal(JointConnectionType.Source, frame.JointConnectionType);
+        Assert.True(frame.CanEnclose);
+        Assert.False(frame.CanBeEnclosed);
+        Assert.Null(frame.Attachment);
+
+        // Absence of a joint capability key defaults to none, and CanBeEnclosed is derived.
+        PartCapabilities pig = document.Parts[1].Capabilities!;
+        Assert.Equal(JointConnectionType.None, pig.JointConnectionType);
+        Assert.True(pig.CanBeEnclosed);
+        Assert.Null(pig.Attachment);
+
+        PartAttachment sandbag = document.Parts[2].Capabilities!.Attachment!;
+        Assert.Equal(AttachmentDirection.Up, sandbag.Direction);
+        Assert.Equal(0.5f, sandbag.MaxDistance);
+        Assert.Equal(new PhysicsVector3(-0.15f, -0.15f, -0.01f), sandbag.Offset);
+        Assert.Null(sandbag.DistanceFactor);
+
+        PartAttachment balloon = document.Parts[3].Capabilities!.Attachment!;
+        Assert.Equal(AttachmentDirection.Down, balloon.Direction);
+        Assert.Equal(1f, balloon.DistanceFactor);
+        Assert.Equal(-0.5f, balloon.DistanceOffset);
+        Assert.Equal(0.3f, balloon.PigDistanceBonus);
+        Assert.Equal(new PhysicsVector3(0f, 0.5f, 0f), balloon.Offset);
+    }
+
+    [Fact]
+    public void UnknownCapabilityKeysAreStillRejected()
+    {
+        AssertRejected(
+            """{ "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnection": "source" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }""",
+            "unknown property");
+        AssertRejected(
+            """{ "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "attachment": { "direction": "up", "rope": 1 } }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }""",
+            "unknown property");
+    }
+
+    [Theory]
+    [InlineData("{ \"jointConnectionType\": \"both\" }", "jointConnectionType")]
+    [InlineData("{ \"jointConnectionType\": true }", "jointConnectionType")]
+    [InlineData("{ \"canEnclose\": \"yes\" }", "canEnclose")]
+    [InlineData("{ \"attachment\": \"up\" }", "attachment")]
+    [InlineData("{ \"attachment\": { \"maxDistance\": 0.5 } }", "direction")]
+    [InlineData("{ \"attachment\": { \"direction\": \"sideways\" } }", "direction")]
+    [InlineData("{ \"attachment\": { \"direction\": \"up\" } }", "maxDistance or distanceFactor")]
+    [InlineData("{ \"attachment\": { \"direction\": \"up\", \"maxDistance\": 0.5, \"distanceFactor\": 1 } }", "mutually exclusive")]
+    [InlineData("{ \"attachment\": { \"direction\": \"up\", \"maxDistance\": -1 } }", "maxDistance")]
+    public void InvalidJointEnclosureAndAttachmentCapabilitiesAreRejected(string capabilities, string expectedErrorFragment)
+    {
+        AssertRejected(
+            $$"""{ "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": {{capabilities}}, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }""",
+            expectedErrorFragment);
+    }
+
+    [Fact]
     public void RepositoryContentMarksSwitchableParts()
     {
         PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
@@ -114,7 +191,15 @@ public sealed class PartContentTests
         Assert.Equal(PartActivation.Toggle, library.GetPart(39).Capabilities!.Activation);
         Assert.Equal(PartActivation.Trigger, library.GetPart(13).Capabilities!.Activation);
         Assert.Equal(PartActivation.Trigger, library.GetPart(10).Capabilities!.Activation);
-        Assert.Null(library.GetPart(1).Capabilities);
+
+        // Part 1 is the wooden frame: its only capability is its joint role (spec §2.1) — it is
+        // not switchable. Level geometry still carries no capabilities at all.
+        PartCapabilities frame = library.GetPart(1).Capabilities!;
+        Assert.Equal(JointConnectionType.Source, frame.JointConnectionType);
+        Assert.True(frame.CanEnclose);
+        Assert.False(frame.CanBeEnclosed);
+        Assert.Equal(PartActivation.None, frame.Activation);
+        Assert.Null(library.GetPart(2).Capabilities);
     }
 
     [Theory]

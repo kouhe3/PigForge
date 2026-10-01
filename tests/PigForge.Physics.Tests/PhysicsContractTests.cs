@@ -224,11 +224,68 @@ public sealed class PhysicsContractTests
             PhysicsQuaternion.Identity,
             1,
             new ShapeDefinition[] { new UnsupportedShapeDefinition() })));
-        Assert.Equal(new[] { PhysicsJointKind.Revolute }, world.Capabilities.SupportedJointKinds);
+        Assert.Equal(
+            new[] { PhysicsJointKind.Distance, PhysicsJointKind.Revolute },
+            world.Capabilities.SupportedJointKinds.OrderBy(kind => kind));
         PhysicsBodyId first = world.CreateBody(DynamicBox());
         PhysicsBodyId second = world.CreateBody(DynamicBox());
+        // A distance joint needs a rope band, so the definition itself is rejected first...
+        Assert.Throws<ArgumentOutOfRangeException>(() => new JointDefinition(
+            PhysicsJointKind.Distance, first, second, PhysicsConstraintMask.None, breakForce: 0f, breakTorque: 0f));
+        // ...and the kinds the backend still has no solver record for stay unsupported.
         Assert.Throws<NotSupportedException>(() => world.CreateJoint(new JointDefinition(
-            PhysicsJointKind.Distance, first, second, PhysicsConstraintMask.None, breakForce: 0f, breakTorque: 0f)));
+            PhysicsJointKind.Fixed, first, second, PhysicsConstraintMask.None, breakForce: 0f, breakTorque: 0f)));
+    }
+
+    [Fact]
+    public void BepuWorldDistanceJointHoldsTheRopeBand()
+    {
+        using BepuPhysicsWorld world = new(new PhysicsVector3(0f, -9.81f, 0f));
+        PhysicsBodyId anchor = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0f, 4f, 0f),
+            PhysicsQuaternion.Identity,
+            1f,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+        PhysicsBodyId hanging = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0f, 2f, 0f),
+            PhysicsQuaternion.Identity,
+            3f,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+
+        PhysicsJointId joint = world.CreateJoint(new JointDefinition(
+            PhysicsJointKind.Distance,
+            anchor,
+            hanging,
+            PhysicsConstraintMask.LockPositionX | PhysicsConstraintMask.LockPositionY | PhysicsConstraintMask.LockPositionZ,
+            breakForce: 0f,
+            breakTorque: 0f,
+            minimumDistance: 0f,
+            maximumDistance: 0.5f,
+            springFrequency: 5f,
+            springDampingRatio: 1f));
+        Assert.True(joint.IsValid);
+
+        // The pair starts 2 apart and free-falls; the rope pulls it back inside the band instead
+        // of letting the hanging body drop away (without it the two would keep falling 2 apart,
+        // and after 4 seconds of free fall they would be tens of metres apart).
+        for (int tick = 0; tick < 240; tick++)
+        {
+            world.Step(FixedTimeStep.FromSeconds(1f / 60f));
+        }
+
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[2];
+        Assert.Equal(2, world.CopySnapshots(snapshots));
+        float anchorY = snapshots.Single(snapshot => snapshot.Body == anchor).Position.Y;
+        float hangingY = snapshots.Single(snapshot => snapshot.Body == hanging).Position.Y;
+        Assert.True(anchorY < 4f, $"the pair free-falls: anchor y={anchorY}");
+        Assert.True(anchorY > hangingY, $"the anchor stays above the hanging body: {anchorY} vs {hangingY}");
+        Assert.True(
+            anchorY - hangingY <= 0.6f,
+            $"the rope holds the separation inside its 0.5 band: {anchorY - hangingY}");
+
+        world.DestroyJoint(joint);
     }
 
     [Fact]

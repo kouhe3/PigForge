@@ -388,6 +388,9 @@ public sealed class BodyDefinition
 /// <summary>
 /// A constraint between two dynamic bodies. Anchors and axes are expressed in each
 /// body's local frame; a <see cref="PhysicsJointKind.Revolute"/> joint needs unit axes.
+/// A <see cref="PhysicsJointKind.Distance"/> joint is a rope: the two anchors may be
+/// anywhere between <see cref="MinimumDistance"/> and <see cref="MaximumDistance"/> apart,
+/// with the given spring pulling toward that band.
 /// </summary>
 public sealed record JointDefinition
 {
@@ -401,7 +404,11 @@ public sealed record JointDefinition
 		PhysicsVector3 localAnchorA = default,
 		PhysicsVector3 localAnchorB = default,
 		PhysicsVector3 localAxisA = default,
-		PhysicsVector3 localAxisB = default)
+		PhysicsVector3 localAxisB = default,
+		float minimumDistance = 0f,
+		float maximumDistance = 0f,
+		float springFrequency = 0f,
+		float springDampingRatio = 1f)
 	{
 		if (!Enum.IsDefined(kind))
 		{
@@ -434,6 +441,21 @@ public sealed record JointDefinition
 			throw new ArgumentException("A revolute joint requires a non-zero local axis on both bodies.", nameof(localAxisA));
 		}
 
+		if (kind == PhysicsJointKind.Distance)
+		{
+			if (!float.IsFinite(minimumDistance) || !float.IsFinite(maximumDistance)
+				|| minimumDistance < 0f || maximumDistance <= 0f || minimumDistance > maximumDistance)
+			{
+				throw new ArgumentOutOfRangeException(nameof(maximumDistance), maximumDistance, "A distance joint needs 0 <= minimumDistance <= maximumDistance and a positive maximum.");
+			}
+
+			if (!float.IsFinite(springFrequency) || springFrequency <= 0f
+				|| !float.IsFinite(springDampingRatio) || springDampingRatio < 0f)
+			{
+				throw new ArgumentOutOfRangeException(nameof(springFrequency), springFrequency, "A distance joint needs a positive spring frequency and a non-negative damping ratio.");
+			}
+		}
+
 		Kind = kind;
 		BodyA = bodyA;
 		BodyB = bodyB;
@@ -444,6 +466,10 @@ public sealed record JointDefinition
 		LocalAnchorB = localAnchorB;
 		LocalAxisA = localAxisA;
 		LocalAxisB = localAxisB;
+		MinimumDistance = minimumDistance;
+		MaximumDistance = maximumDistance;
+		SpringFrequency = springFrequency;
+		SpringDampingRatio = springDampingRatio;
 	}
 
 	public PhysicsJointKind Kind { get; }
@@ -456,6 +482,16 @@ public sealed record JointDefinition
 	public PhysicsVector3 LocalAnchorB { get; }
 	public PhysicsVector3 LocalAxisA { get; }
 	public PhysicsVector3 LocalAxisB { get; }
+
+	/// <summary>Rope band for <see cref="PhysicsJointKind.Distance"/>; zero otherwise.</summary>
+	public float MinimumDistance { get; }
+
+	public float MaximumDistance { get; }
+
+	/// <summary>Spring of a distance joint in Hz; zero for other kinds.</summary>
+	public float SpringFrequency { get; }
+
+	public float SpringDampingRatio { get; }
 }
 
 public readonly record struct PhysicsCommand

@@ -477,9 +477,9 @@ public sealed class GameRoomTests
         "schemaVersion": 1,
         "contentVersion": "server-glue-test-v1",
         "parts": [
-            { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
-            { "partTypeId": 2, "name": "motor", "mode": "dynamic", "mass": 1, "capabilities": { "motor": { "thrustPerTick": 30, "directionX": 1 } }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
-            { "partTypeId": 3, "name": "glue", "mode": "dynamic", "mass": 1, "capabilities": { "glue": true }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
+            { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+            { "partTypeId": 2, "name": "motor", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target", "motor": { "thrustPerTick": 30, "directionX": 1 } }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+            { "partTypeId": 3, "name": "glue", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target", "glue": true }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
         ]
     }
     """;
@@ -490,7 +490,7 @@ public sealed class GameRoomTests
         "schemaVersion": 1,
         "contentVersion": "server-test-v1",
         "parts": [
-            { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+            { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
             { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "material": { "restitution": 0.2, "friction": 0.4 }, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ] },
             { "partTypeId": 3, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ] },
             { "partTypeId": 5, "name": "ground", "mode": "static", "mass": 0, "material": { "restitution": 0, "friction": 0.8 }, "shapes": [ { "kind": "box", "halfExtents": [40, 0.5, 10] } ] }

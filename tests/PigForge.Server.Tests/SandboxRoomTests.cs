@@ -654,21 +654,23 @@ public sealed class SandboxRoomTests
         List<SnapshotEntity> settled = PublishEntities(room, out _);
         uint frameBody = settled.Single(entity => entity.EntityId == block).PhysicsBodyId;
         Assert.NotEqual(0u, frameBody);
-        Assert.Equal(frameBody, settled.Single(entity => entity.EntityId == pig).PhysicsBodyId);
+        // The pig is cargo, not chassis: its joint capability is `none`, so the pig is not
+        // welded to the block it rests on (Contraption.cs:690) and keeps its own body.
+        Assert.NotEqual(frameBody, settled.Single(entity => entity.EntityId == pig).PhysicsBodyId);
         uint rearBody = settled.Single(entity => entity.EntityId == rearWheel).PhysicsBodyId;
         uint frontBody = settled.Single(entity => entity.EntityId == frontWheel).PhysicsBodyId;
         Assert.NotEqual(frameBody, rearBody);
         Assert.NotEqual(rearBody, frontBody);
 
         Assert.True(room.Submit(PlayHost.BindPlayer(SetTypeActive(++sequence, 0, 17, active: true), player)).IsAccepted);
-        float before = settled.Single(entity => entity.EntityId == pig).Position.X;
+        float before = settled.Single(entity => entity.EntityId == block).Position.X;
         for (int tick = 0; tick < 30; tick++)
         {
             room.Tick();
         }
 
         List<SnapshotEntity> moved = PublishEntities(room, out _);
-        float after = moved.Single(entity => entity.EntityId == pig).Position.X;
+        float after = moved.Single(entity => entity.EntityId == block).Position.X;
         Assert.True(after > before + 0.2f, $"the motor must drive the hinged cart: {before} -> {after}");
         Assert.True(
             moved.Where(entity => entity.EntityId == rearWheel || entity.EntityId == frontWheel)

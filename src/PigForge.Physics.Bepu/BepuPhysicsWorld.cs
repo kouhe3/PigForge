@@ -60,7 +60,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     }
 
     public PhysicsCapabilities Capabilities { get; } = new(
-        new HashSet<PhysicsJointKind> { PhysicsJointKind.Revolute },
+        new HashSet<PhysicsJointKind> { PhysicsJointKind.Revolute, PhysicsJointKind.Distance },
         SupportsContinuousCollision: false,
         SupportsPerBodyInertia: true,
         // BepuPhysics v2 has no restitution term in PairMaterialProperties, so the rules
@@ -194,9 +194,9 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(definition);
-        if (definition.Kind != PhysicsJointKind.Revolute)
+        if (definition.Kind is not (PhysicsJointKind.Revolute or PhysicsJointKind.Distance))
         {
-            throw new NotSupportedException($"BepuPhysics backend only implements revolute joints, not {definition.Kind}.");
+            throw new NotSupportedException($"BepuPhysics backend only implements revolute and distance joints, not {definition.Kind}.");
         }
 
         if (!_dynamicBodies.TryGetValue(definition.BodyA, out BodyHandle handleA)
@@ -205,23 +205,43 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             throw new KeyNotFoundException("Both joint bodies must be dynamic bodies created by this world.");
         }
 
-        // The hinge keeps the two anchors coincident and lets the bodies rotate about the
-        // shared axis; the spring settings are stiff so it behaves as a rigid axle.
-        Hinge hinge = new()
+        ConstraintHandle handle;
+        if (definition.Kind == PhysicsJointKind.Revolute)
         {
-            LocalOffsetA = ToNumerics(definition.LocalAnchorA),
-            LocalOffsetB = ToNumerics(definition.LocalAnchorB),
-            LocalHingeAxisA = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisA)),
-            LocalHingeAxisB = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisB)),
-            SpringSettings = new SpringSettings(30f, 1f),
-        };
+            // The hinge keeps the two anchors coincident and lets the bodies rotate about the
+            // shared axis; the spring settings are stiff so it behaves as a rigid axle.
+            Hinge hinge = new()
+            {
+                LocalOffsetA = ToNumerics(definition.LocalAnchorA),
+                LocalOffsetB = ToNumerics(definition.LocalAnchorB),
+                LocalHingeAxisA = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisA)),
+                LocalHingeAxisB = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisB)),
+                SpringSettings = new SpringSettings(30f, 1f),
+            };
+            handle = _simulation.Solver.Add(handleA, handleB, hinge);
+        }
+        else
+        {
+            // The rope of a runtime attachment (balloon string, sandbag tie): the two anchors
+            // may move freely between the minimum and the maximum separation, pulled back by
+            // the spring. Unity's SpringJoint (min/max/spring/damper) maps onto exactly this.
+            DistanceLimit limit = new()
+            {
+                LocalOffsetA = ToNumerics(definition.LocalAnchorA),
+                LocalOffsetB = ToNumerics(definition.LocalAnchorB),
+                MinimumDistance = definition.MinimumDistance,
+                MaximumDistance = definition.MaximumDistance,
+                SpringSettings = new SpringSettings(definition.SpringFrequency, definition.SpringDampingRatio),
+            };
+            handle = _simulation.Solver.Add(handleA, handleB, limit);
+        }
+
         if (_nextJointId == 0)
         {
             throw new InvalidOperationException("The physics joint ID space is exhausted.");
         }
 
         PhysicsJointId id = new(_nextJointId++);
-        ConstraintHandle handle = _simulation.Solver.Add(handleA, handleB, hinge);
         _joints.Add(id, handle);
         _jointBodies.Add((id, handleA, handleB));
         _jointedPairs.Add(PairKey(handleA, handleB));

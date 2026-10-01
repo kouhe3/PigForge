@@ -86,6 +86,7 @@ public sealed class GameRoom : IDisposable
     private readonly Dictionary<uint, (PhysicsVector3 Offset, PhysicsQuaternion Rotation)> _compoundLocalByEntity = new();
     private readonly Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> _bodyPose = new();
     private readonly List<(PhysicsJointId Joint, PhysicsBodyId Wheel, PhysicsBodyId Parent)> _wheelJoints = new();
+    private readonly List<(PhysicsJointId Joint, PhysicsBodyId Attach, PhysicsBodyId Anchor)> _attachmentJoints = new();
     private readonly Dictionary<uint, (PhysicsBodyId Body, PhysicsQuaternion LocalRotation)> _attachByEntity = new();
     private readonly List<LiveCompound> _liveCompounds = new();
     private readonly List<PhysicsCommand> _appliedCommands = new();
@@ -486,6 +487,7 @@ public sealed class GameRoom : IDisposable
         }
 
         BindWheelHinges(assembly.Hinges);
+        BindAttachments();
 
         EnsureBuffers();
         Mode = RoomMode.Running;
@@ -523,6 +525,7 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
 
@@ -599,6 +602,7 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
 
@@ -813,6 +817,7 @@ public sealed class GameRoom : IDisposable
         }
 
         BindWheelHinges(assembly.Hinges);
+        BindAttachments();
 
         _sandboxPlayers.MarkMaterialized(playerId);
         EnsureBuffers();
@@ -848,6 +853,7 @@ public sealed class GameRoom : IDisposable
         }
 
         BindWheelHinges(assembly.Hinges);
+        BindAttachments();
 
         EnsureBuffers();
         Mode = RoomMode.Running;
@@ -1259,6 +1265,7 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
         _appliedCommands.Clear();
@@ -1342,6 +1349,109 @@ public sealed class GameRoom : IDisposable
     }
 
     /// <summary>
+    /// SpringJoint numbers of the original's runtime attachments, in Unity's units:
+    /// <c>minDistance 0</c>, <c>spring 100</c>, <c>damper 10</c>, <c>enablePreprocessing false</c>
+    /// (Sandbag.cs:157-163, Balloon.cs:146-160). The two solvers take the frequency/
+    /// damping-ratio pair instead, converted per joint from the participants' reduced mass in
+    /// <see cref="BindAttachments"/>; preprocessing has no PigForge equivalent.
+    /// </summary>
+    private const float AttachmentSpring = 100f;
+
+    private const float AttachmentDamper = 10f;
+
+    /// <summary>The original anchors the rope half a unit along the attach part's facing edge
+    /// (<c>Vector3.up * 0.5f</c> for a sandbag, <c>Vector3.up * -0.5f</c> for a balloon).</summary>
+    private const float AttachmentAnchorOffset = 0.5f;
+
+    /// <summary>
+    /// Binds the runtime attachments at start of simulation: every part carrying an attachment
+    /// capability searches its direction for the first chassis (or pig) and is tied to it with a
+    /// rope joint, exactly as the original builds a SpringJoint in <c>Initialize</c>
+    /// (Sandbag.cs:136-164, Balloon.cs:143-166). No anchor in range means no joint: the part
+    /// simply stays free. Deterministic: the construction search walks cells outward and orders
+    /// each cell by EntityId, and the parts are bound in ascending entity order.
+    /// </summary>
+    private void BindAttachments()
+    {
+        uint[] placed = _construction.PlacedEntities.ToArray();
+        Array.Sort(placed);
+        foreach (uint entityValue in placed)
+        {
+            EntityId entity = new(entityValue);
+            if (!_parts.TryGet(entity, out PartLink link)
+                || !_transforms.TryGet(entity, out EntityTransform transform))
+            {
+                continue;
+            }
+
+            PartAttachment? attachment = _content.GetPart(link.PartTypeId).Capabilities?.Attachment;
+            if (attachment is null)
+            {
+                continue;
+            }
+
+            int directionY = attachment.Direction == AttachmentDirection.Up ? 1 : -1;
+            if (_construction.FindAttachmentTarget(entity, 0, directionY) is not EntityId anchor
+                || !_bodies.TryGet(entity, out PhysicsBodyLink attachLink)
+                || !_bodies.TryGet(anchor, out PhysicsBodyLink anchorLink)
+                || attachLink.Body == anchorLink.Body
+                || !_bodyPose.TryGetValue(attachLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) attachPose)
+                || !_bodyPose.TryGetValue(anchorLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) anchorPose)
+                || !_parts.TryGet(anchor, out PartLink anchorPartLink)
+                || !_transforms.TryGet(anchor, out EntityTransform anchorTransform))
+            {
+                continue;
+            }
+
+            PartDefinition attachPart = _content.GetPart(link.PartTypeId);
+            PartDefinition anchorPart = _content.GetPart(anchorPartLink.PartTypeId);
+            float distance = PhysicsVector3.Distance(attachPose.Position, anchorPose.Position);
+            float maxDistance = attachment.DistanceFactor is float factor
+                ? (factor * (distance + (attachment.DistanceOffset ?? 0f)))
+                    + (anchorPart.Capabilities?.IsPig == true ? attachment.PigDistanceBonus ?? 0f : 0f)
+                : attachment.MaxDistance;
+            if (!float.IsFinite(maxDistance) || maxDistance <= 0f)
+            {
+                continue;
+            }
+
+            // Unity's spring (N/m) and damper (N*s/m) become the solver's frequency and damping
+            // ratio through the pair's reduced mass: omega = sqrt(k / m), zeta = c / (2 sqrt(k m)).
+            float attachMass = attachPart.Mass * transform.Scale * transform.Scale * transform.Scale;
+            float anchorMass = anchorPart.Mass * anchorTransform.Scale * anchorTransform.Scale * anchorTransform.Scale;
+            float reducedMass = attachMass > 0f && anchorMass > 0f ? attachMass * anchorMass / (attachMass + anchorMass) : 0f;
+            if (!(reducedMass > 0f))
+            {
+                continue;
+            }
+
+            float frequency = MathF.Sqrt(AttachmentSpring / reducedMass) / (2f * MathF.PI);
+            float dampingRatio = AttachmentDamper / (2f * MathF.Sqrt(AttachmentSpring * reducedMass));
+            JointDefinition definition = new(
+                PhysicsJointKind.Distance,
+                anchorLink.Body,
+                attachLink.Body,
+                PhysicsConstraintMask.LockPositionX | PhysicsConstraintMask.LockPositionY | PhysicsConstraintMask.LockPositionZ,
+                breakForce: 0f,
+                breakTorque: 0f,
+                localAnchorA: ToBodyLocal(anchor.Value, attachment.Offset),
+                localAnchorB: ToBodyLocal(entity.Value, new PhysicsVector3(0f, directionY * AttachmentAnchorOffset, 0f)),
+                minimumDistance: 0f,
+                maximumDistance: maxDistance,
+                springFrequency: frequency,
+                springDampingRatio: dampingRatio);
+            _attachmentJoints.Add((_world.CreateJoint(definition), attachLink.Body, anchorLink.Body));
+        }
+    }
+
+    /// <summary>Maps a point in a construction entity's own frame into its body's frame
+    /// (identity for a singleton body).</summary>
+    private PhysicsVector3 ToBodyLocal(uint entityValue, PhysicsVector3 point) =>
+        _compoundLocalByEntity.TryGetValue(entityValue, out (PhysicsVector3 Offset, PhysicsQuaternion Rotation) local)
+            ? local.Offset + local.Rotation.Rotate(point)
+            : point;
+
+    /// <summary>
     /// World Z yaw of a rotation, matching the client's `yawFromQuaternion`. Every sprite the
     /// renderer draws is oriented in the plane, so the attach frame travels as this scalar even
     /// though the physics state is a quaternion.
@@ -1381,6 +1491,18 @@ public sealed class GameRoom : IDisposable
             {
                 _attachByEntity.Remove(wheelEntity.Value);
             }
+        }
+
+        for (int index = _attachmentJoints.Count - 1; index >= 0; index--)
+        {
+            (PhysicsJointId joint, PhysicsBodyId attach, PhysicsBodyId anchor) = _attachmentJoints[index];
+            if (attach != body && anchor != body)
+            {
+                continue;
+            }
+
+            _world.DestroyJoint(joint);
+            _attachmentJoints.RemoveAt(index);
         }
     }
 

@@ -315,13 +315,31 @@ public static class CompoundAssembler
             foreach (uint neighbour in construction.ConnectionsOf(entity))
             {
                 if (!byValue.TryGetValue(neighbour, out EntityId neighbourEntity)
-                    || !CanMerge(neighbourEntity, construction, content))
+                    || !CanMergePair(entity, neighbourEntity, construction, content))
                 {
                     continue;
                 }
 
                 Union(entity.Value, neighbour);
             }
+        }
+
+        // An enclosed part is welded to its frame whatever its joint capability says — the
+        // original adds a FixedJoint straight to the frame (Frame.cs:44-49), bypassing the
+        // Contraption.cs:690 rule. One rigid body is also how the pair stops colliding with
+        // itself (the physics contract has no IgnoreCollision). Ordered by EntityId so the
+        // union/find roots stay deterministic.
+        foreach (EntityId enclosed in entities.OrderBy(entity => entity.Value))
+        {
+            if (construction.EnclosedBy(enclosed) is not EntityId frame
+                || !byValue.ContainsKey(frame.Value)
+                || !CanMerge(enclosed, construction, content)
+                || !CanMerge(frame, construction, content))
+            {
+                continue;
+            }
+
+            Union(enclosed.Value, frame.Value);
         }
 
         Dictionary<uint, List<EntityId>> groups = new();
@@ -578,6 +596,34 @@ public static class CompoundAssembler
 
         return true;
     }
+
+    /// <summary>
+    /// Whether two adjacent parts weld. Verbatim <c>Contraption.cs:690</c> on top of
+    /// <see cref="CanMerge"/>: both ends must carry a joint capability (neither
+    /// <see cref="JointConnectionType.None"/>) and at least one must be
+    /// <see cref="JointConnectionType.Source"/>. A pig (none) therefore welds to nothing —
+    /// no special case, the data says so.
+    /// </summary>
+    public static bool CanMergePair(EntityId left, EntityId right, ConstructionRules construction, PartContentLibrary content)
+    {
+        ArgumentNullException.ThrowIfNull(construction);
+        ArgumentNullException.ThrowIfNull(content);
+        if (!CanMerge(left, construction, content) || !CanMerge(right, construction, content))
+        {
+            return false;
+        }
+
+        JointConnectionType leftType = JointConnectionTypeOf(left, construction, content);
+        JointConnectionType rightType = JointConnectionTypeOf(right, construction, content);
+        return leftType != JointConnectionType.None
+            && rightType != JointConnectionType.None
+            && (leftType == JointConnectionType.Source || rightType == JointConnectionType.Source);
+    }
+
+    private static JointConnectionType JointConnectionTypeOf(EntityId entity, ConstructionRules construction, PartContentLibrary content) =>
+        construction.TryGetPartTypeId(entity, out uint partTypeId)
+            ? content.GetPart(partTypeId).Capabilities?.JointConnectionType ?? JointConnectionType.None
+            : JointConnectionType.None;
 
     /// <summary>
     /// Revolute attachments for wheel parts: each wheel keeps its own body and hinges to

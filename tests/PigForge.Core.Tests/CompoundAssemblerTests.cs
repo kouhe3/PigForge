@@ -243,9 +243,9 @@ public sealed class CompoundAssemblerTests
             "schemaVersion": 1,
             "contentVersion": "compound-test-v1",
             "parts": [
-                { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+                { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "source" } },
                 { "partTypeId": 2, "name": "ground", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [4, 0.5, 4] } ] },
-                { "partTypeId": 3, "name": "wheel", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.45 } ] },
+                { "partTypeId": 3, "name": "wheel", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.45 } ], "capabilities": { "jointConnectionType": "target" } },
                 { "partTypeId": 4, "name": "ramp", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [6, 0.25, 1] } ] }
             ]
         }

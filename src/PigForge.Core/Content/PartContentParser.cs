@@ -327,6 +327,8 @@ public static class PartContentParser
         float? blasterImpulse = null;
         float? blasterChainRadius = null;
         bool isGlue = false;
+        JointConnectionType jointConnectionType = JointConnectionType.None;
+        bool canEnclose = false;
         float? balloonLift = null;
         float? fanThrust = null;
         float? fanDirectionX = null;
@@ -605,6 +607,38 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("jointConnectionType"))
+        {
+            if (!capabilitiesElement.TryGetProperty("jointConnectionType", out JsonElement jointElement)
+                || jointElement.ValueKind != JsonValueKind.String
+                || !TryReadJointConnectionType(jointElement.GetString(), out jointConnectionType))
+            {
+                errors.Add($"{path}.capabilities.jointConnectionType: must be \"none\", \"source\", or \"target\".");
+                hasError = true;
+            }
+        }
+
+        if (seenKeys.Contains("canEnclose"))
+        {
+            if (!capabilitiesElement.TryGetProperty("canEnclose", out JsonElement encloseElement)
+                || encloseElement.ValueKind != JsonValueKind.True && encloseElement.ValueKind != JsonValueKind.False)
+            {
+                errors.Add($"{path}.capabilities.canEnclose: must be a boolean.");
+                hasError = true;
+            }
+            else
+            {
+                canEnclose = encloseElement.GetBoolean();
+            }
+        }
+
+        PartAttachment? attachment = null;
+        if (seenKeys.Contains("attachment")
+            && !TryReadAttachment(capabilitiesElement, path, errors, out attachment))
+        {
+            hasError = true;
+        }
+
         if (blasterRadius is not null && activation != PartActivation.Trigger)
         {
             errors.Add($"{path}.capabilities.blaster: requires activation \"trigger\" (the blaster fires from its switch).");
@@ -613,7 +647,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "canEnclose" or "attachment"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -625,7 +659,183 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, canEnclose, attachment);
+    }
+
+    private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
+    {
+        attachment = null;
+        string field = $"{path}.capabilities.attachment";
+        if (!capabilities.TryGetProperty("attachment", out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{field}: must be an object.");
+            return false;
+        }
+
+        HashSet<string> keys = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!keys.Add(property.Name))
+            {
+                errors.Add($"{field}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        bool ok = true;
+        AttachmentDirection direction = AttachmentDirection.Up;
+        if (!keys.Contains("direction")
+            || !element.TryGetProperty("direction", out JsonElement directionElement)
+            || directionElement.ValueKind != JsonValueKind.String
+            || !TryReadAttachmentDirection(directionElement.GetString(), out direction))
+        {
+            errors.Add($"{field}.direction: must be \"up\" or \"down\".");
+            ok = false;
+        }
+
+        float? maxDistance = null;
+        if (keys.Contains("maxDistance"))
+        {
+            if (!element.TryGetProperty("maxDistance", out JsonElement maxElement) || !TryReadNonNegative(maxElement, out float max))
+            {
+                errors.Add($"{field}.maxDistance: must be a finite non-negative number.");
+                ok = false;
+            }
+            else
+            {
+                maxDistance = max;
+            }
+        }
+
+        float? distanceFactor = null;
+        if (keys.Contains("distanceFactor"))
+        {
+            if (!element.TryGetProperty("distanceFactor", out JsonElement factorElement) || !TryReadNonNegative(factorElement, out float factor) || factor == 0f)
+            {
+                errors.Add($"{field}.distanceFactor: must be a finite positive number.");
+                ok = false;
+            }
+            else
+            {
+                distanceFactor = factor;
+            }
+        }
+
+        float? distanceOffset = null;
+        if (keys.Contains("distanceOffset"))
+        {
+            if (!element.TryGetProperty("distanceOffset", out JsonElement offsetElement)
+                || offsetElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(offsetElement)
+                || !offsetElement.TryGetSingle(out float offsetValue))
+            {
+                errors.Add($"{field}.distanceOffset: must be a finite number.");
+                ok = false;
+            }
+            else
+            {
+                distanceOffset = offsetValue;
+            }
+        }
+
+        float? pigDistanceBonus = null;
+        if (keys.Contains("pigDistanceBonus"))
+        {
+            if (!element.TryGetProperty("pigDistanceBonus", out JsonElement bonusElement) || !TryReadNonNegative(bonusElement, out float bonus))
+            {
+                errors.Add($"{field}.pigDistanceBonus: must be a finite non-negative number.");
+                ok = false;
+            }
+            else
+            {
+                pigDistanceBonus = bonus;
+            }
+        }
+
+        if (maxDistance is null && distanceFactor is null)
+        {
+            errors.Add($"{field}: either maxDistance or distanceFactor is required.");
+            ok = false;
+        }
+        else if (maxDistance is not null && distanceFactor is not null)
+        {
+            errors.Add($"{field}: maxDistance and distanceFactor are mutually exclusive.");
+            ok = false;
+        }
+
+        PhysicsVector3 offset = PhysicsVector3.Zero;
+        if (keys.Contains("offset"))
+        {
+            float[]? vector = ReadVector3(element, field, "offset", errors);
+            if (vector is null)
+            {
+                ok = false;
+            }
+            else
+            {
+                offset = new PhysicsVector3(vector[0], vector[1], vector[2]);
+            }
+        }
+
+        foreach (string key in keys)
+        {
+            if (key is not ("direction" or "maxDistance" or "offset" or "distanceFactor" or "distanceOffset" or "pigDistanceBonus"))
+            {
+                errors.Add($"{field}: unknown property '{key}'.");
+                ok = false;
+            }
+        }
+
+        if (!ok)
+        {
+            return false;
+        }
+
+        attachment = new PartAttachment(direction, maxDistance ?? 0f, offset, distanceFactor, distanceOffset, pigDistanceBonus);
+        return true;
+    }
+
+    private static bool TryReadNonNegative(JsonElement element, out float value)
+    {
+        value = 0f;
+        return element.ValueKind == JsonValueKind.Number
+            && IsFiniteNumber(element)
+            && element.TryGetSingle(out value)
+            && value >= 0f;
+    }
+
+    private static bool TryReadAttachmentDirection(string? value, out AttachmentDirection direction)
+    {
+        switch (value)
+        {
+            case "up":
+                direction = AttachmentDirection.Up;
+                return true;
+            case "down":
+                direction = AttachmentDirection.Down;
+                return true;
+            default:
+                direction = AttachmentDirection.Up;
+                return false;
+        }
+    }
+
+    private static bool TryReadJointConnectionType(string? value, out JointConnectionType jointConnectionType)
+    {
+        switch (value)
+        {
+            case "none":
+                jointConnectionType = JointConnectionType.None;
+                return true;
+            case "source":
+                jointConnectionType = JointConnectionType.Source;
+                return true;
+            case "target":
+                jointConnectionType = JointConnectionType.Target;
+                return true;
+            default:
+                jointConnectionType = JointConnectionType.None;
+                return false;
+        }
     }
 
     private static bool TryReadActivation(string? value, out PartActivation activation)
