@@ -132,3 +132,15 @@ public sealed class ActivationStore(EntityStore entities) : ComponentStore<Activ
 public readonly record struct RestitutionState(float Restitution, float Mass);
 
 public sealed class RestitutionStore(EntityStore entities) : ComponentStore<RestitutionState>(entities);
+
+/// <summary>
+/// Power data of one part, straight from the original's serialized fields: the consumption it
+/// adds to its cluster while its switch is on and the power it supplies to that cluster as an
+/// engine (`m_powerConsumption`/`m_enginePower`, BasePart.cs:162,164). The consumption and engine
+/// power mirror the content capability of the same name; <c>EngineEnclosed</c> is the placement
+/// fact the engine needs to be a valid part at all -- <c>ValidatePart() =&gt; m_enclosedInto != null</c>
+/// (Engine.cs:61), so an engine outside a frame supplies nothing (spec docs/specs/power-system.md §4 item 2).
+/// </summary>
+public readonly record struct PowerState(float PowerConsumption, float EnginePower, bool EngineEnclosed);
+
+public sealed class PowerStore(EntityStore entities) : ComponentStore<PowerState>(entities);

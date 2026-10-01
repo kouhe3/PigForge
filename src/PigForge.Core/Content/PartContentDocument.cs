@@ -114,7 +114,14 @@ public sealed record PartCapabilities(
     bool IsGlue = false,
     JointConnectionType JointConnectionType = JointConnectionType.None,
     bool CanEnclose = false,
-    PartAttachment? Attachment = null)
+    PartAttachment? Attachment = null,
+    // Power system (spec docs/specs/power-system.md). Both come straight from the original
+    // part prefabs: BasePart.cs:162,164 declare them, the template copies them at
+    // BasePart.cs:1445-1446, and `tools/bple-power` extracts them for every mapped part --
+    // never authored by hand. 0 means "not a consumer" / "not an engine" (the original
+    // serializes both fields on every part, so 0 is the absent value).
+    float PowerConsumption = 0f,
+    float EnginePower = 0f)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 
@@ -137,6 +144,21 @@ public sealed record PartCapabilities(
     public bool HasGrapple => GrappleImpulse is float impulse && impulse != 0f;
 
     public bool HasBlaster => BlasterRadius is float radius && radius != 0f;
+
+    /// <summary>
+    /// A consumer: <c>BasePart.IsPowered()</c> (BasePart.cs:601-603). While its switch is on it
+    /// adds <see cref="PowerConsumption"/> to its cluster's consumption, the denominator of the
+    /// power factor (Contraption.cs:540-556, :2633-2644).
+    /// </summary>
+    public bool IsPowered => PowerConsumption > 0f;
+
+    /// <summary>
+    /// A power source: <c>BasePart.IsEngine()</c> (BasePart.cs:606-608). While enclosed
+    /// (Engine.cs:61 <c>ValidatePart</c>) it adds <see cref="EnginePower"/> to its cluster's
+    /// engine power, the numerator of the same factor. It never applies force itself
+    /// (Engine.cs:29,138).
+    /// </summary>
+    public bool IsEngine => EnginePower > 0f;
 
     /// <summary>
     /// The original derives this: <c>BasePart.CanBeEnclosed()</c> is true for every part

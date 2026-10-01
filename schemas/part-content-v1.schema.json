@@ -115,6 +115,16 @@
         "attachment": {
           "description": "Runtime attachment (balloon string, sandbag tie): searched for an anchor part at start of simulation and tied to it with a rope joint (minDistance 0).",
           "$ref": "#/$defs/attachmentCapability"
+        },
+        "powerConsumption": {
+          "description": "Original BasePart.m_powerConsumption (BasePart.cs:162): > 0 makes the part a consumer. While its switch is on it adds this to its cluster's consumption, the denominator of the power factor (Contraption.cs:540-556, :2633-2644). Extracted by tools/bple-power, never authored.",
+          "type": "number",
+          "minimum": 0
+        },
+        "enginePower": {
+          "description": "Original BasePart.m_enginePower (BasePart.cs:164): > 0 makes the part an engine (BasePart.cs:606-608). While enclosed (Engine.cs:61) it adds this to its cluster's engine power, the numerator of the power factor; it never applies force itself (Engine.cs:29,138). Extracted by tools/bple-power, never authored.",
+          "type": "number",
+          "minimum": 0
         }
       }
     },

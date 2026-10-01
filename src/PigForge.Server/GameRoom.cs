@@ -76,6 +76,7 @@ public sealed class GameRoom : IDisposable
     private readonly GlueStore _glues;
     private readonly ActivationStore _activations;
     private readonly RestitutionStore _restitutions;
+    private readonly PowerStore _powers;
     private readonly ConstructionRules _construction;
     private readonly GameplayRules _rules;
     private readonly CommandValidator _validator = new();
@@ -134,11 +135,12 @@ public sealed class GameRoom : IDisposable
         _glues = new GlueStore(_entities);
         _activations = new ActivationStore(_entities);
         _restitutions = new RestitutionStore(_entities);
+        _powers = new PowerStore(_entities);
         _construction = new ConstructionRules(_entities, _parts, _transforms, _content);
         // Elasticity is owned by whichever side can express it: a backend with a native
         // restitution term applies it in the solver, otherwise the rules layer synthesizes it.
         _rules = new GameplayRules(
-            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _blasters, _glues, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _activations, _restitutions, _bodies, options.GameplayConfig with
+            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _blasters, _glues, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _activations, _restitutions, _powers, _bodies, options.GameplayConfig with
             {
                 RestitutionAppliedNatively = _world.Capabilities.AppliesRestitutionNatively,
             });
@@ -174,6 +176,14 @@ public sealed class GameRoom : IDisposable
         _transforms.Set(entity, new EntityTransform(spec.Position, PhysicsQuaternion.FromZAngle(spec.Angle)));
         PartDefinition part = _content.GetPart(spec.PartTypeId);
         _rules.AddRestitution(entity, part.Restitution, part.Mass);
+
+        // Level actors carry no construction relations, so an engine spawned straight from a level
+        // is never enclosed and supplies nothing (Engine.cs:61); a level-authored consumer still
+        // gets its content power data so its drive is gated by the level's own engines.
+        if (part.Capabilities is PartCapabilities capabilities && (capabilities.IsPowered || capabilities.IsEngine))
+        {
+            _rules.AddPower(entity, capabilities.PowerConsumption, capabilities.EnginePower);
+        }
 
         switch (spec.Role)
         {
@@ -371,6 +381,11 @@ public sealed class GameRoom : IDisposable
             _rules.AddMotor(entity, capabilities.MotorThrustPerTick!.Value, capabilities.MotorDirectionX ?? 1f);
         }
 
+        if (capabilities.IsPowered || capabilities.IsEngine)
+        {
+            _rules.AddPower(entity, capabilities.PowerConsumption, capabilities.EnginePower);
+        }
+
         if (capabilities.IsWheel)
         {
             _rules.AddWheel(entity);
@@ -453,6 +468,21 @@ public sealed class GameRoom : IDisposable
     }
 
     /// <summary>
+    /// Publishes the current enclosure relation to the rules layer: an engine only supplies power
+    /// while it sits inside a frame (<c>Engine.ValidatePart() =&gt; m_enclosedInto != null</c>,
+    /// Engine.cs:61, spec docs/specs/power-system.md §4 item 2). Evaluated at materialisation,
+    /// while the construction rules still own the layout -- a running room never re-encloses.
+    /// </summary>
+    private void SyncEngineEnclosure()
+    {
+        foreach (uint entityValue in _construction.PlacedEntities)
+        {
+            EntityId entity = new(entityValue);
+            _rules.SetEngineEnclosed(entity, _construction.EnclosedBy(entity) is not null);
+        }
+    }
+
+    /// <summary>
     /// Transitions Building → Running and materialises authoritative bodies from
     /// construction connections: connected dynamic boxes become one compound, other
     /// parts stay one body each. Slot order of clusters is deterministic.
@@ -480,6 +510,7 @@ public sealed class GameRoom : IDisposable
 
         _retryLayout.Sort((left, right) => left.Item1.CompareTo(right.Item1));
 
+        SyncEngineEnclosure();
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
@@ -804,6 +835,7 @@ public sealed class GameRoom : IDisposable
             return false;
         }
 
+        SyncEngineEnclosure();
         List<EntityId> entities = new(owned.Count);
         foreach (uint entityValue in owned)
         {
@@ -845,6 +877,7 @@ public sealed class GameRoom : IDisposable
     /// runs from tick zero.</summary>
     private void MaterializeLevelActors()
     {
+        SyncEngineEnclosure();
         List<EntityId> entities = CollectPartEntities();
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
@@ -1246,6 +1279,9 @@ public sealed class GameRoom : IDisposable
         }
 
         hash = unchecked((hash * 31) + _rules.ComputeActivationHash());
+        // The power factor is rules state the physics snapshots cannot show (a gated wheel emits
+        // no command at all), so determinism has to see it here (spec docs/specs/power-system.md §4 item 3).
+        hash = unchecked((hash * 31) + _rules.ComputePowerHash());
         return hash;
     }
 
@@ -1340,6 +1376,10 @@ public sealed class GameRoom : IDisposable
                 localAxisA: new PhysicsVector3(0f, 0f, 1f),
                 localAxisB: new PhysicsVector3(0f, 0f, 1f));
             _wheelJoints.Add((_world.CreateJoint(definition), wheelLink.Body, parentLink.Body));
+            // A hinged wheel's power belongs to the chassis's cluster: the original's power
+            // component is the joint graph (Contraption.cs:1293 unions every m_jointMap entry),
+            // while PigForge gives the wheel its own body (ADR-009).
+            _rules.LinkPowerCluster(hinge.Wheel, hinge.Parent);
             // The wheel's mounts were handed to the parent body's compound at its own build
             // rotation, so their world frame is the parent's live rotation carried by that
             // local rotation — published as `AttachYaw` so the client draws the axle (and any

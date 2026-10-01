@@ -175,6 +175,7 @@ public sealed class FrozenContraptionTests
         new GrappleStore(entities),
         new ActivationStore(entities),
         new RestitutionStore(entities),
+        new PowerStore(entities),
         bodies,
         GameplayConfig.Default);
 

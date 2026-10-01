@@ -355,6 +355,9 @@ public static class PartContentParser
         PartActivation activation = PartActivation.None;
         bool hasError = false;
 
+        float powerConsumption = 0f;
+        float enginePower = 0f;
+
         HashSet<string> seenKeys = new();
         foreach (JsonProperty property in capabilitiesElement.EnumerateObject())
         {
@@ -632,6 +635,26 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("powerConsumption"))
+        {
+            if (!capabilitiesElement.TryGetProperty("powerConsumption", out JsonElement powerConsumptionElement)
+                || !TryReadNonNegative(powerConsumptionElement, out powerConsumption))
+            {
+                errors.Add($"{path}.capabilities.powerConsumption: must be a finite non-negative number.");
+                hasError = true;
+            }
+        }
+
+        if (seenKeys.Contains("enginePower"))
+        {
+            if (!capabilitiesElement.TryGetProperty("enginePower", out JsonElement enginePowerElement)
+                || !TryReadNonNegative(enginePowerElement, out enginePower))
+            {
+                errors.Add($"{path}.capabilities.enginePower: must be a finite non-negative number.");
+                hasError = true;
+            }
+        }
+
         PartAttachment? attachment = null;
         if (seenKeys.Contains("attachment")
             && !TryReadAttachment(capabilitiesElement, path, errors, out attachment))
@@ -647,7 +670,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "canEnclose" or "attachment"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "canEnclose" or "attachment" or "powerConsumption" or "enginePower"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -659,7 +682,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, canEnclose, attachment);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, canEnclose, attachment, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)

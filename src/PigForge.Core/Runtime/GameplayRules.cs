@@ -97,6 +97,7 @@ public sealed class GameplayRules
     private readonly GrappleStore _grapples;
     private readonly ActivationStore _activations;
     private readonly RestitutionStore _restitutions;
+    private readonly PowerStore _powers;
     private readonly PhysicsBodyStore _bodies;
     private readonly GameplayConfig _config;
 
@@ -114,6 +115,31 @@ public sealed class GameplayRules
     private readonly Dictionary<uint, float> _restitutionByBody = new();
     private readonly Dictionary<uint, float> _massByBody = new();
     private readonly HashSet<uint> _bouncedBodies = new();
+    // Engine/propulsion power of a cluster (spec docs/specs/power-system.md): the engine power
+    // and enabled consumption summed over its members, turned into the original's power factor.
+    // The original's component is the JOINT graph, not the physics body (Contraption.cs:1293
+    // unions every m_jointMap entry, so a wheel hinged to a chassis shares that chassis's engine
+    // power), while a PigForge wheel keeps its own body and hinges to its chassis (ADR-009). The
+    // placement layer therefore declares the extra edges with LinkPowerCluster, and this map holds
+    // them; a part with no explicit host sits in its own physics body's cluster.
+    private readonly Dictionary<uint, float> _powerFactorByCluster = new();
+    private readonly Dictionary<uint, uint> _powerHostByEntity = new();
+
+    /// <summary>
+    /// The original's <c>EnginePowerLimit</c> (INSettingsBExp.json, 4.0): the raw ratio is capped
+    /// at <c>10 * EnginePowerLimit</c> before the exponent (Contraption.cs:545). The two exponents
+    /// are the verbatim constants of Contraption.cs:553.
+    /// </summary>
+    public const float EnginePowerLimit = 4f;
+
+    private const float PowerFactorHighExponent = 0.585f;
+
+    private const float PowerFactorLowExponent = 0.75f;
+
+    /// <summary>Bound on the cluster-host walk: a hinge chain is wheel -> chassis in practice
+    /// (wheel -> wheel is the assembler's fallback), and the bound keeps a malformed chain from
+    /// spinning.</summary>
+    private const int PowerClusterHopLimit = 8;
 
     /// <summary>Floor that keeps a massless part from producing an unbounded bounce impulse.</summary>
     private const float MinimumPartMass = 0.001f;
@@ -160,6 +186,7 @@ public sealed class GameplayRules
         GrappleStore grapples,
         ActivationStore activations,
         RestitutionStore restitutions,
+        PowerStore powers,
         PhysicsBodyStore bodies,
         GameplayConfig config)
     {
@@ -184,6 +211,7 @@ public sealed class GameplayRules
         _grapples = grapples ?? throw new ArgumentNullException(nameof(grapples));
         _activations = activations ?? throw new ArgumentNullException(nameof(activations));
         _restitutions = restitutions ?? throw new ArgumentNullException(nameof(restitutions));
+        _powers = powers ?? throw new ArgumentNullException(nameof(powers));
         _bodies = bodies ?? throw new ArgumentNullException(nameof(bodies));
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
@@ -221,6 +249,7 @@ public sealed class GameplayRules
         }
 
         RecomputeBodyMaterial(body);
+        RecomputeBodyCluster(body);
     }
 
     /// <summary>Elasticity of a part. <paramref name="mass"/> is the part's own mass, used to
@@ -259,6 +288,105 @@ public sealed class GameplayRules
 
     public void AddMotor(EntityId entity, float impulsePerTick, float directionX) =>
         _motors.Set(entity, new MotorState(impulsePerTick, directionX));
+
+    /// <summary>
+    /// Registers a part's power data (spec docs/specs/power-system.md §4 item 1): the content's
+    /// <c>powerConsumption</c> and <c>enginePower</c>. Parts without either (the majority) get no
+    /// entry, which keeps their drive unconditional. An engine starts unenclosed; the placement
+    /// layer marks it enclosed while it sits in a frame (<see cref="SetEngineEnclosed"/>).
+    /// </summary>
+    public void AddPower(EntityId entity, float powerConsumption, float enginePower)
+    {
+        if (!float.IsFinite(powerConsumption) || powerConsumption < 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(powerConsumption), "A power consumption must be finite and non-negative.");
+        }
+
+        if (!float.IsFinite(enginePower) || enginePower < 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(enginePower), "An engine power must be finite and non-negative.");
+        }
+
+        _powers.Set(entity, new PowerState(powerConsumption, enginePower, EngineEnclosed: false));
+        RecomputePowerCluster(entity);
+    }
+
+    /// <summary>
+    /// Marks (or unmarks) an engine as sitting inside a frame: <c>ValidatePart() =&gt;
+    /// m_enclosedInto != null</c> (Engine.cs:61), so an engine outside a frame supplies nothing
+    /// (spec docs/specs/power-system.md §4 item 2). A part without engine power is unaffected.
+    /// </summary>
+    public void SetEngineEnclosed(EntityId entity, bool enclosed)
+    {
+        if (!_powers.TryGet(entity, out PowerState power) || power.EnginePower <= 0f || power.EngineEnclosed == enclosed)
+        {
+            return;
+        }
+
+        _powers.Set(entity, power with { EngineEnclosed = enclosed });
+        RecomputePowerCluster(entity);
+    }
+
+    /// <summary>
+    /// The original's power factor, verbatim (Contraption.cs:540-556): the raw ratio of a
+    /// component's engine power to its consumption, capped at <c>10 * EnginePowerLimit</c>, raised
+    /// to 0.585 above 1 and 0.75 otherwise. Consumption at or below 1 with an engine present is
+    /// exactly 1; no engine is 0.
+    /// </summary>
+    public static float ComputePowerFactor(float enginePower, float powerConsumption)
+    {
+        float raw = 0f;
+        if (powerConsumption > 1f)
+        {
+            raw = MathF.Min(enginePower / powerConsumption, 10f * EnginePowerLimit);
+        }
+        else if (enginePower > 0f)
+        {
+            raw = 1f;
+        }
+
+        return MathF.Pow(raw, raw > 1f ? PowerFactorHighExponent : PowerFactorLowExponent);
+    }
+
+    /// <summary>
+    /// Declares that a part's power belongs to another part's cluster: the assembler hinges every
+    /// wheel to a neighbour (its chassis, or the lowest-id neighbour), so a wheel's consumption must
+    /// count toward the chassis's cluster and the chassis's engine power must reach the wheel
+    /// (Contraption.cs:1293 unions the joint graph; spec docs/specs/power-system.md §4 item 3).
+    /// </summary>
+    public void LinkPowerCluster(EntityId member, EntityId host)
+    {
+        uint hostKey = PowerClusterKey(host);
+        if (hostKey == member.Value || _powerHostByEntity.TryGetValue(member.Value, out uint existing) && existing == hostKey)
+        {
+            return;
+        }
+
+        uint previousKey = PowerClusterKey(member);
+        _powerHostByEntity[member.Value] = hostKey;
+        if (previousKey != hostKey)
+        {
+            RecomputePowerCluster(new EntityId(previousKey));
+        }
+
+        RecomputePowerCluster(new EntityId(hostKey));
+    }
+
+    /// <summary>
+    /// The power factor of the cluster this part belongs to. A missing factor is resolved on the
+    /// spot rather than defaulting to 1, so a membership change can never fail open.
+    /// </summary>
+    public float ClusterPowerFactor(EntityId entity)
+    {
+        uint key = PowerClusterKey(entity);
+        if (!_powerFactorByCluster.TryGetValue(key, out float factor))
+        {
+            RecomputePowerCluster(new EntityId(key));
+            factor = _powerFactorByCluster.TryGetValue(key, out float resolved) ? resolved : 0f;
+        }
+
+        return factor;
+    }
 
     public void AddBalloon(EntityId entity, float liftPerTick) =>
         _balloons.Set(entity, new BalloonState(liftPerTick));
@@ -306,6 +434,7 @@ public sealed class GameplayRules
         }
 
         _activations.Set(entity, state with { Active = active });
+        RecomputePowerCluster(entity);
     }
 
     /// <summary>Snapshot/hash view: true only when the part has a switch and it is on.</summary>
@@ -651,6 +780,107 @@ public sealed class GameplayRules
         _bouncedBodies.RemoveWhere(body => !_touchedBodies.Contains(body));
     }
 
+    /// <summary>Recomputes the power factor of the cluster a part belongs to (membership, switch
+    /// and enclosure changes all funnel through here; never the per-tick path).</summary>
+    private void RecomputePowerCluster(EntityId entity) => RecomputePowerCluster(PowerClusterKey(entity));
+
+    /// <summary>Recomputes the cluster of the body this member just joined or left.</summary>
+    private void RecomputeBodyCluster(PhysicsBodyId body)
+    {
+        if (_membersByBody.TryGetValue(body.Value, out List<uint>? members) && members.Count > 0)
+        {
+            RecomputePowerCluster(new EntityId(members[0]));
+        }
+    }
+
+    /// <summary>Drops a destroyed part's power data and its cluster membership, and refreshes the
+    /// cluster it left (a destroyed chassis can leave hinged parts pointed at it).</summary>
+    private void ForgetPower(EntityId entity)
+    {
+        uint previousKey = PowerClusterKey(entity);
+        _powers.Remove(entity);
+        _powerHostByEntity.Remove(entity.Value);
+        RecomputePowerCluster(new EntityId(previousKey));
+    }
+
+    /// <summary>
+    /// The key of the cluster a part's power belongs to: itself unless it is a member of a physics
+    /// body (then the body's representative, which is what makes a welded chassis one cluster) or
+    /// has been linked to another part's cluster by the placement layer (a hinged wheel).
+    /// </summary>
+    private uint PowerClusterKey(EntityId entity)
+    {
+        uint key = entity.Value;
+        for (int hops = 0; hops < PowerClusterHopLimit; hops++)
+        {
+            if (_powerHostByEntity.TryGetValue(key, out uint host))
+            {
+                key = host;
+                continue;
+            }
+
+            if (_bodies.TryGet(new EntityId(key), out PhysicsBodyLink link)
+                && _entitiesByBody.TryGetValue(link.Body.Value, out EntityId representative)
+                && representative.Value != key)
+            {
+                key = representative.Value;
+                continue;
+            }
+
+            break;
+        }
+
+        return key;
+    }
+
+    /// <summary>
+    /// Recomputes one cluster's factor from its members: the engine power of every enclosed engine
+    /// plus the consumption of every enabled consumer (Contraption.cs:1378-1379 sums the engines
+    /// over the component, Contraption.cs:2633-2644 re-sums only the enabled consumers every step).
+    /// </summary>
+    private void RecomputePowerCluster(uint key)
+    {
+        float enginePower = 0f;
+        float consumption = 0f;
+        var powers = _powers.GetEnumerator();
+        while (powers.MoveNext())
+        {
+            if (PowerClusterKey(powers.CurrentId) != key)
+            {
+                continue;
+            }
+
+            PowerState power = powers.CurrentValue;
+            // Only an enclosed engine is a valid part at all (Engine.cs:61).
+            if (power.EnginePower > 0f && power.EngineEnclosed)
+            {
+                enginePower += power.EnginePower;
+            }
+
+            if (power.PowerConsumption > 0f && IsDriven(powers.CurrentId))
+            {
+                consumption += power.PowerConsumption;
+            }
+        }
+
+        _powerFactorByCluster[key] = ComputePowerFactor(enginePower, consumption);
+    }
+
+    /// <summary>Deterministic hash over every power-bearing part's cluster factor, in slot order:
+    /// the factor is rules state no physics snapshot shows (a gated wheel emits no command at all).</summary>
+    public long ComputePowerHash()
+    {
+        long hash = 17;
+        var powers = _powers.GetEnumerator();
+        while (powers.MoveNext())
+        {
+            hash = unchecked((hash * 31) + powers.CurrentId.Value.GetHashCode());
+            hash = unchecked((hash * 31) + ClusterPowerFactor(powers.CurrentId).GetHashCode());
+        }
+
+        return hash;
+    }
+
     /// <summary>Recomputes a body's elasticity and mass from its members: the compound keeps
     /// the strongest restitution in it and the sum of its members' masses.</summary>
     private void RecomputeBodyMaterial(PhysicsBodyId body)
@@ -691,6 +921,7 @@ public sealed class GameplayRules
 
         members.Remove(entity.Value);
         RecomputeBodyMaterial(body);
+        RecomputeBodyCluster(body);
     }
 
     private void RunMotors(GameplayTickOutput output)
@@ -716,6 +947,27 @@ public sealed class GameplayRules
                 continue;
             }
 
+            // Power gating (spec docs/specs/power-system.md §4 items 3-4): the original's engine
+            // applies no force itself -- it only supplies its component (Engine.cs:29,138) -- and a
+            // consumer's drive is scaled by the cluster's power factor, so it does not move at all
+            // without an enclosed engine in that cluster (Contraption.cs:540-556, MotorWheel.cs:101-109).
+            float powerFactor = 1f;
+            if (_powers.TryGet(motors.CurrentId, out PowerState power))
+            {
+                if (power.PowerConsumption <= 0f)
+                {
+                    // The original's engine supplies its component and applies no force of its own
+                    // (Engine.cs:29,138): it never drives, whatever content gives it.
+                    continue;
+                }
+
+                powerFactor = ClusterPowerFactor(motors.CurrentId);
+                if (powerFactor <= 0f)
+                {
+                    continue;
+                }
+            }
+
             MotorState motor = motors.CurrentValue;
             float directionX = motor.DirectionX;
             // A gearbox on the same body flips the drive (reverse gear).
@@ -726,7 +978,7 @@ public sealed class GameplayRules
 
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                new PhysicsVector3(motor.ImpulsePerTick * directionX, 0f, 0f),
+                new PhysicsVector3(motor.ImpulsePerTick * directionX * powerFactor, 0f, 0f),
                 _kinematicsByBody[link.Body.Value].Position));
         }
     }
@@ -1440,6 +1692,7 @@ public sealed class GameplayRules
         _glues.Remove(entity);
         _activations.Remove(entity);
         _restitutions.Remove(entity);
+        ForgetPower(entity);
     }
 
     /// <summary>
@@ -1548,6 +1801,7 @@ public sealed class GameplayRules
         _glues.Clear();
         _activations.Clear();
         _bodies.Clear();
+        _powers.Clear();
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
     }
@@ -1586,6 +1840,7 @@ public sealed class GameplayRules
         _glues.Remove(entity);
         _activations.Remove(entity);
         _restitutions.Remove(entity);
+        ForgetPower(entity);
         _bodies.Remove(entity);
         _entities.Destroy(entity);
         output.DestroyedEntities.Add(entity);
@@ -1598,5 +1853,7 @@ public sealed class GameplayRules
         _massByBody.Clear();
         _bouncedBodies.Clear();
         _peakApproachByBody.Clear();
+        _powerFactorByCluster.Clear();
+        _powerHostByEntity.Clear();
     }
 }

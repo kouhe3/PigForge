@@ -639,11 +639,15 @@ public sealed class SandboxRoomTests
             return outcome.EntityId;
         }
 
-        // Real content: motor-wheel (17, sphere) + wooden block (1) + pig (4, sphere).
+        // Real content: motor-wheel (17, sphere) + wooden frame (1) + pig (4, sphere) + engine (8)
+        // in the frame. The engine is what powers the wheels: a consumer drives with its cluster's
+        // power factor, which is 0 without an enclosed engine in that cluster
+        // (spec docs/specs/power-system.md §4 items 3-4, Contraption.cs:540-556).
         uint rearWheel = Place(17, -8.5f, -2.5f);
         uint frontWheel = Place(17, -7.5f, -2.5f);
         uint block = Place(1, -8.0f, -1.5f);
         uint pig = Place(4, -8.0f, -0.5f);
+        uint engine = Place(8, -8.0f, -1.5f);
         Assert.True(room.Submit(PlayHost.BindPlayer(Start(++sequence, 0), player)).IsAccepted);
 
         for (int tick = 0; tick < 180; tick++)
@@ -654,6 +658,9 @@ public sealed class SandboxRoomTests
         List<SnapshotEntity> settled = PublishEntities(room, out _);
         uint frameBody = settled.Single(entity => entity.EntityId == block).PhysicsBodyId;
         Assert.NotEqual(0u, frameBody);
+        // The engine sits in the frame's cell, so the enclosure welds it to the frame
+        // (Frame.cs:44-49) — that is what makes it a valid engine at all (Engine.cs:61).
+        Assert.Equal(frameBody, settled.Single(entity => entity.EntityId == engine).PhysicsBodyId);
         // The pig is cargo, not chassis: its joint capability is `none`, so the pig is not
         // welded to the block it rests on (Contraption.cs:690) and keeps its own body.
         Assert.NotEqual(frameBody, settled.Single(entity => entity.EntityId == pig).PhysicsBodyId);
