@@ -122,13 +122,19 @@ public sealed class GameplayRules
     /// the level's own impact thresholds).</summary>
     private const float MinimumBounceApproachSpeed = 0.5f;
 
-    /// <summary>Per-tick decay of the remembered approach speed. A contact event can arrive a tick
-    /// after the impact (measured: a 9.32 m/s landing was reported as 2.56 m/s because the solver
-    /// had already absorbed the rest), so the true impact speed has to outlive the event by a tick
-    /// or two without staying sticky for a later, gentler touch.</summary>
-    private const float PeakApproachDecay = 0.93f;
+    /// <summary>How many ticks a remembered approach speed stays usable. A contact event can
+    /// arrive after the impact (measured: a 9.32 m/s landing was reported as 2.56 m/s because the
+    /// solver had already absorbed the rest), so the impact speed has to outlive the event by a
+    /// tick or two -- but anything older belongs to an earlier, unrelated touch and must not be
+    /// charged to this one.</summary>
+    private const uint PeakApproachLifetimeTicks = 2;
 
-    private readonly Dictionary<uint, PhysicsVector3> _peakApproachByBody = new();
+    /// <summary>The strongest speed a body has carried recently, tagged with the tick that set it,
+    /// so a stale peak can be discarded instead of bouncing a gentle later touch.</summary>
+    private readonly record struct PeakApproachSample(PhysicsVector3 Velocity, uint Tick);
+
+    private readonly Dictionary<uint, PeakApproachSample> _peakApproachByBody = new();
+    private uint _tick;
 
     private int _alivePigs;
 
@@ -354,6 +360,7 @@ public sealed class GameplayRules
         }
 
         output.Clear();
+        _tick = tick;
         _touchedBodies.Clear();
         IngestSnapshots(snapshots);
         ProcessEvents(events, output);
@@ -380,13 +387,15 @@ public sealed class GameplayRules
         foreach (var entry in _kinematicsByBody)
         {
             _previousVelocities[entry.Key] = entry.Value.Velocity;
-            PhysicsVector3 decayed = _peakApproachByBody.TryGetValue(entry.Key, out PhysicsVector3 peak)
-                ? peak * PeakApproachDecay
-                : PhysicsVector3.Zero;
-            _peakApproachByBody[entry.Key] = PhysicsVector3.Distance(entry.Value.Velocity, PhysicsVector3.Zero)
-                >= PhysicsVector3.Distance(decayed, PhysicsVector3.Zero)
-                ? entry.Value.Velocity
-                : decayed;
+            // Keep the stronger of this tick's speed and the remembered one. No decay: the peak
+            // stays exact for the tick or two a late contact event needs, and PeakApproach()
+            // drops anything older than its lifetime, which is what keeps it from sticking.
+            if (!_peakApproachByBody.TryGetValue(entry.Key, out PeakApproachSample peak)
+                || PhysicsVector3.Distance(entry.Value.Velocity, PhysicsVector3.Zero)
+                    >= PhysicsVector3.Distance(peak.Velocity, PhysicsVector3.Zero))
+            {
+                _peakApproachByBody[entry.Key] = new PeakApproachSample(entry.Value.Velocity, _tick);
+            }
         }
     }
 
@@ -520,10 +529,11 @@ public sealed class GameplayRules
 
         PhysicsVector3 normal = physicsEvent.ContactNormal;
         float separation = RelativeNormalSpeed(physicsEvent.BodyA, physicsEvent.BodyB, normal);
-        // The backend reports the approach speed it saw in the narrow phase, which is a tick late:
-        // a measured 9.32 m/s landing arrived as 2.56 m/s and a 11.94 m/s one as 10.86 m/s. This
-        // layer's own previous-tick velocities are unambiguous (TNT ignition already trusts them),
-        // so the impact speed is the velocity the body carried into this tick.
+        // Every speed read at the moment the event arrives understates the impact, because the
+        // solver's soft recovery starts absorbing before the shapes look like they have met: a
+        // measured 9.32 m/s landing was reported as 2.56 m/s by the backend and 2.56 m/s by this
+        // layer's own previous-tick velocities (the event came two ticks after the last free
+        // tick). Only the peak the free fall left behind still holds the real number.
         float approachSpeed = MathF.Max(
             ApproachFromHistory(bodyA, bodyB, normal, dynamicA, dynamicB),
             physicsEvent.ApproachSpeed);
@@ -559,23 +569,40 @@ public sealed class GameplayRules
         }
     }
 
-    /// <summary>How fast the pair was closing along <paramref name="normal"/> at the strongest
-    /// recent tick, from the decaying per-body peak. This is what rescues a bounce whose contact
-    /// event arrived after the solver had already eaten the approach speed.</summary>
+    /// <summary>How fast the pair was closing along <paramref name="normal"/> at the strongest of
+    /// the last few ticks. This is what rescues a bounce whose contact event arrived after the
+    /// solver had already eaten the approach speed, and it recovers that speed exactly, because a
+    /// free fall sets a fresh peak every tick it accelerates. A peak older than its lifetime is
+    /// ignored: it belongs to a different touch.</summary>
     private float PeakApproach(uint bodyA, uint bodyB, PhysicsVector3 normal, bool dynamicA, bool dynamicB)
     {
         float approach = 0f;
-        if (dynamicA && _peakApproachByBody.TryGetValue(bodyA, out PhysicsVector3 peakA))
+        if (dynamicA && TryRecentPeak(bodyA, out PhysicsVector3 peakA))
         {
             approach = MathF.Max(approach, -PhysicsVector3.Dot(peakA, normal));
         }
 
-        if (dynamicB && _peakApproachByBody.TryGetValue(bodyB, out PhysicsVector3 peakB))
+        if (dynamicB && TryRecentPeak(bodyB, out PhysicsVector3 peakB))
         {
             approach = MathF.Max(approach, PhysicsVector3.Dot(peakB, normal));
         }
 
         return approach;
+    }
+
+    /// <summary>The body's remembered peak, but only while it is recent enough to belong to the
+    /// contact being resolved.</summary>
+    private bool TryRecentPeak(uint body, out PhysicsVector3 peak)
+    {
+        if (_peakApproachByBody.TryGetValue(body, out PeakApproachSample sample)
+            && _tick - sample.Tick <= PeakApproachLifetimeTicks)
+        {
+            peak = sample.Velocity;
+            return true;
+        }
+
+        peak = PhysicsVector3.Zero;
+        return false;
     }
 
     /// <summary>How fast the pair was closing along <paramref name="normal"/> before this tick's

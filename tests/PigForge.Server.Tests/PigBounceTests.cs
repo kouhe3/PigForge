@@ -27,12 +27,13 @@ public sealed class PigBounceTests
         Assert.True(
             drop.ImpactSpeed > 10f,
             $"the pig should reach the floor at speed, got {drop.ImpactSpeed:0.###} m/s");
-        // The pig's content restitution is 0.5, which an 8 m fall turns into an analytic e^2 * h
-        // of ~2.0 m; the delivered coefficient measures 0.45 because the synthesized bounce is
-        // applied on the tick after the contact (see ADR-010), giving a ~1.5 m rise. Before the
-        // bounce existed this was 0.011 m, so the range fails loudly on a regression while still
-        // catching a runaway.
-        Assert.InRange(drop.ReboundRise, 1.2f, 1.8f);
+        // Measured 1.766 m for this 7.5 m drop, i.e. a delivered coefficient of 0.484 against the
+        // pig's content value of 0.5. The shortfall is the gravity of the one tick the impulse
+        // lands on (g / 60 s = 0.163 m/s against a 12.15 m/s impact, so ~1.3%), not a loss in the
+        // mechanism: the rules layer aims at the exact impact speed the free fall left behind.
+        // Before the bounce existed the rise was 0.011 m and with the earlier decayed estimate it
+        // was 1.514 m, so this range fails loudly on a regression while still catching a runaway.
+        Assert.InRange(drop.ReboundRise, 1.6f, 1.95f);
     }
 
     [Fact]
