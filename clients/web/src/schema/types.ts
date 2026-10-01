@@ -35,6 +35,8 @@ export interface PartCapabilities {
   glue?: boolean;
   /** "toggle" keeps a persistent effect on/off; "trigger" is a one-shot action. */
   activation?: "toggle" | "trigger";
+  /** True only for frames: their cell hosts one enclosed part. Enclosable is derived as !canEnclose. */
+  canEnclose?: boolean;
 }
 
 export interface PartDefinition {

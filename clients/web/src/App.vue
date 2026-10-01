@@ -495,6 +495,7 @@ onMounted(() => {
         canPlace: () => canPlace.value,
         isEditable: (entityId) => canEdit.value && player.ownEntityIds.has(entityId),
         partOf: (partTypeId) => partById.value.get(partTypeId),
+        armedPart: () => selectedPart.value,
       },
     );
   }

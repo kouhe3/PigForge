@@ -76,6 +76,55 @@ describe("canvas gestures: place and select", () => {
   });
 });
 
+describe("canvas gestures: nesting into a frame", () => {
+  // `part` is already partTypeId 1, the frame entry below.
+  const frame: DrawEntity = { ...part, x: 3, y: 2 };
+  const framePart: PartDefinition = { partTypeId: 1, name: "frame", mode: "static", mass: 1, capabilities: { canEnclose: true }, shapes: [] };
+  const pigPart: PartDefinition = { partTypeId: 4, name: "pig", mode: "dynamic", mass: 1, capabilities: { pig: true }, shapes: [] };
+  const nestOptions = (armed: number): CanvasGestureOptions => ({
+    tool: () => "place",
+    canPlace: () => true,
+    // A frame is content-marked as one; everything else stays enclosable (canEnclose absent).
+    partOf: (partTypeId) => (partTypeId === 1 ? framePart : pigPart),
+    armedPart: () => armed,
+  });
+
+  it("places the armed part into the frame's cell and never selects it", () => {
+    const [x, y] = worldToCss(3.2, 2.2);
+    const { listeners, messages, detach } = attach([frame], nestOptions(4));
+    listeners.pointerdown(pointerEvent("pointerdown", x, y));
+    listeners.pointerup(pointerEvent("pointerup", x, y));
+
+    // The frame's own cell centre, not the pointer that landed inside the hit radius.
+    expect(findMessage(messages, "PlaceRequested")).toEqual({ kind: "PlaceRequested", x: 3, y: 2 });
+    expect(messages.some((m) => m.kind === "SelectEntities")).toBe(false);
+    detach();
+  });
+
+  it("keeps a tap on a frame armed with a frame as a plain selection", () => {
+    const [x, y] = worldToCss(frame.x, frame.y);
+    const { listeners, messages, detach } = attach([frame], nestOptions(1));
+    listeners.pointerdown(pointerEvent("pointerdown", x, y));
+    listeners.pointerup(pointerEvent("pointerup", x, y));
+
+    expect(messages.some((m) => m.kind === "PlaceRequested")).toBe(false);
+    expect(findMessage(messages, "SelectEntities")).toEqual({ kind: "SelectEntities", entityIds: [frame.entityId], mode: "replace" });
+    detach();
+  });
+
+  it("keeps a tap on an enclosing-less part as a plain selection", () => {
+    const pig: DrawEntity = { ...frame, partTypeId: 4 };
+    const [x, y] = worldToCss(pig.x, pig.y);
+    const { listeners, messages, detach } = attach([pig], nestOptions(4));
+    listeners.pointerdown(pointerEvent("pointerdown", x, y));
+    listeners.pointerup(pointerEvent("pointerup", x, y));
+
+    expect(messages.some((m) => m.kind === "PlaceRequested")).toBe(false);
+    expect(findMessage(messages, "SelectEntities")).toEqual({ kind: "SelectEntities", entityIds: [pig.entityId], mode: "replace" });
+    detach();
+  });
+});
+
 describe("canvas gestures: transform tools", () => {
   it("moves an editable part freely by default and emits one request on release", () => {
     const [x, y] = worldToCss(part.x, part.y);

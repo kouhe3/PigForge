@@ -26,6 +26,8 @@ export interface CanvasGestureOptions {
   isEditable?: (entityId: number) => boolean;
   /** Content lookup used to snap a move drag flush against nearby parts. */
   partOf?: (partTypeId: number) => PartDefinition | undefined;
+  /** PartTypeId the place tool is armed with; undefined when the palette has no part. */
+  armedPart?: () => number | undefined;
 }
 
 interface TransformDrag {
@@ -67,6 +69,8 @@ export function attachCanvasGestures(
   let downX = 0;
   let downY = 0;
   let hitEntityThisDown: number | null = null;
+  /** Frame whose cell the armed part nests into on release; null when this tap is a selection. */
+  let enclosingTarget: DrawEntity | null = null;
   let drag: TransformDrag | null = null;
   let panning = false;
   let marquee: { startWorld: Vec2 } | null = null;
@@ -74,6 +78,31 @@ export function attachCanvasGestures(
   const tool = (): ToolId => options?.tool?.() ?? "place";
   const toWorld = (x: number, y: number): Vec2 =>
     screenToWorld(camera, x, y, canvas.clientWidth, canvas.clientHeight);
+
+  /**
+   * The frame this tap may nest into, or null. Only a frame's cell hosts an enclosed part and
+   * only a part that cannot enclose one may be enclosed, so both sides are read from content
+   * rather than guessed; a missing entry stays a plain selection.
+   */
+  const enclosureTarget = (entityId: number): DrawEntity | null => {
+    const partOf = options?.partOf;
+    const armedTypeId = options?.armedPart?.();
+    if (partOf === undefined || armedTypeId === undefined) {
+      return null;
+    }
+
+    const armed = partOf(armedTypeId);
+    if (armed === undefined || armed.capabilities?.canEnclose === true) {
+      return null;
+    }
+
+    const target = entities.current.find((entity) => entity.entityId === entityId);
+    if (target === undefined || partOf(target.partTypeId)?.capabilities?.canEnclose !== true) {
+      return null;
+    }
+
+    return target;
+  };
 
   const panCamera = (dx: number, dy: number): void => {
     camera.x -= dx / camera.scale;
@@ -84,6 +113,7 @@ export function attachCanvasGestures(
   const onPointerDown = (event: PointerEvent): void => {
     dragging = true;
     moved = false;
+    enclosingTarget = null;
     const point = pointerCss(canvas, event);
     lastX = point.x;
     lastY = point.y;
@@ -119,6 +149,16 @@ export function attachCanvasGestures(
       marquee = { startWorld: world };
       drag = null;
       return;
+    }
+
+    // A tap on a frame with an enclosable part armed nests into that frame's own cell on
+    // release, so it must not also select the frame. Every other tap still selects.
+    if (currentTool === "place" && hit !== null && options?.canPlace?.() === true) {
+      enclosingTarget = enclosureTarget(hit);
+      if (enclosingTarget !== null) {
+        drag = null;
+        return;
+      }
     }
 
     onMessage({
@@ -256,12 +296,18 @@ export function attachCanvasGestures(
       hitEntityThisDown = null;
       return;
     }
-    // A release over an existing part is a selection, never a placement; only an
-    // empty-space tap with the place tool places a new part.
-    if (!moved && tool() === "place" && options?.canPlace?.() && hitEntityThisDown === null) {
-      const point = pointerCss(canvas, event);
-      const world = toWorld(point.x, point.y);
-      onMessage({ kind: "PlaceRequested", x: world.x, y: world.y });
+    // A release over an existing part is a selection, never a placement, except a tap on a
+    // frame with an enclosable part armed: that nests into the frame's own cell centre (the
+    // cell the server resolves the overlap against), never the pointer's. An empty-space tap
+    // with the place tool still places at the pointer.
+    if (!moved && tool() === "place" && options?.canPlace?.()) {
+      if (enclosingTarget !== null) {
+        onMessage({ kind: "PlaceRequested", x: enclosingTarget.x, y: enclosingTarget.y });
+      } else if (hitEntityThisDown === null) {
+        const point = pointerCss(canvas, event);
+        const world = toWorld(point.x, point.y);
+        onMessage({ kind: "PlaceRequested", x: world.x, y: world.y });
+      }
     }
     hitEntityThisDown = null;
   };
