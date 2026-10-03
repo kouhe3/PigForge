@@ -24,3 +24,5 @@ replays/
 clients/web/dist/
 # Original Rovio art extracted locally by tools/bple-textures/extract.mjs (copyrighted, never committed).
 clients/web/public/assets/original/
+**/.vitepress/dist/
+**/.vitepress/cache/
