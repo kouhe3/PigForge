@@ -175,6 +175,20 @@ describe("part contact snap", () => {
     expect(snapped.x).toBe(0);
   });
 
+  it("never snaps a wheel sideways", () => {
+    const blockAtOne = { entityId: 1, x: 1, y: 0, halfX: 0.5, halfY: 0.5, offsetX: 0, offsetY: 0 };
+    const wheelSelf = snapBoxOf({ ...base, entityId: 2, x: 0, y: 0 }, wheel);
+    if (wheelSelf === null) {
+      throw new Error("the wooden wheel must project to a box");
+    }
+
+    // Its only edge is up, so a neighbour to its right must not attract it at all.
+    const snapped = snapMoveToParts(0.9, 0, wheelSelf, [blockAtOne]);
+
+    expect(snapped.x).toBeCloseTo(0.9);
+    expect(snapped.y).toBeCloseTo(0);
+  });
+
   const self = { entityId: 2, halfX: 0.45, halfY: 0.45, offsetX: 0, offsetY: 0 };
   const neighbour = { entityId: 1, x: 0, y: 0, halfX: 0.475, halfY: 0.475, offsetX: 0, offsetY: 0 };
 

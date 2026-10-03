@@ -14,6 +14,7 @@ import {
   scalePose,
   shortestAngleDelta,
   snapBoxOf,
+  type SnapEdges,
 } from "@/editor/tools";
 import type { DrawEntity, GestureMessage, MarqueeRect, PartDefinition } from "@/schema/types";
 
@@ -46,6 +47,8 @@ interface TransformDrag {
   /** Union-AABB centre relative to the entity origin at drag start; 0 without a snap shape. */
   offsetX: number;
   offsetY: number;
+  /** World edges the part may be snapped on at drag start; undefined means all four. */
+  edges?: SnapEdges;
 }
 
 const DRAG_THRESHOLD_PX = 4;
@@ -186,6 +189,7 @@ export function attachCanvasGestures(
         halfY: box?.halfY ?? 0,
         offsetX: box?.offsetX ?? 0,
         offsetY: box?.offsetY ?? 0,
+        edges: box?.edges,
       };
     }
   };
@@ -232,7 +236,14 @@ export function attachCanvasGestures(
           grid || partOf === undefined || drag.halfX <= 0 || drag.halfY <= 0
             ? undefined
             : {
-                self: { entityId: drag.entityId, halfX: drag.halfX, halfY: drag.halfY, offsetX: drag.offsetX, offsetY: drag.offsetY },
+                self: {
+                  entityId: drag.entityId,
+                  halfX: drag.halfX,
+                  halfY: drag.halfY,
+                  offsetX: drag.offsetX,
+                  offsetY: drag.offsetY,
+                  edges: drag.edges,
+                },
                 others: contactBoxes(entities.current, partOf),
               };
         drag.last = movePose(drag.start, dx, dy, grid, contacts);

@@ -243,6 +243,33 @@ describe("canvas gestures: transform tools", () => {
     expect(preview?.y).toBeCloseTo(0.0098);
     detach();
   });
+
+  it("does not let a wheel snap sideways while dragging", () => {
+    const wheelPart: PartDefinition = {
+      partTypeId: 7, name: "wheel", mode: "dynamic", mass: 1,
+      capabilities: { jointConnectionType: "target", jointConnectionDirection: "up" },
+      shapes: [{ kind: "sphere", radius: 0.33 }],
+    };
+    const blockPart: PartDefinition = {
+      partTypeId: 1, name: "block", mode: "dynamic", mass: 1,
+      shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }],
+    };
+    const wheel: DrawEntity = { ...part, entityId: 7, partTypeId: 7, x: 0, y: 0 };
+    const block: DrawEntity = { ...part, entityId: 8, partTypeId: 1, x: 1, y: 0 }; // to its right
+    const [x, y] = worldToCss(0, 0);
+    const { listeners, messages, detach } = attach([wheel, block], {
+      tool: () => "move",
+      isEditable: () => true,
+      partOf: (partTypeId) => (partTypeId === 7 ? wheelPart : blockPart),
+    });
+    listeners.pointerdown(pointerEvent("pointerdown", x, y));
+    listeners.pointermove(pointerEvent("pointermove", x + 8, y));
+    const preview = findMessage(messages, "ToolPreview")?.preview;
+    // Snapping sideways would land it on the block's left face (about 0.16); the wheel's only
+    // weldable edge is up, so it must keep the raw pointer pose instead.
+    expect(preview?.x).toBeGreaterThan(0.2);
+    detach();
+  });
 });
 
 describe("canvas gestures: marquee select", () => {
