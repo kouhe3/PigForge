@@ -284,13 +284,19 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
   // Unscaled, so a part the player has stretched past a cell keeps its own box as its anchor.
   const spansACell = bareMaxX - bareMinX > 1 || bareMaxY - bareMinY > 1;
   if (weldsEveryEdge && !hasBracket && spansACell) {
-    const half = entity.scale / 2;
+    // Whole cells centred on the origin. The original sizes such a part by its art: a glider
+    // wing's sprite is 2.04 x 1.02 cells centred on the origin while its collider sits half a
+    // cell to the left, so a collider box would plant the wing's tip half a cell inside its
+    // neighbour. Its four edges only meet the grid when the box is the whole, centred, cell
+    // count.
+    const cellsX = Math.max(1, Math.round(bareMaxX - bareMinX));
+    const cellsY = Math.max(1, Math.round(bareMaxY - bareMinY));
     return {
       entityId: entity.entityId,
       x: entity.x,
       y: entity.y,
-      halfX: half,
-      halfY: half,
+      halfX: (cellsX * entity.scale) / 2,
+      halfY: (cellsY * entity.scale) / 2,
       offsetX: 0,
       offsetY: 0,
       edges,

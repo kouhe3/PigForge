@@ -135,9 +135,10 @@ describe("part contact snap", () => {
     expect(projected?.offsetY).toBe(0);
   });
 
-  it("anchors a multi-cell all-edge part by its bracket cell", () => {
-    // Wooden glider wing (content partTypeId 31): the body spans two cells but the four
-    // connection points belong to the frame at the origin, which has no collider of its own.
+  it("sizes a multi-cell all-edge part by whole cells centred on its origin", () => {
+    // Wooden glider wing (content partTypeId 31): its art is 2.04 x 1.02 cells centred on the
+    // origin, but its collider sits half a cell to the left, so a collider box would push the
+    // wing half a cell into its neighbour.
     const wing: PartDefinition = {
       ...block,
       capabilities: { jointConnectionType: "target", jointConnectionDirection: "any" },
@@ -146,16 +147,16 @@ describe("part contact snap", () => {
 
     const box = snapBoxOf(base, wing);
 
-    expect(box).toMatchObject({ halfX: 0.5, halfY: 0.5, offsetX: 0, offsetY: 0 });
+    expect(box).toMatchObject({ halfX: 1, halfY: 0.5, offsetX: 0, offsetY: 0 });
     expect(box?.edges).toEqual({ up: true, down: true, left: true, right: true });
     if (box === null) {
       throw new Error("the glider wing must project to a box");
     }
 
-    // Snapped against a frame at x = 1, the wing's bracket edge lands on that frame's right
-    // face: 2 - 0.5 = 1.5, matching the frame's 1 + 0.5.
+    // Snapped against a frame at x = 1 (right face 1.5) the wing takes the two cells beyond it:
+    // 2.5 - 1 = 1.5, matching the frame's 1 + 0.5.
     const frame = { entityId: 1, x: 1, y: 0, halfX: 0.5, halfY: 0.5, offsetX: 0, offsetY: 0 };
-    expect(snapMoveToParts(1.9, 0, box, [frame]).x).toBeCloseTo(2);
+    expect(snapMoveToParts(2.4, 0, box, [frame]).x).toBeCloseTo(2.5);
   });
 
   it("has no box without a part or a usable shape", () => {
