@@ -103,6 +103,11 @@ public sealed class GameplayRules
 
     private readonly Dictionary<uint, EntityId> _entitiesByBody = new();
     private readonly Dictionary<uint, (PhysicsVector3 Position, PhysicsVector3 Velocity)> _kinematicsByBody = new();
+    private readonly Dictionary<uint, PhysicsQuaternion> _rotationByBody = new();
+    // A member's pose inside its body (the compound's local offset), so a rule can resolve the
+    // part's own world position: a blast's origin is the charge part, not the body's centre of
+    // mass it shares with the rest of the contraption (original TNT.transform.position).
+    private readonly Dictionary<uint, PhysicsVector3> _localOffsetByEntity = new();
     private readonly HashSet<uint> _touchedBodies = new();
     private readonly HashSet<uint> _brokenJoints = new();
     private readonly HashSet<uint> _dynamicBodies = new();
@@ -224,7 +229,7 @@ public sealed class GameplayRules
 
     public IReadOnlyCollection<uint> BrokenJoints => _brokenJoints;
 
-    public void LinkBody(EntityId entity, PhysicsBodyId body, bool isDynamic = true)
+    public void LinkBody(EntityId entity, PhysicsBodyId body, bool isDynamic = true, PhysicsVector3 localOffset = default)
     {
         if (!_bodies.TryGet(entity, out PhysicsBodyLink link) || link.Body != body)
         {
@@ -235,6 +240,15 @@ public sealed class GameplayRules
         if (isDynamic)
         {
             _dynamicBodies.Add(body.Value);
+        }
+
+        if (localOffset != PhysicsVector3.Zero)
+        {
+            _localOffsetByEntity[entity.Value] = localOffset;
+        }
+        else
+        {
+            _localOffsetByEntity.Remove(entity.Value);
         }
 
         if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members))
@@ -250,6 +264,21 @@ public sealed class GameplayRules
 
         RecomputeBodyMaterial(body);
         RecomputeBodyCluster(body);
+    }
+
+    /// <summary>
+    /// Drops an entity's body bookkeeping after the room unbound it (seam split, detach,
+    /// destroy). The body keeps its dynamic flag while it still holds members, so an impulse
+    /// already aimed at the surviving body is not discarded by the orphan filter.
+    /// </summary>
+    public void UnbindBody(EntityId entity)
+    {
+        if (_bodies.TryGet(entity, out PhysicsBodyLink link))
+        {
+            UnlinkBodyMember(entity, link.Body);
+        }
+
+        _localOffsetByEntity.Remove(entity.Value);
     }
 
     /// <summary>Elasticity of a part. <paramref name="mass"/> is the part's own mass, used to
@@ -539,6 +568,7 @@ public sealed class GameplayRules
             }
 
             _kinematicsByBody[snapshot.Body.Value] = (snapshot.Position, snapshot.LinearVelocity);
+            _rotationByBody[snapshot.Body.Value] = snapshot.Rotation;
         }
     }
 
@@ -911,17 +941,36 @@ public sealed class GameplayRules
         _massByBody[body.Value] = mass;
     }
 
-    /// <summary>Drops one member from its cluster bookkeeping (seam split, detach, destroy).</summary>
+    /// <summary>
+    /// Drops one member from its cluster bookkeeping (seam split, detach, destroy). A body that
+    /// still holds members keeps its dynamic flag and hands its representative entity to the next
+    /// member: the entity lookups (impact ignition, egg break, detacher trigger) and the blast
+    /// filters all key on those maps, so clearing a body that still has a live part would silently
+    /// drop that part's role and any impulse aimed at the surviving body. Only an orphan body
+    /// loses its entries, mirroring <c>GameRoom.UnbindEntity</c>.
+    /// </summary>
     private void UnlinkBodyMember(EntityId entity, PhysicsBodyId body)
     {
-        if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members))
+        _localOffsetByEntity.Remove(entity.Value);
+        if (_membersByBody.TryGetValue(body.Value, out List<uint>? members))
         {
-            return;
+            members.Remove(entity.Value);
+            RecomputeBodyMaterial(body);
+            RecomputeBodyCluster(body);
+            if (_membersByBody.TryGetValue(body.Value, out List<uint>? remaining) && remaining.Count > 0)
+            {
+                if (!_entitiesByBody.TryGetValue(body.Value, out EntityId primary) || primary == entity)
+                {
+                    _entitiesByBody[body.Value] = new EntityId(remaining[0]);
+                }
+
+                return;
+            }
         }
 
-        members.Remove(entity.Value);
-        RecomputeBodyMaterial(body);
-        RecomputeBodyCluster(body);
+        _entitiesByBody.Remove(body.Value);
+        _dynamicBodies.Remove(body.Value);
+        _rotationByBody.Remove(body.Value);
     }
 
     private void RunMotors(GameplayTickOutput output)
@@ -1573,19 +1622,30 @@ public sealed class GameplayRules
             return;
         }
 
+        // The blast radiates from the charge part, not from the compound's centre of mass: a
+        // welded charge shares its body with the parts around it, and the original measures every
+        // target from TNT.transform.position (TNT.cs:236-252 AddExplosionForce). The charge's own
+        // body is included, so the very contraption holding the charge is driven -- and torn --
+        // by the blast the way the original's per-part rigidbodies are.
+        PhysicsVector3 origin = center.Position;
+        if (_localOffsetByEntity.TryGetValue(tntEntity.Value, out PhysicsVector3 localOffset)
+            && _rotationByBody.TryGetValue(link.Body.Value, out PhysicsQuaternion rotation))
+        {
+            origin = center.Position + rotation.Rotate(localOffset);
+        }
+
         // Sorted body ids keep the command order deterministic across replays.
         uint[] bodyIds = _kinematicsByBody.Keys.ToArray();
         Array.Sort(bodyIds);
         foreach (uint bodyId in bodyIds)
         {
-            if (bodyId == link.Body.Value
-                || !_dynamicBodies.Contains(bodyId)
+            if (!_dynamicBodies.Contains(bodyId)
                 || !_kinematicsByBody.TryGetValue(bodyId, out var kinematics))
             {
                 continue;
             }
 
-            float distance = PhysicsVector3.Distance(kinematics.Position, center.Position);
+            float distance = PhysicsVector3.Distance(kinematics.Position, origin);
             if (distance >= _config.TntBlastRadius)
             {
                 continue;
@@ -1593,7 +1653,7 @@ public sealed class GameplayRules
 
             float falloff = 1f - (distance / _config.TntBlastRadius);
             PhysicsVector3 direction = distance > float.Epsilon
-                ? PhysicsVector3.Normalize(kinematics.Position - center.Position)
+                ? PhysicsVector3.Normalize(kinematics.Position - origin)
                 : new PhysicsVector3(0f, 1f, 0f);
             // Impulse at the target's own centre of mass: blasts push, they do not spin.
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
@@ -1668,8 +1728,6 @@ public sealed class GameplayRules
         if (_bodies.TryGet(entity, out PhysicsBodyLink link))
         {
             UnlinkBodyMember(entity, link.Body);
-            _entitiesByBody.Remove(link.Body.Value);
-            _dynamicBodies.Remove(link.Body.Value);
         }
 
         _motors.Remove(entity);
@@ -1816,8 +1874,6 @@ public sealed class GameplayRules
         if (_bodies.TryGet(entity, out PhysicsBodyLink link))
         {
             UnlinkBodyMember(entity, link.Body);
-            _entitiesByBody.Remove(link.Body.Value);
-            _dynamicBodies.Remove(link.Body.Value);
         }
 
         _motors.Remove(entity);
@@ -1849,6 +1905,8 @@ public sealed class GameplayRules
     private void ClearBodyMaterials()
     {
         _membersByBody.Clear();
+        _localOffsetByEntity.Clear();
+        _rotationByBody.Clear();
         _restitutionByBody.Clear();
         _massByBody.Clear();
         _bouncedBodies.Clear();

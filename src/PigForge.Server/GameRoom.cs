@@ -1337,7 +1337,11 @@ public sealed class GameRoom : IDisposable
         foreach (CompoundMember member in cluster.Members)
         {
             _bodies.Set(member.Entity, new PhysicsBodyLink(body));
-            _rules.LinkBody(member.Entity, body, isDynamic: definition.Mode == PhysicsBodyMode.Dynamic);
+            _rules.LinkBody(
+                member.Entity,
+                body,
+                isDynamic: definition.Mode == PhysicsBodyMode.Dynamic,
+                localOffset: member.LocalOffset);
             _bodyByEntity.Add(member.Entity.Value, body);
             if (!_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
             {
@@ -1663,6 +1667,10 @@ public sealed class GameRoom : IDisposable
         }
 
         _compoundLocalByEntity.Remove(entity.Value);
+        // Keep the rules layer's body bookkeeping in step: without this the body a split just
+        // vacated stays in its dynamic set, and a later blast would aim an impulse at a body the
+        // world has already destroyed.
+        _rules.UnbindBody(entity);
         if (_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
         {
             members.Remove(entity.Value);
@@ -1712,6 +1720,13 @@ public sealed class GameRoom : IDisposable
             LiveCompound live = _liveCompounds[liveIndex];
             live.Cluster.WorldPosition = snapshot.Position;
             live.Cluster.WorldRotation = snapshot.Rotation;
+            CompoundCluster? pruned = PruneDeadMembers(live.Cluster);
+            if (pruned is null)
+            {
+                continue;
+            }
+
+            live.Cluster = pruned;
             CompoundSeam? seam = CompoundAssembler.NearestSeam(live.Cluster, command.WorldPoint);
             if (seam is null || magnitude <= seam.Value.BreakImpulse || IsGluedCompound(live.Body))
             {
@@ -1741,6 +1756,25 @@ public sealed class GameRoom : IDisposable
 
             EnsureBuffers();
         }
+    }
+
+    /// <summary>
+    /// A live compound's cluster can still list a member the room destroyed earlier this tick
+    /// (its body link is gone but the cluster record is only rebuilt on a split). Splitting such
+    /// a cluster would try to respawn the dead part, so drop those members first.
+    /// </summary>
+    private CompoundCluster? PruneDeadMembers(CompoundCluster cluster)
+    {
+        HashSet<uint>? dead = null;
+        foreach (CompoundMember member in cluster.Members)
+        {
+            if (!_entities.IsAlive(member.Entity))
+            {
+                (dead ??= new HashSet<uint>()).Add(member.Entity.Value);
+            }
+        }
+
+        return dead is null ? cluster : CompoundAssembler.WithoutMembers(cluster, dead);
     }
 
     /// <summary>Super glue (original AlienEgg): a compound holding a glue part never splits
@@ -1784,6 +1818,13 @@ public sealed class GameRoom : IDisposable
         LiveCompound live = _liveCompounds[liveIndex];
         live.Cluster.WorldPosition = snapshot.Position;
         live.Cluster.WorldRotation = snapshot.Rotation;
+        CompoundCluster? pruned = PruneDeadMembers(live.Cluster);
+        if (pruned is null)
+        {
+            return;
+        }
+
+        live.Cluster = pruned;
         CompoundSeam? seam = CompoundAssembler.NearestSeam(live.Cluster, position);
         if (seam is null)
         {

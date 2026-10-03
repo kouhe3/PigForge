@@ -434,6 +434,52 @@ public static class CompoundAssembler
     }
 
     /// <summary>
+    /// Rebuilds a cluster without the given member entities, keeping only the seams whose both
+    /// ends survive. A live compound can still list a member the room already destroyed (the
+    /// cluster record is only rebuilt on a split), and splitting or rebinding such a cluster
+    /// would try to respawn the dead part. Returns <c>null</c> when nothing survives.
+    /// </summary>
+    public static CompoundCluster? WithoutMembers(CompoundCluster cluster, IReadOnlyCollection<uint> removed)
+    {
+        ArgumentNullException.ThrowIfNull(cluster);
+        ArgumentNullException.ThrowIfNull(removed);
+        if (removed.Count == 0)
+        {
+            return cluster;
+        }
+
+        List<CompoundMember> survivors = new(cluster.Members.Count);
+        foreach (CompoundMember member in cluster.Members)
+        {
+            if (!removed.Contains(member.Entity.Value))
+            {
+                survivors.Add(member);
+            }
+        }
+
+        if (survivors.Count == cluster.Members.Count)
+        {
+            return cluster;
+        }
+
+        if (survivors.Count == 0)
+        {
+            return null;
+        }
+
+        List<CompoundSeam> seams = new(cluster.Seams.Count);
+        foreach (CompoundSeam candidate in cluster.Seams)
+        {
+            if (!removed.Contains(candidate.Left.Value) && !removed.Contains(candidate.Right.Value))
+            {
+                seams.Add(candidate);
+            }
+        }
+
+        return Rebuild(survivors, seams, cluster);
+    }
+
+    /// <summary>
     /// Removes one seam. If the remaining graph disconnects, returns two clusters
     /// rebuilt at the members' current world poses; otherwise one cluster with the
     /// seam dropped.

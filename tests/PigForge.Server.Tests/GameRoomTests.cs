@@ -75,6 +75,26 @@ public sealed class GameRoomTests
         Assert.NotEmpty(plainWorld.DestroyedBodies);
     }
 
+    /// <summary>
+    /// A seam split destroys the welded compound and rebuilds one body per piece: every member
+    /// entity must be bound to a freshly created body. A dangling entity would publish the
+    /// building-phase marker (physicsBodyId 0) and silently vanish from the running room.
+    /// </summary>
+    [Fact]
+    public void SeamSplitRebindsEveryMemberToItsNewBody()
+    {
+        ScriptedPhysicsWorld world = new();
+        GameRoom room = CreateMotorRoom(() => world, withGlue: false);
+        room.RunTicks(2);
+        Assert.NotEmpty(world.DestroyedBodies);
+
+        List<SnapshotEntity> entities = PublishEntities(room);
+
+        Assert.Equal(2, entities.Count);
+        Assert.All(entities, entity => Assert.NotEqual(0u, entity.PhysicsBodyId));
+        Assert.Equal(2, entities.Select(entity => entity.PhysicsBodyId).Distinct().Count());
+    }
+
     [Fact]
     public void AStrongerWeldedPairSurvivesTheImpulseThatSplitsTheNormalPair()
     {
@@ -448,6 +468,20 @@ public sealed class GameRoomTests
             PositionY: gridY + 0.5f,
             Angle: rotation * (MathF.PI / 2f),
             Scale: 1f);
+
+    private static List<SnapshotEntity> PublishEntities(GameRoom room)
+    {
+        byte[] buffer = new byte[SnapshotFrame.GetMaxByteCount(64)];
+        Assert.True(room.TryPublishSnapshot(buffer, out int bytesWritten));
+        Assert.True(SnapshotFrame.TryDecodeHeader(buffer.AsSpan(0, bytesWritten), out _, out SnapshotFrameReader reader));
+        List<SnapshotEntity> entities = new();
+        while (reader.TryReadEntity(out SnapshotEntity entity))
+        {
+            entities.Add(entity);
+        }
+
+        return entities;
+    }
 
     /// <summary>Motor + block (+ glue) placed adjacent so they weld into one compound; the
     /// motor's 30 impulse exceeds the default 10 seam threshold from the first tick.</summary>

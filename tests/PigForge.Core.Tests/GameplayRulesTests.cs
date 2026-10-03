@@ -113,6 +113,65 @@ public sealed class GameplayRulesTests
         Assert.Contains(second, harness.Output.DestroyedEntities);
     }
 
+    /// <summary>
+    /// Destroying one member of a compound must not orphan the body's bookkeeping: the parts
+    /// still welded into it keep their entity lookup and their dynamic flag, so an impulse
+    /// already aimed at the surviving body is not dropped by the orphan filter.
+    /// </summary>
+    [Fact]
+    public void DestroyingOneMemberKeepsTheSharedBodyDynamicForTheSurvivor()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId removed = entities.Create();
+        EntityId survivor = entities.Create();
+        harness.Rules.AddMotor(survivor, 2f, 1f);
+        harness.Link(removed, new PhysicsBodyId(1));
+        harness.Link(survivor, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand motor = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), motor.Body);
+
+        harness.Rules.CleanupEntityStores(removed);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+
+        motor = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(1), motor.Body);
+    }
+
+    /// <summary>
+    /// The entity lookup behind impact ignition follows the representative member: after one
+    /// member of the compound is destroyed, the blast still resolves the surviving charge and
+    /// lights it.
+    /// </summary>
+    [Fact]
+    public void DestroyingOneMemberKeepsTheSharedBodysEntityLookupForImpactIgnition()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId removed = entities.Create();
+        EntityId charge = entities.Create();
+        EntityId striker = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 1);
+        harness.Link(removed, new PhysicsBodyId(1));
+        harness.Link(charge, new PhysicsBodyId(1));
+        harness.Link(striker, new PhysicsBodyId(2));
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 1, 0), new PhysicsVector3(10, 0, 0));
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        harness.Rules.CleanupEntityStores(removed);
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(6, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 1, 0), PhysicsVector3.Zero);
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+
+        Assert.Contains(charge, harness.Output.DestroyedEntities);
+    }
+
     [Fact]
     public void ChargeWithIgniteOnImpactDisabledOnlyFiresFromItsSwitch()
     {
