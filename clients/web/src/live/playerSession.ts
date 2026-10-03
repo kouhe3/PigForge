@@ -41,7 +41,14 @@ export interface PlayerSession {
   noteSent(kind: CommandKind, entityId?: number): number;
   /** Applies a PGFA ack; returns the rejection message, or null when accepted/unknown. */
   applyAck(ack: PlayerAck): string | null;
-  /** Clears all per-connection state on connect/disconnect; sequences stay monotonic. */
+  /**
+   * Drops the in-flight command bookkeeping of a socket that went away. Ownership and phase
+   * survive: the host resumes this client's player id for a reconnect that carries its session
+   * id, so the parts stay this player's and the local phase still matches the server's.
+   */
+  reconnect(): void;
+  /** Clears every state on a fresh identity (first connect, or a different room);
+   * sequences stay monotonic. */
   reset(): void;
 }
 
@@ -91,6 +98,9 @@ export function createPlayerSession(): PlayerSession {
         ownEntityIds.clear();
       }
       return null;
+    },
+    reconnect(): void {
+      pending = new Map<number, PendingCommand>();
     },
     reset(): void {
       phase = "editing";

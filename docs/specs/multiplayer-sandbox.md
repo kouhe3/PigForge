@@ -16,10 +16,10 @@ Build order: `player-ownership` → `sandbox-room` → `sandbox-web`
 
 ## Assumptions（写进规格，实现不得另猜）
 
-1. 多客户端 loopback（`127.0.0.1`）；**每连接一个 player id**，服务端单调递增分配、进程内不复用。PGFC 的 `playerId` 字段由宿主按连接覆盖，客户端固定填 0——该字段在本切片不承载身份。
+1. 多客户端 loopback（`127.0.0.1`）；**每连接一个 player id**，服务端单调递增分配、进程内不复用。PGFC 的 `playerId` 字段由宿主按连接覆盖，客户端固定填 0——该字段不承载身份。连接可以在 URL 上带一个**不透明 session id**（`/play?session=<id>`，见「身份」）：带同一个 id 的连接**恢复同一个 player id**，不带 id（或带了从未见过的 id）的连接是新玩家。id 只是 `PlaySessions` 里的索引，服务端**不接受客户端直接指定 playerId**。
 2. 房间启动即 `RoomMode.Running`，世界 60 Hz 永不暂停；无 Building 阶段，快照 `phase` 恒为 `(byte)GameplayPhase.Playing = 0`。
 3. 目标/胜负关闭（`GameplayConfig.ObjectivesEnabled = false`）；出界只影响该玩家自己（见「出界清理」）。
-4. 玩家断开后零件留在世界；重连是一个新玩家，不回收旧零件。
+4. 玩家断开后零件留在世界，**任何其他玩家都不能回收**；重连**带同一个 session id** 时恢复该玩家的 player id 与归属（自己放的零件仍可删），不带 id 时是一个新玩家。session 的寿命是**一次页面加载**（客户端内存里，不落盘、不写 `sessionStorage`）：刷新页面、另一个标签页都是新玩家。
 5. 协议保持 v2：PGFS 15B 头 + 68B 实体、PGFC 19B 头布局不变，不新增帧类型。
 6. 不引入持久化、远程监听、账号、地形编辑、竞速与计时器。
 7. 每玩家零件上限沿用 `ConstructionLimits.Default`（`MaxParts: 256` / `MaxConnectionsPerPart: 6` / `MaxFootprintCells: 64`）。
@@ -50,7 +50,7 @@ Build order: `player-ownership` → `sandbox-room` → `sandbox-web`
 dotnet test PigForge.slnx
 dotnet build PigForge.slnx -c Release
 dotnet run --project src/PigForge.Server/PigForge.Server.csproj -c Release -- --play
-# listen: http://127.0.0.1:5088/  path /play（沙盒房间）
+# listen: http://127.0.0.1:5088/  path /play（沙盒房间；可带 ?session=<id> 恢复身份）
 ```
 
 ```powershell
@@ -58,7 +58,8 @@ cd clients/web
 pnpm test
 pnpm build
 pnpm dev
-# 每个浏览器标签页各开一条 ws://127.0.0.1:5088/play 即一个玩家
+# 每个浏览器标签页各开一条 ws://127.0.0.1:5088/play 即一个玩家；
+# 客户端会在 URL 上附一个每次页面加载生成的 ?session=<id>，重连（连接房间/掉线）据此恢复同一玩家
 ```
 
 `--demo-ws` 不得改语义（自动 Start + 只收快照）。`PlayHost.CreateSlopeRoom()` / `CreateTerrainRoom()` 保留给既有测试与后续竞速切片，不再由 `--play` 使用。
@@ -88,6 +89,7 @@ src/PigForge.Server/GameRoom.cs                      # SandboxMode、per-player 
 src/PigForge.Server/SandboxPlayers.cs                # 建议新增：每玩家状态与 materialize/reset
 src/PigForge.Server/CommandValidator.cs              # per-player 门控
 src/PigForge.Server/PlayHost.cs                      # 连接分配 playerId；--play → CreateSandboxRoom
+src/PigForge.Server/PlaySessions.cs                  # ?session=<id> → playerId 的恢复表
 clients/web/src/App.vue                              # 本地状态机、Start/RESET、own-id 跟踪
 clients/web/src/schema/toDrawEntities.ts             # 保留 physicsBodyId
 clients/web/src/renderer/draw.ts                     # 预览半透明渲染
@@ -99,9 +101,12 @@ docs/specs/multiplayer-sandbox.md                    # 本文件
 ### 身份
 
 - `PlayHost` 每接受一条 `/play` 连接，`uint playerId = Interlocked.Increment(ref _nextPlayerId)`（从 1 起，进程内不复用）。
+- **session 恢复**：`/play?session=<id>` 里的 id 是不透明的（16–64 个 `[A-Za-z0-9_-]`，所以裸数字不是合法 id）。`PlaySessions` 把 id 映射到第一次见到它时分配的 player id：再次带上同一个 id 就**拿回同一个 player id**，否则分配一个新的（并记住这个 id，上限 1024 条）。没有 id 的连接、以及带了从未见过的 id 的连接，都是新玩家——两者共享「新 id」这一条路径。
+- 恢复只影响**身份**：归属校验、per-player 命令门控、PGFC/PGFS/PGFA 布局全部不变。id 只作 `PlaySessions` 的键，客户端无法用它声明任意 player id。
+- 客户端（`clients/web/src/live/playSession.ts`）在一次页面加载里生成一个 id 并附在 `/play` URL 上；页面刷新即换新 id（新玩家）。恢复时客户端**保留**自己的 `ownEntityIds` 与相位（`playerSession.reconnect()` 只清未回执命令），因为服务端保留着同一个 player id 的布局与状态。
 - 收到 PGFC 后**先** `command = command with { PlayerId = playerId }` 再 `room.Submit(command)`；wire 上的值被覆盖，客户端不得依赖它。
 - PGFA 回执布局不变（无 playerId 字段）；客户端通过 `entityId` 跟踪自己的实体。
-- 断开：连接移除，实体留在世界（owner 为该 player id）。重连=新 id。
+- 断开：连接移除，实体留在世界（owner 为该 player id）；session id 不回收，直到宿主进程退出。
 
 ### 状态机（每玩家独立）
 
@@ -124,7 +129,7 @@ Little-endian，19B 头不变。沙盒下 `tick` 字段一律忽略（客户端�
 | kind | 名 | 沙盒语义 | 允许状态 |
 |---|---|---|---|
 | 0 | PlacePart | 加入该玩家预览布局 | Editing |
-| 1 | RemovePart | 删除自己的布局零件；非自己的 → 拒绝 | Editing |
+| 1 | RemovePart | 删除自己的布局零件；非自己的 → 拒绝（恢复同一 session 的连接仍算「自己」） | Editing |
 | 2 | RotatePart | 旋转自己的布局零件；非自己的 → 拒绝 | Editing |
 | 3 | StartSimulation | 装配该玩家布局为物理体；布局为空 → 拒绝 | Editing |
 | 5 | Retry | **RESET**：销毁该玩家全部实体与布局，回到 Editing；幂等 | 任意 |
@@ -184,11 +189,11 @@ Little-endian，19B 头不变。沙盒下 `tick` 字段一律忽略（客户端�
 
 - **身份**：所有发送点 `playerId: 0`（`App.vue:47/158/179/188/218` 的硬编码 1 全部改掉）。
 - **幽灵渲染**：`DrawEntity` 保留 `physicsBodyId`；`bodyId === 0` 画半透明、无光晕、无标签底色的预览；`bodyId !== 0` 走现有样式。
-- **自有实体跟踪**：处理 PGFA（`ack.entityId`，当前被完全忽略）——Accepted 的 Place 记入 `ownEntityIds`；RESET 成功后清空；连接/断开时清空。
+- **自有实体跟踪**：处理 PGFA（`ack.entityId`）——Accepted 的 Place 记入 `ownEntityIds`；RESET 成功后清空；换房间/换目标时清空。**重连不清空**：session 恢复的是同一个玩家，所以 `live/playerSession.ts` 的 `reconnect()` 只丢掉未回执命令，保留 `ownEntityIds` 与相位（`connectLive()` 在 URL 变了时才 `reset()`）。
 - **本地状态机**：Start 被 Accepted → Materialized；RESET 被 Accepted → Editing；初始 Editing。门控改由本地状态决定，**不再**看 `phase === 0x10`。
 - **工具栏**：Start（Editing 且自有布局非空）、RESET（Materialized 或自有布局非空）；移除对全局 RETRY 的依赖。
 - **修复**：`App.vue:15` 的 `entitiesRef` 在 `viewState.entities` 每次快照整体替换后失效，导致运行时命中测试/选中不工作；改为每次使用时读取 `viewState.entities`。
-- **不做**：重连、玩家列表/名字、按 owner 着色（需要 owner 上线）、预测。
+- **不做**：玩家列表/名字、按 owner 着色（需要 owner 上线）、预测；跨页面加载的持久身份（session id 只在一次页面加载的内存里）。
 - live 视图不再画本地 `GOAL_ZONE`（沙盒无目标语义）；回放视图不变。
 
 ## Code Style
@@ -225,6 +230,7 @@ Web：`gesture` 仍只产出判别联合；`App.vue` 只做状态机与命令映
 - 出界：构造某玩家全部实体越界 → 该玩家被 RESET，他人不受影响。
 - `ObjectivesEnabled = false`：任何情况不产生 `Won`/`Failed`；`CurrentTick` 只增不减。
 - per-player 序列：重复幂等、跳号拒绝、玩家间互不影响。
+- session 恢复（`PlayHostIdentityTests`）：同一 `?session=<id>` 的连接拿回同一 playerId 且 `RemovePart` 被接受；另一个 session / 无 session 的连接删这些零件 → `RuleRejected` + `NotOwnedByPlayer`（证明零件仍在世界里且仍属缺席玩家）；非法 id（裸数字、带空格、过长）一律不恢复。
 
 ### Protocol
 
@@ -232,6 +238,7 @@ Web：`gesture` 仍只产出判别联合；`App.vue` 只做状态机与命令映
 
 ### sandbox-web
 
+- `live/playSession.ts`：id 形状合法、`/play` URL 上附加/替换 session 参数、不可解析的 URL 原样返回；`live/playerSession.ts` 的 `reconnect()` 保留 `ownEntityIds`/相位且序列继续递增。
 - vitest：`toDrawEntities` 保留 bodyId；`bodyId === 0` 走幽灵样式；ack `entityId` 进入 `ownEntityIds`；本地状态机门控（Editing/Materialized 下按钮与命令）；编码 `playerId === 0`。
 - `pnpm test` && `pnpm build`。
 

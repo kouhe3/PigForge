@@ -93,6 +93,25 @@ describe("playerSession", () => {
     expect(session.ownEntityIds.size).toBe(0);
   });
 
+  it("keeps ownership and phase through a reconnect, dropping only the pending commands", () => {
+    const session = createPlayerSession();
+    const place = session.noteSent(0);
+    session.applyAck({ sequence: place, status: 0, error: 0, entityId: 42 });
+    const start = session.noteSent(3);
+    session.applyAck({ sequence: start, status: 0, error: 0, entityId: 0 });
+    session.noteSent(0);
+
+    session.reconnect();
+
+    // The host resumes this client's player id for a reconnect that carries its session id, so
+    // the parts stay this client's and the phase still matches the server's.
+    expect(session.ownEntityIds.has(42)).toBe(true);
+    expect(session.phase).toBe("materialized");
+    expect(session.pending.size).toBe(0);
+    // Sequences stay monotonic, so the resumed connection never trips the server's stale gate.
+    expect(session.noteSent(0)).toBe(4);
+  });
+
   it("reset clears phase, owned entities, and pending commands", () => {
     const session = createPlayerSession();
     const place = session.noteSent(0);

@@ -18,6 +18,12 @@ namespace PigForge.Server;
 /// server overrides each PGFC command's wire playerId before submitting it. --play hosts
 /// the persistent sandbox room (Running from setup, objectives disabled); --demo-ws stays
 /// the snapshot-only demo. Clients send PGFC and receive PGFA + PGFS.
+///
+/// A socket may name a session with <c>/play?session=&lt;id&gt;</c>: the first connection with an
+/// id is a new player, and a later connection with the same id resumes that player's id and
+/// ownership, so the client's 连接房间 button and a dropped socket no longer orphan the parts it
+/// placed (see <see cref="PlaySessions"/>). The query string is transport only -- the PGFC/PGFS
+/// frames are unchanged, and the wire playerId is still overridden from the connection.
 /// </summary>
 public static class PlayHost
 {
@@ -44,7 +50,8 @@ public static class PlayHost
 
         ConcurrentDictionary<Guid, PlayClient> clients = new();
         SnapshotBroadcaster broadcaster = new();
-        Task accept = AcceptAsync(listener, clients, room, broadcaster, cancellationToken);
+        PlaySessions sessions = new(NextPlayerId);
+        Task accept = AcceptAsync(listener, clients, room, broadcaster, sessions, cancellationToken);
         Task ticks = TickAsync(room, clients, broadcaster, cancellationToken);
         await Task.WhenAny(accept, ticks);
         listener.Stop();
@@ -97,6 +104,7 @@ public static class PlayHost
         ConcurrentDictionary<Guid, PlayClient> clients,
         GameRoom room,
         SnapshotBroadcaster broadcaster,
+        PlaySessions sessions,
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -111,8 +119,11 @@ public static class PlayHost
 
             HttpListenerWebSocketContext socketContext = await context.AcceptWebSocketAsync(subProtocol: null);
             Guid id = Guid.NewGuid();
-            PlayClient client = new() { Socket = socketContext.WebSocket, PlayerId = NextPlayerId() };
+            string sessionId = context.Request.QueryString["session"] ?? string.Empty;
+            uint playerId = sessions.Resolve(sessionId, out bool resumed);
+            PlayClient client = new() { Socket = socketContext.WebSocket, PlayerId = playerId };
             clients[id] = client;
+            Console.WriteLine($"play client -> playerId {playerId}{(resumed ? " (session resumed)" : string.Empty)}");
             _ = ReceiveAsync(id, client, room, clients, broadcaster, cancellationToken);
         }
     }
