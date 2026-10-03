@@ -107,6 +107,24 @@ describe("part contact snap", () => {
     expect(projected?.halfY).toBeCloseTo(1);
   });
 
+  it("stretches the snap box over a conditional bracket", () => {
+    // A rocket: a 0.35 x 0.15 body box plus a bracket reaching 0.62 to the right. The bracket is
+    // what the player lines a part up against, so it has to be inside the snap box.
+    const rocket: PartDefinition = {
+      ...block,
+      shapes: [
+        { kind: "box", halfExtents: [0.35, 0.15, 0.5], offset: [0, -0.03, 0] },
+        { kind: "box", halfExtents: [0.25, 0.14, 0.5], offset: [0.37, 0, 0], condition: { kind: "attachment", side: "right" } },
+      ],
+    };
+
+    const box = snapBoxOf(base, rocket);
+
+    expect(box?.halfX).toBeCloseTo(0.485);
+    // The box is still anchored on the entity; only its reach grew.
+    expect(box?.x).toBe(base.x);
+  });
+
   it("uses the sphere radius on both axes", () => {
     const sphere: PartDefinition = { ...block, shapes: [{ kind: "sphere", radius: 0.4 }] };
     const projected = snapBoxOf({ ...base, scale: 1.5 }, sphere);

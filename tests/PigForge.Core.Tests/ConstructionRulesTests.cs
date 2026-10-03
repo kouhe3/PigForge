@@ -29,6 +29,36 @@ public sealed class ConstructionRulesTests
     }
 
     [Fact]
+    public void AConditionalBracketConnectsWithoutOccupying()
+    {
+        // A rocket-style part: a 0.35 body box plus an attachment bracket reaching 0.62 to the
+        // right. At one metre the bracket overlaps the block while the two bodies do not, so the
+        // placement must be legal (occupancy ignores brackets) and must still connect.
+        PartContentLibrary content = new(PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "bracket-test-v1",
+            "parts": [
+                { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+                { "partTypeId": 2, "name": "rocket", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target" }, "shapes": [
+                    { "kind": "box", "halfExtents": [0.35, 0.15, 0.5], "offset": [0, -0.03, 0] },
+                    { "kind": "box", "halfExtents": [0.25, 0.14, 0.5], "offset": [0.37, 0, 0], "condition": { "kind": "attachment", "side": "right" } } ] }
+            ]
+        }
+        """));
+        EntityStore entities = new();
+        ConstructionRules rules = new(entities, new PartStore(entities), new TransformStore(entities), content);
+
+        ConstructionResult block = rules.Place(1, 0f, 0f, 0f, 1f, OwnerA);
+        ConstructionResult rocket = rules.Place(2, 1f, 0f, 0f, 1f, OwnerA);
+
+        Assert.True(block.IsSuccess);
+        Assert.True(rocket.IsSuccess, rocket.Error.ToString());
+        Assert.Contains(block.Entity.Value, rules.ConnectionsOf(rocket.Entity));
+    }
+
+    [Fact]
     public void PlaceOnOverlappingFootprintIsRejected()
     {
         (ConstructionRules rules, _) = CreateRules();

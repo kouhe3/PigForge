@@ -13,15 +13,21 @@ namespace PigForge.Core.Construction;
 /// </summary>
 public readonly record struct PartFootprint
 {
-    private readonly FootprintShape[] _shapes;
+    private readonly FootprintShape[] _body;
+    private readonly FootprintShape[] _all;
 
-    private PartFootprint(FootprintShape[] shapes) => _shapes = shapes;
+    private PartFootprint(FootprintShape[] body, FootprintShape[] all)
+    {
+        _body = body;
+        _all = all;
+    }
 
     public static PartFootprint ForPart(PartDefinition part, float positionX, float positionY, float angle, float scale)
     {
         float cos = MathF.Cos(angle);
         float sin = MathF.Sin(angle);
-        FootprintShape[] shapes = new FootprintShape[part.Shapes.Count];
+        List<FootprintShape> body = new(part.Shapes.Count);
+        List<FootprintShape> all = new(part.Shapes.Count);
         for (int index = 0; index < part.Shapes.Count; index++)
         {
             PartShapeDefinition shape = part.Shapes[index];
@@ -30,7 +36,7 @@ public readonly record struct PartFootprint
                 : (0f, 0f);
             float centreX = positionX + offsetX;
             float centreY = positionY + offsetY;
-            shapes[index] = shape.Kind switch
+            FootprintShape projected = shape.Kind switch
             {
                 PhysicsShapeKind.Box when shape.BoxHalfExtents is { Length: 3 } halfExtents
                     => new FootprintShape(PhysicsShapeKind.Box, halfExtents[0] * scale, halfExtents[1] * scale, 0f, centreX, centreY, cos, sin),
@@ -38,9 +44,14 @@ public readonly record struct PartFootprint
                     => new FootprintShape(PhysicsShapeKind.Sphere, 0f, 0f, radius * scale, centreX, centreY, cos, sin),
                 _ => throw new NotSupportedException($"Part type {part.PartTypeId} has no build-plane footprint rule for shape kind {shape.Kind}.")
             };
+            all.Add(projected);
+            if (shape.ConditionSide is null)
+            {
+                body.Add(projected);
+            }
         }
 
-        return new PartFootprint(shapes);
+        return new PartFootprint(body.ToArray(), all.ToArray());
     }
 
     public static PartFootprint ForPart(PartDefinition part, PhysicsVector3 position, PhysicsQuaternion rotation, float scale)
@@ -55,10 +66,10 @@ public readonly record struct PartFootprint
     /// <summary>AABB of the shape union in the build plane, expanded by <paramref name="margin"/>.</summary>
     public (float MinX, float MinY, float MaxX, float MaxY) Bounds(float margin = 0f)
     {
-        (float minX, float minY, float maxX, float maxY) = _shapes[0].Bounds(margin);
-        for (int index = 1; index < _shapes.Length; index++)
+        (float minX, float minY, float maxX, float maxY) = _all[0].Bounds(margin);
+        for (int index = 1; index < _all.Length; index++)
         {
-            (float shapeMinX, float shapeMinY, float shapeMaxX, float shapeMaxY) = _shapes[index].Bounds(margin);
+            (float shapeMinX, float shapeMinY, float shapeMaxX, float shapeMaxY) = _all[index].Bounds(margin);
             minX = MathF.Min(minX, shapeMinX);
             minY = MathF.Min(minY, shapeMinY);
             maxX = MathF.Max(maxX, shapeMaxX);
@@ -69,16 +80,28 @@ public readonly record struct PartFootprint
     }
 
     /// <summary>
-    /// Exact planar overlap test over the shape union. A negative <paramref name="margin"/>
-    /// shrinks every shape, so marginal penetrations count as legal touching.
+    /// Exact planar overlap over the part's own body colliders only. Cell occupancy uses this:
+    /// a hidden joint attachment bracket is a trigger in the original and never blocks a cell.
+    /// A negative <paramref name="margin"/> shrinks every shape, so marginal penetrations count
+    /// as legal touching.
     /// </summary>
     public bool Overlaps(in PartFootprint other, float margin = 0f)
+        => Overlaps(_body, other._body, margin);
+
+    /// <summary>
+    /// Exact planar overlap including the conditional brackets. Connection proximity uses this:
+    /// a build welds along the bracket the player snapped to, exactly as the original does.
+    /// </summary>
+    public bool Touches(in PartFootprint other, float margin = 0f)
+        => Overlaps(_all, other._all, margin);
+
+    private static bool Overlaps(FootprintShape[] leftShapes, FootprintShape[] rightShapes, float margin)
     {
-        for (int left = 0; left < _shapes.Length; left++)
+        for (int left = 0; left < leftShapes.Length; left++)
         {
-            for (int right = 0; right < other._shapes.Length; right++)
+            for (int right = 0; right < rightShapes.Length; right++)
             {
-                if (_shapes[left].Overlaps(other._shapes[right], margin))
+                if (leftShapes[left].Overlaps(rightShapes[right], margin))
                 {
                     return true;
                 }

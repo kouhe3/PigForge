@@ -291,7 +291,20 @@
           "type": "array",
           "items": { "type": "integer", "minimum": 0 }
         },
-        "offset": { "$ref": "#/$defs/vector3" }
+        "offset": { "$ref": "#/$defs/vector3" },
+        "condition": {
+          "description": "Build-time connection marker: the collider is solid only while the original shows its bracket on this part-local side (Rocket.cs:157-160 turns a hidden marker into a trigger). Physics bodies and cell occupancy ignore conditional shapes; drag snapping and connection proximity use them.",
+          "$ref": "#/$defs/shapeCondition"
+        }
+      }
+    },
+    "shapeCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "side"],
+      "properties": {
+        "kind": { "enum": ["attachment"] },
+        "side": { "enum": ["top", "bottom", "left", "right", "topLeft", "topRight", "bottomLeft", "bottomRight"] }
       }
     }
   }

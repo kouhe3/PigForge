@@ -102,6 +102,13 @@ function validateShape(partTypeId: number, shape: PartShape, errors: string[]): 
   if (shape.offset !== undefined && (!isVec3(shape.offset) || !shape.offset.every((value) => Number.isFinite(value)))) {
     errors.push(`Part ${partTypeId} shape offset must be three finite numbers.`);
   }
+  if (shape.condition !== undefined) {
+    const condition = shape.condition as { kind?: unknown; side?: unknown };
+    const sides = ["top", "bottom", "left", "right", "topLeft", "topRight", "bottomLeft", "bottomRight"];
+    if (condition.kind !== "attachment" || typeof condition.side !== "string" || !sides.includes(condition.side)) {
+      errors.push(`Part ${partTypeId} shape condition must be { kind: 'attachment', side: <side> }.`);
+    }
+  }
 }
 
 function isVec3(value: unknown): value is [number, number, number] {

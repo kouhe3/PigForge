@@ -41,27 +41,33 @@ const num = (value) => (Number.isInteger(value) ? value.toFixed(1) : String(roun
 function shapesFor(partTypeId, current) {
   const entry = report[String(partTypeId)];
   if (!entry || entry.shapes.length === 0) return null;
+  // A prefab whose only colliders are attachment markers (spotlight) has no body geometry to
+  // extract: keep the authored shape instead of replacing the part's body with nothing.
+  if (entry.shapes.every((shape) => shape.condition)) return null;
   const previousZ = current[0].kind === "box" ? current[0].halfExtents[2] : current[0].radius;
   return entry.shapes.map((shape) => {
     const offset = [round4(shape.offset[0]), round4(shape.offset[1]), round4(shape.offset[2])];
     const place = (value) => (offset.some((component) => component !== 0) ? { ...value, offset } : value);
+    let value;
     if (shape.kind === "box") {
       const zHalf = shape.size[2] > 0 ? shape.size[2] / 2 : previousZ;
-      return place({ kind: "box", halfExtents: [round4(shape.size[0] / 2), round4(shape.size[1] / 2), round4(zHalf)] });
+      value = place({ kind: "box", halfExtents: [round4(shape.size[0] / 2), round4(shape.size[1] / 2), round4(zHalf)] });
+    } else if (shape.kind === "sphere") {
+      value = place({ kind: "sphere", radius: round4(shape.radius) });
+    } else {
+      // Capsules: radius around a segment along m_Direction (0 = X, 1 = Y, 2 = Z).
+      const reach = Math.max(shape.height / 2 - shape.radius, 0);
+      value = place({
+        kind: "box",
+        halfExtents: [
+          round4(shape.radius + (shape.direction === 0 ? reach : 0)),
+          round4(shape.radius + (shape.direction === 1 ? reach : 0)),
+          round4(previousZ),
+        ],
+      });
     }
-    if (shape.kind === "sphere") {
-      return place({ kind: "sphere", radius: round4(shape.radius) });
-    }
-    // Capsules: radius around a segment along m_Direction (0 = X, 1 = Y, 2 = Z).
-    const reach = Math.max(shape.height / 2 - shape.radius, 0);
-    return place({
-      kind: "box",
-      halfExtents: [
-        round4(shape.radius + (shape.direction === 0 ? reach : 0)),
-        round4(shape.radius + (shape.direction === 1 ? reach : 0)),
-        round4(previousZ),
-      ],
-    });
+
+    return shape.condition ? { ...value, condition: shape.condition } : value;
   });
 }
 
@@ -74,6 +80,10 @@ function renderShapes(shapes, indent) {
       : `${indent}    "radius": ${num(shape.radius)}`);
     if (shape.offset) {
       properties.push(`${indent}    "offset": [${shape.offset.map(num).join(", ")}]`);
+    }
+
+    if (shape.condition) {
+      properties.push(`${indent}    "condition": { "kind": "${shape.condition.kind}", "side": "${shape.condition.side}" }`);
     }
 
     lines.push(`${indent}  {`);

@@ -215,7 +215,8 @@ public sealed record PartShapeDefinition(
     float? CylinderHalfHeight,
     float[][]? Vertices,
     uint[]? Triangles,
-    float[]? Offset)
+    float[]? Offset,
+    string? ConditionSide = null)
 {
     public static PartShapeDefinition Box(float halfExtentX, float halfExtentY, float halfExtentZ) => new(
         PhysicsShapeKind.Box,

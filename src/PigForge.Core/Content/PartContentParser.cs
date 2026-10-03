@@ -1372,12 +1372,12 @@ public static class PartContentParser
         string kindStart = char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..];
         string[] allowed = kind switch
         {
-            PhysicsShapeKind.Box => new[] { "kind", "halfExtents", "offset" },
-            PhysicsShapeKind.Sphere => new[] { "kind", "radius", "offset" },
-            PhysicsShapeKind.Capsule => new[] { "kind", "radius", "cylinderHalfHeight", "offset" },
-            PhysicsShapeKind.ConvexMesh => new[] { "kind", "vertices", "offset" },
-            PhysicsShapeKind.TriangleMesh => new[] { "kind", "vertices", "triangles", "offset" },
-            _ => new[] { "kind" }
+            PhysicsShapeKind.Box => new[] { "kind", "halfExtents", "offset", "condition" },
+            PhysicsShapeKind.Sphere => new[] { "kind", "radius", "offset", "condition" },
+            PhysicsShapeKind.Capsule => new[] { "kind", "radius", "cylinderHalfHeight", "offset", "condition" },
+            PhysicsShapeKind.ConvexMesh => new[] { "kind", "vertices", "offset", "condition" },
+            PhysicsShapeKind.TriangleMesh => new[] { "kind", "vertices", "triangles", "offset", "condition" },
+            _ => new[] { "kind", "condition" }
         };
 
         foreach (string property in seen)
@@ -1424,6 +1424,18 @@ public static class PartContentParser
             offset = ReadVector3(element, path, "offset", errors);
         }
 
+        string? conditionSide = null;
+        if (seen.Contains("condition"))
+        {
+            if (!element.TryGetProperty("condition", out JsonElement conditionElement)
+                || conditionElement.ValueKind != JsonValueKind.Object
+                || !TryReadShapeCondition(conditionElement, out conditionSide))
+            {
+                errors.Add($"{path}.condition: must be an object with kind \"attachment\" and a side of \"top\", \"bottom\", \"left\", \"right\", \"topLeft\", \"topRight\", \"bottomLeft\" or \"bottomRight\".");
+                conditionSide = null;
+            }
+        }
+
         shapes.Add(new PartShapeDefinition(
             kind,
             halfExtents,
@@ -1431,7 +1443,42 @@ public static class PartContentParser
             cylinderHalfHeight,
             vertices,
             triangles,
-            offset));
+            offset,
+            conditionSide));
+    }
+
+    /// <summary>
+    /// A conditional shape is a build-time connection marker (a joint attachment bracket): its
+    /// collider is solid only while the original shows it, so physics and cell occupancy skip it
+    /// while drag snapping and connection proximity use it.
+    /// </summary>
+    private static bool TryReadShapeCondition(JsonElement element, out string? side)
+    {
+        side = null;
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                return false;
+            }
+        }
+
+        if (seen.Count != 2
+            || !seen.Contains("kind")
+            || !seen.Contains("side")
+            || !element.TryGetProperty("kind", out JsonElement kindElement)
+            || kindElement.ValueKind != JsonValueKind.String
+            || kindElement.GetString() != "attachment"
+            || !element.TryGetProperty("side", out JsonElement sideElement)
+            || sideElement.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        side = sideElement.GetString();
+        return side is "top" or "bottom" or "left" or "right"
+            or "topLeft" or "topRight" or "bottomLeft" or "bottomRight";
     }
 
     private static bool TryReadMaterial(JsonElement element, string path, out float restitution, out float friction, out FrictionCombine frictionCombine)

@@ -185,6 +185,8 @@ export interface SnapBox extends SnapTarget {
  * unknown or carries no box/sphere shape (nothing to snap against). Mirrors the server's
  * `PartFootprint`: every shape's part-local offset is rotated by `entity.yaw` and scaled,
  * boxes project to rotated-rect AABBs and spheres to squares of `radius * scale`.
+ * Conditional shapes (joint attachment brackets) count: they are what a player lines a part
+ * up against, even though the server's occupancy test ignores them.
  */
 export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined): SnapBox | null {
   if (part === undefined) {

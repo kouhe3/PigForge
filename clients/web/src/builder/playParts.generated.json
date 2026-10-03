@@ -351,6 +351,74 @@
             -0.03,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -804,6 +872,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -842,6 +978,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -941,6 +1145,74 @@
             -0.03,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -5132,6 +5404,74 @@
             -0.03,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -5170,6 +5510,74 @@
             -0.03,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -5208,6 +5616,74 @@
             -0.03,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7483,6 +7959,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7522,6 +8066,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7561,6 +8173,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7600,6 +8280,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7839,6 +8587,74 @@
             -0.03,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7880,6 +8696,74 @@
             -0.03,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7921,6 +8805,74 @@
             -0.03,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7960,6 +8912,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -7999,6 +9019,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -8038,6 +9126,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },
@@ -8077,6 +9233,74 @@
             -0.015,
             0
           ]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            -0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "bottom"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0,
+            0.37,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "top"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "right"
+          }
+        },
+        {
+          "kind": "box",
+          "halfExtents": [
+            0.25,
+            0.14,
+            0.5
+          ],
+          "offset": [
+            -0.37,
+            0,
+            0
+          ],
+          "condition": {
+            "kind": "attachment",
+            "side": "left"
+          }
         }
       ]
     },

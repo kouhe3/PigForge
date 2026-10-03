@@ -168,6 +168,24 @@ const RUNTIME_COLLIDERS = {
   Part_Sandbags3_01_SET: [{ kind: "sphere", name: "runtime", radius: 0.13, offset: [0, -0.1, 0], angle: 0, trigger: false, source: "Sandbag.cs:124-127" }],
 };
 
+/**
+ * Joint attachment markers: node name -> the part-local side its collider stands for. The
+ * original shows each one conditionally (`ChangeVisualConnections`) and turns its collider into
+ * a trigger while it is hidden (Rocket.cs:157-160), so a marker is not body geometry — but it is
+ * exactly what a build-time connection and a drag snap line up against. Same table as the
+ * texture extractor, so a shape and its sprite carry the same side.
+ */
+const CONDITION_NODES = {
+  TopAttachment: "top",
+  BottomAttachment: "bottom",
+  LeftAttachment: "left",
+  RightAttachment: "right",
+  TopLeftAttachment: "topLeft",
+  TopRightAttachment: "topRight",
+  BottomLeftAttachment: "bottomLeft",
+  BottomRightAttachment: "bottomRight",
+};
+
 // ---------------------------------------------------------------------- main
 
 const map = JSON.parse(readFileSync(join(REPO, "tools", "bple-textures", "part-map.json"), "utf8"));
@@ -183,12 +201,17 @@ for (const [partTypeId, prefabName] of Object.entries(assignments)) {
     continue;
   }
   const prefab = parsePrefab(readFileSync(path, "utf8"));
-  // Joint attachment markers and script helper colliders (the King Pig's mouth)
-  // are not part of the body's collision geometry.
+  // Every non-trigger collider is reported. Joint attachment markers keep their collider but
+  // are tagged `condition`, which keeps them out of physics and cell occupancy while drag
+  // snapping and connection proximity still see them; script helper colliders (the King Pig's
+  // mouth) stay out entirely.
   const shapes = prefab.colliders
     .filter((collider) => !collider.trigger && collider.gameObject)
     .map((collider) => colliderShape(prefab, collider))
-    .filter((shape) => !/attachment/i.test(shape.name) && shape.name !== "MouthPos")
+    .map((shape) => (Object.hasOwn(CONDITION_NODES, shape.name)
+      ? { ...shape, condition: { kind: "attachment", side: CONDITION_NODES[shape.name] } }
+      : shape))
+    .filter((shape) => shape.name !== "MouthPos")
     .filter((shape) => (shape.kind === "box" ? shape.size[0] > 0 && shape.size[1] > 0 : shape.radius > 0));
   for (const shape of RUNTIME_COLLIDERS[prefabName] ?? []) shapes.push(shape);
   const rootName = [...prefab.transforms.values()].find((transform) => transform.father === "0")?.gameObject;

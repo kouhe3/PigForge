@@ -11,6 +11,15 @@ export interface PartShape {
   radius?: number;
   /** Part-local shape offset, +y up (wheels carry their support box at the top). */
   offset?: Vec3;
+  /**
+   * A build-time connection marker (a joint attachment bracket): the original turns its collider
+   * into a trigger while the bracket is hidden, so physics and cell occupancy skip it while drag
+   * snapping and connection proximity line up against it.
+   */
+  condition?: {
+    kind: "attachment";
+    side: "top" | "bottom" | "left" | "right" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+  };
 }
 
 export interface PartCapabilities {

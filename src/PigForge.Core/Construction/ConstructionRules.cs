@@ -288,7 +288,7 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.PartLimitReached);
         }
 
-        List<uint> overlaps = CollectOverlapping(footprint, -OverlapTolerance, exclude: 0);
+        List<uint> overlaps = CollectOverlapping(footprint, -OverlapTolerance, exclude: 0, connect: false);
         uint enclosingFrame = 0;
         if (overlaps.Count > 0
             && !TryResolveEnclosure(part, owner, overlaps, self: 0, out enclosingFrame))
@@ -296,7 +296,7 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.CellsOccupied);
         }
 
-        List<uint> candidates = CollectOverlapping(footprint, ConnectionProximity, exclude: 0);
+        List<uint> candidates = CollectOverlapping(footprint, ConnectionProximity, exclude: 0, connect: true);
         List<uint> neighbours = new(candidates.Count);
         foreach (uint candidate in candidates)
         {
@@ -411,7 +411,7 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.FootprintTooLarge);
         }
 
-        List<uint> overlaps = CollectOverlapping(candidate, -OverlapTolerance, exclude: entity.Value);
+        List<uint> overlaps = CollectOverlapping(candidate, -OverlapTolerance, exclude: entity.Value, connect: false);
         uint enclosingFrame = 0;
         if (overlaps.Count > 0
             && !TryResolveEnclosure(part, owner, overlaps, self: entity.Value, out enclosingFrame))
@@ -422,7 +422,7 @@ public sealed class ConstructionRules
         HashSet<uint> previousNeighbours = new(_connectionsByEntity.TryGetValue(entity.Value, out HashSet<uint>? connections)
             ? connections
             : Array.Empty<uint>());
-        List<uint> candidates = CollectOverlapping(candidate, ConnectionProximity, exclude: entity.Value);
+        List<uint> candidates = CollectOverlapping(candidate, ConnectionProximity, exclude: entity.Value, connect: true);
         List<uint> neighbours = new(candidates.Count);
         foreach (uint candidateEntity in candidates)
         {
@@ -721,7 +721,7 @@ public sealed class ConstructionRules
             return;
         }
 
-        List<uint> candidates = CollectOverlapping(footprint, ConnectionProximity, entityValue);
+        List<uint> candidates = CollectOverlapping(footprint, ConnectionProximity, entityValue, connect: true);
         List<uint> neighbours = new(candidates.Count);
         foreach (uint candidate in candidates)
         {
@@ -799,8 +799,12 @@ public sealed class ConstructionRules
         _transforms.Remove(entity);
     }
 
-    /// <summary>Coarse bucket query followed by the exact footprint test.</summary>
-    private List<uint> CollectOverlapping(in PartFootprint footprint, float margin, uint exclude)
+    /// <summary>
+    /// Entities whose footprint is within <paramref name="margin"/> of <paramref name="footprint"/>.
+    /// <paramref name="connect"/> picks the connection semantic: it includes a part's conditional
+    /// attachment brackets, while occupancy (<c>false</c>) ignores them.
+    /// </summary>
+    private List<uint> CollectOverlapping(in PartFootprint footprint, float margin, uint exclude, bool connect)
     {
         HashSet<uint> seen = new();
         List<uint> results = new();
@@ -825,7 +829,7 @@ public sealed class ConstructionRules
                         continue;
                     }
 
-                    if (other.Overlaps(footprint, margin))
+                    if (connect ? other.Touches(footprint, margin) : other.Overlaps(footprint, margin))
                     {
                         results.Add(entityValue);
                     }

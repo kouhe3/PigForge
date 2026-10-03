@@ -51,10 +51,19 @@ public sealed class PartContentLibrary
     {
         PartDefinition part = GetPart(partTypeId);
         ValidateScale(partTypeId, scale);
-        ShapePlacement[] placements = new ShapePlacement[part.Shapes.Count];
-        for (int index = 0; index < part.Shapes.Count; index++)
+        // A conditional shape is a joint attachment bracket: the original turns its collider into
+        // a trigger while the bracket is hidden (Rocket.cs:157-160), so it is never body geometry.
+        // Drag snapping and connection proximity read it straight from the content instead.
+        PartShapeDefinition[] bodyShapes = part.Shapes.Where(shape => shape.ConditionSide is null).ToArray();
+        if (bodyShapes.Length == 0)
         {
-            PartShapeDefinition shape = part.Shapes[index];
+            throw new InvalidOperationException($"Part type {partTypeId} has no body shape: every collider is conditional.");
+        }
+
+        ShapePlacement[] placements = new ShapePlacement[bodyShapes.Length];
+        for (int index = 0; index < bodyShapes.Length; index++)
+        {
+            PartShapeDefinition shape = bodyShapes[index];
             ShapeDefinition definition = shape.Kind switch
             {
                 PhysicsShapeKind.Box when shape.BoxHalfExtents is { Length: 3 } halfExtents
