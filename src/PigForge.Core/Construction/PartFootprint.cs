@@ -28,6 +28,7 @@ public readonly record struct PartFootprint
         float sin = MathF.Sin(angle);
         List<FootprintShape> body = new(part.Shapes.Count);
         List<FootprintShape> all = new(part.Shapes.Count);
+        List<FootprintShape> bracket = new(part.Shapes.Count);
         for (int index = 0; index < part.Shapes.Count; index++)
         {
             PartShapeDefinition shape = part.Shapes[index];
@@ -45,13 +46,20 @@ public readonly record struct PartFootprint
                 _ => throw new NotSupportedException($"Part type {part.PartTypeId} has no build-plane footprint rule for shape kind {shape.Kind}.")
             };
             all.Add(projected);
-            if (shape.ConditionSide is null)
+            if (shape.ConditionKind is null)
             {
                 body.Add(projected);
             }
+            else if (shape.ConditionKind == "frame")
+            {
+                bracket.Add(projected);
+            }
         }
 
-        return new PartFootprint(body.ToArray(), all.ToArray());
+        // A part with a frame is placed and occupancy-checked by that bracket, not by its body:
+        // a glider wing's collider is the wing itself, which overhangs the neighbours it welds
+        // to, so a body-based overlap test could never let it stand next to anything (ADR-018).
+        return new PartFootprint(bracket.Count > 0 ? bracket.ToArray() : body.ToArray(), all.ToArray());
     }
 
     public static PartFootprint ForPart(PartDefinition part, PhysicsVector3 position, PhysicsQuaternion rotation, float scale)

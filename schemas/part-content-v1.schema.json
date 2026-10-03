@@ -297,7 +297,7 @@
         },
         "offset": { "$ref": "#/$defs/vector3" },
         "condition": {
-          "description": "Build-time connection marker: the collider is solid only while the original shows its bracket on this part-local side (Rocket.cs:157-160 turns a hidden marker into a trigger). Physics bodies and cell occupancy ignore conditional shapes; drag snapping and connection proximity use them.",
+          "description": "Build-time-only geometry. An `attachment` marker is the collider the original shows on one part-local side (Rocket.cs:157-160 turns a hidden marker into a trigger). A `frame` is the bracket a part is placed and occupancy-checked by (ADR-018). Physics ignores both; drag snapping, cell occupancy and connection proximity use them.",
           "$ref": "#/$defs/shapeCondition"
         }
       }
@@ -305,11 +305,15 @@
     "shapeCondition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "side"],
+      "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["attachment"] },
+        "kind": { "enum": ["attachment", "frame"] },
         "side": { "enum": ["top", "bottom", "left", "right", "topLeft", "topRight", "bottomLeft", "bottomRight"] }
-      }
+      },
+      "oneOf": [
+        { "properties": { "kind": { "const": "attachment" } }, "required": ["side"] },
+        { "properties": { "kind": { "const": "frame" } } }
+      ]
     }
   }
 }

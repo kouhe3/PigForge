@@ -143,7 +143,10 @@ describe("part contact snap", () => {
       ...block,
       partTypeId: 31,
       capabilities: { jointConnectionType: "target", jointConnectionDirection: "any" },
-      shapes: [{ kind: "box", halfExtents: [0.95, 0.3061, 0.75], offset: [-0.5, -0.15, 0] }],
+      shapes: [
+        { kind: "box", halfExtents: [0.95, 0.3061, 0.75], offset: [-0.5, -0.15, 0] },
+        { kind: "box", halfExtents: [0.5551, 0.508, 0.75], offset: [0.3147, 0, 0], condition: { kind: "frame" } },
+      ],
     };
 
     const box = snapBoxOf(base, wing);

@@ -541,6 +541,12 @@
           "kind": "box",
           "halfExtents": [0.95, 0.3061, 0.75],
           "offset": [-0.5, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5551, 0.508, 0.75],
+          "offset": [0.3147, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },
@@ -556,6 +562,12 @@
           "kind": "box",
           "halfExtents": [0.9, 0.3061, 0.75],
           "offset": [-0.26, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5966, 0.5, 0.75],
+          "offset": [0.3023, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },
@@ -2314,6 +2326,12 @@
           "kind": "box",
           "halfExtents": [0.95, 0.3061, 0.75],
           "offset": [-0.5, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5551, 0.5383, 0.75],
+          "offset": [0.3264, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },
@@ -2330,6 +2348,12 @@
           "kind": "box",
           "halfExtents": [0.95, 0.3061, 0.75],
           "offset": [-0.5, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5343, 0.5225, 0.75],
+          "offset": [0.4091, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },
@@ -2346,6 +2370,12 @@
           "kind": "box",
           "halfExtents": [0.95, 0.3061, 0.75],
           "offset": [-0.5, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3265, 0.5355, 0.75],
+          "offset": [0.3444, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },
@@ -2362,6 +2392,12 @@
           "kind": "box",
           "halfExtents": [0.95, 0.3061, 0.75],
           "offset": [-0.5, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.3265, 0.5268, 0.75],
+          "offset": [0.3449, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },
@@ -2953,6 +2989,12 @@
           "kind": "box",
           "halfExtents": [0.9, 0.3061, 0.75],
           "offset": [-0.26, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.6001, 0.5323, 0.75],
+          "offset": [0.4435, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },
@@ -2969,6 +3011,12 @@
           "kind": "box",
           "halfExtents": [0.9, 0.3061, 0.75],
           "offset": [-0.26, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.4461, 0.5501, 0.75],
+          "offset": [0.354, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },
@@ -2985,6 +3033,12 @@
           "kind": "box",
           "halfExtents": [0.9, 0.3061, 0.75],
           "offset": [-0.26, -0.15, 0.0]
+        },
+        {
+          "kind": "box",
+          "halfExtents": [0.5213, 0.5237, 0.75],
+          "offset": [0.3978, 0.0, 0.0],
+          "condition": { "kind": "frame" }
         }
       ]
     },

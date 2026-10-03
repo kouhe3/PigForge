@@ -12,14 +12,17 @@ export interface PartShape {
   /** Part-local shape offset, +y up (wheels carry their support box at the top). */
   offset?: Vec3;
   /**
-   * A build-time connection marker (a joint attachment bracket): the original turns its collider
-   * into a trigger while the bracket is hidden, so physics and cell occupancy skip it while drag
-   * snapping and connection proximity line up against it.
+   * Build-time-only geometry: an `attachment` marker (the collider the original shows on one
+   * part-local side) or a `frame` (the bracket a part is placed and occupancy-checked by). The
+   * original turns a hidden marker's collider into a trigger, so physics skips both; drag
+   * snapping, cell occupancy and connection proximity line up against them.
    */
-  condition?: {
-    kind: "attachment";
-    side: "top" | "bottom" | "left" | "right" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
-  };
+  condition?:
+    | {
+        kind: "attachment";
+        side: "top" | "bottom" | "left" | "right" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+      }
+    | { kind: "frame" };
 }
 
 export interface PartCapabilities {
@@ -69,15 +72,6 @@ export interface PartDefinition {
   variantName?: string;
 }
 
-/** Build-mode alignment bounds of a part's bracket (the original's `frame` art). */
-export interface PartFrameBox {
-  partTypeId: number;
-  halfX: number;
-  halfY: number;
-  /** Bracket centre relative to the entity origin. */
-  offsetX: number;
-  offsetY: number;
-}
 
 export interface PartContentDocument {
   format: "pigforge.part-content";

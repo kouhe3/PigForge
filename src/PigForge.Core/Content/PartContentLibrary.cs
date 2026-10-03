@@ -54,7 +54,7 @@ public sealed class PartContentLibrary
         // A conditional shape is a joint attachment bracket: the original turns its collider into
         // a trigger while the bracket is hidden (Rocket.cs:157-160), so it is never body geometry.
         // Drag snapping and connection proximity read it straight from the content instead.
-        PartShapeDefinition[] bodyShapes = part.Shapes.Where(shape => shape.ConditionSide is null).ToArray();
+        PartShapeDefinition[] bodyShapes = part.Shapes.Where(shape => shape.ConditionKind is null).ToArray();
         if (bodyShapes.Length == 0)
         {
             throw new InvalidOperationException($"Part type {partTypeId} has no body shape: every collider is conditional.");

@@ -104,9 +104,15 @@ function validateShape(partTypeId: number, shape: PartShape, errors: string[]): 
   }
   if (shape.condition !== undefined) {
     const condition = shape.condition as { kind?: unknown; side?: unknown };
-    const sides = ["top", "bottom", "left", "right", "topLeft", "topRight", "bottomLeft", "bottomRight"];
-    if (condition.kind !== "attachment" || typeof condition.side !== "string" || !sides.includes(condition.side)) {
-      errors.push(`Part ${partTypeId} shape condition must be { kind: 'attachment', side: <side> }.`);
+    if (condition.kind === "frame") {
+      if (condition.side !== undefined) {
+        errors.push(`Part ${partTypeId} shape condition { kind: 'frame' } takes no side.`);
+      }
+    } else {
+      const sides = ["top", "bottom", "left", "right", "topLeft", "topRight", "bottomLeft", "bottomRight"];
+      if (condition.kind !== "attachment" || typeof condition.side !== "string" || !sides.includes(condition.side)) {
+        errors.push(`Part ${partTypeId} shape condition must be { kind: 'attachment', side: <side> } or { kind: 'frame' }.`);
+      }
     }
   }
 }

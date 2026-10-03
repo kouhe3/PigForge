@@ -1471,13 +1471,15 @@ public static class PartContentParser
         }
 
         string? conditionSide = null;
+        string? conditionKind = null;
         if (seen.Contains("condition"))
         {
             if (!element.TryGetProperty("condition", out JsonElement conditionElement)
                 || conditionElement.ValueKind != JsonValueKind.Object
-                || !TryReadShapeCondition(conditionElement, out conditionSide))
+                || !TryReadShapeCondition(conditionElement, out conditionKind, out conditionSide))
             {
-                errors.Add($"{path}.condition: must be an object with kind \"attachment\" and a side of \"top\", \"bottom\", \"left\", \"right\", \"topLeft\", \"topRight\", \"bottomLeft\" or \"bottomRight\".");
+                errors.Add($"{path}.condition: must be {{\"kind\":\"attachment\",\"side\":<top|bottom|left|right|topLeft|topRight|bottomLeft|bottomRight>}} or {{\"kind\":\"frame\"}}.");
+                conditionKind = null;
                 conditionSide = null;
             }
         }
@@ -1490,16 +1492,19 @@ public static class PartContentParser
             vertices,
             triangles,
             offset,
-            conditionSide));
+            conditionSide,
+            conditionKind));
     }
 
     /// <summary>
-    /// A conditional shape is a build-time connection marker (a joint attachment bracket): its
-    /// collider is solid only while the original shows it, so physics and cell occupancy skip it
-    /// while drag snapping and connection proximity use it.
+    /// A conditional shape is build-time-only geometry. `attachment` is a joint connection
+    /// marker, solid only while the original shows its bracket on that side; `frame` is the
+    /// bracket a part is placed and occupancy-checked by. Physics skips both; drag snapping and
+    /// connection proximity read them from the content.
     /// </summary>
-    private static bool TryReadShapeCondition(JsonElement element, out string? side)
+    private static bool TryReadShapeCondition(JsonElement element, out string? kind, out string? side)
     {
+        kind = null;
         side = null;
         HashSet<string> seen = new();
         foreach (JsonProperty property in element.EnumerateObject())
@@ -1510,12 +1515,22 @@ public static class PartContentParser
             }
         }
 
-        if (seen.Count != 2
-            || !seen.Contains("kind")
-            || !seen.Contains("side")
+        if (!seen.Contains("kind")
             || !element.TryGetProperty("kind", out JsonElement kindElement)
-            || kindElement.ValueKind != JsonValueKind.String
-            || kindElement.GetString() != "attachment"
+            || kindElement.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        kind = kindElement.GetString();
+        if (kind == "frame")
+        {
+            return seen.Count == 1;
+        }
+
+        if (kind != "attachment"
+            || seen.Count != 2
+            || !seen.Contains("side")
             || !element.TryGetProperty("side", out JsonElement sideElement)
             || sideElement.ValueKind != JsonValueKind.String)
         {

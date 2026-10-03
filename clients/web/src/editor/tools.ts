@@ -1,5 +1,4 @@
 import type { DrawEntity, PartDefinition } from "@/schema/types";
-import { PART_FRAME_BOXES } from "@/builder/frameBoxes.generated";
 
 /**
  * Build-mode editing tools (advanced building): the tool set, its snap steps, and the
@@ -206,10 +205,9 @@ export interface SnapBox extends SnapTarget {
  * welds only on its left, a wheel above its hub, a spring above and below, and a part that
  * refuses welds has none at all.
  *
- * A part whose original art carries a bracket (`condition.kind === "frame"`) is aligned on that
- * bracket instead: a glider wing's collider sits half a cell left of its frame, so a collider box
- * plants the wing half a cell into whichever neighbour it is snapped to. The bracket bounds come
- * from the texture manifest (see `frameBoxes.generated`). A rocket's brackets have colliders of
+ * A part whose content carries a `frame` condition shape is aligned on that bracket instead: a
+ * glider wing's collider is the wing itself, which overhangs the neighbours it welds to, while
+ * the frame is the single cell it is placed by (ADR-018). A rocket's brackets have colliders of
  * their own and are already part of its box.
  */
 export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined): SnapBox | null {
@@ -223,6 +221,10 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
   let minY = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
+  let frameMinX = Number.POSITIVE_INFINITY;
+  let frameMinY = Number.POSITIVE_INFINITY;
+  let frameMaxX = Number.NEGATIVE_INFINITY;
+  let frameMaxY = Number.NEGATIVE_INFINITY;
   for (const shape of part.shapes) {
     const offset = shape.offset ?? [0, 0, 0];
     const centreX = (offset[0] * cos - offset[1] * sin) * entity.scale;
@@ -253,6 +255,12 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
     maxX = Math.max(maxX, centreX + extentX);
     minY = Math.min(minY, centreY - extentY);
     maxY = Math.max(maxY, centreY + extentY);
+    if (shape.condition?.kind === "frame") {
+      frameMinX = Math.min(frameMinX, centreX - extentX);
+      frameMaxX = Math.max(frameMaxX, centreX + extentX);
+      frameMinY = Math.min(frameMinY, centreY - extentY);
+      frameMaxY = Math.max(frameMaxY, centreY + extentY);
+    }
   }
 
   if (minX > maxX) {
@@ -260,20 +268,15 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
   }
 
   const edges = connectionEdges(part, entity.yaw);
-  const bracket = PART_FRAME_BOXES.get(part.partTypeId);
-  if (bracket !== undefined) {
-    // A part with a bracket (the original's `frame` art) lines up on the bracket, not on its
-    // body: a glider wing's collider sits half a cell left of its frame, so a collider box
-    // plants the wing half a cell into its neighbour. The bracket is close to square, so it is
-    // scaled but not re-rotated by yaw.
+  if (frameMinX <= frameMaxX) {
     return {
       entityId: entity.entityId,
       x: entity.x,
       y: entity.y,
-      halfX: bracket.halfX * entity.scale,
-      halfY: bracket.halfY * entity.scale,
-      offsetX: bracket.offsetX * entity.scale,
-      offsetY: bracket.offsetY * entity.scale,
+      halfX: (frameMaxX - frameMinX) / 2,
+      halfY: (frameMaxY - frameMinY) / 2,
+      offsetX: (frameMinX + frameMaxX) / 2,
+      offsetY: (frameMinY + frameMaxY) / 2,
       edges,
     };
   }
