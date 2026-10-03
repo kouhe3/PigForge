@@ -342,7 +342,7 @@
       "partTypeId": 22,
       "name": "sandbag-double",
       "mode": "dynamic",
-      "mass": 6.0,
+      "mass": 8.1818,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "up", "maxDistance": 0.55, "offset": [0.35, -0.3, -0.02] }, "jointConnectionType": "none" },
       "shapes": [
@@ -357,7 +357,7 @@
       "partTypeId": 23,
       "name": "sandbag-triple",
       "mode": "dynamic",
-      "mass": 9.0,
+      "mass": 12.2727,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "up", "maxDistance": 0.65, "offset": [0.0, -0.35, -0.03] }, "jointConnectionType": "none" },
       "shapes": [
@@ -1713,7 +1713,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -1728,7 +1729,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -1743,7 +1745,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -1758,7 +1761,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -1773,7 +1777,8 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -2084,13 +2089,14 @@
       "name": "sandbag-double-v02",
       "variantOf": 22,
       "mode": "dynamic",
-      "mass": 6.0,
+      "mass": 8.1818,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "up", "maxDistance": 0.55, "offset": [0.35, -0.3, -0.02] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -2099,13 +2105,14 @@
       "name": "sandbag-double-v03",
       "variantOf": 22,
       "mode": "dynamic",
-      "mass": 6.0,
+      "mass": 8.1818,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "up", "maxDistance": 0.55, "offset": [0.35, -0.3, -0.02] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -2114,13 +2121,14 @@
       "name": "sandbag-double-v04",
       "variantOf": 22,
       "mode": "dynamic",
-      "mass": 6.0,
+      "mass": 8.1818,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "up", "maxDistance": 0.55, "offset": [0.35, -0.3, -0.02] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -2129,13 +2137,14 @@
       "name": "sandbag-triple-v02",
       "variantOf": 23,
       "mode": "dynamic",
-      "mass": 9.0,
+      "mass": 12.2727,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "up", "maxDistance": 0.65, "offset": [0.0, -0.35, -0.03] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -2144,13 +2153,14 @@
       "name": "sandbag-triple-v03",
       "variantOf": 23,
       "mode": "dynamic",
-      "mass": 9.0,
+      "mass": 12.2727,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "up", "maxDistance": 0.65, "offset": [0.0, -0.35, -0.03] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },
@@ -2159,13 +2169,14 @@
       "name": "sandbag-triple-v04",
       "variantOf": 23,
       "mode": "dynamic",
-      "mass": 9.0,
+      "mass": 12.2727,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "up", "maxDistance": 0.65, "offset": [0.0, -0.35, -0.03] }, "jointConnectionType": "none" },
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [0.0, -0.1, 0.0]
         }
       ]
     },

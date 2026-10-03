@@ -16,7 +16,15 @@
 //     are reported as a local offset from it (the prefab root's own staging position
 //     is excluded, exactly like the texture extractor).
 //   - Some parts add their collider at runtime: Balloon -> sphere r=0.5 (Balloon.cs:123),
-//     Sandbag -> sphere r=0.13 at y=-0.1 (Sandbag.cs:124-127). Rope has no collider.
+//     Sandbag -> sphere r=0.13 at y=-0.1 (Sandbag.cs:124-127). The patch is keyed by prefab
+//     FAMILY, not by the `_01` prefab: the original script adds the same collider to every
+//     sibling (a variant prefab is the same object), so every family member gets it too.
+//     Rope has no collider at all (its physics is the runtime segment chain; see below).
+//   - Part_Rope_05..08_SET are NOT ropes: they carry `HingePlate` (m_jointType 1 Hinge,
+//     strength 4, 2x BoxCollider 0.6x0.35|0.6x1, mass 0) and are referenced only by the IN
+//     extension list Assets/MonoBehaviour/PartListData.asset, never by GameData.m_customParts
+//     (whose group 30 lists Rope_02..04). They are therefore absent from content/parts.json,
+//     exactly like Part_TNT_07_SET/BlasterTNT — not a shape drift.
 //   - The game is 2.5D: rigidbodies freeze Z position and X/Y rotation, so only the
 //     X/Y extents and the shape kind are observable. Z sizes are reported but are
 //     design artefacts, not gameplay dimensions.
@@ -71,6 +79,7 @@ function parsePrefab(text) {
   const transformByGameObject = new Map();
   const colliders = [];
   let part = null;
+  let balloons = null;
   for (const { classId, fileId, body } of blocks) {
     if (classId === CLASS.GameObject) {
       gameObjects.set(fileId, { name: field(body, "m_Name"), active: field(body, "m_IsActive") !== "0" });
@@ -94,12 +103,16 @@ function parsePrefab(text) {
       if (mass !== undefined && part === null) {
         part = { mass: Number(mass), partType: Number(field(body, "m_partType")), interactiveRadius: Number(field(body, "m_interactiveRadius")) };
       }
+      // Sandbag.cs:10 / Balloon.cs:15 both serialize `m_numberOfBalloons`: the count of
+      // bodies one placed part materializes into at START (Sandbag.cs:112-120 clone loop).
+      const count = field(body, "m_numberOfBalloons");
+      if (count !== undefined && balloons === null) balloons = Number(count);
     }
   }
   for (const [fileId, transform] of transforms) {
     if (transform.gameObject) transformByGameObject.set(transform.gameObject, fileId);
   }
-  return { gameObjects, transforms, transformByGameObject, colliders, part };
+  return { gameObjects, transforms, transformByGameObject, colliders, part, balloons };
 }
 
 /** Local pose of a GameObject relative to the prefab root, excluding the root's own staging transform. */
@@ -158,15 +171,23 @@ function colliderShape(prefab, collider) {
 
 // ------------------------------------------------------- runtime collider patches
 
-/** Colliders the original adds from script at spawn, keyed by prefab name. */
-const RUNTIME_COLLIDERS = {
-  Part_Balloon_01_SET: [{ kind: "sphere", name: "runtime", radius: 0.5, offset: [0, 0, 0], angle: 0, trigger: false, source: "Balloon.cs:123" }],
-  Part_Balloons2_01_SET: [{ kind: "sphere", name: "runtime", radius: 0.5, offset: [0, 0, 0], angle: 0, trigger: false, source: "Balloon.cs:123" }],
-  Part_Balloons3_01_SET: [{ kind: "sphere", name: "runtime", radius: 0.5, offset: [0, 0, 0], angle: 0, trigger: false, source: "Balloon.cs:123" }],
-  Part_Sandbag_01_SET: [{ kind: "sphere", name: "runtime", radius: 0.13, offset: [0, -0.1, 0], angle: 0, trigger: false, source: "Sandbag.cs:124-127" }],
-  Part_Sandbags2_01_SET: [{ kind: "sphere", name: "runtime", radius: 0.13, offset: [0, -0.1, 0], angle: 0, trigger: false, source: "Sandbag.cs:124-127" }],
-  Part_Sandbags3_01_SET: [{ kind: "sphere", name: "runtime", radius: 0.13, offset: [0, -0.1, 0], angle: 0, trigger: false, source: "Sandbag.cs:124-127" }],
-};
+/**
+ * Colliders the original adds from script at spawn, keyed by prefab FAMILY. The patch lives in
+ * the shared script (`Sandbag.cs`, `Balloon.cs`), which runs for every prefab of the family —
+ * the `_01` prefab is not special — so the pattern must cover the skins too
+ * (`Part_Sandbag_02..06_SET`, `Part_Sandbags2_02..04_SET`, ...). Keying it on `_01` alone left
+ * the variant rows without the runtime sphere offset.
+ */
+const RUNTIME_COLLIDERS = [
+  {
+    pattern: /^Part_Balloons?(2|3)?_\d+_SET$/,
+    shapes: [{ kind: "sphere", name: "runtime", radius: 0.5, offset: [0, 0, 0], angle: 0, trigger: false, source: "Balloon.cs:123" }],
+  },
+  {
+    pattern: /^Part_Sandbags?(2|3)?_\d+_SET$/,
+    shapes: [{ kind: "sphere", name: "runtime", radius: 0.13, offset: [0, -0.1, 0], angle: 0, trigger: false, source: "Sandbag.cs:124-127" }],
+  },
+];
 
 /**
  * Joint attachment markers: node name -> the part-local side its collider stands for. The
@@ -213,17 +234,20 @@ for (const [partTypeId, prefabName] of Object.entries(assignments)) {
       : shape))
     .filter((shape) => shape.name !== "MouthPos")
     .filter((shape) => (shape.kind === "box" ? shape.size[0] > 0 && shape.size[1] > 0 : shape.radius > 0));
-  for (const shape of RUNTIME_COLLIDERS[prefabName] ?? []) shapes.push(shape);
+  for (const { pattern, shapes: runtime } of RUNTIME_COLLIDERS) {
+    if (!pattern.test(prefabName)) continue;
+    for (const shape of runtime) shapes.push({ ...shape });
+  }
   const rootName = [...prefab.transforms.values()].find((transform) => transform.father === "0")?.gameObject;
   const root = rootName ? prefab.gameObjects.get(rootName)?.name : undefined;
   for (const shape of shapes) shape.onRoot = shape.name === root;
-  parts[partTypeId] = { prefab: prefabName, mass: prefab.part?.mass ?? null, partType: prefab.part?.partType ?? null, shapes };
+  parts[partTypeId] = { prefab: prefabName, mass: prefab.part?.mass ?? null, partType: prefab.part?.partType ?? null, balloons: prefab.balloons, shapes };
   if (shapes.length === 0) warnings.push(`${prefabName} has no collider (runtime or authored)`);
 }
 
 const report = {
   format: "pigforge.bple-part-shapes",
-  schemaVersion: 1,
+  schemaVersion: 2,
   source: BPLE,
   parts,
   warnings,

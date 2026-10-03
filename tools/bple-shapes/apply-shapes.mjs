@@ -15,6 +15,10 @@
 //     Z half-extent comes from the collider's Z size when positive, otherwise the
 //     previous shape's Z.
 //   - Parts with no body collider keep their authored shape.
+//   - This tool REPLACES a part's whole `shapes` array, so it also drops the conditional
+//     `condition.kind === "frame"` bracket that tools/bple-brackets/apply-brackets.mjs appends
+//     (ADR-018). Always run apply-brackets.mjs afterwards: extract-shapes -> apply-shapes ->
+//     apply-brackets is the canonical order.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -45,7 +49,7 @@ function shapesFor(partTypeId, current) {
   // extract: keep the authored shape instead of replacing the part's body with nothing.
   if (entry.shapes.every((shape) => shape.condition)) return null;
   const previousZ = current[0].kind === "box" ? current[0].halfExtents[2] : current[0].radius;
-  return entry.shapes.map((shape) => {
+  const body = entry.shapes.map((shape) => {
     const offset = [round4(shape.offset[0]), round4(shape.offset[1]), round4(shape.offset[2])];
     const place = (value) => (offset.some((component) => component !== 0) ? { ...value, offset } : value);
     let value;
@@ -69,6 +73,10 @@ function shapesFor(partTypeId, current) {
 
     return shape.condition ? { ...value, condition: shape.condition } : value;
   });
+  // This rewrite replaces the whole `shapes` array, so it must carry over the frame shape that
+  // `tools/bple-brackets/apply-brackets.mjs` adds (ADR-018) — otherwise running this tool after
+  // that one silently drops every part's build bracket.
+  return [...body, ...current.filter((shape) => shape.condition?.kind === "frame")];
 }
 
 function renderShapes(shapes, indent) {
@@ -83,7 +91,9 @@ function renderShapes(shapes, indent) {
     }
 
     if (shape.condition) {
-      properties.push(`${indent}    "condition": { "kind": "${shape.condition.kind}", "side": "${shape.condition.side}" }`);
+      // A frame bracket has no side; only an attachment marker carries one.
+      const side = shape.condition.side === undefined ? "" : `, "side": "${shape.condition.side}"`;
+      properties.push(`${indent}    "condition": { "kind": "${shape.condition.kind}"${side} }`);
     }
 
     lines.push(`${indent}  {`);

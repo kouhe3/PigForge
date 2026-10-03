@@ -754,7 +754,7 @@
       "partTypeId": 22,
       "name": "sandbag-double",
       "mode": "dynamic",
-      "mass": 6,
+      "mass": 8.1818,
       "material": {
         "restitution": 0,
         "friction": 0.6
@@ -791,7 +791,7 @@
       "partTypeId": 23,
       "name": "sandbag-triple",
       "mode": "dynamic",
-      "mass": 9,
+      "mass": 12.2727,
       "material": {
         "restitution": 0,
         "friction": 0.6
@@ -3881,7 +3881,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -3914,7 +3919,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -3947,7 +3957,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -3980,7 +3995,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -4013,7 +4033,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -4582,7 +4607,7 @@
       "name": "sandbag-double-v02",
       "variantOf": 22,
       "mode": "dynamic",
-      "mass": 6,
+      "mass": 8.1818,
       "material": {
         "restitution": 0,
         "friction": 0.6
@@ -4606,7 +4631,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -4615,7 +4645,7 @@
       "name": "sandbag-double-v03",
       "variantOf": 22,
       "mode": "dynamic",
-      "mass": 6,
+      "mass": 8.1818,
       "material": {
         "restitution": 0,
         "friction": 0.6
@@ -4639,7 +4669,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -4648,7 +4683,7 @@
       "name": "sandbag-double-v04",
       "variantOf": 22,
       "mode": "dynamic",
-      "mass": 6,
+      "mass": 8.1818,
       "material": {
         "restitution": 0,
         "friction": 0.6
@@ -4672,7 +4707,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -4681,7 +4721,7 @@
       "name": "sandbag-triple-v02",
       "variantOf": 23,
       "mode": "dynamic",
-      "mass": 9,
+      "mass": 12.2727,
       "material": {
         "restitution": 0,
         "friction": 0.6
@@ -4705,7 +4745,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -4714,7 +4759,7 @@
       "name": "sandbag-triple-v03",
       "variantOf": 23,
       "mode": "dynamic",
-      "mass": 9,
+      "mass": 12.2727,
       "material": {
         "restitution": 0,
         "friction": 0.6
@@ -4738,7 +4783,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
@@ -4747,7 +4797,7 @@
       "name": "sandbag-triple-v04",
       "variantOf": 23,
       "mode": "dynamic",
-      "mass": 9,
+      "mass": 12.2727,
       "material": {
         "restitution": 0,
         "friction": 0.6
@@ -4771,7 +4821,12 @@
       "shapes": [
         {
           "kind": "sphere",
-          "radius": 0.13
+          "radius": 0.13,
+          "offset": [
+            0,
+            -0.1,
+            0
+          ]
         }
       ]
     },
