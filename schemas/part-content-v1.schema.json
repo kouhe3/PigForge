@@ -116,6 +116,10 @@
           "description": "Original BasePart.m_jointConnectionStrength: the per-part weld strength enum. The floats live in the original GameData asset (GameData.asset:101-105) and are resolved in code; extracted by tools/bple-joints, never authored. Absent on the three parts with no prefab, which fall back to normal.",
           "enum": ["weak", "normal", "high", "extreme", "highlyExtreme"]
         },
+        "jointConnectionDirection": {
+          "description": "Original BasePart.m_jointConnectionDirection: the part-local sides this part may weld on (the client's build-time alignment only snaps on those sides). Extracted by tools/bple-joints, never authored.",
+          "enum": ["any", "right", "up", "left", "down", "leftAndRight", "upAndDown", "none"]
+        },
         "canEnclose": {
           "description": "True only for frames (WoodenFrame/MetalFrame prefabs). CanBeEnclosed is derived as !canEnclose in code, never authored.",
           "type": "boolean"

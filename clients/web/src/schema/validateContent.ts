@@ -235,4 +235,8 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.jointConnectionStrength !== undefined && !["weak", "normal", "high", "extreme", "highlyExtreme"].includes(value.jointConnectionStrength as string)) {
     errors.push(`Part ${partTypeId} capabilities.jointConnectionStrength must be 'weak', 'normal', 'high', 'extreme' or 'highlyExtreme'.`);
   }
+  if (value.jointConnectionDirection !== undefined
+    && !["any", "right", "up", "left", "down", "leftAndRight", "upAndDown", "none"].includes(value.jointConnectionDirection as string)) {
+    errors.push(`Part ${partTypeId} capabilities.jointConnectionDirection must be one of any/right/up/left/down/leftAndRight/upAndDown/none.`);
+  }
 }

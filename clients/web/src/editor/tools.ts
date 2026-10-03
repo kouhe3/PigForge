@@ -163,15 +163,28 @@ export interface SnapEntity {
   scale: number;
 }
 
-/** Union AABB of a part's build-plane shape union, plus the id to exclude from contact tests. */
+/** Which of a part's four build-plane edges may be snapped against. */
+export interface SnapEdges {
+  up: boolean;
+  down: boolean;
+  left: boolean;
+  right: boolean;
+}
+
+/** A part's alignment box, plus the id to exclude from contact tests. */
 export interface SnapTarget {
   entityId: number;
-  /** Union AABB half extents of the part's build-plane shape union, in world metres. */
+  /** Half extents of the part's cell box, in world metres. */
   halfX: number;
   halfY: number;
-  /** Union AABB centre relative to the entity origin (independent of the drag position). */
+  /** Box centre relative to the entity origin (independent of the drag position). */
   offsetX: number;
   offsetY: number;
+  /**
+   * World edges this part may be snapped on, from the original's per-part
+   * `m_jointConnectionDirection`. Absent means "all four" — a hand-built box.
+   */
+  edges?: SnapEdges;
 }
 
 /** A placed part's build-plane AABB: a contact target with its centre. */
@@ -181,12 +194,12 @@ export interface SnapBox extends SnapTarget {
 }
 
 /**
- * Union build-plane AABB of an entity's collision shapes, or null when the part is
- * unknown or carries no box/sphere shape (nothing to snap against). Mirrors the server's
- * `PartFootprint`: every shape's part-local offset is rotated by `entity.yaw` and scaled,
- * boxes project to rotated-rect AABBs and spheres to squares of `radius * scale`.
- * Conditional shapes (joint attachment brackets) count: they are what a player lines a part
- * up against, even though the server's occupancy test ignores them.
+ * Build-time alignment box of an entity, or null when the part is unknown or has no body
+ * shape to size it. A build places parts on whole cells and the original welds along them, so
+ * the box is the cells the part's body colliders cover (a rocket is 1x1, a glider wing 2x1)
+ * rather than its art or its conditional brackets. Which edges may be snapped on comes from the
+ * extracted `jointConnectionDirection`: a propeller welds only on its left, a wheel above its
+ * hub, a spring above and below, and a part that refuses welds has none at all.
  */
 export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined): SnapBox | null {
   if (part === undefined) {
@@ -201,6 +214,11 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
   let maxY = Number.NEGATIVE_INFINITY;
 
   for (const shape of part.shapes) {
+    // A conditional bracket is a build marker, not a size.
+    if (shape.condition !== undefined) {
+      continue;
+    }
+
     const offset = shape.offset ?? [0, 0, 0];
     const centreX = (offset[0] * cos - offset[1] * sin) * entity.scale;
     const centreY = (offset[0] * sin + offset[1] * cos) * entity.scale;
@@ -240,11 +258,38 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
     entityId: entity.entityId,
     x: entity.x,
     y: entity.y,
-    halfX: (maxX - minX) / 2,
-    halfY: (maxY - minY) / 2,
-    offsetX: (minX + maxX) / 2,
-    offsetY: (minY + maxY) / 2,
+    halfX: Math.max(1, Math.round(maxX - minX)) / 2,
+    halfY: Math.max(1, Math.round(maxY - minY)) / 2,
+    offsetX: 0,
+    offsetY: 0,
+    edges: connectionEdges(part, entity.yaw),
   };
+}
+
+/**
+ * The world edges a part may be snapped on, from the original's per-part
+ * `m_jointConnectionDirection` (BasePart.cs:118-127). A part that welds to nothing has no
+ * edges; the declared direction is part-local, so the four flags rotate with the entity's yaw.
+ */
+function connectionEdges(part: PartDefinition, yaw: number): SnapEdges {
+  const type = part.capabilities?.jointConnectionType;
+  const direction = part.capabilities?.jointConnectionDirection ?? "any";
+  // An undeclared type is treated as weldable (authored fixtures and older content); an
+  // explicit `none` (a pig, an engine) may never snap anywhere.
+  const welds = type !== "none" && direction !== "none";
+  const local: SnapEdges = {
+    up: welds && (direction === "any" || direction === "up" || direction === "upAndDown"),
+    down: welds && (direction === "any" || direction === "down" || direction === "upAndDown"),
+    left: welds && (direction === "any" || direction === "left" || direction === "leftAndRight"),
+    right: welds && (direction === "any" || direction === "right" || direction === "leftAndRight"),
+  };
+  const order: Array<keyof SnapEdges> = ["up", "left", "down", "right"];
+  const quarter = ((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4;
+  const world: SnapEdges = { up: false, down: false, left: false, right: false };
+  order.forEach((edge, index) => {
+    world[order[(index + quarter) % 4]] = local[edge];
+  });
+  return world;
 }
 
 /**
@@ -265,6 +310,8 @@ export function snapMoveToParts(
   let bestY = rawY;
   let bestYDelta = Number.POSITIVE_INFINITY;
 
+  const allows = (edge: keyof SnapEdges): boolean => self.edges === undefined || self.edges[edge];
+
   for (const other of others) {
     if (other.entityId === self.entityId) {
       continue;
@@ -276,10 +323,16 @@ export function snapMoveToParts(
     const otherCentreY = other.y + other.offsetY;
 
     if (Math.abs(selfCentreY - otherCentreY) < other.halfY + self.halfY) {
-      for (const candidate of [
-        otherCentreX + other.halfX + self.halfX - self.offsetX,
-        otherCentreX - other.halfX - self.halfX - self.offsetX,
-      ]) {
+      // Landing right of the neighbour puts self's left edge against it, and vice versa.
+      const candidates: Array<[boolean, number]> = [
+        [allows("left"), otherCentreX + other.halfX + self.halfX - self.offsetX],
+        [allows("right"), otherCentreX - other.halfX - self.halfX - self.offsetX],
+      ];
+      for (const [allowed, candidate] of candidates) {
+        if (!allowed) {
+          continue;
+        }
+
         const delta = Math.abs(candidate - rawX);
         if (delta <= threshold && delta < bestXDelta) {
           bestX = candidate;
@@ -289,10 +342,15 @@ export function snapMoveToParts(
     }
 
     if (Math.abs(selfCentreX - otherCentreX) < other.halfX + self.halfX) {
-      for (const candidate of [
-        otherCentreY + other.halfY + self.halfY - self.offsetY,
-        otherCentreY - other.halfY - self.halfY - self.offsetY,
-      ]) {
+      const candidates: Array<[boolean, number]> = [
+        [allows("down"), otherCentreY + other.halfY + self.halfY - self.offsetY],
+        [allows("up"), otherCentreY - other.halfY - self.halfY - self.offsetY],
+      ];
+      for (const [allowed, candidate] of candidates) {
+        if (!allowed) {
+          continue;
+        }
+
         const delta = Math.abs(candidate - rawY);
         if (delta <= threshold && delta < bestYDelta) {
           bestY = candidate;

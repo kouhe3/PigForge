@@ -63,6 +63,23 @@ public enum JointConnectionStrength
 }
 
 /// <summary>
+/// The original's per-part <c>m_jointConnectionDirection</c> (BasePart.cs:118-127): the
+/// part-local sides this part may weld on. Extracted per prefab by <c>tools/bple-joints</c>;
+/// the client's build-time alignment only snaps a part on the sides it declares.
+/// </summary>
+public enum JointConnectionDirection
+{
+    Any = 0,
+    Right = 1,
+    Up = 2,
+    Left = 3,
+    Down = 4,
+    LeftAndRight = 5,
+    UpAndDown = 6,
+    None = 7
+}
+
+/// <summary>
 /// Which way a runtime attachment searches for its anchor (Sandbag.cs:96 searches
 /// <c>m_direction = Vector3.up</c> and hangs below what it finds; Balloon.cs:104 searches
 /// downward and floats above what it finds), and on which side of the anchor it rests.
@@ -146,6 +163,7 @@ public sealed record PartCapabilities(
     bool IsGlue = false,
     JointConnectionType JointConnectionType = JointConnectionType.None,
     JointConnectionStrength JointConnectionStrength = JointConnectionStrength.None,
+    JointConnectionDirection JointConnectionDirection = JointConnectionDirection.Any,
     bool CanEnclose = false,
     PartAttachment? Attachment = null,
     PartSuspension? Suspension = null,

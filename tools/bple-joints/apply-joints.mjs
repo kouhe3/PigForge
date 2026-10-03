@@ -44,6 +44,18 @@ const isFramePrefab = (prefab) => /^Part_(WoodenFrame|MetalFrame)_/.test(prefab 
 
 const JOINT_VALUES = new Set(["none", "source", "target"]);
 const STRENGTH_VALUES = new Set(["weak", "normal", "high", "extreme", "highlyExtreme"]);
+const DIRECTION_VALUES = new Set(["any", "right", "up", "left", "down", "leftAndRight", "upAndDown", "none"]);
+
+/** The report's connection-direction name for one part; the report is the only admissible
+ * source, so a missing or unknown value is a hard error rather than a silent fallback. */
+function directionNameOf(entry, partTypeId) {
+  const name = entry.jointConnectionDirection?.name;
+  if (!DIRECTION_VALUES.has(name)) {
+    throw new Error(`part ${partTypeId}: unknown jointConnectionDirection ${JSON.stringify(entry.jointConnectionDirection)}`);
+  }
+
+  return name;
+}
 
 /** The report's strength name for one part; the report is the only admissible source, so a
  * missing or unknown value is a hard error rather than a silent fallback. */
@@ -162,6 +174,7 @@ const document = JSON.parse(text);
 let updated = 0;
 const written = { none: 0, source: 0, target: 0 };
 const strengthWritten = { weak: 0, normal: 0, high: 0, extreme: 0, highlyExtreme: 0 };
+const directionWritten = {};
 let frames = 0;
 let attachments = 0;
 
@@ -179,9 +192,11 @@ for (const part of document.parts) {
   const encloses = isFramePrefab(entry.prefab);
   const attachment = attachmentFor(entry.prefab);
   const strengthName = strengthNameOf(entry, part.partTypeId);
+  const directionName = directionNameOf(entry, part.partTypeId);
   const desired = [
     ["jointConnectionType", `"jointConnectionType": ${JSON.stringify(jointType)}`],
     ["jointConnectionStrength", `"jointConnectionStrength": ${JSON.stringify(strengthName)}`],
+    ["jointConnectionDirection", `"jointConnectionDirection": ${JSON.stringify(directionName)}`],
   ];
   if (encloses) {
     desired.push(["canEnclose", `"canEnclose": true`]);
@@ -216,6 +231,7 @@ for (const part of document.parts) {
 
   written[jointType] += 1;
   strengthWritten[strengthName] += 1;
+  directionWritten[directionName] = (directionWritten[directionName] ?? 0) + 1;
   if (encloses) frames += 1;
   if (attachment) attachments += 1;
   updated += 1;
@@ -234,6 +250,10 @@ for (const part of check.parts) {
 
   if (capabilities.jointConnectionStrength !== strengthNameOf(entry, part.partTypeId)) {
     throw new Error(`part ${part.partTypeId}: jointConnectionStrength mismatch`);
+  }
+
+  if (capabilities.jointConnectionDirection !== directionNameOf(entry, part.partTypeId)) {
+    throw new Error(`part ${part.partTypeId}: jointConnectionDirection mismatch`);
   }
 
   const encloses = isFramePrefab(entry.prefab);
@@ -261,4 +281,5 @@ if (!DRY_RUN) writeFileSync(CONTENT, text);
 console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTENT}`);
 console.log(`jointConnectionType: none ${written.none} / source ${written.source} / target ${written.target}`);
 console.log(`jointConnectionStrength: ${JSON.stringify(strengthWritten)}`);
+console.log(`jointConnectionDirection: ${JSON.stringify(directionWritten)}`);
 console.log(`canEnclose: ${frames} frames; attachment: ${attachments} parts`);

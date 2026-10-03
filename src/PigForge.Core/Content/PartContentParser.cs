@@ -332,6 +332,7 @@ public static class PartContentParser
         bool isGlue = false;
         JointConnectionType jointConnectionType = JointConnectionType.None;
         JointConnectionStrength jointConnectionStrength = JointConnectionStrength.None;
+        JointConnectionDirection jointConnectionDirection = JointConnectionDirection.Any;
         bool canEnclose = false;
         float? balloonLift = null;
         float? fanThrust = null;
@@ -636,6 +637,17 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("jointConnectionDirection"))
+        {
+            if (!capabilitiesElement.TryGetProperty("jointConnectionDirection", out JsonElement directionElement)
+                || directionElement.ValueKind != JsonValueKind.String
+                || !TryReadJointConnectionDirection(directionElement.GetString(), out jointConnectionDirection))
+            {
+                errors.Add($"{path}.capabilities.jointConnectionDirection: must be \"any\", \"right\", \"up\", \"left\", \"down\", \"leftAndRight\", \"upAndDown\" or \"none\".");
+                hasError = true;
+            }
+        }
+
         if (seenKeys.Contains("canEnclose"))
         {
             if (!capabilitiesElement.TryGetProperty("canEnclose", out JsonElement encloseElement)
@@ -692,7 +704,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -704,7 +716,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, canEnclose, attachment, suspension, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -980,6 +992,40 @@ public static class PartContentParser
                 return true;
             default:
                 jointConnectionStrength = JointConnectionStrength.None;
+                return false;
+        }
+    }
+
+    private static bool TryReadJointConnectionDirection(string? value, out JointConnectionDirection jointConnectionDirection)
+    {
+        switch (value)
+        {
+            case "any":
+                jointConnectionDirection = JointConnectionDirection.Any;
+                return true;
+            case "right":
+                jointConnectionDirection = JointConnectionDirection.Right;
+                return true;
+            case "up":
+                jointConnectionDirection = JointConnectionDirection.Up;
+                return true;
+            case "left":
+                jointConnectionDirection = JointConnectionDirection.Left;
+                return true;
+            case "down":
+                jointConnectionDirection = JointConnectionDirection.Down;
+                return true;
+            case "leftAndRight":
+                jointConnectionDirection = JointConnectionDirection.LeftAndRight;
+                return true;
+            case "upAndDown":
+                jointConnectionDirection = JointConnectionDirection.UpAndDown;
+                return true;
+            case "none":
+                jointConnectionDirection = JointConnectionDirection.None;
+                return true;
+            default:
+                jointConnectionDirection = JointConnectionDirection.Any;
                 return false;
         }
     }

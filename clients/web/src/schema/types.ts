@@ -50,6 +50,8 @@ export interface PartCapabilities {
   jointConnectionType?: "none" | "source" | "target";
   /** The original's per-part weld strength, which scales the seam threshold (ADR-015). */
   jointConnectionStrength?: "weak" | "normal" | "high" | "extreme" | "highlyExtreme";
+  /** The part-local sides this part may weld on; build-time alignment only snaps on those. */
+  jointConnectionDirection?: "any" | "right" | "up" | "left" | "down" | "leftAndRight" | "upAndDown" | "none";
   /** Elastic wheel attachment: the original's linear-limit spring (N/m, N*s/m) holding the wheel at restOffset along its own Y. */
   suspension?: { stiffness: number; damper: number; restOffset: number };
 }

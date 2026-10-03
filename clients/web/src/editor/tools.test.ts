@@ -100,18 +100,20 @@ describe("part contact snap", () => {
     shapes: [{ kind: "box", halfExtents: [0.5, 0.25, 0.5] }],
   };
 
-  it("projects a shape into world-axis half extents with yaw and scale applied", () => {
+  it("rounds the box to whole cells with yaw and scale applied", () => {
     const projected = snapBoxOf({ ...base, yaw: Math.PI / 2, scale: 2 }, block);
     expect(projected).toMatchObject({ entityId: 7, x: 2, y: 3 });
+    // 2 x 1 m of body turned 90 degrees covers one cell across and two tall.
     expect(projected?.halfX).toBeCloseTo(0.5);
     expect(projected?.halfY).toBeCloseTo(1);
   });
 
-  it("stretches the snap box over a conditional bracket", () => {
-    // A rocket: a 0.35 x 0.15 body box plus a bracket reaching 0.62 to the right. The bracket is
-    // what the player lines a part up against, so it has to be inside the snap box.
+  it("takes the part's edges from its extracted direction, not its art", () => {
+    // A rocket's bracket does not size its box: the part covers one cell, and `any` lets it snap
+    // on all four edges.
     const rocket: PartDefinition = {
       ...block,
+      capabilities: { jointConnectionType: "target", jointConnectionDirection: "any" },
       shapes: [
         { kind: "box", halfExtents: [0.35, 0.15, 0.5], offset: [0, -0.03, 0] },
         { kind: "box", halfExtents: [0.25, 0.14, 0.5], offset: [0.37, 0, 0], condition: { kind: "attachment", side: "right" } },
@@ -120,16 +122,16 @@ describe("part contact snap", () => {
 
     const box = snapBoxOf(base, rocket);
 
-    expect(box?.halfX).toBeCloseTo(0.485);
-    // The box is still anchored on the entity; only its reach grew.
-    expect(box?.x).toBe(base.x);
+    expect(box?.halfX).toBeCloseTo(0.5);
+    expect(box?.edges).toEqual({ up: true, down: true, left: true, right: true });
   });
 
-  it("uses the sphere radius on both axes", () => {
+  it("sizes a sphere to its cells", () => {
     const sphere: PartDefinition = { ...block, shapes: [{ kind: "sphere", radius: 0.4 }] };
     const projected = snapBoxOf({ ...base, scale: 1.5 }, sphere);
-    expect(projected?.halfX).toBeCloseTo(0.6);
-    expect(projected?.halfY).toBeCloseTo(0.6);
+    // A 1.2 m ball is one cell.
+    expect(projected?.halfX).toBeCloseTo(0.5);
+    expect(projected?.halfY).toBeCloseTo(0.5);
     expect(projected?.offsetX).toBe(0);
     expect(projected?.offsetY).toBe(0);
   });
@@ -139,37 +141,37 @@ describe("part contact snap", () => {
     expect(snapBoxOf(base, { ...block, shapes: [{ kind: "convexMesh" }] })).toBeNull();
   });
 
-  // Wooden wheel (content partTypeId 7): support box plus the tire sphere, both offset.
+  // Wooden wheel (content partTypeId 7): support box plus the tire sphere, both offset, and the
+  // original welds a wheel only above its hub.
   const wheel: PartDefinition = {
     partTypeId: 7, name: "woodenWheel", mode: "dynamic", mass: 1,
+    capabilities: { jointConnectionType: "target", jointConnectionDirection: "up" },
     shapes: [
       { kind: "box", halfExtents: [0.2, 0.32, 0.5], offset: [0, 0.1702, 0] },
       { kind: "sphere", radius: 0.33, offset: [0.0106, -0.2057, 0] },
     ],
   };
 
-  it("unions every shape's offset into the AABB instead of using only the first (wooden wheel)", () => {
+  it("covers one cell whatever the collider offsets are", () => {
     const projected = snapBoxOf({ ...base, entityId: 2, x: 0, y: 0 }, wheel);
-    // Support box x [-0.2, 0.2] y [-0.1498, 0.4902]; tire sphere x [-0.3194, 0.3406] y [-0.5357, 0.1243].
-    expect(projected?.halfX).toBeCloseTo(0.33);
-    expect(projected?.offsetX).toBeCloseTo(0.0106);
-    expect(projected?.halfY).toBeCloseTo(0.51295);
-    expect(projected?.offsetY).toBeCloseTo(-0.02275);
+    expect(projected?.halfX).toBeCloseTo(0.5);
+    expect(projected?.halfY).toBeCloseTo(0.5);
+    expect(projected?.offsetX).toBe(0);
+    expect(projected?.offsetY).toBe(0);
   });
 
-  it("snaps the wheel's union AABB flush under a block instead of its first shape 0.17 m too high", () => {
+  it("snaps a wheel only on the edge it can weld on", () => {
     const blockAtOne = { entityId: 1, x: 0, y: 1, halfX: 0.5, halfY: 0.5, offsetX: 0, offsetY: 0 };
     const wheelSelf = snapBoxOf({ ...base, entityId: 2, x: 0, y: 0 }, wheel);
     if (wheelSelf === null) {
-      throw new Error("the wooden wheel must project to a union box");
+      throw new Error("the wooden wheel must project to a cell box");
     }
 
     const snapped = snapMoveToParts(0, 0, wheelSelf, [blockAtOne]);
-    // Origin y 0.0098 puts the union top (0.0098 + 0.4902) exactly on the block's bottom face 0.5.
-    expect(snapped.y).toBeCloseTo(0.0098);
-    // A shapes[0]-only box answered 0.18, sinking the wheel 0.17 m into the block (server rejects overlap).
-    expect(snapped.y).not.toBeCloseTo(0.18, 2);
-    // Block y [0.5, 1.5] vs wheel union y [-0.5357, 0.4902]: no overlap, so the X axis gate never opens.
+
+    // Its only edge is up, so it lands flush under the block (one cell below y = 1)…
+    expect(snapped.y).toBeCloseTo(0);
+    // …and the x axis never opens: a wheel cannot weld sideways.
     expect(snapped.x).toBe(0);
   });
 

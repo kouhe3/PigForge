@@ -45,6 +45,20 @@ const JOINT_TYPES = { 0: "none", 1: "source", 2: "target" };
 // (Contraption.cs:1494-1506), so the report keeps the enum name and its raw value.
 const JOINT_STRENGTHS = { 0: "weak", 1: "normal", 2: "high", 3: "extreme", 4: "highlyExtreme" };
 
+// `m_jointConnectionDirection` (BasePart.cs:118-127): the sides a part may weld on. Any = all
+// four, None = none; the two paired values are the original's LeftAndRight / UpAndDown. The
+// client's build-time alignment only lets a part snap on the sides it can actually connect on.
+const JOINT_DIRECTIONS = {
+  0: "any",
+  1: "right",
+  2: "up",
+  3: "left",
+  4: "down",
+  5: "leftAndRight",
+  6: "upAndDown",
+  7: "none",
+};
+
 const warnings = [];
 
 function prefabText(name) {
@@ -79,6 +93,16 @@ function readJointStrength(text) {
 function readJointPreprocessing(text) {
   const match = /^\s*m_jointPreprocessing:\s*(-?\d+)\s*$/m.exec(text);
   return match ? Number(match[1]) : null;
+}
+
+function readJointDirection(text) {
+  const match = /^\s*m_jointConnectionDirection:\s*(-?\d+)\s*$/m.exec(text);
+  if (!match) {
+    return null;
+  }
+
+  const raw = Number(match[1]);
+  return { raw, name: JOINT_DIRECTIONS[raw] ?? `unknown(${raw})` };
 }
 
 /** `m_jointType` selects the Unity joint kind: 0 FixedJoint, 1 HingeJoint (the wheels). */
@@ -138,13 +162,14 @@ for (const part of content.parts) {
     jointStrength: readJointStrength(text),
     jointPreprocessing: readJointPreprocessing(text),
     jointKind: readJointKind(text),
+    jointConnectionDirection: readJointDirection(text),
   };
 }
 
 // Whole-project tally, so the report can state the distribution even for prefabs that never made
 // it into content (dropped inventions, unimported parts).
 const distribution = {};
-const prefabScan = { count: 0, strengthHistogram: {}, preprocessingHistogram: {}, jointKindHistogram: {}, parts: {} };
+const prefabScan = { count: 0, strengthHistogram: {}, preprocessingHistogram: {}, jointKindHistogram: {}, jointConnectionDirectionHistogram: {}, parts: {} };
 for (const entry of readdirSync(GAMEOBJECT)) {
   if (!entry.startsWith("Part_") || !entry.endsWith(".prefab")) {
     continue;
@@ -161,6 +186,7 @@ for (const entry of readdirSync(GAMEOBJECT)) {
   const strength = readJointStrength(text);
   const preprocessing = readJointPreprocessing(text);
   const kind = readJointKind(text);
+  const direction = readJointDirection(text);
   const strengthKey = strength ? strength.name : "absent";
   const preprocessingKey = preprocessing === null ? "absent" : String(preprocessing);
   const kindKey = kind === null ? "absent" : String(kind);
@@ -169,6 +195,8 @@ for (const entry of readdirSync(GAMEOBJECT)) {
   prefabScan.preprocessingHistogram[preprocessingKey] = (prefabScan.preprocessingHistogram[preprocessingKey] ?? 0) + 1;
   prefabScan.jointKindHistogram[kindKey] = (prefabScan.jointKindHistogram[kindKey] ?? 0) + 1;
   prefabScan.parts[entry] = [strength ? strength.raw : null, preprocessing, kind];
+  const directionKey = direction ? direction.name : "absent";
+  prefabScan.jointConnectionDirectionHistogram[directionKey] = (prefabScan.jointConnectionDirectionHistogram[directionKey] ?? 0) + 1;
 }
 
 // Hard invariants: measured on BPLE_Unity6 (343 Part_*.prefab, strength 45/120/98/60/20,
@@ -248,6 +276,7 @@ writeFileSync(OUT_MD, `${md.join("\n")}\n`);
 
 console.log(`prefabs: ${Object.values(distribution).reduce((sum, count) => sum + count, 0)} (${JSON.stringify(distribution)})`);
 console.log(`strength: ${JSON.stringify(prefabScan.strengthHistogram)}; preprocessing: ${JSON.stringify(prefabScan.preprocessingHistogram)}; joint kind: ${JSON.stringify(prefabScan.jointKindHistogram)}`);
+console.log(`jointConnectionDirection: ${JSON.stringify(prefabScan.jointConnectionDirectionHistogram)}`);
 for (const wanted of ["none", "source", "target"]) {
   const rows = byType(wanted);
   console.log(`${wanted.padEnd(7)} parts=${String(rows.length).padStart(3)}  ${rows.slice(0, 12).map(([id, value]) => `${id}:${value.name}`).join(", ")}`);
