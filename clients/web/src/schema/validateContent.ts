@@ -222,4 +222,7 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.activation !== undefined && value.activation !== "toggle" && value.activation !== "trigger") {
     errors.push(`Part ${partTypeId} capabilities.activation must be 'toggle' or 'trigger'.`);
   }
+  if (value.jointConnectionType !== undefined && value.jointConnectionType !== "none" && value.jointConnectionType !== "source" && value.jointConnectionType !== "target") {
+    errors.push(`Part ${partTypeId} capabilities.jointConnectionType must be 'none', 'source' or 'target'.`);
+  }
 }

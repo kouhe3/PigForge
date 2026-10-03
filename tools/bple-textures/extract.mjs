@@ -77,6 +77,15 @@ const SPRITE_ANIMATION_SCRIPT = scriptGuid("SpriteAnimation");
 const FAN_PROPELLER_SCRIPT = scriptGuid("FanPropeller");
 const PIG_SCRIPT = scriptGuid("Pig");
 const KING_PIG_SCRIPT = scriptGuid("KingPig");
+// Connection-visual hosts: the script a prefab mounts decides which rule its `*Attachment`
+// or `*FrameSprite` nodes obey (see clients/web/src/renderer/connectionVisuals.ts).
+const ROCKET_SCRIPT = scriptGuid("Rocket");
+const TNT_SCRIPT = scriptGuid("TNT");
+const BLASTER_TNT_SCRIPT = scriptGuid("BlasterTNT");
+const SPOTLIGHT_SCRIPT = scriptGuid("SpotLight");
+const GRAPPLING_HOOK_SCRIPT = scriptGuid("GrapplingHook");
+const EXPLODING_GRAPPLING_HOOK_SCRIPT = scriptGuid("ExplodingGrapplingHook");
+const WINGS_SCRIPT = scriptGuid("Wings");
 
 // ------------------------------------------------------------ sprite tables
 
@@ -245,6 +254,53 @@ const PIG_EXPRESSION = {
 };
 /** `Pig.fallFearThreshold` fallback for a pig prefab that omits it (Pig.cs:41). */
 const DEFAULT_FALL_FEAR_THRESHOLD = 3;
+
+/**
+ * Node name -> the connection side a conditional sprite stands for. The label is part-local:
+ * `Rocket.ChangeVisualConnections` (Rocket.cs:149-156) asks `CanConnectTo(Rotate(Direction.Up,
+ * m_gridRotation))` for `TopAttachment`, so the client rotates the label into the grid with the
+ * entity's yaw. Sides come from Rocket.cs:149-156, TNT.cs:88-106, SpotLight.cs:84-100 and
+ * GrapplingHook.cs:233-249; the two mounts from Wings.cs:56-59.
+ */
+const CONDITION_NODES = new Map([
+  ["TopAttachment", { kind: "attachment", side: "top" }],
+  ["BottomAttachment", { kind: "attachment", side: "bottom" }],
+  ["LeftAttachment", { kind: "attachment", side: "left" }],
+  ["RightAttachment", { kind: "attachment", side: "right" }],
+  ["TopLeftAttachment", { kind: "attachment", side: "topLeft" }],
+  ["TopRightAttachment", { kind: "attachment", side: "topRight" }],
+  ["BottomLeftAttachment", { kind: "attachment", side: "bottomLeft" }],
+  ["BottomRightAttachment", { kind: "attachment", side: "bottomRight" }],
+  ["TopFrameSprite", { kind: "frame", mount: "top" }],
+  ["BottomFrameSprite", { kind: "frame", mount: "bottom" }],
+]);
+
+/**
+ * Host script -> the visibility rule it implements. `BlasterTNT` inherits `TNT`'s rule
+ * (BlasterTNT.cs:4); the two grappling hooks share `GrapplingHook`'s eight-side rule with the
+ * spring node dropped (GrapplingHook.cs:218-255, ExplodingGrapplingHook.cs:75-110). Wings and
+ * JetEngine share the mount rule (Wings.cs:41-72, JetEngine.cs:202-214); JetEngine maps to no
+ * PigForge part. A host outside this table keeps no rule: its conditional sprites stay in the
+ * manifest but the client draws them nowhere, exactly as before this change.
+ */
+const CONNECTION_VISUAL_SCRIPTS = new Map([
+  [ROCKET_SCRIPT, "attachmentFallback"],
+  [TNT_SCRIPT, "attachmentPlain"],
+  [BLASTER_TNT_SCRIPT, "attachmentPlain"],
+  [SPOTLIGHT_SCRIPT, "attachmentEight"],
+  [GRAPPLING_HOOK_SCRIPT, "attachmentEight"],
+  [EXPLODING_GRAPPLING_HOOK_SCRIPT, "attachmentEight"],
+  [WINGS_SCRIPT, "frame"],
+]);
+
+/** The rule a prefab's conditional sprites obey, taken from the script it mounts. */
+function connectionVisualOf(prefab) {
+  for (const behaviour of prefab.behaviours) {
+    const visual = CONNECTION_VISUAL_SCRIPTS.get(behaviour.script);
+    if (visual) return visual;
+  }
+  return undefined;
+}
 
 /** Sprite centre offset from the prefab root, in BPLE world units (root's own offset
  * excluded), whether the sprite rides a node the original rotates, and the transform ids
@@ -513,23 +569,28 @@ function extractPart(prefabName) {
     warnings.push(`no extractable sprite in ${prefabName}`);
     return undefined;
   }
-  // Joint attachment markers are conditional in-game (one per connection side);
-  // every other sprite in the prefab is part of the visual (body, face, crown,
-  // wheel rim, light cone, extra balloons/sandbags) and is kept.
+  // Joint attachment markers and the two wing mounts are conditional in-game: the original
+  // shows each only when the matching side can connect (`ChangeVisualConnections`), so they
+  // are kept and tagged instead of dropped, and the client gates them on the neighbour state
+  // it derives from the layout. Every other sprite is part of the visual (body, face, crown,
+  // wheel rim, light cone, extra balloons/sandbags) and stays unconditional.
   const seen = new Set();
-  const filtered = found.filter((s) => {
-    if (/attachment/i.test(s.name)) return false;
+  const sprites = found.filter((s) => {
     const key = `${s.atlas}|${s.x}|${s.y}|${s.w}|${s.h}|${s.cx}|${s.cy}|${s.rot}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-  if (filtered.length === 0) {
-    // A prefab whose only sprites are attachment markers still has a visual.
-    warnings.push(`${prefabName} has only attachment sprites`);
-    return undefined;
+  const connectionVisual = connectionVisualOf(prefab);
+  for (const sprite of sprites) {
+    const condition = CONDITION_NODES.get(sprite.name);
+    if (condition) sprite.condition = condition;
   }
-  const sprites = filtered;
+  if (connectionVisual === undefined && sprites.some((sprite) => sprite.condition)) {
+    // The client draws conditional sprites only for a known rule, so an unlisted host keeps
+    // its markers hidden exactly as they were before they entered the manifest.
+    warnings.push(`${prefabName} has conditional sprites but no host script rule`);
+  }
   // Fan blades: the sprites hanging on the node the FanPropeller turns get the spin
   // descriptor (the compressor reads their axis and speed). Wheels get none — their sprites
   // ride a hinged body whose snapshot rotation is the roll (ADR-008/009).
@@ -606,6 +667,7 @@ function extractPart(prefabName) {
     bbox: [round(bbox[0]), round(bbox[1])],
     ...(pivot ? { pivot: [round(pivot[0] - centreX), round(pivot[1] - centreY)] } : {}),
     ...(expression ? { expression } : {}),
+    ...(connectionVisual ? { connectionVisual } : {}),
     sprites: sprites.map((s) => ({
       atlas: s.atlas,
       x: s.x,
@@ -618,6 +680,7 @@ function extractPart(prefabName) {
       sy: round(s.sy),
       rot: round(s.rot),
       rotates: s.rotates,
+      ...(s.condition ? { condition: s.condition } : {}),
       ...(s.spin ? { spin: s.spin } : {}),
       ...(s.clips
         ? {
@@ -668,8 +731,9 @@ for (const [partTypeId, prefabName] of Object.entries(assignments)) {
 const manifest = {
   format: "pigforge.part-textures",
   // v3 adds the optional animation descriptors (sprite `spin`/`clips`, part `expression`);
-  // a v2 client ignores them, a v2 manifest is a v3 one without animation.
-  schemaVersion: 3,
+  // v4 adds the optional connection conditions (sprite `condition`, part `connectionVisual`).
+  // Every addition is optional, so each older manifest is the newer one minus that layer.
+  schemaVersion: 4,
   source: basename(BPLE),
   unitsPerPixel: UNITS_PER_PIXEL,
   atlases: Object.fromEntries([...usedAtlases].map(([name, entry]) => [name, entry.size])),

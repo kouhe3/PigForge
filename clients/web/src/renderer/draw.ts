@@ -2,6 +2,7 @@ import type { DrawEntity, MarqueeRect, PartContentDocument, PartDefinition, Part
 import { poseFor, type AnimationState } from "./animation";
 import { layoutSprites, type PartTexture, type PartTextureSet } from "./atlas";
 import { type Camera, worldToScreen } from "./camera";
+import { conditionalSpriteVisible, connectableSides } from "./connectionVisuals";
 
 const STATIC_FILL = "#5c6b52";
 const DYNAMIC_FILL = "#c4a574";
@@ -133,6 +134,14 @@ export function drawFrame(
       parts.set(part.partTypeId, part);
     }
   }
+  // Which sides of each part a neighbour would weld to, for the sprites the original shows per
+  // connection side. Only parts whose manifest carries a rule are resolved, so a scene of plain
+  // blocks costs a single pass with no neighbour lookups.
+  const connections = connectableSides(
+    entities,
+    (partTypeId) => parts.get(partTypeId),
+    (entity) => (textures ?? null)?.parts.get(entity.partTypeId)?.connectionVisual !== undefined,
+  );
 
   for (const entity of entities) {
     const part = parts.get(entity.partTypeId);
@@ -185,9 +194,19 @@ export function drawFrame(
     // mix two frames and drop a small wheel's fork underneath its tire.
     const placed = texture !== undefined && atlasImages !== undefined ? layoutSprites(texture, entity.scale) : undefined;
     const tire = turning && placed !== undefined ? placed.find((_, index) => turning[index]) : undefined;
+    const entitySides = connections.get(entity.entityId);
     if (texture && atlasImages && texture.sprites.every((sprite) => atlasImages.get(sprite.atlas) !== undefined)) {
       // Original art: drawn at the BPLE world size and offsets, so part visuals match
       placed?.forEach((placement, index) => {
+        // A conditional marker (an `*Attachment` or a wing mount) is drawn only while the
+        // layout puts a weldable neighbour on the side it stands for.
+        const condition = placement.sprite.condition;
+        if (
+          condition !== undefined &&
+          !conditionalSpriteVisible(condition, texture?.connectionVisual, entitySides, entity.yaw)
+        ) {
+          return;
+        }
         // A pose is the manifest sprite unless the animation state replaced it with its clip's
         // current frame, which carries its own rect, size and centre (see `animation/index.ts`).
         const pose = animations ? poseFor(animations, entity, index, placement.sprite) : null;

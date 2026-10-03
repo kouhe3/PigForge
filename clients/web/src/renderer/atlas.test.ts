@@ -139,8 +139,64 @@ describe("parsePartTextures animation descriptors", () => {
     expect(() => parsePartTextures(broken)).toThrow(/hitDeltaV is not positive/);
   });
 
-  it("rejects a schema version past the animation one", () => {
-    expect(() => parsePartTextures({ ...animatedManifest, schemaVersion: 4 })).toThrow(/unsupported schemaVersion/);
+  it("rejects a schema version past the connection one", () => {
+    expect(() => parsePartTextures({ ...animatedManifest, schemaVersion: 5 })).toThrow(/unsupported schemaVersion/);
+  });
+});
+
+// A v4 manifest: the same sprites plus the connection conditions of the extractor (a rocket's
+// four side markers, a wing's two mounts) and the host rule that gives them meaning.
+const conditionalManifest = {
+  format: "pigforge.part-textures",
+  schemaVersion: 4,
+  atlases: { "A.png": { width: 2048, height: 2048 } },
+  parts: {
+    "13": {
+      bbox: [2, 1] as [number, number],
+      connectionVisual: "attachmentFallback",
+      sprites: [
+        { atlas: "A.png", x: 1, y: 2, w: 3, h: 4, cx: 0, cy: 0.37, sx: 0.5, sy: 0.28, rot: 0, rotates: false, condition: { kind: "attachment", side: "top" } },
+        { atlas: "A.png", x: 5, y: 6, w: 3, h: 4, cx: 0, cy: 0, sx: 1, sy: 1, rot: 0, rotates: false },
+      ],
+    },
+  },
+};
+
+describe("parsePartTextures connection conditions", () => {
+  it("reads the host rule and the side tags of the conditional sprites", () => {
+    const part = parsePartTextures(conditionalManifest).get(13)!;
+    expect(part.connectionVisual).toBe("attachmentFallback");
+    expect(part.sprites[0].condition).toEqual({ kind: "attachment", side: "top" });
+    expect(part.sprites[1].condition).toBeUndefined();
+  });
+
+  it("reads a wing's mount condition", () => {
+    const wing = {
+      ...conditionalManifest,
+      parts: {
+        "31": {
+          bbox: [2, 1] as [number, number],
+          connectionVisual: "frame",
+          sprites: [{ ...conditionalManifest.parts["13"].sprites[0], condition: { kind: "frame", mount: "bottom" } }],
+        },
+      },
+    };
+    expect(parsePartTextures(wing).get(31)!.sprites[0].condition).toEqual({ kind: "frame", mount: "bottom" });
+  });
+
+  it("still accepts a v3 manifest as a v4 one without any condition", () => {
+    const part = parsePartTextures(animatedManifest).get(4)!;
+    expect(part.connectionVisual).toBeUndefined();
+    expect(part.sprites.some((sprite) => sprite.condition !== undefined)).toBe(false);
+  });
+
+  it("rejects an unknown side, mount and host rule", () => {
+    const side = { ...conditionalManifest, parts: { "13": { ...conditionalManifest.parts["13"], sprites: [{ ...conditionalManifest.parts["13"].sprites[0], condition: { kind: "attachment", side: "north" } }] } } };
+    expect(() => parsePartTextures(side)).toThrow(/condition side/);
+    const mount = { ...conditionalManifest, parts: { "13": { ...conditionalManifest.parts["13"], sprites: [{ ...conditionalManifest.parts["13"].sprites[0], condition: { kind: "frame", mount: "middle" } }] } } };
+    expect(() => parsePartTextures(mount)).toThrow(/condition mount/);
+    const rule = { ...conditionalManifest, parts: { "13": { ...conditionalManifest.parts["13"], connectionVisual: "guess" } } };
+    expect(() => parsePartTextures(rule)).toThrow(/connectionVisual/);
   });
 });
 

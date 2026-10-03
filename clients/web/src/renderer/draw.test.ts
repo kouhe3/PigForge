@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { createAnimationState, updateAnimations } from "./animation";
+import type { PartTexture, PartTextureSet } from "./atlas";
 import { drawFrame, wheelAxle } from "./draw";
 import { createCamera } from "./camera";
 import type { DrawEntity, PartContentDocument } from "@/schema/types";
@@ -521,5 +522,63 @@ describe("drawFrame animation", () => {
     const last = translations[translations.length - 1];
     expect(last[0]).toBeCloseTo(18);
     expect(last[1]).toBeCloseTo(0);
+  });
+});
+
+describe("drawFrame conditional connection sprites", () => {
+  // A wooden glider wing (target) next to a weldable block (source): the manifest carries both
+  // mounts, and only the one the neighbour state picks is drawn.
+  const wingContent: PartContentDocument = {
+    format: "pigforge.part-content",
+    schemaVersion: 1,
+    contentVersion: "t",
+    parts: [
+      { partTypeId: 31, name: "wing", mode: "dynamic", mass: 0.6, capabilities: { jointConnectionType: "target" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
+      { partTypeId: 1, name: "block", mode: "dynamic", mass: 1, capabilities: { jointConnectionType: "source" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
+    ],
+  };
+  const sprite = { atlas: "A.png", x: 0, y: 0, w: 10, h: 10, cx: 0.06, cy: 0, sx: 1, sy: 0.39, rot: 0, rotates: false };
+  const wingTextures = (image: CanvasImageSource): PartTextureSet => ({
+    atlases: new Map([["A.png", image]]),
+    parts: new Map<number, PartTexture>([
+      [
+        31,
+        {
+          bbox: [2, 1] as [number, number],
+          connectionVisual: "frame",
+          sprites: [
+            { ...sprite, cy: -0.3613, condition: { kind: "frame", mount: "bottom" } },
+            { ...sprite, y: 20, cy: 0.39, condition: { kind: "frame", mount: "top" } },
+          ],
+        },
+      ],
+      [1, { bbox: [1, 1] as [number, number], sprites: [{ ...sprite, cx: 0, cy: 0, sy: 1 }] }],
+    ]),
+  });
+  const wing: DrawEntity = { entityId: 1, partTypeId: 31, x: 0, y: 0, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 0, active: false };
+
+  it("draws only the bottom mount while nothing connects", () => {
+    const { ctx, calls, draws } = makeCtx();
+    drawFrame(ctx, createCamera(), [wing], wingContent, [], undefined, undefined, wingTextures({} as CanvasImageSource));
+    expect(calls.drawImage).toBe(1);
+    // The bottom mount's own source row.
+    expect(draws[0][1]).toBe(0);
+  });
+
+  it("swaps to the top mount once a weldable neighbour sits above", () => {
+    const { ctx, draws } = makeCtx();
+    const above: DrawEntity = { ...wing, entityId: 2, partTypeId: 1, y: 1 };
+    drawFrame(ctx, createCamera(), [wing, above], wingContent, [], undefined, undefined, wingTextures({} as CanvasImageSource));
+    // The wing's top mount, then the block's own sprite.
+    expect(draws).toHaveLength(2);
+    expect(draws[0][1]).toBe(20);
+  });
+
+  it("keeps the bottom mount for a neighbour below", () => {
+    const { ctx, draws } = makeCtx();
+    const below: DrawEntity = { ...wing, entityId: 2, partTypeId: 1, y: -1 };
+    drawFrame(ctx, createCamera(), [wing, below], wingContent, [], undefined, undefined, wingTextures({} as CanvasImageSource));
+    expect(draws).toHaveLength(2);
+    expect(draws[0][1]).toBe(0);
   });
 });

@@ -8,6 +8,25 @@
  * back to the procedural shape rendering.
  */
 
+/** A part-local connection side. The client rotates it into the grid with the entity's yaw. */
+export type LocalSide = "top" | "bottom" | "left" | "right" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+
+/**
+ * What a conditional sprite stands for (manifest v4): one of the original's `*Attachment`
+ * side markers, or one of a wing's two frame mounts. `connectionVisuals.ts` turns the
+ * neighbouring layout into the visibility of each.
+ */
+export type SpriteCondition =
+  | { kind: "attachment"; side: LocalSide }
+  | { kind: "frame"; mount: "top" | "bottom" };
+
+/**
+ * The rule a part's conditional sprites obey, from the host script the original mounts:
+ * Rocket/`*Bottle` (fallback bottom), TNT (no fallback), SpotLight/GrapplingHook (eight sides),
+ * Wings (two mounts). A part without one draws no conditional sprite.
+ */
+export type ConnectionVisual = "attachmentFallback" | "attachmentPlain" | "attachmentEight" | "frame";
+
 export interface PartSprite {
   /** Atlas file name, resolved next to the manifest. */
   atlas: string;
@@ -39,6 +58,11 @@ export interface PartSprite {
   spin?: SpinDescriptor;
   /** Present on sprites whose art the original swaps frame by frame (v3, the pig's face). */
   clips?: SpriteClips;
+  /**
+   * Present on the sprites the original shows conditionally (v4): the `*Attachment` markers
+   * and a wing's two frame mounts. Their visibility follows the neighbouring layout.
+   */
+  condition?: SpriteCondition;
 }
 
 /** The axis a part's blades turn about. */
@@ -118,6 +142,8 @@ export interface PartTexture {
   pivot?: [number, number];
   /** Present on the pigs: the part runs the expression state machine (v3). */
   expression?: ExpressionDescriptor;
+  /** Present on parts whose sprites the original shows per connection side (v4). */
+  connectionVisual?: ConnectionVisual;
 }
 
 export interface PartTextureSet {
@@ -127,8 +153,33 @@ export interface PartTextureSet {
 
 export const PART_TEXTURE_URL = "/assets/original/part-textures.json";
 
-/** Manifest versions this parser understands: 2 (static sprites) and 3 (adds animation). */
-const SUPPORTED_SCHEMA_VERSIONS = [2, 3];
+/** Manifest versions this parser understands: 2 (static), 3 (adds animation), 4 (adds conditions). */
+const SUPPORTED_SCHEMA_VERSIONS = [2, 3, 4];
+
+const LOCAL_SIDES: Record<LocalSide, true> = {
+  top: true,
+  bottom: true,
+  left: true,
+  right: true,
+  topLeft: true,
+  topRight: true,
+  bottomLeft: true,
+  bottomRight: true,
+};
+const CONNECTION_VISUALS: Record<ConnectionVisual, true> = {
+  attachmentFallback: true,
+  attachmentPlain: true,
+  attachmentEight: true,
+  frame: true,
+};
+
+function isLocalSide(value: unknown): value is LocalSide {
+  return typeof value === "string" && Object.hasOwn(LOCAL_SIDES, value);
+}
+
+function isConnectionVisual(value: unknown): value is ConnectionVisual {
+  return typeof value === "string" && Object.hasOwn(CONNECTION_VISUALS, value);
+}
 
 function finite(value: unknown, what: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`part-textures: ${what} is not a finite number`);
@@ -191,6 +242,21 @@ function expressionOf(value: unknown, what: string): ExpressionDescriptor {
   };
 }
 
+function conditionOf(value: unknown, what: string): SpriteCondition {
+  const condition = value as { kind?: unknown; side?: unknown; mount?: unknown };
+  if (condition.kind === "attachment") {
+    if (!isLocalSide(condition.side)) throw new Error(`part-textures: ${what} condition side`);
+    return { kind: "attachment", side: condition.side };
+  }
+  if (condition.kind === "frame") {
+    if (condition.mount !== "top" && condition.mount !== "bottom") {
+      throw new Error(`part-textures: ${what} condition mount`);
+    }
+    return { kind: "frame", mount: condition.mount };
+  }
+  throw new Error(`part-textures: ${what} condition kind`);
+}
+
 /** Validates a manifest document. Throws on malformed data; the loader turns that into a fallback. */
 export function parsePartTextures(value: unknown): Map<number, PartTexture> {
   if (typeof value !== "object" || value === null) throw new Error("part-textures: not an object");
@@ -205,7 +271,7 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
   for (const [key, raw] of Object.entries(document.parts as Record<string, unknown>)) {
     const partTypeId = Number(key);
     if (!Number.isInteger(partTypeId) || partTypeId <= 0) throw new Error(`part-textures: bad partTypeId ${key}`);
-    const entry = raw as { bbox?: unknown; sprites?: unknown; pivot?: unknown; expression?: unknown };
+    const entry = raw as { bbox?: unknown; sprites?: unknown; pivot?: unknown; expression?: unknown; connectionVisual?: unknown };
     if (!Array.isArray(entry.bbox) || entry.bbox.length !== 2) throw new Error(`part-textures: part ${key} bbox`);
     const bbox: [number, number] = [finite(entry.bbox[0], `part ${key} bbox width`), finite(entry.bbox[1], `part ${key} bbox height`)];
     if (!(bbox[0] > 0 && bbox[1] > 0)) throw new Error(`part-textures: part ${key} bbox not positive`);
@@ -230,6 +296,7 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
         sy: finite(sprite.sy, `part ${key} sprite ${index} sy`),
         rot: finite(sprite.rot ?? 0, `part ${key} sprite ${index} rot`),
         rotates: sprite.rotates === true,
+        ...(sprite.condition === undefined ? {} : { condition: conditionOf(sprite.condition, what) }),
         ...(sprite.spin === undefined ? {} : { spin: spinOf(sprite.spin, what) }),
         ...(sprite.clips === undefined ? {} : { clips: clipsOf(sprite.clips, what) }),
       };
@@ -239,7 +306,17 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
         ? ([finite(entry.pivot[0], `part ${key} pivot x`), finite(entry.pivot[1], `part ${key} pivot y`)] as [number, number])
         : undefined;
     const expression = entry.expression === undefined ? undefined : expressionOf(entry.expression, `part ${key}`);
-    parts.set(partTypeId, { bbox, sprites, ...(pivot ? { pivot } : {}), ...(expression ? { expression } : {}) });
+    const entryVisual = entry.connectionVisual;
+    if (entryVisual !== undefined && !isConnectionVisual(entryVisual)) {
+      throw new Error(`part-textures: part ${key} connectionVisual`);
+    }
+    parts.set(partTypeId, {
+      bbox,
+      sprites,
+      ...(pivot ? { pivot } : {}),
+      ...(expression ? { expression } : {}),
+      ...(entryVisual === undefined ? {} : { connectionVisual: entryVisual }),
+    });
   }
   return parts;
 }
