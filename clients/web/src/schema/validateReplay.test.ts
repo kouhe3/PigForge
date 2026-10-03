@@ -91,4 +91,28 @@ describe("validatePartContent variants", () => {
     const part = { ...base, capabilities: { tnt: { fuseTicks: 5, igniteOnImpact: 1 } } };
     expect(validatePartContent(document([part])).some((error) => error.includes("chainDetonate/igniteOnImpact"))).toBe(true);
   });
+
+  // The original's build-grid cell box (tools/bple-grid). Absent means the default single cell at
+  // the origin, which is why the real content carries one for the KingPig/GoldenPig 3x2 family only.
+  it("accepts a declared cell box and reports the bounds of the real content", () => {
+    const part = { ...base, gridBox: { minX: -1, maxX: 1, minY: 0, maxY: 1 } };
+    expect(validatePartContent(document([part]))).toEqual([]);
+
+    const content = JSON.parse(readFileSync(join(root, "content/parts.json"), "utf8"));
+    const boxed = content.parts.filter((candidate: { gridBox?: unknown }) => candidate.gridBox !== undefined);
+    expect(boxed.map((candidate: { partTypeId: number }) => candidate.partTypeId).sort((a: number, b: number) => a - b))
+      .toEqual([24, 221, 222, 223, 224, 225, 226]);
+    expect(boxed.every((candidate: { gridBox: unknown }) => JSON.stringify(candidate.gridBox) === '{"minX":-1,"maxX":1,"minY":0,"maxY":1}'))
+      .toBe(true);
+  });
+
+  it("rejects a fractional cell bound", () => {
+    const part = { ...base, gridBox: { minX: 0, maxX: 1.5, minY: 0, maxY: 1 } };
+    expect(validatePartContent(document([part])).some((error) => error.includes("gridBox.maxX"))).toBe(true);
+  });
+
+  it("rejects inverted cell bounds", () => {
+    const part = { ...base, gridBox: { minX: 1, maxX: -1, minY: 0, maxY: 1 } };
+    expect(validatePartContent(document([part])).some((error) => error.includes("must not exceed"))).toBe(true);
+  });
 });

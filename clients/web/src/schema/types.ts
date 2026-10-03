@@ -13,9 +13,10 @@ export interface PartShape {
   offset?: Vec3;
   /**
    * Build-time-only geometry: an `attachment` marker (the collider the original shows on one
-   * part-local side) or a `frame` (the bracket a part is placed and occupancy-checked by). The
-   * original turns a hidden marker's collider into a trigger, so physics skips both; drag
-   * snapping, cell occupancy and connection proximity line up against them.
+   * part-local side) or a `frame` (the mounting bracket a part is aligned and welded by). The
+   * original turns a hidden marker's collider into a trigger, so physics skips both; drag snapping
+   * and connection proximity line up against them. Occupancy does not -- that is the part's
+   * declared `gridBox`.
    */
   condition?:
     | {
@@ -65,11 +66,27 @@ export interface PartDefinition {
   mode: "static" | "dynamic";
   mass: number;
   capabilities?: PartCapabilities;
+  /** The original's build-grid cell box; absent means the default single cell at the origin. */
+  gridBox?: GridBox;
   shapes: PartShape[];
   /** Base partTypeId this entry is a skin/variant of. Never points at another variant. */
   variantOf?: number;
   /** Display label for the variant (falls back to `name`). */
   variantName?: string;
+}
+
+/**
+ * The original's per-part build-grid cell box (`m_gridXmin/m_gridXmax/m_gridYmin/m_gridYmax`,
+ * `BasePart.cs:197-200`): the inclusive rectangle of build-grid cells a part occupies around its
+ * own grid coordinate. Extracted per prefab by `tools/bple-grid`, never authored. Absent means the
+ * original's default, one cell at the origin -- 332 of the original's 343 prefabs. The cell box is
+ * what blocks a cell; a collider that overhangs a neighbouring cell does not.
+ */
+export interface GridBox {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
 }
 
 

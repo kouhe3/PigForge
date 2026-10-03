@@ -1,4 +1,4 @@
-import type { PartContentDocument, PartDefinition, PartShape } from "./types";
+import type { GridBox, PartContentDocument, PartDefinition, PartShape } from "./types";
 
 export function validatePartContent(value: unknown): string[] {
   const errors: string[] = [];
@@ -61,12 +61,39 @@ function validatePart(part: PartDefinition, seen: Set<number>, errors: string[])
     errors.push(`Part ${part.partTypeId} variantName must contain 1 to 64 characters.`);
   }
   validateCapabilities(part.partTypeId, part.capabilities, errors);
+  if (part.gridBox !== undefined) {
+    validateGridBox(part.partTypeId, part.gridBox, errors);
+  }
   if (!Array.isArray(part.shapes) || part.shapes.length === 0) {
     errors.push(`Part ${part.partTypeId} needs at least one shape.`);
     return;
   }
   for (const shape of part.shapes) {
     validateShape(part.partTypeId, shape, errors);
+  }
+}
+
+/**
+ * The original's build-grid cell box (`m_gridXmin/m_gridXmax/m_gridYmin/m_gridYmax`). The bounds are
+ * inclusive cell indices, so they must be integers and ordered; an absent box means the original's
+ * default single cell at the origin, which is why only the 3x2 KingPig/GoldenPig families declare one.
+ */
+function validateGridBox(partTypeId: number, gridBox: GridBox, errors: string[]): void {
+  if (gridBox === null || typeof gridBox !== "object") {
+    errors.push(`Part ${partTypeId} gridBox must be an object.`);
+    return;
+  }
+  for (const key of ["minX", "maxX", "minY", "maxY"] as const) {
+    if (!Number.isInteger(gridBox[key])) {
+      errors.push(`Part ${partTypeId} gridBox.${key} must be an integer cell index.`);
+      return;
+    }
+  }
+  if (gridBox.minX > gridBox.maxX) {
+    errors.push(`Part ${partTypeId} gridBox.minX must not exceed maxX.`);
+  }
+  if (gridBox.minY > gridBox.maxY) {
+    errors.push(`Part ${partTypeId} gridBox.minY must not exceed maxY.`);
   }
 }
 

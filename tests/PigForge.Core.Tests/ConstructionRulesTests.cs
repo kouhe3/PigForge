@@ -8,6 +8,7 @@ public sealed class ConstructionRulesTests
 {
     private const uint PartBlock = 1;
     private const uint PartPlank = 2;
+    private const uint PartWideBlock = 3;
 
     private const uint OwnerA = 1;
     private const uint OwnerB = 2;
@@ -246,20 +247,34 @@ public sealed class ConstructionRulesTests
         Assert.Empty(rules.ConnectionsOf(block.Entity));
     }
 
+    /// <summary>
+    /// Occupancy is the part's declared build-grid cell box, so a rotation only sweeps new cells
+    /// when that box is not a square centred on the origin: a 1x1 part turns inside its own cell
+    /// and can never reach a neighbour, exactly as in the original. The fixture's wide block
+    /// carries the KingPig/GoldenPig box (3x2, <c>x[-1, 1] y[0, 1]</c>, <c>tools/bple-grid</c>),
+    /// whose centre sits half a cell above the origin, so a quarter turn swings it downward.
+    /// Before the cell box, occupancy was the collider union and any rotated plank swept its
+    /// neighbour; the inverse (a rotated collider overhanging a neighbour it does not occupy) is
+    /// deliberate and covered by
+    /// <c>CellOccupancyTests.RotorBladesOverhangTheFramesCellWithoutOccupyingIt</c>.
+    /// </summary>
     [Fact]
     public void RotateIntoOccupiedFootprintIsBlocked()
     {
         (ConstructionRules rules, _) = CreateRules();
-        ConstructionResult plank = rules.Place(PartPlank, 1.0f, 0.5f, 0f, 1f, 0);
-        // Sits exactly where the 90°-rotated plank would sweep, flush to its rest pose.
-        Assert.True(rules.Place(PartBlock, 1.0f, 1.5f, 0f, 1f, 0).IsSuccess);
+        ConstructionResult wide = rules.Place(PartWideBlock, 0f, 0f, 0f, 1f, 0);
+        Assert.True(wide.IsSuccess);
+        // One cell below its own box edge (cell box y[-0.5, 1.5]): flush contact, no overlap.
+        Assert.True(rules.Place(PartBlock, 0f, -1f, 0f, 1f, 0).IsSuccess);
+        Assert.Single(rules.ConnectionsOf(wide.Entity));
 
-        ConstructionResult rotated = rules.Rotate(plank.Entity, angle: MathF.PI / 2f, owner: 0);
+        ConstructionResult rotated = rules.Rotate(wide.Entity, angle: MathF.PI / 2f, owner: 0);
 
+        // A quarter turn moves the box to x[-1.5, 0.5] y[-1.5, 1.5] and into the blocker's cell.
         Assert.Equal(ConstructionError.TransformBlocked, rotated.Error);
-        EntityTransform transform = TransformOf(rules, plank.Entity);
+        EntityTransform transform = TransformOf(rules, wide.Entity);
         Assert.Equal(0f, transform.Rotation.Z, precision: 4);
-        Assert.Single(rules.ConnectionsOf(plank.Entity));
+        Assert.Single(rules.ConnectionsOf(wide.Entity));
     }
 
     [Fact]
@@ -549,7 +564,8 @@ public sealed class ConstructionRulesTests
             "contentVersion": "construction-test-v1",
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
-                { "partTypeId": 2, "name": "plank", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "box", "halfExtents": [1.0, 0.5, 0.5] } ] }
+                { "partTypeId": 2, "name": "plank", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "box", "halfExtents": [1.0, 0.5, 0.5] } ] },
+                { "partTypeId": 3, "name": "wide-block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 } }
             ]
         }
         """));

@@ -22,7 +22,46 @@ public sealed record PartDefinition(
     FrictionCombine FrictionCombine = FrictionCombine.Average,
     PartCapabilities? Capabilities = null,
     uint? VariantOf = null,
-    string? VariantName = null);
+    string? VariantName = null,
+    GridCellBox? GridBox = null);
+
+/// <summary>
+/// The original's per-part build-grid cell box: the <b>inclusive</b> rectangle of build-grid
+/// cells a part covers around its own coordinate (<c>BasePart.cs:197-200</c> declares the four
+/// serialized fields; <c>ConstructionUI.cs:1279,1344</c> tests membership as
+/// <c>x + MinX &lt;= cellX &amp;&amp; x + MaxX &gt;= cellX</c> and iterates the same inclusive
+/// range when clearing the cells a placement covers). Extracted per prefab by
+/// <c>tools/bple-grid</c>, never authored: 332 of the original's 343 prefabs declare the default
+/// single cell at the origin -- every propeller, fan, wing, spotlight, grapple, spring and pig --
+/// and only the KingPig/GoldenPig families declare the 3x2 box <c>x[-1, 1] y[0, 1]</c>.
+/// <para>
+/// Cell (0,0) is the cell the part stands in (<c>ConstructionUI.GridPositionToWorldPosition</c>
+/// maps grid coordinate <c>(x, y)</c> to <c>contraption.position + right*x + up*y</c>), so the box
+/// is centred half a cell outside each bound and this is the original's own account of the space a
+/// part blocks. A collider that overhangs a neighbouring cell does <b>not</b> occupy it.
+/// </para>
+/// </summary>
+public sealed record GridCellBox(int MinX, int MaxX, int MinY, int MaxY)
+{
+    /// <summary>
+    /// The original's default: one cell, the one the part stands in. Content omits
+    /// <c>gridBox</c> for the parts whose prefab declares exactly this box, and absence is read as
+    /// this value -- the same shape as <c>capabilities.canEnclose</c> being written only for frames.
+    /// </summary>
+    public static GridCellBox Single { get; } = new(0, 0, 0, 0);
+
+    /// <summary>Cells covered along X (<see cref="MaxX"/> inclusive).</summary>
+    public int Width => MaxX - MinX + 1;
+
+    /// <summary>Cells covered along Y (<see cref="MaxY"/> inclusive).</summary>
+    public int Height => MaxY - MinY + 1;
+
+    /// <summary>Centre of the box relative to the part origin, in cells.</summary>
+    public float CentreX => (MinX + MaxX) / 2f;
+
+    /// <summary>Centre of the box relative to the part origin, in cells.</summary>
+    public float CentreY => (MinY + MaxY) / 2f;
+}
 
 /// <summary>How a part's switch behaves: a persistent on/off effect or a one-shot action.</summary>
 public enum PartActivation

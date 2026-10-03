@@ -6,7 +6,8 @@ namespace PigForge.Core.Tests;
 
 /// <summary>
 /// Free-placement semantics (issue #4): arbitrary planar angles and uniform scales,
-/// exact OBB occupancy behind a coarse spatial hash, and proximity connections.
+/// build-grid cell occupancy (the parts' declared cell boxes, `tools/bple-grid`) behind a
+/// coarse spatial hash, and proximity connections over the collider union.
 /// </summary>
 public sealed class FreePlacementTests
 {
@@ -27,16 +28,27 @@ public sealed class FreePlacementTests
         Assert.Equal(0.6f, 2f * MathF.Atan2(transform.Rotation.Z, transform.Rotation.W), precision: 5);
     }
 
+    /// <summary>
+    /// Occupancy is the part's build-grid cell box (<c>tools/bple-grid</c>), not collider
+    /// geometry: two parts whose origins resolve to the same cell are rejected at any angle, while
+    /// parts in neighbouring cells are legal flush edge-to-edge however far their colliders
+    /// overhang. The old assertion here — a 45° block at (0.9, 0.1) rejected because its rotated
+    /// collider crossed the first one's — was the collider-union rule, and it is exactly what made
+    /// an overhanging part impossible to place beside a neighbour. Parts further than half a cell
+    /// apart resolve to different cells and may therefore overlap geometrically, as in the
+    /// original, whose grid occupancy never looked at colliders.
+    /// </summary>
     [Fact]
-    public void OverlapIsRejectedRegardlessOfAlignmentWhileTouchingIsLegal()
+    public void SameCellIsRejectedRegardlessOfAlignmentWhileNeighbouringCellsAreLegal()
     {
         (ConstructionRules rules, _) = CreateRules();
 
-        // Two 45° rectangles whose centres are closer than their diagonal extents cross.
+        // (0.4, 0.45) is inside the same cell as (0, 0) whatever the angle.
         Assert.True(rules.Place(PartBlock, 0f, 0f, 0.785398f, 1f, 0).IsSuccess);
-        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 0.9f, 0.1f, 0.785398f, 1f, 0).Error);
+        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 0.4f, 0.45f, 0.785398f, 1f, 0).Error);
+        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartBlock, 0.4f, 0.45f, 0f, 1f, 0).Error);
 
-        // Flush edge-to-edge placement is legal and connects through proximity.
+        // The next cell over is free, and flush edge-to-edge placement connects through proximity.
         Assert.True(rules.Place(PartBlock, 10f, 0f, 0f, 1f, 0).IsSuccess);
         Assert.True(rules.Place(PartBlock, 11f, 0f, 0f, 1f, 0).IsSuccess);
         Assert.Contains(1048579u, rules.ConnectionsOf(new EntityId(1048578)));

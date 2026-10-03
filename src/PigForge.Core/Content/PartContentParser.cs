@@ -123,7 +123,8 @@ public static class PartContentParser
             "material",
             "capabilities",
             "variantOf",
-            "variantName");
+            "variantName",
+            "gridBox");
         RejectEngineAssetReferences(seen, path, errors);
         uint partTypeId = 0;
         if (seen.Contains("partTypeId") && element.TryGetProperty("partTypeId", out JsonElement idElement))
@@ -232,6 +233,20 @@ public static class PartContentParser
             }
         }
 
+        GridCellBox? gridBox = null;
+        if (seen.Contains("gridBox") && element.TryGetProperty("gridBox", out JsonElement gridBoxElement))
+        {
+            if (gridBoxElement.ValueKind == JsonValueKind.Object
+                && TryReadGridBox(gridBoxElement, $"{path}.gridBox", errors, out GridCellBox parsedGridBox))
+            {
+                gridBox = parsedGridBox;
+            }
+            else
+            {
+                errors.Add($"{path}.gridBox: must be an object with integer minX/maxX/minY/maxY, minX <= maxX and minY <= maxY.");
+            }
+        }
+
         List<PartShapeDefinition> shapes = new();
         if (seen.Contains("shapes") && element.TryGetProperty("shapes", out JsonElement shapesElement))
         {
@@ -270,7 +285,60 @@ public static class PartContentParser
             frictionCombine,
             capabilities,
             variantOf,
-            variantName));
+            variantName,
+            gridBox));
+    }
+
+    /// <summary>
+    /// The original's build-grid cell box (<c>BasePart.cs:197-200</c>), extracted per prefab by
+    /// <c>tools/bple-grid</c>. The four bounds are cell indices, so they must be integers, and the
+    /// inclusive bounds must be ordered. Content omits the whole field for the original's default
+    /// single cell at the origin (332 of 343 prefabs); absence stays <c>null</c> here so that
+    /// "the prefab declares the default" and "the prefab declares nothing" cannot be confused.
+    /// </summary>
+    private static bool TryReadGridBox(JsonElement element, string path, List<string> errors, out GridCellBox gridBox)
+    {
+        gridBox = GridCellBox.Single;
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, new[] { "minX", "maxX", "minY", "maxY" }, path, errors);
+        int[] bounds = new int[4];
+        string[] names = { "minX", "maxX", "minY", "maxY" };
+        for (int index = 0; index < names.Length; index++)
+        {
+            if (!seen.Contains(names[index]) || !element.TryGetProperty(names[index], out JsonElement boundElement))
+            {
+                return false;
+            }
+
+            if (boundElement.ValueKind != JsonValueKind.Number || !boundElement.TryGetInt32(out bounds[index]))
+            {
+                errors.Add($"{path}.{names[index]}: must be a 32-bit integer cell index.");
+                return false;
+            }
+        }
+
+        if (bounds[0] > bounds[1])
+        {
+            errors.Add($"{path}: minX must not exceed maxX.");
+            return false;
+        }
+
+        if (bounds[2] > bounds[3])
+        {
+            errors.Add($"{path}: minY must not exceed maxY.");
+            return false;
+        }
+
+        gridBox = new GridCellBox(bounds[0], bounds[1], bounds[2], bounds[3]);
+        return true;
     }
 
     /// <summary>

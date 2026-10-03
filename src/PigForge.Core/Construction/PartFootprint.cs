@@ -4,12 +4,25 @@ using PigForge.Physics.Abstractions;
 namespace PigForge.Core.Construction;
 
 /// <summary>
-/// Build-plane projection of a placed part's collision shapes: boxes become rotated
-/// rectangles, spheres become circles. A part with several colliders projects to the
-/// union of its shapes (a wheel is its tire circle plus the support rectangle), so
-/// placement overlap and proximity connections see the original's real geometry.
-/// The build plane is Z = 0 and rotations project to their Z yaw; <c>scale</c>
-/// multiplies linear dimensions and shape offsets.
+/// Build-plane projection of a placed part, with two independent geometries:
+/// <list type="bullet">
+/// <item><description>
+/// <c>_body</c> — the <b>occupied cells</b>, which are the original's declared build-grid cell box
+/// (<c>BasePart.cs:197-200</c>, extracted per prefab by <c>tools/bple-grid</c>), one rectangle of
+/// <c>gridBox</c> cells centred on the part's origin. The original's occupancy has never been the
+/// collider union: a rotor's blades are 2.55 cells wide and it still occupies one cell, which is
+/// exactly why it can stand beside a wooden frame. Colliders overhang neighbouring cells freely.
+/// </description></item>
+/// <item><description>
+/// <c>_all</c> — the <b>collider union</b>: every shape the part carries, including the
+/// build-time-only conditional brackets. Boxes become rotated rectangles, spheres become circles;
+/// a wheel is its tire circle plus the support rectangle. Connection proximity uses this, because
+/// a build welds along the geometry the player snapped to (ADR-017/ADR-018).
+/// </description></item>
+/// </list>
+/// The build plane is Z = 0 and rotations project to their Z yaw; <c>scale</c> multiplies linear
+/// dimensions, shape offsets and the cell box. The collider union rotates by the raw yaw, while the
+/// cell box takes the quarter turn that yaw resolves to -- a cell map has no other orientations.
 /// </summary>
 public readonly record struct PartFootprint
 {
@@ -26,9 +39,7 @@ public readonly record struct PartFootprint
     {
         float cos = MathF.Cos(angle);
         float sin = MathF.Sin(angle);
-        List<FootprintShape> body = new(part.Shapes.Count);
         List<FootprintShape> all = new(part.Shapes.Count);
-        List<FootprintShape> bracket = new(part.Shapes.Count);
         for (int index = 0; index < part.Shapes.Count; index++)
         {
             PartShapeDefinition shape = part.Shapes[index];
@@ -46,21 +57,80 @@ public readonly record struct PartFootprint
                 _ => throw new NotSupportedException($"Part type {part.PartTypeId} has no build-plane footprint rule for shape kind {shape.Kind}.")
             };
             all.Add(projected);
-            if (shape.ConditionKind is null)
-            {
-                body.Add(projected);
-            }
-            else if (shape.ConditionKind == "frame")
-            {
-                bracket.Add(projected);
-            }
         }
 
-        // A part with a frame is placed and occupancy-checked by that bracket, not by its body:
-        // a glider wing's collider is the wing itself, which overhangs the neighbours it welds
-        // to, so a body-based overlap test could never let it stand next to anything (ADR-018).
-        return new PartFootprint(bracket.Count > 0 ? bracket.ToArray() : body.ToArray(), all.ToArray());
+        // Occupancy is the original's build-grid cell box, not the collider union: a rotor's
+        // blades are 2.55 cells wide yet the rotor occupies the single cell its prefab declares,
+        // so it can be placed tight against a wooden frame. A part whose prefab declares the
+        // default box carries no `gridBox` in content, and absence means that default (the
+        // original's own 332-of-343 case), never a second source of truth.
+        //
+        // The original's occupancy is a cell map, not a geometry test, so an arbitrary planar pose
+        // is first resolved to the grid coordinate it stands on. In the original that coordinate
+        // *is* the serialized one and cell centres sit at whole units
+        // (ConstructionUI.GridPositionToWorldPosition: contraption.position + right*x + up*y), so
+        // the cell a part stands on is the one nearest its origin. PigForge places at arbitrary
+        // poses, and this is what keeps a part the editor snapped flush against a neighbour inside
+        // the neighbouring cell rather than half-inside the neighbour's: the editor puts the
+        // connective edge on the cell line (a wooden glider wing lands at x = 1.7404 beside a frame
+        // at x = 1.0, its bracket's left edge on 1.5, ADR-018), which is exactly one cell over.
+        // Without it every flush-welded part is rejected by its own neighbour's cell (the bug
+        // ADR-018 fixed), and a dragged part's occupancy would jitter with sub-cell pointer noise.
+        float cellX = GridCoordinate(positionX);
+        float cellY = GridCoordinate(positionY);
+        GridCellBox box = part.GridBox ?? GridCellBox.Single;
+        float boxCentreX = box.CentreX;
+        float boxCentreY = box.CentreY;
+        float boxHalfX = box.Width * 0.5f;
+        float boxHalfY = box.Height * 0.5f;
+        switch (QuarterTurns(angle))
+        {
+            case 1:
+                (boxCentreX, boxCentreY, boxHalfX, boxHalfY) = (-boxCentreY, boxCentreX, boxHalfY, boxHalfX);
+                break;
+            case 2:
+                (boxCentreX, boxCentreY) = (-boxCentreX, -boxCentreY);
+                break;
+            case 3:
+                (boxCentreX, boxCentreY, boxHalfX, boxHalfY) = (boxCentreY, -boxCentreX, boxHalfY, boxHalfX);
+                break;
+            default:
+                break;
+        }
+
+        FootprintShape body = new(
+            PhysicsShapeKind.Box,
+            boxHalfX * scale,
+            boxHalfY * scale,
+            0f,
+            cellX + (boxCentreX * scale),
+            cellY + (boxCentreY * scale),
+            1f,
+            0f);
+        return new PartFootprint(new[] { body }, all.ToArray());
     }
+
+    /// <summary>
+    /// The build-grid coordinate a planar position stands on: cells are one unit wide with their
+    /// centres at whole units (<see cref="ConstructionRules.CellSize"/>, and the editor's click
+    /// placement snaps to those centres), so the nearest one is <c>position + 0.5</c> floored.
+    /// Deliberately not <c>MathF.Round</c>, which rounds halves to even and would make the cell of
+    /// a part dropped exactly on a cell boundary depend on which cell number it sits between.
+    /// </summary>
+    private static float GridCoordinate(float position) => MathF.Floor(position + 0.5f);
+
+    /// <summary>
+    /// The quarter turn a yaw resolves to for occupancy: the original's cell box is a cell map, so
+    /// it has four orientations and no others, and quarter turns are the ones the editor already
+    /// resolves build-time yaw to (<c>clients/web/src/editor/tools.ts</c>, <c>connectionEdges</c>:
+    /// <c>Math.round(yaw / (Math.PI / 2)) % 4</c>). Rotating the box by the raw yaw instead would
+    /// make every part built at 15/30/45 degrees overlap the box of the neighbour in the next cell
+    /// -- an axis-aligned 1x1 cell turned a few degrees already has a 1.13-wide extent -- which the
+    /// original's grid never does; the wooden cart is built at 0.9 rad and must stay placeable.
+    /// Ties round up, so the result never depends on the sign of the angle that produced it.
+    /// </summary>
+    private static int QuarterTurns(float angle) =>
+        ((((int)MathF.Floor((angle / (MathF.PI / 2f)) + 0.5f)) % 4) + 4) % 4;
 
     public static PartFootprint ForPart(PartDefinition part, PhysicsVector3 position, PhysicsQuaternion rotation, float scale)
     {
@@ -71,34 +141,63 @@ public readonly record struct PartFootprint
         return ForPart(part, position.X, position.Y, yaw, scale);
     }
 
-    /// <summary>AABB of the shape union in the build plane, expanded by <paramref name="margin"/>.</summary>
+    /// <summary>
+    /// AABB of both geometries in the build plane, expanded by <paramref name="margin"/>: the
+    /// occupancy buckets and the footprint-area limit must cover everything either semantic can
+    /// reach, and neither is a superset of the other (a KingPig's 3x2 cell box is wider than its
+    /// collider; a rotor's collider is wider than its cell).
+    /// </summary>
     public (float MinX, float MinY, float MaxX, float MaxY) Bounds(float margin = 0f)
     {
-        (float minX, float minY, float maxX, float maxY) = _all[0].Bounds(margin);
-        for (int index = 1; index < _all.Length; index++)
+        bool first = true;
+        float minX = 0f;
+        float minY = 0f;
+        float maxX = 0f;
+        float maxY = 0f;
+        Expand(_body, margin, ref first, ref minX, ref minY, ref maxX, ref maxY);
+        Expand(_all, margin, ref first, ref minX, ref minY, ref maxX, ref maxY);
+        return (minX, minY, maxX, maxY);
+    }
+
+    private static void Expand(
+        FootprintShape[] shapes,
+        float margin,
+        ref bool first,
+        ref float minX,
+        ref float minY,
+        ref float maxX,
+        ref float maxY)
+    {
+        for (int index = 0; index < shapes.Length; index++)
         {
-            (float shapeMinX, float shapeMinY, float shapeMaxX, float shapeMaxY) = _all[index].Bounds(margin);
+            (float shapeMinX, float shapeMinY, float shapeMaxX, float shapeMaxY) = shapes[index].Bounds(margin);
+            if (first)
+            {
+                (minX, minY, maxX, maxY) = (shapeMinX, shapeMinY, shapeMaxX, shapeMaxY);
+                first = false;
+                continue;
+            }
+
             minX = MathF.Min(minX, shapeMinX);
             minY = MathF.Min(minY, shapeMinY);
             maxX = MathF.Max(maxX, shapeMaxX);
             maxY = MathF.Max(maxY, shapeMaxY);
         }
-
-        return (minX, minY, maxX, maxY);
     }
 
     /// <summary>
-    /// Exact planar overlap over the part's own body colliders only. Cell occupancy uses this:
-    /// a hidden joint attachment bracket is a trigger in the original and never blocks a cell.
-    /// A negative <paramref name="margin"/> shrinks every shape, so marginal penetrations count
-    /// as legal touching.
+    /// Exact planar overlap of the occupied cells: the original's build-grid cell box of each
+    /// part, which is all a cell can block. Colliders do not take part — a part's body may overhang
+    /// a neighbour's cell without occupying it, as in the original. A negative
+    /// <paramref name="margin"/> shrinks the boxes, so marginal penetrations count as legal touching.
     /// </summary>
     public bool Overlaps(in PartFootprint other, float margin = 0f)
         => Overlaps(_body, other._body, margin);
 
     /// <summary>
-    /// Exact planar overlap including the conditional brackets. Connection proximity uses this:
-    /// a build welds along the bracket the player snapped to, exactly as the original does.
+    /// Exact planar overlap over the collider union, conditional brackets included. Connection
+    /// proximity uses this: a build welds along the geometry the player snapped to, exactly as the
+    /// original does.
     /// </summary>
     public bool Touches(in PartFootprint other, float margin = 0f)
         => Overlaps(_all, other._all, margin);

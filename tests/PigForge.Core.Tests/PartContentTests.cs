@@ -574,6 +574,70 @@ public sealed class PartContentTests
             "jointConnectionStrength");
     }
 
+    [Fact]
+    public void TheRealContentCarriesTheExtractedCellBoxes()
+    {
+        PartContentDocument document = PartContentParser.Parse(File.ReadAllText(FindRepositoryFile("content/parts.json")));
+        Dictionary<uint, GridCellBox> boxes = document.Parts
+            .Where(part => part.GridBox is not null)
+            .ToDictionary(part => part.PartTypeId, part => part.GridBox!);
+
+        // tools/bple-grid: of the original's 343 part prefabs, 332 declare one cell at the origin
+        // (0..0, 0..0) and only the KingPig/GoldenPig families declare the 3x2 box x[-1, 1] y[0, 1].
+        // Content omits the default, so exactly the seven imported king-pig entries carry a box --
+        // the six skins map to KingPig_02..07 and the GoldenPig prefabs have no imported part.
+        Assert.Equal(new uint[] { 24, 221, 222, 223, 224, 225, 226 }, boxes.Keys.OrderBy(id => id).ToArray());
+        Assert.All(boxes.Values, box => Assert.Equal(new GridCellBox(-1, 1, 0, 1), box));
+
+        // A part whose prefab declares the default carries no key at all, not a copy of it.
+        Assert.Null(document.Parts.Single(part => part.PartTypeId == 1).GridBox);
+        Assert.Null(document.Parts.Single(part => part.PartTypeId == 37).GridBox);
+    }
+
+    [Fact]
+    public void ADeclaredCellBoxReadsBackExactly()
+    {
+        PartContentDocument document = PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 1, "name": "king-pig", "mode": "dynamic", "mass": 1, "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 }, "shapes": [ { "kind": "box", "halfExtents": [1.05, 0.9, 0.5] } ] }
+            ]
+        }
+        """);
+
+        GridCellBox box = Assert.IsType<GridCellBox>(document.Parts[0].GridBox);
+        Assert.Equal(new GridCellBox(-1, 1, 0, 1), box);
+        Assert.Equal(3, box.Width);
+        Assert.Equal(2, box.Height);
+        Assert.Equal(0f, box.CentreX);
+        Assert.Equal(0.5f, box.CentreY);
+    }
+
+    [Fact]
+    public void APartWithoutACellBoxStandsOnTheOriginalDefault()
+    {
+        // 332 of the original's 343 prefabs declare 0..0, 0..0; the parser keeps that as "absent"
+        // so "the prefab declares the default" and "the prefab declares nothing" stay distinct.
+        Assert.Null(PartContentParser.Parse(SinglePartJson).Parts[0].GridBox);
+        Assert.Equal(new GridCellBox(0, 0, 0, 0), GridCellBox.Single);
+    }
+
+    [Theory]
+    [InlineData("{ \"minX\": 1, \"maxX\": -1, \"minY\": 0, \"maxY\": 1 }", "minX")]
+    [InlineData("{ \"minX\": 0, \"maxX\": 0, \"minY\": 2, \"maxY\": 1 }", "minY")]
+    [InlineData("{ \"minX\": 0.5, \"maxX\": 1, \"minY\": 0, \"maxY\": 1 }", "minX")]
+    [InlineData("{ \"minX\": 0, \"maxX\": 0, \"minY\": 0 }", "maxY")]
+    [InlineData("{ \"minX\": 0, \"maxX\": 0, \"minY\": 0, \"maxY\": 1, \"minZ\": 0 }", "minZ")]
+    public void RejectsAMalformedCellBox(string box, string expectedErrorFragment)
+    {
+        AssertRejected(
+            $$"""{ "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "gridBox": {{box}}, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }""",
+            expectedErrorFragment);
+    }
+
     private const string SinglePartJson = """
     {
         "format": "pigforge.part-content",

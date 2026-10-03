@@ -841,6 +841,12 @@
         "jointConnectionType": "none",
         "pig": true
       },
+      "gridBox": {
+        "minX": -1,
+        "maxX": 1,
+        "minY": 0,
+        "maxY": 1
+      },
       "shapes": [
         {
           "kind": "box",
@@ -8782,6 +8788,12 @@
         "jointConnectionType": "none",
         "pig": true
       },
+      "gridBox": {
+        "minX": -1,
+        "maxX": 1,
+        "minY": 0,
+        "maxY": 1
+      },
       "shapes": [
         {
           "kind": "box",
@@ -8815,6 +8827,12 @@
         "enginePower": 0,
         "jointConnectionType": "none",
         "pig": true
+      },
+      "gridBox": {
+        "minX": -1,
+        "maxX": 1,
+        "minY": 0,
+        "maxY": 1
       },
       "shapes": [
         {
@@ -8850,6 +8868,12 @@
         "jointConnectionType": "none",
         "pig": true
       },
+      "gridBox": {
+        "minX": -1,
+        "maxX": 1,
+        "minY": 0,
+        "maxY": 1
+      },
       "shapes": [
         {
           "kind": "box",
@@ -8883,6 +8907,12 @@
         "enginePower": 0,
         "jointConnectionType": "none",
         "pig": true
+      },
+      "gridBox": {
+        "minX": -1,
+        "maxX": 1,
+        "minY": 0,
+        "maxY": 1
       },
       "shapes": [
         {
@@ -8918,6 +8948,12 @@
         "jointConnectionType": "none",
         "pig": true
       },
+      "gridBox": {
+        "minX": -1,
+        "maxX": 1,
+        "minY": 0,
+        "maxY": 1
+      },
       "shapes": [
         {
           "kind": "box",
@@ -8951,6 +8987,12 @@
         "enginePower": 0,
         "jointConnectionType": "none",
         "pig": true
+      },
+      "gridBox": {
+        "minX": -1,
+        "maxX": 1,
+        "minY": 0,
+        "maxY": 1
       },
       "shapes": [
         {

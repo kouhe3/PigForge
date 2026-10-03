@@ -77,11 +77,24 @@
           "minLength": 1,
           "maxLength": 64
         },
+        "gridBox": { "$ref": "#/$defs/gridBox" },
         "shapes": {
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/shapeDefinition" }
         }
+      }
+    },
+    "gridBox": {
+      "description": "The original's build-grid cell box (BasePart.cs:197-200: m_gridXmin/m_gridXmax/m_gridYmin/m_gridYmax), the inclusive rectangle of cells a part occupies around its own grid coordinate -- ConstructionUI.cs:1279,1344 tests membership as `x + minX <= cellX && x + maxX >= cellX` and iterates the same inclusive range. Extracted per prefab by tools/bple-grid, never authored. Absent means the original's default: one cell at the origin (0..0, 0..0), which is 332 of the original's 343 prefabs -- every propeller, fan, wing, spotlight, grapple, spring and pig; only the KingPig/GoldenPig families declare the 3x2 box x[-1, 1] y[0, 1]. Occupancy (server `CellsOccupied`, cell clearing) uses this box; a collider that overhangs a neighbouring cell does not occupy it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minX", "maxX", "minY", "maxY"],
+      "properties": {
+        "minX": { "description": "Leftmost occupied cell index, relative to the part's own cell (0).", "type": "integer" },
+        "maxX": { "description": "Rightmost occupied cell index, inclusive; never below minX.", "type": "integer" },
+        "minY": { "description": "Bottommost occupied cell index, relative to the part's own cell (0).", "type": "integer" },
+        "maxY": { "description": "Topmost occupied cell index, inclusive; never below minY.", "type": "integer" }
       }
     },
     "capabilities": {
@@ -297,7 +310,7 @@
         },
         "offset": { "$ref": "#/$defs/vector3" },
         "condition": {
-          "description": "Build-time-only geometry. An `attachment` marker is the collider the original shows on one part-local side (Rocket.cs:157-160 turns a hidden marker into a trigger). A `frame` is the bracket a part is placed and occupancy-checked by (ADR-018). Physics ignores both; drag snapping, cell occupancy and connection proximity use them.",
+          "description": "Build-time-only geometry. An `attachment` marker is the collider the original shows on one part-local side (Rocket.cs:157-160 turns a hidden marker into a trigger). A `frame` is the mounting bracket a part is aligned and welded by (ADR-018): the editor snaps it by the bracket and the server's connection proximity includes it. Occupancy no longer uses it -- that is the part's declared `gridBox` (tools/bple-grid). Physics ignores both.",
           "$ref": "#/$defs/shapeCondition"
         }
       }

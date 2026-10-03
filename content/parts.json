@@ -375,6 +375,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
           "kind": "box",
@@ -3933,6 +3934,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
           "kind": "box",
@@ -3949,6 +3951,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
           "kind": "box",
@@ -3965,6 +3968,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
           "kind": "box",
@@ -3981,6 +3985,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
           "kind": "box",
@@ -3997,6 +4002,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
           "kind": "box",
@@ -4013,6 +4019,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
           "kind": "box",
