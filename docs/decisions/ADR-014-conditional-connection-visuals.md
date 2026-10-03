@@ -48,3 +48,7 @@ Accepted
 - BPLE 依据：`Wings.cs:41-72`、`Rocket.cs:139-161`、`TNT.cs:86-108`、`SpotLight.cs:70-105`、`GrapplingHook.cs:218-255`、`JetEngine.cs:202-214`、`Contraption.cs:677-790`、`BasePart.cs:735-776`
 - 上游限制：`BepuPhysics 2.4.0` `INarrowPhaseCallbacks.cs` 的 per-child material TODO
 - 相关：ADR-005（决策 1 的「关节标记不算本体」由本 ADR 修正）、ADR-011（焊接判据）
+
+## 修订记录
+
+- 2026-10-03：邻居判定原先是「另一件的原点落在本件某个本地边的**一格**格心上」，但按支架对齐的零件（滑翔翼，ADR-018）原点离它焊住的木框有 0.74 格——滑翔翼在木框**左侧**时认不到邻居，`frame` 规则的 `top` 判为 false，两个支架只画出一个（用户实机截图）。改为**对齐盒接触**判定（与建造吸附、服务端焊接同一几何），方向取两盒贴合的那一轴、再反旋转回零件自身坐标系。`connectableSides` 现在依赖零件有可投影形状（`shapes: []` 的测试替身不再算数）。

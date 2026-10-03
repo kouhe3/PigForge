@@ -15,29 +15,19 @@
  */
 
 import type { DrawEntity, PartDefinition } from "@/schema/types";
+import { snapBoxOf } from "@/editor/tools";
 import type { ConnectionVisual, LocalSide, SpriteCondition } from "./atlas";
 
-/** The grid cell the layout places parts on; the original's neighbours are one cell away. */
-const CELL_SIZE = 1;
-/** How far a neighbour may sit from a side's exact cell centre, in cells. */
-const NEIGHBOUR_TOLERANCE = 0.35;
+/** How far two alignment boxes may sit apart and still count as touching, in cells. */
+const CONTACT_TOLERANCE = 0.06;
 /** A turn of 45°, the step the eight-way parts rotate on. */
 const EIGHTH_TURN = Math.PI / 4;
 
-/** Direction of each local side, +y up (the same frame as the manifest's `cx`/`cy`). */
-const SIDE_VECTORS: Record<LocalSide, readonly [number, number]> = {
-  top: [0, 1],
-  bottom: [0, -1],
-  left: [-1, 0],
-  right: [1, 0],
-  topLeft: [-1, 1],
-  topRight: [1, 1],
-  bottomLeft: [-1, -1],
-  bottomRight: [1, -1],
-};
-
 /** Every local side, in the original's `Direction` order (Right, Up, Left, Down) first. */
 const SIDES: readonly LocalSide[] = ["right", "top", "left", "bottom", "topRight", "topLeft", "bottomLeft", "bottomRight"];
+
+/** The four orthogonal sides, in the order the renderer's yaw rotation walks them. */
+const LOCAL_ORDER: readonly LocalSide[] = ["top", "left", "bottom", "right"];
 
 const DIAGONAL_SIDES: Record<LocalSide, boolean> = {
   top: false,
@@ -68,6 +58,11 @@ function onDiagonalRotation(yaw: number): boolean {
  * Which local sides of each entity have a neighbour it would weld to. Only entities `wanted`
  * accepts are resolved: the caller asks for the parts whose manifest carries a connection rule,
  * so a scene of plain blocks costs nothing.
+ *
+ * Two parts are neighbours when their alignment boxes touch — the flush contact a build-mode
+ * snap makes and the server welds on (`ConstructionRules.ConnectionProximity`) — not when their
+ * origins sit a cell apart: a glider wing's box is its bracket, so its origin lands 0.74 of a
+ * cell from the frame it welds to (ADR-018). The side is the axis whose boxes are flush.
  */
 export function connectableSides(
   entities: readonly DrawEntity[],
@@ -78,27 +73,33 @@ export function connectableSides(
   for (const entity of entities) {
     if (!wanted(entity)) continue;
     const part = partOf(entity.partTypeId);
-    if (!part) continue;
-    const cos = Math.cos(entity.yaw);
-    const sin = Math.sin(entity.yaw);
+    if (part === undefined) continue;
+    const self = snapBoxOf(entity, part);
+    if (self === null) continue;
     const sides = new Set<LocalSide>();
-    for (const side of SIDES) {
-      const [dx, dy] = SIDE_VECTORS[side];
-      const targetX = entity.x + (dx * cos - dy * sin) * CELL_SIZE;
-      const targetY = entity.y + (dx * sin + dy * cos) * CELL_SIZE;
-      const neighbour = entities.find(
-        (other) =>
-          other.entityId !== entity.entityId &&
-          Math.abs(other.x - targetX) <= NEIGHBOUR_TOLERANCE &&
-          Math.abs(other.y - targetY) <= NEIGHBOUR_TOLERANCE,
-      );
-      if (neighbour === undefined) continue;
-      const other = partOf(neighbour.partTypeId);
-      if (other !== undefined && canWeld(part, other)) sides.add(side);
+    for (const other of entities) {
+      if (other.entityId === entity.entityId) continue;
+      const otherPart = partOf(other.partTypeId);
+      if (otherPart === undefined || !canWeld(part, otherPart)) continue;
+      const box = snapBoxOf(other, otherPart);
+      if (box === null) continue;
+      const gapX = Math.abs(other.x + box.offsetX - entity.x - self.offsetX) - (self.halfX + box.halfX);
+      const gapY = Math.abs(other.y + box.offsetY - entity.y - self.offsetY) - (self.halfY + box.halfY);
+      if (gapX > CONTACT_TOLERANCE || gapY > CONTACT_TOLERANCE) continue;
+      const world: LocalSide =
+        gapX >= gapY ? (other.x >= entity.x ? "right" : "left") : (other.y >= entity.y ? "top" : "bottom");
+      sides.add(localSide(world, entity.yaw));
     }
     if (sides.size > 0) result.set(entity.entityId, sides);
   }
   return result;
+}
+
+/** A world side back in the entity's own frame: the inverse of the renderer's yaw rotation. */
+function localSide(world: LocalSide, yaw: number): LocalSide {
+  const quarter = ((Math.round(yaw / (Math.PI / 2)) % 4) + 4) % 4;
+  const index = LOCAL_ORDER.indexOf(world);
+  return LOCAL_ORDER[(((index - quarter) % 4) + 4) % 4];
 }
 
 /**

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { DrawEntity, PartDefinition } from "@/schema/types";
+import type { DrawEntity, PartDefinition, PartShape } from "@/schema/types";
 import type { LocalSide } from "./atlas";
 import { conditionalSpriteVisible, connectableSides } from "./connectionVisuals";
 
-const SOURCE: PartDefinition = { partTypeId: 1, name: "source", mode: "dynamic", mass: 1, capabilities: { jointConnectionType: "source" }, shapes: [] };
-const TARGET: PartDefinition = { partTypeId: 2, name: "target", mode: "dynamic", mass: 1, capabilities: { jointConnectionType: "target" }, shapes: [] };
-const INERT: PartDefinition = { partTypeId: 3, name: "none", mode: "dynamic", mass: 1, capabilities: { jointConnectionType: "none" }, shapes: [] };
-const PLAIN: PartDefinition = { partTypeId: 9, name: "plain", mode: "dynamic", mass: 1, shapes: [] };
+const CELL: PartShape[] = [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }];
+const SOURCE: PartDefinition = { partTypeId: 1, name: "source", mode: "dynamic", mass: 1, capabilities: { jointConnectionType: "source" }, shapes: [...CELL] };
+const TARGET: PartDefinition = { partTypeId: 2, name: "target", mode: "dynamic", mass: 1, capabilities: { jointConnectionType: "target" }, shapes: [...CELL] };
+const INERT: PartDefinition = { partTypeId: 3, name: "none", mode: "dynamic", mass: 1, capabilities: { jointConnectionType: "none" }, shapes: [...CELL] };
+const PLAIN: PartDefinition = { partTypeId: 9, name: "plain", mode: "dynamic", mass: 1, shapes: [...CELL] };
 const TYPES: Record<number, PartDefinition> = { 1: SOURCE, 2: TARGET, 3: INERT, 9: PLAIN };
 
 function entity(entityId: number, x: number, y: number, partTypeId = 1, yaw = 0): DrawEntity {
@@ -40,8 +41,28 @@ describe("connectableSides", () => {
     expect([...(sides.get(2) ?? [])]).toEqual(["bottom"]);
   });
 
-  it("ignores a neighbour that is not one cell away", () => {
+  it("ignores a neighbour whose box does not touch", () => {
     expect(connectableSides([entity(1, 0, 0, 1), entity(2, 0, 2, 2)], partOf, () => true).size).toBe(0);
+  });
+
+  it("sees a bracket-offset wing as a neighbour of the frame it welded to", () => {
+    // A glider wing's box is its bracket, so its origin sits 0.74 of a cell from the frame it is
+    // snapped to (ADR-018). The frame is the source end, the wing the target end.
+    const frame: PartDefinition = { ...SOURCE, partTypeId: 1 };
+    const wing: PartDefinition = {
+      partTypeId: 31,
+      name: "wooden-glider-wing",
+      mode: "dynamic",
+      mass: 0.6,
+      capabilities: { jointConnectionType: "target" },
+      shapes: [{ kind: "box", halfExtents: [0.95, 0.3061, 0.75], offset: [-0.5, -0.15, 0] }],
+    };
+    const parts = (partTypeId: number) => (partTypeId === 31 ? wing : frame);
+
+    const sides = connectableSides([entity(1, 1, 0, 1), entity(2, 1.7404, 0, 31)], parts, () => true);
+
+    expect([...(sides.get(1) ?? [])]).toEqual(["right"]);
+    expect([...(sides.get(2) ?? [])]).toEqual(["left"]);
   });
 });
 
