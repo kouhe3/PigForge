@@ -210,14 +210,12 @@ describe("canvas gestures: transform tools", () => {
     listeners.pointerdown(pointerEvent("pointerdown", x, y));
     listeners.pointermove(pointerEvent("pointermove", x + 20, y));
     const preview = findMessage(messages, "ToolPreview")?.preview;
-    // Cell edges, not collider extents: the neighbour's left face at 2 - 0.5 minus the dragged
-    // half cell 0.5.
-    expect(preview?.x).toBeCloseTo(1);
+    expect(preview?.x).toBeCloseTo(1.075);
     expect(preview?.y).toBeCloseTo(0.5);
     detach();
   });
 
-  it("snaps a wheel one cell under a block on its only weldable edge", () => {
+  it("carries shape offsets through the drag state so a wheel snaps by its union AABB", () => {
     const wheelPart: PartDefinition = {
       partTypeId: 7, name: "wheel", mode: "dynamic", mass: 1,
       shapes: [
@@ -240,9 +238,9 @@ describe("canvas gestures: transform tools", () => {
     listeners.pointerdown(pointerEvent("pointerdown", x, y));
     listeners.pointermove(pointerEvent("pointermove", x + 5, y));
     const preview = findMessage(messages, "ToolPreview")?.preview;
-    // The wheel's own cell lands flush under the block's cell (one cell below y = 1); its
-    // collider offsets no longer move the snap.
-    expect(preview?.y).toBeCloseTo(0);
+    // The support box's top lands on the block's bottom face; the wheel's only weldable edge is
+    // up, so the x axis never opens.
+    expect(preview?.y).toBeCloseTo(0.0098);
     detach();
   });
 });

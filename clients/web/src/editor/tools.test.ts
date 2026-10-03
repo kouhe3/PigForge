@@ -100,17 +100,17 @@ describe("part contact snap", () => {
     shapes: [{ kind: "box", halfExtents: [0.5, 0.25, 0.5] }],
   };
 
-  it("rounds the box to whole cells with yaw and scale applied", () => {
+  it("projects a shape into world-axis half extents with yaw and scale applied", () => {
     const projected = snapBoxOf({ ...base, yaw: Math.PI / 2, scale: 2 }, block);
     expect(projected).toMatchObject({ entityId: 7, x: 2, y: 3 });
-    // 2 x 1 m of body turned 90 degrees covers one cell across and two tall.
+    // 1 x 0.5 m of half extents turned 90 degrees spans 0.5 x 1 m.
     expect(projected?.halfX).toBeCloseTo(0.5);
     expect(projected?.halfY).toBeCloseTo(1);
   });
 
-  it("takes the part's edges from its extracted direction, not its art", () => {
-    // A rocket's bracket does not size its box: the part covers one cell, and `any` lets it snap
-    // on all four edges.
+  it("keeps the collider asymmetry and takes the edges from the part's direction", () => {
+    // The union runs x [-0.35, 0.62]: a half width of 0.485 with a 0.135 offset, and `any` lets
+    // it snap on all four edges.
     const rocket: PartDefinition = {
       ...block,
       capabilities: { jointConnectionType: "target", jointConnectionDirection: "any" },
@@ -122,16 +122,15 @@ describe("part contact snap", () => {
 
     const box = snapBoxOf(base, rocket);
 
-    expect(box?.halfX).toBeCloseTo(0.5);
+    expect(box?.halfX).toBeCloseTo(0.485);
     expect(box?.edges).toEqual({ up: true, down: true, left: true, right: true });
   });
 
-  it("sizes a sphere to its cells", () => {
+  it("uses the sphere radius on both axes", () => {
     const sphere: PartDefinition = { ...block, shapes: [{ kind: "sphere", radius: 0.4 }] };
     const projected = snapBoxOf({ ...base, scale: 1.5 }, sphere);
-    // A 1.2 m ball is one cell.
-    expect(projected?.halfX).toBeCloseTo(0.5);
-    expect(projected?.halfY).toBeCloseTo(0.5);
+    expect(projected?.halfX).toBeCloseTo(0.6);
+    expect(projected?.halfY).toBeCloseTo(0.6);
     expect(projected?.offsetX).toBe(0);
     expect(projected?.offsetY).toBe(0);
   });
@@ -152,12 +151,13 @@ describe("part contact snap", () => {
     ],
   };
 
-  it("covers one cell whatever the collider offsets are", () => {
+  it("unions every shape's offset into the AABB instead of using only the first (wooden wheel)", () => {
     const projected = snapBoxOf({ ...base, entityId: 2, x: 0, y: 0 }, wheel);
-    expect(projected?.halfX).toBeCloseTo(0.5);
-    expect(projected?.halfY).toBeCloseTo(0.5);
-    expect(projected?.offsetX).toBe(0);
-    expect(projected?.offsetY).toBe(0);
+    // Support box x [-0.2, 0.2] y [-0.1498, 0.4902]; tire sphere x [-0.3194, 0.3406] y [-0.5357, 0.1243].
+    expect(projected?.halfX).toBeCloseTo(0.33);
+    expect(projected?.offsetX).toBeCloseTo(0.0106);
+    expect(projected?.halfY).toBeCloseTo(0.51295);
+    expect(projected?.offsetY).toBeCloseTo(-0.02275);
   });
 
   it("snaps a wheel only on the edge it can weld on", () => {
@@ -169,8 +169,8 @@ describe("part contact snap", () => {
 
     const snapped = snapMoveToParts(0, 0, wheelSelf, [blockAtOne]);
 
-    // Its only edge is up, so it lands flush under the block (one cell below y = 1)…
-    expect(snapped.y).toBeCloseTo(0);
+    // Its only edge is up, so the union's top lands on the block's bottom face…
+    expect(snapped.y).toBeCloseTo(0.0098);
     // …and the x axis never opens: a wheel cannot weld sideways.
     expect(snapped.x).toBe(0);
   });

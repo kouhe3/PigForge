@@ -194,12 +194,16 @@ export interface SnapBox extends SnapTarget {
 }
 
 /**
- * Build-time alignment box of an entity, or null when the part is unknown or has no body
- * shape to size it. A build places parts on whole cells and the original welds along them, so
- * the box is the cells the part's body colliders cover (a rocket is 1x1, a glider wing 2x1)
- * rather than its art or its conditional brackets. Which edges may be snapped on comes from the
- * extracted `jointConnectionDirection`: a propeller welds only on its left, a wheel above its
- * hub, a spring above and below, and a part that refuses welds has none at all.
+ * Build-time alignment box of an entity, or null when the part is unknown or carries no
+ * box/sphere shape (nothing to snap against). Every shape's part-local offset is rotated by
+ * `entity.yaw` and scaled, boxes project to rotated-rect AABBs and spheres to squares of
+ * `radius * scale` — the original's parts are not centred on their origin (a fan's collider sits
+ * left of it, a glider wing's right), and that asymmetry is exactly what puts the one edge a fan
+ * can weld on the grid line when it is snapped against a neighbour.
+ *
+ * Which edges may be snapped on comes from the extracted `jointConnectionDirection`: a propeller
+ * welds only on its left, a wheel above its hub, a spring above and below, and a part that
+ * refuses welds has none at all.
  */
 export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined): SnapBox | null {
   if (part === undefined) {
@@ -214,11 +218,6 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
   let maxY = Number.NEGATIVE_INFINITY;
 
   for (const shape of part.shapes) {
-    // A conditional bracket is a build marker, not a size.
-    if (shape.condition !== undefined) {
-      continue;
-    }
-
     const offset = shape.offset ?? [0, 0, 0];
     const centreX = (offset[0] * cos - offset[1] * sin) * entity.scale;
     const centreY = (offset[0] * sin + offset[1] * cos) * entity.scale;
@@ -258,10 +257,10 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
     entityId: entity.entityId,
     x: entity.x,
     y: entity.y,
-    halfX: Math.max(1, Math.round(maxX - minX)) / 2,
-    halfY: Math.max(1, Math.round(maxY - minY)) / 2,
-    offsetX: 0,
-    offsetY: 0,
+    halfX: (maxX - minX) / 2,
+    halfY: (maxY - minY) / 2,
+    offsetX: (minX + maxX) / 2,
+    offsetY: (minY + maxY) / 2,
     edges: connectionEdges(part, entity.yaw),
   };
 }
