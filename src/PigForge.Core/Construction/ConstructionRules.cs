@@ -163,6 +163,44 @@ public sealed class ConstructionRules
         _enclosedPart.TryGetValue(frame.Value, out uint part) ? new EntityId(part) : null;
 
     /// <summary>
+    /// The original's chassis gate: a propulsion part is only valid when at least one of its grid
+    /// neighbours is part of the chassis. <c>Frame.IsPartOfChassis()</c> is the only override that
+    /// returns true (<c>Frame.cs:37-40</c>; the base is <c>BasePart.cs:1169-1172</c>), and
+    /// <c>BasePropulsion.ValidatePart</c> counts those neighbours (<c>BasePropulsion.cs:13-20</c>;
+    /// <c>Wings.cs:14-31</c> and <c>Tail.cs:12-29</c> repeat the same loop). PigForge has no build
+    /// grid, so a neighbour is a connection (the proximity adjacency
+    /// <see cref="ConnectionsOf"/> exposes) and a chassis is a part the content marks
+    /// <c>canEnclose</c> — the WoodenFrame/MetalFrame families (ADR-011 decision 1;
+    /// <c>tools/bple-joints/apply-joints.mjs:10</c>). The enclosure edge counts as well: the
+    /// original bolts an enclosed part to its frame with a FixedJoint (<c>Frame.cs:44-50</c>), so
+    /// it is as attached to the chassis as a grid neighbour is.
+    /// </summary>
+    public bool HasChassisNeighbor(EntityId entity)
+    {
+        if (_connectionsByEntity.TryGetValue(entity.Value, out HashSet<uint>? connections))
+        {
+            foreach (uint neighbour in connections)
+            {
+                if (IsChassis(neighbour))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return (_enclosedBy.TryGetValue(entity.Value, out uint enclosingFrame) && IsChassis(enclosingFrame))
+            || (_enclosedPart.TryGetValue(entity.Value, out uint heldPart) && IsChassis(heldPart));
+    }
+
+    /// <summary>True when the placed entity is a frame: the content's <c>canEnclose</c> flag
+    /// (ADR-011 decision 1), which mirrors the original's <c>Frame.IsPartOfChassis</c>.</summary>
+    public bool IsChassis(EntityId entity) => IsChassis(entity.Value);
+
+    private bool IsChassis(uint entityValue) =>
+        _parts.TryGet(new EntityId(entityValue), out PartLink link)
+        && _content.GetPart(link.PartTypeId).Capabilities?.CanEnclose == true;
+
+    /// <summary>
     /// The first legal runtime-attachment anchor along a direction, or null. The original walks
     /// the build grid one cell at a time (Sandbag.cs:96-102, Balloon.cs:104-107) up to
     /// <c>SandbagConnectionDistance</c>/<c>BalloonConnectionDistance</c> = 10 cells

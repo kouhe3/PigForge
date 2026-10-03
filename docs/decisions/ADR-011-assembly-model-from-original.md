@@ -54,5 +54,10 @@ Accepted。取代 ADR-008 决策 1 里「除轮子外相邻即焊」的隐含默
 
 ## 未做
 
-- 引擎与推进门控（原版真值见 §背景 6，已单列待办）。
 - 客户端放置交互（规格阶段 4）。
+
+## 后续落地（补，2026-10-03，原「未做」里的引擎与推进门控）
+
+- **引擎门控**：`Engine.cs:61` 的「必须被框包裹才有效」由 power-system 切片实现 —— 未被包裹的引擎只是不供能，仍然可以建造（`GameRoom.SyncEngineEnclosure` → `GameplayRules.SetEngineEnclosed`；差距清单 G21）。
+- **推进件门控**（G25）：`BasePropulsion.ValidatePart` 的「至少 1 个 `IsPartOfChassis()` 邻居」（`BasePropulsion.cs:13-20`）连同 `Wings.cs:14-31`、`Tail.cs:12-29` 已落地，做法与引擎同口径 —— **不拒绝建造，运行时不出力**：`ConstructionRules.HasChassisNeighbor`（邻接关系 ∪ 包裹边；chassis = 内容里的 `canEnclose`，即木框/铁框族）在装配时算一次，`GameRoom.SyncChassisAnchors` 把它发布给 `GameplayRules.SetChassisAnchored`，`GameRoom` 的 `RunFans`/`RunRockets`/`RunBellows`/`RunWings`/`RunTails` 各自跳过未锚定的件。**马达轮不在其中**：原版 `MotorWheel : BasePart`（`MotorWheel.cs:4`）没有这条 `ValidatePart`，带这条规则的只有 `BasePropulsion` 的四个子类（Bellows/FanPropeller/JetEngine/Rocket）与 `Wings`/`Tail`；动力轮的 `motor` 门控来自功率因子（G24/G26）。**螺旋桨（38）是已知例外**：原版它是 `FanPropeller`（同一类用 `m_partType` 区分风扇/螺旋桨/旋翼，`FanPropeller.cs`），但 PigForge 内容把它建模成驱动轮（`wheel`+`motor`，G50），于是它只走 `motor` 的功率因子门控、不额外要求框邻居。
+- 仍然未做：引擎按钮联动（`Engine.cs:138`，G23）、框↔框的 `FrameJointManager` 断裂力（G19）、推进件的「最高速」量（`m_maximumSpeed = 15 × factor`，G24）。

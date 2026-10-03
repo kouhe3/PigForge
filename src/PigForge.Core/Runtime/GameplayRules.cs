@@ -129,6 +129,12 @@ public sealed class GameplayRules
     // them; a part with no explicit host sits in its own physics body's cluster.
     private readonly Dictionary<uint, float> _powerFactorByCluster = new();
     private readonly Dictionary<uint, uint> _powerHostByEntity = new();
+    // Propulsion parts the placement layer found WITHOUT a chassis neighbour (see
+    // ConstructionRules.HasChassisNeighbor). The original rejects such a part in ValidatePart
+    // (BasePropulsion.cs:13-20, Wings.cs:14-31, Tail.cs:12-29), so it never fires; PigForge lets
+    // the player build it but it emits no force. Absence means anchored, which keeps level actors
+    // and unit harnesses ungated -- the placement layer declares the exceptions at materialisation.
+    private readonly HashSet<uint> _unanchoredPropulsion = new();
 
     /// <summary>
     /// The original's <c>EnginePowerLimit</c> (INSettingsBExp.json, 4.0): the raw ratio is capped
@@ -357,6 +363,32 @@ public sealed class GameplayRules
     }
 
     /// <summary>
+    /// Declares whether a propulsion part is attached to the chassis (see
+    /// <see cref="PigForge.Core.Construction.ConstructionRules.HasChassisNeighbor"/>). The
+    /// original refuses a propulsion part without a chassis neighbour outright —
+    /// <c>BasePropulsion.ValidatePart</c> returns <c>neighbourCount &gt;= 1</c>
+    /// (BasePropulsion.cs:13-20), and <c>Wings</c>/<c>Tail</c> repeat the loop (Wings.cs:14-31,
+    /// Tail.cs:12-29); <c>Frame.IsPartOfChassis()</c> is what makes a neighbour count
+    /// (Frame.cs:37-40, BasePart.cs:1169). PigForge keeps the part buildable and only strips its
+    /// force, mirroring the "engine outside a frame supplies nothing" runtime treatment. Parts the
+    /// layer never declares (level actors) stay anchored, i.e. ungated.
+    /// </summary>
+    public void SetChassisAnchored(EntityId entity, bool anchored)
+    {
+        if (anchored)
+        {
+            _unanchoredPropulsion.Remove(entity.Value);
+        }
+        else
+        {
+            _unanchoredPropulsion.Add(entity.Value);
+        }
+    }
+
+    /// <summary>True unless the placement layer found this part without a chassis neighbour.</summary>
+    public bool IsChassisAnchored(EntityId entity) => !_unanchoredPropulsion.Contains(entity.Value);
+
+    /// <summary>
     /// The original's power factor, verbatim (Contraption.cs:540-556): the raw ratio of a
     /// component's engine power to its consumption, capped at <c>10 * EnginePowerLimit</c>, raised
     /// to 0.585 above 1 and 0.75 otherwise. Consumption at or below 1 with an engine present is
@@ -415,6 +447,35 @@ public sealed class GameplayRules
         }
 
         return factor;
+    }
+
+    /// <summary>
+    /// Resolves whether a powered part drives this tick and with what multiplier — the one rule
+    /// every consumer uses (spec docs/specs/power-system.md §4 items 3-4): a part with no power
+    /// data drives unconditionally (legacy content); a part that declares power data but consumes
+    /// nothing is an engine, and the original's engine applies no force of its own
+    /// (Engine.cs:29,138), so it never drives; a consumer is scaled by its cluster's power factor
+    /// and stops dead when the cluster holds no enclosed engine (Contraption.cs:540-556). This is
+    /// distinct from the switch state: <see cref="IsDriven"/> is "the player turned it on", the
+    /// factor being 0 is "there is no power in this contraption" — the original keeps the two
+    /// apart as <c>m_enabled</c> (FanPropeller.cs:209) and <c>powerFactor</c>
+    /// (FanPropeller.cs:85-92), and so do we.
+    /// </summary>
+    private bool TryDriveFactor(EntityId entity, out float factor)
+    {
+        factor = 1f;
+        if (!_powers.TryGet(entity, out PowerState power))
+        {
+            return true;
+        }
+
+        if (power.PowerConsumption <= 0f)
+        {
+            return false;
+        }
+
+        factor = ClusterPowerFactor(entity);
+        return factor > 0f;
     }
 
     public void AddBalloon(EntityId entity, float liftPerTick) =>
@@ -996,25 +1057,12 @@ public sealed class GameplayRules
                 continue;
             }
 
-            // Power gating (spec docs/specs/power-system.md §4 items 3-4): the original's engine
-            // applies no force itself -- it only supplies its component (Engine.cs:29,138) -- and a
-            // consumer's drive is scaled by the cluster's power factor, so it does not move at all
-            // without an enclosed engine in that cluster (Contraption.cs:540-556, MotorWheel.cs:101-109).
-            float powerFactor = 1f;
-            if (_powers.TryGet(motors.CurrentId, out PowerState power))
+            // Power gating (spec docs/specs/power-system.md §4 items 3-4): the drive is scaled by
+            // the cluster's power factor, so a wheel does not move at all without an enclosed
+            // engine in that cluster (Contraption.cs:540-556, MotorWheel.cs:101-109).
+            if (!TryDriveFactor(motors.CurrentId, out float powerFactor))
             {
-                if (power.PowerConsumption <= 0f)
-                {
-                    // The original's engine supplies its component and applies no force of its own
-                    // (Engine.cs:29,138): it never drives, whatever content gives it.
-                    continue;
-                }
-
-                powerFactor = ClusterPowerFactor(motors.CurrentId);
-                if (powerFactor <= 0f)
-                {
-                    continue;
-                }
+                continue;
             }
 
             MotorState motor = motors.CurrentValue;
@@ -1096,9 +1144,21 @@ public sealed class GameplayRules
             }
 
             BalloonState balloon = balloons.CurrentValue;
+            // A plain balloon is unpowered cargo lift -- Balloon.cs carries no chassis gate and no
+            // power term -- so it is never gated. A lift part that declares power data is the rotor,
+            // whose original is a FanPropeller : BasePropulsion (tasks/original-vs-implemented.md §6,
+            // G50): it needs a chassis neighbour (BasePropulsion.cs:13-20) and its force is scaled
+            // by the engine power factor (FanPropeller.cs:85-92), so an unpowered rotor lifts nothing.
+            float liftFactor = 1f;
+            if (_powers.TryGet(balloons.CurrentId, out _)
+                && (!IsChassisAnchored(balloons.CurrentId) || !TryDriveFactor(balloons.CurrentId, out liftFactor)))
+            {
+                continue;
+            }
+
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                new PhysicsVector3(0f, balloon.LiftPerTick, 0f),
+                new PhysicsVector3(0f, balloon.LiftPerTick * liftFactor, 0f),
                 _kinematicsByBody[link.Body.Value].Position));
         }
     }
@@ -1119,6 +1179,14 @@ public sealed class GameplayRules
                 continue;
             }
 
+            // A fan needs a chassis neighbour (BasePropulsion.ValidatePart, BasePropulsion.cs:13-20)
+            // and its force is scaled by the engine power factor (FanPropeller.cs:85-92, which the
+            // rotor and the propeller share: both are FanPropeller variants).
+            if (!IsChassisAnchored(fans.CurrentId) || !TryDriveFactor(fans.CurrentId, out float powerFactor))
+            {
+                continue;
+            }
+
             FanState fan = fans.CurrentValue;
             float magnitude = PhysicsVector3.Distance(
                 new PhysicsVector3(fan.DirectionX, fan.DirectionY, 0f), PhysicsVector3.Zero);
@@ -1130,7 +1198,7 @@ public sealed class GameplayRules
             PhysicsVector3 direction = new(fan.DirectionX / magnitude, fan.DirectionY / magnitude, 0f);
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                direction * fan.ImpulsePerTick,
+                direction * (fan.ImpulsePerTick * powerFactor),
                 _kinematicsByBody[link.Body.Value].Position));
         }
     }
@@ -1149,6 +1217,12 @@ public sealed class GameplayRules
         {
             if (!_bodies.TryGet(wings.CurrentId, out PhysicsBodyLink link)
                 || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            // A wing is only valid next to the chassis (Wings.ValidatePart, Wings.cs:14-31).
+            if (!IsChassisAnchored(wings.CurrentId))
             {
                 continue;
             }
@@ -1174,6 +1248,12 @@ public sealed class GameplayRules
         {
             if (!_bodies.TryGet(tails.CurrentId, out PhysicsBodyLink link)
                 || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            // A tail is only valid next to the chassis (Tail.ValidatePart, Tail.cs:12-29).
+            if (!IsChassisAnchored(tails.CurrentId))
             {
                 continue;
             }
@@ -1204,6 +1284,15 @@ public sealed class GameplayRules
                 continue;
             }
 
+            // An electric umbrella is a powered part: its force is m_force x engine power factor
+            // (PoweredUmbrella.cs:70-89), so it only pulls with an engine in its cluster. A part
+            // that declares no consumption (the black umbrella) keeps its legacy unconditional
+            // drag, which is what a missing power entry means everywhere else.
+            if (!TryDriveFactor(umbrellas.CurrentId, out float powerFactor))
+            {
+                continue;
+            }
+
             UmbrellaState umbrella = umbrellas.CurrentValue;
             // Only while descending: the fall damper slows the drop as an upward
             // impulse; rising bodies are unaffected.
@@ -1211,7 +1300,7 @@ public sealed class GameplayRules
             {
                 output.Commands.Add(PhysicsCommand.ApplyImpulse(
                     link.Body,
-                    new PhysicsVector3(0f, -kinematics.Velocity.Y * umbrella.DragCoef, 0f),
+                    new PhysicsVector3(0f, -kinematics.Velocity.Y * umbrella.DragCoef * powerFactor, 0f),
                     kinematics.Position));
             }
         }
@@ -1252,6 +1341,13 @@ public sealed class GameplayRules
         {
             if (!_bodies.TryGet(bellows.CurrentId, out PhysicsBodyLink link)
                 || !_kinematicsByBody.ContainsKey(link.Body.Value))
+            {
+                continue;
+            }
+
+            // A bellows is a BasePropulsion part: it needs a chassis neighbour
+            // (BasePropulsion.cs:13-20).
+            if (!IsChassisAnchored(bellows.CurrentId))
             {
                 continue;
             }
@@ -1357,6 +1453,14 @@ public sealed class GameplayRules
         {
             if (!_bodies.TryGet(rockets.CurrentId, out PhysicsBodyLink link)
                 || !_kinematicsByBody.ContainsKey(link.Body.Value))
+            {
+                continue;
+            }
+
+            // A rocket (and the jet engine, which shares the class hierarchy) is a BasePropulsion
+            // part: without a chassis neighbour it never fires at all
+            // (BasePropulsion.cs:13-20) -- no ignition, no thrust, no end-of-burn blast.
+            if (!IsChassisAnchored(rockets.CurrentId))
             {
                 continue;
             }
@@ -1750,6 +1854,7 @@ public sealed class GameplayRules
         _glues.Remove(entity);
         _activations.Remove(entity);
         _restitutions.Remove(entity);
+        _unanchoredPropulsion.Remove(entity.Value);
         ForgetPower(entity);
     }
 
@@ -1860,6 +1965,7 @@ public sealed class GameplayRules
         _activations.Clear();
         _bodies.Clear();
         _powers.Clear();
+        _unanchoredPropulsion.Clear();
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
     }

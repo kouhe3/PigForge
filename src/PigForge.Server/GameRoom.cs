@@ -502,6 +502,24 @@ public sealed class GameRoom : IDisposable
     }
 
     /// <summary>
+    /// Publishes the original's propulsion gate: a fan/rotor, rocket, bellows, wing or tail is only
+    /// valid when at least one of its neighbours is part of the chassis
+    /// (<c>BasePropulsion.cs:13-20</c>; <c>Wings.cs:14-31</c>; <c>Tail.cs:12-29</c>). PigForge keeps
+    /// such a part buildable and only strips its force at runtime, so the flag is published here at
+    /// materialisation (the same point as the engine enclosure) and the rules layer never re-derives
+    /// it per tick. Level actors carry no construction relations and are never declared, which keeps
+    /// them ungated.
+    /// </summary>
+    private void SyncChassisAnchors()
+    {
+        foreach (uint entityValue in _construction.PlacedEntities)
+        {
+            EntityId entity = new(entityValue);
+            _rules.SetChassisAnchored(entity, _construction.HasChassisNeighbor(entity));
+        }
+    }
+
+    /// <summary>
     /// Transitions Building → Running and materialises authoritative bodies from
     /// construction connections: connected dynamic boxes become one compound, other
     /// parts stay one body each. Slot order of clusters is deterministic.
@@ -530,6 +548,7 @@ public sealed class GameRoom : IDisposable
         _retryLayout.Sort((left, right) => left.Item1.CompareTo(right.Item1));
 
         SyncEngineEnclosure();
+        SyncChassisAnchors();
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
@@ -855,6 +874,7 @@ public sealed class GameRoom : IDisposable
         }
 
         SyncEngineEnclosure();
+        SyncChassisAnchors();
         List<EntityId> entities = new(owned.Count);
         foreach (uint entityValue in owned)
         {
@@ -897,6 +917,7 @@ public sealed class GameRoom : IDisposable
     private void MaterializeLevelActors()
     {
         SyncEngineEnclosure();
+        SyncChassisAnchors();
         List<EntityId> entities = CollectPartEntities();
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)

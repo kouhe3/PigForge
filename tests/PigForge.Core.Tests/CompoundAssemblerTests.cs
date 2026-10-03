@@ -189,6 +189,59 @@ public sealed class CompoundAssemblerTests
     }
 
     [Fact]
+    public void AMergedClusterCarriesTheAggregatedMemberMaterial()
+    {
+        // The original gives every collider its own PhysicMaterial, so a PigForge body with several
+        // members folds them with Unity's own pair rule (ADR-016): the strongest restitution
+        // (ADR-010 decision 5), the highest-priority combine mode, and that mode applied over the
+        // member coefficients.
+        PartContentLibrary materialContent = new(PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "compound-material-test-v1",
+            "parts": [
+                { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1,
+                  "material": { "restitution": 0.2, "friction": 0.7 },
+                  "capabilities": { "jointConnectionType": "source" },
+                  "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+                { "partTypeId": 2, "name": "tyre", "mode": "dynamic", "mass": 1,
+                  "material": { "restitution": 0.5, "friction": 0.5, "frictionCombine": "multiply" },
+                  "capabilities": { "jointConnectionType": "target" },
+                  "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+                { "partTypeId": 3, "name": "plank", "mode": "dynamic", "mass": 1,
+                  "material": { "restitution": 0, "friction": 0.8 },
+                  "capabilities": { "jointConnectionType": "target" },
+                  "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
+            ]
+        }
+        """));
+        EntityStore materialEntities = new();
+        ConstructionRules materialRules = new(materialEntities, new PartStore(materialEntities), new TransformStore(materialEntities), materialContent);
+
+        EntityId frame = materialRules.Place(1, 0.5f, 0.5f, 0f, 1f, 0).Entity;
+        EntityId tyre = materialRules.Place(2, 1.5f, 0.5f, 0f, 1f, 0).Entity;
+        CompoundCluster mixed = Assert.Single(CompoundAssembler.Assemble(new[] { frame, tyre }, materialRules, materialContent).Clusters);
+        BodyDefinition mixedBody = mixed.CreateBodyDefinition(materialContent);
+
+        // The tyre's Multiply outranks the frame's Average, so it wins and multiplies the two
+        // coefficients; the strongest restitution survives.
+        Assert.Equal(0.5f, mixedBody.Material.Restitution, precision: 5);
+        Assert.Equal(FrictionCombine.Multiply, mixedBody.Material.FrictionCombine);
+        Assert.Equal(0.35f, mixedBody.Material.Friction, precision: 5);
+
+        // Two Average members keep the historical average of their coefficients.
+        EntityId plainFrame = materialRules.Place(1, 10.5f, 0.5f, 0f, 1f, 0).Entity;
+        EntityId plank = materialRules.Place(3, 11.5f, 0.5f, 0f, 1f, 0).Entity;
+        CompoundCluster average = Assert.Single(CompoundAssembler.Assemble(new[] { plainFrame, plank }, materialRules, materialContent).Clusters);
+        BodyDefinition averageBody = average.CreateBodyDefinition(materialContent);
+
+        Assert.Equal(0.2f, averageBody.Material.Restitution, precision: 5);
+        Assert.Equal(FrictionCombine.Average, averageBody.Material.FrictionCombine);
+        Assert.Equal(0.75f, averageBody.Material.Friction, precision: 5);
+    }
+
+    [Fact]
     public void AdjacentSphereAndBoxMergeIntoOneCluster()
     {
         (ConstructionRules rules, PartContentLibrary content) = CreateRules();

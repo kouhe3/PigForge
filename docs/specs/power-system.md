@@ -20,6 +20,7 @@
 | 6 | 功率因子：`raw = min(enginePower / powerConsumption, 10 × EnginePowerLimit)`（消耗 > 1）；`raw = 1`（有引擎且消耗 ≤ 1）；否则 `raw = 0`；`factor = pow(raw, raw > 1 ? 0.585 : 0.75)` | `Contraption.cs:540-556` |
 | 7 | 开关默认打开、上限默认 4：`DynamicPowerSystem = true`、`EnginePowerLimit = 4.0` | `INSettingsBExp.json` |
 | 8 | 动力轮/推进件把 `factor` 乘到力与最高速：`m_maximumForce = m_force × factor`、`m_maximumSpeed = 15 × factor` | `MotorWheel.cs:101-109`、`OffRoadWheel.cs:172-180` |
+| 9 | 推进件必须至少相邻 1 个底盘邻居（`Frame` 是唯一 `IsPartOfChassis()` 为真的类）；风扇/螺旋桨/旋翼、火箭/喷气、风箱、机翼、尾翼都走这条 | `BasePropulsion.cs:13-20`、`Frame.cs:37-40`、`Wings.cs:14-31`、`Tail.cs:12-29` |
 
 补充：`Contraption.cs:558-571` 是 `DynamicPowerSystem = false` 的旧分支（还会把动力轮的消耗乘 0.9 折抵），默认不走，**本规格不实现**。
 
@@ -62,5 +63,5 @@
 - 电气回路（`ElectricalPart`/`Wire`/`Electrode` 的逻辑电平系统）与 `FuelTube`：那是开关/逻辑子系统，与机械动力无关。
 - 旧分支（`DynamicPowerSystem = false`）。
 - **原作马达限速**：`m_maximumSpeed = 15 × factor` 与 `LimitForceForSpeed`（`MotorWheel.cs:103,292-296`）。本模型没有速度上限量（现状 4），本切片只把 `factor` 乘到每 tick 冲量上。
-- **推进件的因子**：原作对 `FanPropeller`/`PoweredUmbrella`/`StickyWheel` 同样乘因子（`FanPropeller.cs:85`、`PoweredUmbrella.cs:66`、`StickyWheel.cs:119`）。粘轮已归入 `motor` 驱动路径（决议 4 的补丁）；`fan`/`umbrella` 两条路径仍不门控。
+- ~~**推进件的因子**~~（已实现，2026-10-03）：原作对 `FanPropeller`/`PoweredUmbrella`/`StickyWheel` 同样乘因子（`FanPropeller.cs:85-92`、`PoweredUmbrella.cs:70-89`、`StickyWheel.cs:119`）。粘轮归入 `motor` 驱动路径（决议 4 的补丁）；`fan`/`umbrella` 与「带 `powerConsumption` 的升力件」（旋翼）现在统一走 `GameplayRules.TryDriveFactor` 按 `ClusterPowerFactor` 缩放，簇内无引擎即为 0。同一批还落地了 §2 真值 9 的底盘门控（G25）。唯一未建模的是 `PoweredUmbrella.cs:70-89` 里「有功率但该分量没有引擎」时再乘 0.5 的分支——本模型的「分量」就是功率簇，不区分这两档。
 - **引擎按钮联动**：原作点引擎会开关同分量内全部耗能件（`Engine.cs:29`、`Contraption.cs:1013-1090 ActivateAllPoweredParts`）。本切片只做供能与门控，引擎的 `activation: toggle` 保留但不联动（各耗能件仍用自己的开关）。

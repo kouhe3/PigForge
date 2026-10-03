@@ -143,7 +143,7 @@ public sealed class CompoundCluster
                 tires,
                 linearVelocity,
                 angularVelocity,
-                new PhysicsMaterial(first.Restitution, first.Friction, first.FrictionCombine),
+                CreateBodyMaterial(content),
                 constraints);
         }
 
@@ -208,8 +208,52 @@ public sealed class CompoundCluster
             new ShapeDefinition[] { new CompoundShapeDefinition(children) },
             linearVelocity,
             angularVelocity,
-            new PhysicsMaterial(first.Restitution, first.Friction, first.FrictionCombine),
+            CreateBodyMaterial(content),
             constraints);
+    }
+
+    /// <summary>
+    /// The material one merged body carries. The original gives every collider its own
+    /// <c>PhysicMaterial</c> and Unity combines a contact pair by the highest-priority mode
+    /// (ADR-016 decision 3), but a PigForge body has exactly one material, so the members'
+    /// materials are folded with that same rule:
+    /// restitution is the strongest member's (ADR-010 decision 5, the same value the rules layer
+    /// aggregates per body), the combine mode is the highest priority any member carries
+    /// (Average &lt; Minimum &lt; Multiply &lt; Maximum), and that mode is applied over every
+    /// member's coefficient (Average = the members' mean, Multiply = their product,
+    /// Minimum/Maximum = the extreme member). For a single member this is exactly its own
+    /// material, so the wheel path is unchanged.
+    /// <see cref="Attachments"/> are deliberately excluded: they are a hinged wheel's mounts,
+    /// which ride the parent body, and the original keeps the hub on the parent's material
+    /// (Contraption_PhysMat) instead of the tyre the wheel body carries (ADR-016 decision 1).
+    /// </summary>
+    private PhysicsMaterial CreateBodyMaterial(PartContentLibrary content)
+    {
+        float restitution = 0f;
+        FrictionCombine combine = FrictionCombine.Average;
+        float sum = 0f;
+        float minimum = float.PositiveInfinity;
+        float product = 1f;
+        float maximum = 0f;
+        for (int index = 0; index < Members.Count; index++)
+        {
+            PartDefinition member = content.GetPart(Members[index].PartTypeId);
+            restitution = MathF.Max(restitution, member.Restitution);
+            combine = (FrictionCombine)Math.Max((int)combine, (int)member.FrictionCombine);
+            sum += member.Friction;
+            minimum = MathF.Min(minimum, member.Friction);
+            product *= member.Friction;
+            maximum = MathF.Max(maximum, member.Friction);
+        }
+
+        float friction = combine switch
+        {
+            FrictionCombine.Average => sum / Members.Count,
+            FrictionCombine.Minimum => minimum,
+            FrictionCombine.Multiply => product,
+            _ => maximum
+        };
+        return new PhysicsMaterial(restitution, friction, combine);
     }
 
     /// <summary>Stable hash over member identity, local poses, and remaining seams.</summary>
