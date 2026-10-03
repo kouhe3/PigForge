@@ -14,6 +14,7 @@ function makeCtx() {
   const alpha = { value: 1 };
   const gradient: CanvasGradient = { addColorStop: () => {} } as unknown as CanvasGradient;
   const rotations: number[] = [];
+  const scales: Array<[number, number]> = [];
   const ctx = {
     canvas: { clientWidth: 800, clientHeight: 600, width: 800, height: 600 },
     get globalAlpha(): number {
@@ -58,6 +59,10 @@ function makeCtx() {
     rotate: (angle: number) => {
       rotations.push(angle);
     },
+    scale: (x: number, y: number) => {
+      calls.scale = (calls.scale ?? 0) + 1;
+      scales.push([x, y]);
+    },
     setLineDash: () => {},
     createRadialGradient: () => {
       calls.createRadialGradient = (calls.createRadialGradient ?? 0) + 1;
@@ -70,7 +75,7 @@ function makeCtx() {
     textAlign: "",
     textBaseline: "",
   };
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations, draws, rotations };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations, draws, rotations, scales };
 }
 
 const content: PartContentDocument = {
@@ -548,7 +553,7 @@ describe("drawFrame conditional connection sprites", () => {
           connectionVisual: "frame",
           sprites: [
             { ...sprite, cy: -0.3613, condition: { kind: "frame", mount: "bottom" } },
-            { ...sprite, y: 20, cy: 0.39, condition: { kind: "frame", mount: "top" } },
+            { ...sprite, y: 20, cy: 0.39, flipY: true, condition: { kind: "frame", mount: "top" } },
           ],
         },
       ],
@@ -558,20 +563,23 @@ describe("drawFrame conditional connection sprites", () => {
   const wing: DrawEntity = { entityId: 1, partTypeId: 31, x: 0, y: 0, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 0, active: false };
 
   it("draws only the bottom mount while nothing connects", () => {
-    const { ctx, calls, draws } = makeCtx();
+    const { ctx, calls, draws, scales } = makeCtx();
     drawFrame(ctx, createCamera(), [wing], wingContent, [], undefined, undefined, wingTextures({} as CanvasImageSource));
     expect(calls.drawImage).toBe(1);
     // The bottom mount's own source row.
     expect(draws[0][1]).toBe(0);
+    expect(scales).toEqual([]);
   });
 
   it("swaps to the top mount once a weldable neighbour sits above", () => {
-    const { ctx, draws } = makeCtx();
+    const { ctx, draws, scales } = makeCtx();
     const above: DrawEntity = { ...wing, entityId: 2, partTypeId: 1, y: 1 };
     drawFrame(ctx, createCamera(), [wing, above], wingContent, [], undefined, undefined, wingTextures({} as CanvasImageSource));
     // The wing's top mount, then the block's own sprite.
     expect(draws).toHaveLength(2);
     expect(draws[0][1]).toBe(20);
+    // The original draws the top mount as the bottom one mirrored through a negative node scale.
+    expect(scales).toEqual([[1, -1]]);
   });
 
   it("keeps the bottom mount for a neighbour below", () => {

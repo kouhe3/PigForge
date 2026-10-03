@@ -165,11 +165,13 @@ function parsePrefab(text) {
     } else if (classId === 4) {
       const pos = /m_LocalPosition: \{x: ([-\d.eE+]+), y: ([-\d.eE+]+), z: ([-\d.eE+]+)\}/.exec(body);
       const rot = /m_LocalRotation: \{x: ([-\d.eE+]+), y: ([-\d.eE+]+), z: ([-\d.eE+]+), w: ([-\d.eE+]+)\}/.exec(body);
+      const scale = /m_LocalScale: \{x: ([-\d.eE+]+), y: ([-\d.eE+]+), z: ([-\d.eE+]+)\}/.exec(body);
       transforms.set(fileId, {
         gameObject: /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1],
         father: /m_Father: \{fileID: (\d+)\}/.exec(body)?.[1],
         pos: pos ? [Number(pos[1]), Number(pos[2]), Number(pos[3])] : [0, 0, 0],
         rot: rot ? [Number(rot[1]), Number(rot[2]), Number(rot[3]), Number(rot[4])] : [0, 0, 0, 1],
+        scale: scale ? [Number(scale[1]), Number(scale[2]), Number(scale[3])] : [1, 1, 1],
       });
     } else if (classId === 23) {
       const gameObject = /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1];
@@ -318,6 +320,7 @@ function localOffset(prefab, gameObject) {
   // Walk from the root down so each step's accumulated offset is that node's own offset
   // from the root (the sprite's own local position must not leak into the pivot).
   const position = [0, 0, 0];
+  const scale = [1, 1, 1];
   let angle = 0;
   let pivot = null;
   for (let i = chain.length - 2; i >= 0; i -= 1) {
@@ -325,6 +328,9 @@ function localOffset(prefab, gameObject) {
     position[0] += t.pos[0];
     position[1] += t.pos[1];
     position[2] += t.pos[2];
+    scale[0] *= t.scale[0];
+    scale[1] *= t.scale[1];
+    scale[2] *= t.scale[2];
     angle += 2 * Math.atan2(t.rot[2], t.rot[3]);
     if (SPINNING_NODES.has(prefab.gameObjects.get(t.gameObject)?.name)) {
       // The node the original rotates: the axis this sprite — and the whole wheel — turns
@@ -338,6 +344,8 @@ function localOffset(prefab, gameObject) {
     y: position[1],
     z: position[2],
     angle,
+    scaleX: scale[0],
+    scaleY: scale[1],
     spin: pivot !== null,
     pivot,
     chain: chainIds,
@@ -387,12 +395,22 @@ function spriteRowArt(fields, rowId, offset, atlasSize, what) {
   const scaleY = Number(fields.m_scaleY ?? 1);
   const pivotOffsetX = cell.selectionX + cell.selectionWidth / 2 - (cell.uvX + cell.w / 2) + cell.pivotX + Number(fields.m_pivotX ?? 0);
   const pivotOffsetY = cell.selectionY + cell.selectionHeight / 2 - (cell.uvY + cell.h / 2) + cell.pivotY + Number(fields.m_pivotY ?? 0);
+  // The mesh is built in its node's own frame, so the pivot offset is scaled and rotated by that
+  // node's transform before it becomes an offset from the root — Unity applies scale, then
+  // rotation, then translation. Skipping this put a joint-attachment bracket on the wrong hinge
+  // radius as soon as a node carried a 90/180/270 degree rotation (every `*Attachment` does).
+  const localX = -scaleX * pivotOffsetX * UNITS_PER_PIXEL;
+  const localY = -scaleY * pivotOffsetY * UNITS_PER_PIXEL;
+  const cos = Math.cos(offset.angle);
+  const sin = Math.sin(offset.angle);
+  const scaledX = localX * offset.scaleX;
+  const scaledY = localY * offset.scaleY;
   return {
     rect: { x, y: atlasSize.height - yBottom - h, w, h },
-    quadW: scaleX * cell.w,
-    quadH: scaleY * cell.h,
-    artX: offset.x - scaleX * pivotOffsetX * UNITS_PER_PIXEL,
-    artY: offset.y - scaleY * pivotOffsetY * UNITS_PER_PIXEL,
+    quadW: scaleX * cell.w * Math.abs(offset.scaleX),
+    quadH: scaleY * cell.h * Math.abs(offset.scaleY),
+    artX: offset.x + scaledX * cos - scaledY * sin,
+    artY: offset.y + scaledX * sin + scaledY * cos,
   };
 }
 
@@ -423,8 +441,8 @@ function extractSprite(prefab, sprite) {
     const w = Number(f.m_width) * cellW;
     const h = Number(f.m_height) * cellH;
     rect = { x, y: size.height - yBottom - h, w, h };
-    quadW = Number(f.m_spriteWidth);
-    quadH = Number(f.m_spriteHeight);
+    quadW = Number(f.m_spriteWidth) * Math.abs(offset.scaleX);
+    quadH = Number(f.m_spriteHeight) * Math.abs(offset.scaleY);
   } else if (sprite.kind === "named") {
     // INSerializedSprite: name -> Assets/TextAsset/<Atlas>_TextAsset.txt (top-left origin).
     const named = namedSprites.get(`${atlas.replace(/\.png$/, "")}\0${f.m_name}`);
@@ -433,8 +451,8 @@ function extractSprite(prefab, sprite) {
       return undefined;
     }
     rect = { x: named.x, y: named.y, w: named.w, h: named.h };
-    quadW = named.w * named.scaleX;
-    quadH = named.h * named.scaleY;
+    quadW = named.w * named.scaleX * Math.abs(offset.scaleX);
+    quadH = named.h * named.scaleY * Math.abs(offset.scaleY);
     unitsPerPixel = 20 / named.screenHeight;
   } else {
     const art = spriteRowArt(f, f.m_id, offset, size, prefab.gameObjects.get(sprite.gameObject)?.name ?? "sprite");
@@ -469,6 +487,10 @@ function extractSprite(prefab, sprite) {
     sx: quadW * unitsPerPixel,
     sy: quadH * unitsPerPixel,
     rot: offset.angle,
+    // Unity mirrors a node's whole subtree through a negative transform scale; the renderer
+    // applies it as a canvas scale so the art is not silently flipped away.
+    flipX: offset.scaleX < 0,
+    flipY: offset.scaleY < 0,
     z: offset.z,
   };
 }
@@ -680,6 +702,8 @@ function extractPart(prefabName) {
       sy: round(s.sy),
       rot: round(s.rot),
       rotates: s.rotates,
+      ...(s.flipX ? { flipX: true } : {}),
+      ...(s.flipY ? { flipY: true } : {}),
       ...(s.condition ? { condition: s.condition } : {}),
       ...(s.spin ? { spin: s.spin } : {}),
       ...(s.clips

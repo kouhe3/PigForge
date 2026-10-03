@@ -63,6 +63,9 @@ export interface PartSprite {
    * and a wing's two frame mounts. Their visibility follows the neighbouring layout.
    */
   condition?: SpriteCondition;
+  /** Present when the original mirrors the sprite through a negative node scale (v4). */
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 /** The axis a part's blades turn about. */
@@ -296,6 +299,8 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
         sy: finite(sprite.sy, `part ${key} sprite ${index} sy`),
         rot: finite(sprite.rot ?? 0, `part ${key} sprite ${index} rot`),
         rotates: sprite.rotates === true,
+        ...(sprite.flipX === true ? { flipX: true } : {}),
+        ...(sprite.flipY === true ? { flipY: true } : {}),
         ...(sprite.condition === undefined ? {} : { condition: conditionOf(sprite.condition, what) }),
         ...(sprite.spin === undefined ? {} : { spin: spinOf(sprite.spin, what) }),
         ...(sprite.clips === undefined ? {} : { clips: clipsOf(sprite.clips, what) }),

@@ -240,6 +240,13 @@ export function drawFrame(
         ctx.save();
         ctx.translate(offsetX * pixelScale, -offsetY * pixelScale);
         ctx.rotate(-(angle + drawn.rot));
+        // A negative node scale in the original mirrors the art (a wing's top mount is its
+        // bottom mount drawn upside down), so mirror in the sprite's own rotated frame.
+        const flipX = placement.sprite.flipX === true;
+        const flipY = placement.sprite.flipY === true;
+        if (flipX || flipY) {
+          ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+        }
         ctx.drawImage(image, drawn.x, drawn.y, drawn.w, drawn.h, -w / 2, -h / 2, w, h);
         ctx.restore();
       });
