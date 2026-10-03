@@ -218,6 +218,7 @@ describe("canvas gestures: transform tools", () => {
   it("carries shape offsets through the drag state so a wheel snaps by its union AABB", () => {
     const wheelPart: PartDefinition = {
       partTypeId: 7, name: "wheel", mode: "dynamic", mass: 1,
+      capabilities: { jointConnectionType: "target", jointConnectionDirection: "up" },
       shapes: [
         { kind: "box", halfExtents: [0.2, 0.32, 0.5], offset: [0, 0.1702, 0] },
         { kind: "sphere", radius: 0.33, offset: [0.0106, -0.2057, 0] },
