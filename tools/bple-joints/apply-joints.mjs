@@ -43,6 +43,18 @@ const report = JSON.parse(readFileSync(REPORT, "utf8")).parts;
 const isFramePrefab = (prefab) => /^Part_(WoodenFrame|MetalFrame)_/.test(prefab ?? "");
 
 const JOINT_VALUES = new Set(["none", "source", "target"]);
+const STRENGTH_VALUES = new Set(["weak", "normal", "high", "extreme", "highlyExtreme"]);
+
+/** The report's strength name for one part; the report is the only admissible source, so a
+ * missing or unknown value is a hard error rather than a silent fallback. */
+function strengthNameOf(entry, partTypeId) {
+  const name = entry.jointStrength?.name;
+  if (!STRENGTH_VALUES.has(name)) {
+    throw new Error(`part ${partTypeId}: unknown jointConnectionStrength ${JSON.stringify(entry.jointStrength)}`);
+  }
+
+  return name;
+}
 
 // Runtime attachments, keyed by prefab family. Sources:
 //   Sandbag.cs:96     search direction `m_direction = Vector3.up` (it hangs from what it finds)
@@ -96,6 +108,41 @@ function renderAttachment(attachment) {
 /** Matches one property's value in the inline capabilities text (values nest at most one level). */
 const propertyPattern = (key) => new RegExp(`"${key}":\\s*(?:"[^"]*"|true|false|-?[0-9.]+|\\{(?:[^{}]|\\{[^{}]*\\})*\\})`);
 
+/**
+ * Index of the `}` that closes the object opening at `start`, skipping braces inside JSON
+ * strings. A plain `indexOf("}")` stops at the first nested object's brace — a part that already
+ * carries `attachment` would then be spliced at the wrong offset and gain a duplicate key.
+ */
+function matchingBrace(text, start) {
+  let depth = 0;
+  let inString = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (char === "\\") {
+        index += 1;
+      } else if (char === '"') {
+        inString = false;
+      }
+
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
+}
+
 function upsert(capabilities, desired) {
   let cap = capabilities;
   const missing = desired.filter(([key]) => !propertyPattern(key).test(cap));
@@ -114,6 +161,7 @@ let text = readFileSync(CONTENT, "utf8");
 const document = JSON.parse(text);
 let updated = 0;
 const written = { none: 0, source: 0, target: 0 };
+const strengthWritten = { weak: 0, normal: 0, high: 0, extreme: 0, highlyExtreme: 0 };
 let frames = 0;
 let attachments = 0;
 
@@ -130,7 +178,11 @@ for (const part of document.parts) {
 
   const encloses = isFramePrefab(entry.prefab);
   const attachment = attachmentFor(entry.prefab);
-  const desired = [["jointConnectionType", `"jointConnectionType": ${JSON.stringify(jointType)}`]];
+  const strengthName = strengthNameOf(entry, part.partTypeId);
+  const desired = [
+    ["jointConnectionType", `"jointConnectionType": ${JSON.stringify(jointType)}`],
+    ["jointConnectionStrength", `"jointConnectionStrength": ${JSON.stringify(strengthName)}`],
+  ];
   if (encloses) {
     desired.push(["canEnclose", `"canEnclose": true`]);
   }
@@ -154,7 +206,7 @@ for (const part of document.parts) {
     text = `${text.slice(0, lineStart)}      "capabilities": { ${fields} },\n${text.slice(lineStart)}`;
   } else {
     const open = text.indexOf("{", capabilitiesIndex);
-    const close = text.indexOf("}", open);
+    const close = open < 0 ? -1 : matchingBrace(text, open);
     if (open < 0 || close < 0 || text.slice(open, close).includes("\n")) {
       throw new Error(`part ${part.partTypeId}: expected a single-line capabilities object`);
     }
@@ -163,6 +215,7 @@ for (const part of document.parts) {
   }
 
   written[jointType] += 1;
+  strengthWritten[strengthName] += 1;
   if (encloses) frames += 1;
   if (attachment) attachments += 1;
   updated += 1;
@@ -177,6 +230,10 @@ for (const part of check.parts) {
   const capabilities = part.capabilities;
   if (!capabilities || capabilities.jointConnectionType !== entry.jointType) {
     throw new Error(`part ${part.partTypeId}: jointConnectionType mismatch`);
+  }
+
+  if (capabilities.jointConnectionStrength !== strengthNameOf(entry, part.partTypeId)) {
+    throw new Error(`part ${part.partTypeId}: jointConnectionStrength mismatch`);
   }
 
   const encloses = isFramePrefab(entry.prefab);
@@ -203,4 +260,5 @@ for (const part of check.parts) {
 if (!DRY_RUN) writeFileSync(CONTENT, text);
 console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTENT}`);
 console.log(`jointConnectionType: none ${written.none} / source ${written.source} / target ${written.target}`);
+console.log(`jointConnectionStrength: ${JSON.stringify(strengthWritten)}`);
 console.log(`canEnclose: ${frames} frames; attachment: ${attachments} parts`);

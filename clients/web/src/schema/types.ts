@@ -39,6 +39,8 @@ export interface PartCapabilities {
   canEnclose?: boolean;
   /** The weld role of the pair predicate: both ends non-`none` and at least one `source` (ADR-011). */
   jointConnectionType?: "none" | "source" | "target";
+  /** The original's per-part weld strength, which scales the seam threshold (ADR-015). */
+  jointConnectionStrength?: "weak" | "normal" | "high" | "extreme" | "highlyExtreme";
   /** Elastic wheel attachment: the original's linear-limit spring (N/m, N*s/m) holding the wheel at restOffset along its own Y. */
   suspension?: { stiffness: number; damper: number; restOffset: number };
 }

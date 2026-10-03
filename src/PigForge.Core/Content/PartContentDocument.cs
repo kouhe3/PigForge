@@ -46,6 +46,22 @@ public enum JointConnectionType
 }
 
 /// <summary>
+/// The original's per-part <c>m_jointConnectionStrength</c> enum (BasePart.cs:130-137). The
+/// floats live in <c>GameData.asset:101-105</c> and are resolved by
+/// <see cref="Construction.CompoundAssembler"/>; <see cref="None"/> means the part is not
+/// mapped to a prefab, and everything then falls back to <see cref="Normal"/>.
+/// </summary>
+public enum JointConnectionStrength
+{
+    None = 0,
+    Weak = 1,
+    Normal = 2,
+    High = 3,
+    Extreme = 4,
+    HighlyExtreme = 5
+}
+
+/// <summary>
 /// Which way a runtime attachment searches for its anchor (Sandbag.cs:96 searches
 /// <c>m_direction = Vector3.up</c> and hangs below what it finds; Balloon.cs:104 searches
 /// downward and floats above what it finds), and on which side of the anchor it rests.
@@ -128,6 +144,7 @@ public sealed record PartCapabilities(
     float? BlasterChainRadius = null,
     bool IsGlue = false,
     JointConnectionType JointConnectionType = JointConnectionType.None,
+    JointConnectionStrength JointConnectionStrength = JointConnectionStrength.None,
     bool CanEnclose = false,
     PartAttachment? Attachment = null,
     PartSuspension? Suspension = null,

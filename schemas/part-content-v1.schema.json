@@ -108,6 +108,10 @@
           "description": "Original BasePart.m_jointConnectionType: whether this part offers (source), accepts (target), or refuses (none) a weld. Two adjacent parts merge only when neither is none and at least one is source.",
           "enum": ["none", "source", "target"]
         },
+        "jointConnectionStrength": {
+          "description": "Original BasePart.m_jointConnectionStrength: the per-part weld strength enum. The floats live in the original GameData asset (GameData.asset:101-105) and are resolved in code; extracted by tools/bple-joints, never authored. Absent on the three parts with no prefab, which fall back to normal.",
+          "enum": ["weak", "normal", "high", "extreme", "highlyExtreme"]
+        },
         "canEnclose": {
           "description": "True only for frames (WoodenFrame/MetalFrame prefabs). CanBeEnclosed is derived as !canEnclose in code, never authored.",
           "type": "boolean"

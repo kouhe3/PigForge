@@ -40,6 +40,11 @@ if (!existsSync(GAMEOBJECT)) {
 // Unity's enum, spelled out so a report reader does not have to decode integers.
 const JOINT_TYPES = { 0: "none", 1: "source", 2: "target" };
 
+// The original's `JointConnectionStrength` enum (BasePart.cs:130-137), spelled out for the same
+// reason. The floats it resolves to live in GameData.asset:101-105 and are applied in code
+// (Contraption.cs:1494-1506), so the report keeps the enum name and its raw value.
+const JOINT_STRENGTHS = { 0: "weak", 1: "normal", 2: "high", 3: "extreme", 4: "highlyExtreme" };
+
 const warnings = [];
 
 function prefabText(name) {
@@ -61,6 +66,24 @@ function readJointType(text) {
 
 function readJointStrength(text) {
   const match = /^\s*m_jointConnectionStrength:\s*(-?\d+)\s*$/m.exec(text);
+  if (!match) {
+    return null;
+  }
+
+  const raw = Number(match[1]);
+  return { raw, name: JOINT_STRENGTHS[raw] ?? `unknown(${raw})` };
+}
+
+/** `m_jointPreprocessing` only toggles `Joint.enablePreprocessing` (Contraption.cs:1540); it is
+ * not a strength gate, but its 316/27 split is a stable fingerprint of the source tree. */
+function readJointPreprocessing(text) {
+  const match = /^\s*m_jointPreprocessing:\s*(-?\d+)\s*$/m.exec(text);
+  return match ? Number(match[1]) : null;
+}
+
+/** `m_jointType` selects the Unity joint kind: 0 FixedJoint, 1 HingeJoint (the wheels). */
+function readJointKind(text) {
+  const match = /^\s*m_jointType:\s*(-?\d+)\s*$/m.exec(text);
   return match ? Number(match[1]) : null;
 }
 
@@ -113,12 +136,15 @@ for (const part of content.parts) {
     jointType: joint.name,
     rawJointType: joint.raw,
     jointStrength: readJointStrength(text),
+    jointPreprocessing: readJointPreprocessing(text),
+    jointKind: readJointKind(text),
   };
 }
 
 // Whole-project tally, so the report can state the distribution even for prefabs that never made
 // it into content (dropped inventions, unimported parts).
 const distribution = {};
+const prefabScan = { count: 0, strengthHistogram: {}, preprocessingHistogram: {}, jointKindHistogram: {}, parts: {} };
 for (const entry of readdirSync(GAMEOBJECT)) {
   if (!entry.startsWith("Part_") || !entry.endsWith(".prefab")) {
     continue;
@@ -128,9 +154,53 @@ for (const entry of readdirSync(GAMEOBJECT)) {
   const joint = readJointType(text);
   const key = joint ? joint.name : "absent";
   distribution[key] = (distribution[key] ?? 0) + 1;
+
+  // Every part prefab declares exactly one strength, preprocessing flag and joint kind, so the
+  // histograms double as a fingerprint: a move here means the extraction must be re-derived
+  // before anything trusts it.
+  const strength = readJointStrength(text);
+  const preprocessing = readJointPreprocessing(text);
+  const kind = readJointKind(text);
+  const strengthKey = strength ? strength.name : "absent";
+  const preprocessingKey = preprocessing === null ? "absent" : String(preprocessing);
+  const kindKey = kind === null ? "absent" : String(kind);
+  prefabScan.count += 1;
+  prefabScan.strengthHistogram[strengthKey] = (prefabScan.strengthHistogram[strengthKey] ?? 0) + 1;
+  prefabScan.preprocessingHistogram[preprocessingKey] = (prefabScan.preprocessingHistogram[preprocessingKey] ?? 0) + 1;
+  prefabScan.jointKindHistogram[kindKey] = (prefabScan.jointKindHistogram[kindKey] ?? 0) + 1;
+  prefabScan.parts[entry] = [strength ? strength.raw : null, preprocessing, kind];
 }
 
-const report = { bple: BPLE, distribution, warnings, unmapped, parts };
+// Hard invariants: measured on BPLE_Unity6 (343 Part_*.prefab, strength 45/120/98/60/20,
+// preprocessing 316/27, joint kind 302/41). Drift fails the tool instead of silently writing a
+// different world into content/parts.json.
+const sameHistogram = (actual, expected) =>
+  [...new Set([...Object.keys(actual), ...Object.keys(expected)])].every(
+    (key) => (actual[key] ?? 0) === (expected[key] ?? 0),
+  );
+const invariants = [];
+if (prefabScan.count !== 343) {
+  invariants.push(`prefab count: expected 343, got ${prefabScan.count}`);
+}
+if (!sameHistogram(prefabScan.strengthHistogram, { weak: 45, normal: 120, high: 98, extreme: 60, highlyExtreme: 20 })) {
+  invariants.push(`strength histogram: expected weak 45 / normal 120 / high 98 / extreme 60 / highlyExtreme 20, got ${JSON.stringify(prefabScan.strengthHistogram)}`);
+}
+if (!sameHistogram(prefabScan.preprocessingHistogram, { 0: 316, 1: 27 })) {
+  invariants.push(`preprocessing histogram: expected 0:316 / 1:27, got ${JSON.stringify(prefabScan.preprocessingHistogram)}`);
+}
+if (!sameHistogram(prefabScan.jointKindHistogram, { 0: 302, 1: 41 })) {
+  invariants.push(`joint kind histogram: expected 0:302 / 1:41, got ${JSON.stringify(prefabScan.jointKindHistogram)}`);
+}
+if (invariants.length > 0) {
+  console.error("extract-joints: source-tree invariants changed:");
+  for (const invariant of invariants) {
+    console.error(`  - ${invariant}`);
+  }
+
+  process.exit(1);
+}
+
+const report = { bple: BPLE, distribution, prefabScan, warnings, unmapped, parts };
 mkdirSync(dirname(OUT_JSON), { recursive: true });
 writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
 
@@ -154,7 +224,7 @@ for (const wanted of ["none", "source", "target"]) {
   const rows = byType(wanted);
   md.push(`### ${wanted}（${rows.length} 条）`, "");
   for (const [partTypeId, value] of rows) {
-    const strength = value.jointStrength === null ? "?" : value.jointStrength;
+    const strength = value.jointStrength === null ? "?" : `${value.jointStrength.name} (${value.jointStrength.raw})`;
     md.push(`- \`${partTypeId}\` ${value.name} — \`${value.prefab}\`，强度 ${strength}`);
   }
 
@@ -177,6 +247,7 @@ if (warnings.length > 0) {
 writeFileSync(OUT_MD, `${md.join("\n")}\n`);
 
 console.log(`prefabs: ${Object.values(distribution).reduce((sum, count) => sum + count, 0)} (${JSON.stringify(distribution)})`);
+console.log(`strength: ${JSON.stringify(prefabScan.strengthHistogram)}; preprocessing: ${JSON.stringify(prefabScan.preprocessingHistogram)}; joint kind: ${JSON.stringify(prefabScan.jointKindHistogram)}`);
 for (const wanted of ["none", "source", "target"]) {
   const rows = byType(wanted);
   console.log(`${wanted.padEnd(7)} parts=${String(rows.length).padStart(3)}  ${rows.slice(0, 12).map(([id, value]) => `${id}:${value.name}`).join(", ")}`);

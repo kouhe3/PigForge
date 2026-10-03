@@ -15,6 +15,79 @@ public sealed class CompoundAssemblerTests
     private const uint PartGround = 2;
     private const uint PartWheel = 3;
     private const uint PartRamp = 4;
+    private const uint PartStrengthLeft = 11;
+    private const uint PartStrengthRight = 12;
+
+    [Fact]
+    public void TheSeamThresholdScalesWithBothEndsDeclaredStrength()
+    {
+        // Normal-Normal keeps the caller's fallback: the original's ConnectionStrength factor
+        // cancels against the Normal pair (Contraption.cs:1541-1543, :2268).
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse, SeamBreak(null, null), precision: 4);
+        // Weak 125 / High 600 / HighlyExtreme 1200 against Normal 250 in a 2 x 250 denominator.
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 0.5f, SeamBreak("weak", "weak"), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 1.7f, SeamBreak("normal", "high"), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 2.4f, SeamBreak("high", "high"), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 4.8f, SeamBreak("highlyExtreme", "highlyExtreme"), precision: 4);
+    }
+
+    [Fact]
+    public void TheCatalogGivesMetalWeldsTheOriginalStrengthRatio()
+    {
+        const uint WoodenBlock = 1;
+        const uint MetalBox = 18;
+        PartContentLibrary content = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        // Wood-wood (Normal 250 each) keeps the fallback; metal-metal (High 600 each) is 2.4x.
+        // This is the wooden-vs-metal difference the extraction exists to reproduce.
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse, CatalogSeamBreak(content, WoodenBlock, WoodenBlock), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 2.4f, CatalogSeamBreak(content, MetalBox, MetalBox), precision: 4);
+    }
+
+    private static float CatalogSeamBreak(PartContentLibrary content, uint leftPart, uint rightPart)
+    {
+        EntityStore entities = new();
+        ConstructionRules rules = new(entities, new PartStore(entities), new TransformStore(entities), content);
+        EntityId left = rules.Place(leftPart, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId right = rules.Place(rightPart, 1.1f, 0f, 0f, 1f, 0).Entity;
+
+        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { left, right }, rules, content).Clusters);
+
+        return Assert.Single(cluster.Seams).BreakImpulse;
+    }
+
+    private static float SeamBreak(string? leftStrength, string? rightStrength)
+    {
+        (ConstructionRules rules, PartContentLibrary content) = CreateRulesWithStrengths(leftStrength, rightStrength);
+        EntityId left = rules.Place(PartStrengthLeft, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId right = rules.Place(PartStrengthRight, 1.1f, 0f, 0f, 1f, 0).Entity;
+
+        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { left, right }, rules, content).Clusters);
+
+        return Assert.Single(cluster.Seams).BreakImpulse;
+    }
+
+    /// <summary>Two adjacent weldable parts whose declared strengths the test chooses; null
+    /// leaves the key out, which is how a part with no extracted strength reads.</summary>
+    private static (ConstructionRules Rules, PartContentLibrary Content) CreateRulesWithStrengths(string? leftStrength, string? rightStrength)
+    {
+        string left = leftStrength is null ? string.Empty : $", \"jointConnectionStrength\": \"{leftStrength}\"";
+        string right = rightStrength is null ? string.Empty : $", \"jointConnectionStrength\": \"{rightStrength}\"";
+        PartContentLibrary content = new(PartContentParser.Parse($$"""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "compound-strength-test-v1",
+            "parts": [
+                { "partTypeId": 11, "name": "left", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "source"{{left}} } },
+                { "partTypeId": 12, "name": "right", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "target"{{right}} } }
+            ]
+        }
+        """));
+        EntityStore entities = new();
+
+        return (new ConstructionRules(entities, new PartStore(entities), new TransformStore(entities), content), content);
+    }
 
     [Fact]
     public void AdjacentDynamicBoxesMergeIntoOneClusterWithOneSeam()

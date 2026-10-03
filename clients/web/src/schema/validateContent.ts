@@ -225,4 +225,7 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.jointConnectionType !== undefined && value.jointConnectionType !== "none" && value.jointConnectionType !== "source" && value.jointConnectionType !== "target") {
     errors.push(`Part ${partTypeId} capabilities.jointConnectionType must be 'none', 'source' or 'target'.`);
   }
+  if (value.jointConnectionStrength !== undefined && !["weak", "normal", "high", "extreme", "highlyExtreme"].includes(value.jointConnectionStrength as string)) {
+    errors.push(`Part ${partTypeId} capabilities.jointConnectionStrength must be 'weak', 'normal', 'high', 'extreme' or 'highlyExtreme'.`);
+  }
 }

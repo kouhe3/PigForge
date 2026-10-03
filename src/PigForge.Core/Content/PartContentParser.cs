@@ -328,6 +328,7 @@ public static class PartContentParser
         float? blasterChainRadius = null;
         bool isGlue = false;
         JointConnectionType jointConnectionType = JointConnectionType.None;
+        JointConnectionStrength jointConnectionStrength = JointConnectionStrength.None;
         bool canEnclose = false;
         float? balloonLift = null;
         float? fanThrust = null;
@@ -621,6 +622,17 @@ public static class PartContentParser
             }
         }
 
+        if (seenKeys.Contains("jointConnectionStrength"))
+        {
+            if (!capabilitiesElement.TryGetProperty("jointConnectionStrength", out JsonElement strengthElement)
+                || strengthElement.ValueKind != JsonValueKind.String
+                || !TryReadJointConnectionStrength(strengthElement.GetString(), out jointConnectionStrength))
+            {
+                errors.Add($"{path}.capabilities.jointConnectionStrength: must be \"weak\", \"normal\", \"high\", \"extreme\", or \"highlyExtreme\".");
+                hasError = true;
+            }
+        }
+
         if (seenKeys.Contains("canEnclose"))
         {
             if (!capabilitiesElement.TryGetProperty("canEnclose", out JsonElement encloseElement)
@@ -677,7 +689,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -689,7 +701,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, canEnclose, attachment, suspension, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, canEnclose, attachment, suspension, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -940,6 +952,31 @@ public static class PartContentParser
                 return true;
             default:
                 jointConnectionType = JointConnectionType.None;
+                return false;
+        }
+    }
+
+    private static bool TryReadJointConnectionStrength(string? value, out JointConnectionStrength jointConnectionStrength)
+    {
+        switch (value)
+        {
+            case "weak":
+                jointConnectionStrength = JointConnectionStrength.Weak;
+                return true;
+            case "normal":
+                jointConnectionStrength = JointConnectionStrength.Normal;
+                return true;
+            case "high":
+                jointConnectionStrength = JointConnectionStrength.High;
+                return true;
+            case "extreme":
+                jointConnectionStrength = JointConnectionStrength.Extreme;
+                return true;
+            case "highlyExtreme":
+                jointConnectionStrength = JointConnectionStrength.HighlyExtreme;
+                return true;
+            default:
+                jointConnectionStrength = JointConnectionStrength.None;
                 return false;
         }
     }

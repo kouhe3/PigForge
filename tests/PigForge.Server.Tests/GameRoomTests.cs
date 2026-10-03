@@ -76,6 +76,20 @@ public sealed class GameRoomTests
     }
 
     [Fact]
+    public void AStrongerWeldedPairSurvivesTheImpulseThatSplitsTheNormalPair()
+    {
+        // Same layout and the same 30 impulse: only the declared strengths differ, so the split
+        // outcome proves the per-part threshold is live (plan P3 of the joint-strength batch).
+        ScriptedPhysicsWorld normalWorld = new();
+        CreateMotorRoom(() => normalWorld, withGlue: false).RunTicks(2);
+        Assert.NotEmpty(normalWorld.DestroyedBodies);
+
+        ScriptedPhysicsWorld strongWorld = new();
+        CreateMotorRoom(() => strongWorld, withGlue: false, StrongMotorContentJson).RunTicks(2);
+        Assert.Empty(strongWorld.DestroyedBodies);
+    }
+
+    [Fact]
     public void DisposeReleasesTheWorldAndRejectsFurtherUse()
     {
         ScriptedPhysicsWorld world = new();
@@ -437,9 +451,9 @@ public sealed class GameRoomTests
 
     /// <summary>Motor + block (+ glue) placed adjacent so they weld into one compound; the
     /// motor's 30 impulse exceeds the default 10 seam threshold from the first tick.</summary>
-    private static GameRoom CreateMotorRoom(Func<IPhysicsWorld> factory, bool withGlue)
+    private static GameRoom CreateMotorRoom(Func<IPhysicsWorld> factory, bool withGlue, string contentJson = MotorContentJson)
     {
-        PartContentLibrary content = new(PartContentParser.Parse(MotorContentJson));
+        PartContentLibrary content = new(PartContentParser.Parse(contentJson));
         GameRoom room = new(GameRoomOptions.Create(
             content,
             factory,
@@ -480,6 +494,20 @@ public sealed class GameRoomTests
             { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
             { "partTypeId": 2, "name": "motor", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target", "motor": { "thrustPerTick": 30, "directionX": 1 } }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
             { "partTypeId": 3, "name": "glue", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target", "glue": true }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
+        ]
+    }
+    """;
+
+    /// <summary>The motor room's two welded parts declared HighlyExtreme: the pair's seam
+    /// threshold rises from 10 to 48, so the motor's 30 impulse no longer splits it.</summary>
+    private const string StrongMotorContentJson = """
+    {
+        "format": "pigforge.part-content",
+        "schemaVersion": 1,
+        "contentVersion": "server-strength-test-v1",
+        "parts": [
+            { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source", "jointConnectionStrength": "highlyExtreme" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
+            { "partTypeId": 2, "name": "motor", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target", "jointConnectionStrength": "highlyExtreme", "motor": { "thrustPerTick": 30, "directionX": 1 } }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
         ]
     }
     """;

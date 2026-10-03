@@ -459,6 +459,69 @@ public sealed class PartContentTests
         Assert.Equal(0.4f, sphere.Radius);
     }
 
+    [Fact]
+    public void ReadsTheJointConnectionStrength()
+    {
+        PartContentDocument document = PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source", "jointConnectionStrength": "high" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
+            ]
+        }
+        """);
+
+        Assert.Equal(JointConnectionStrength.High, document.Parts[0].Capabilities!.JointConnectionStrength);
+    }
+
+    [Fact]
+    public void TheRealContentCarriesTheExtractedJointStrength()
+    {
+        PartContentDocument document = PartContentParser.Parse(File.ReadAllText(FindRepositoryFile("content/parts.json")));
+        Dictionary<uint, JointConnectionStrength> strength = document.Parts.ToDictionary(
+            part => part.PartTypeId,
+            part => part.Capabilities?.JointConnectionStrength ?? JointConnectionStrength.None);
+
+        // Extracted coverage: every part that maps to a prefab carries one; only the three
+        // hand-authored static level parts have no prefab to extract from.
+        Assert.Equal(264, strength.Count(entry => entry.Value != JointConnectionStrength.None));
+        Assert.All(new uint[] { 2, 5, 6 }, id => Assert.Equal(JointConnectionStrength.None, strength[id]));
+
+        // The user-visible ordering this exists for: wooden (Normal) is weaker than metal
+        // (High) — wood-wood 1.0x, wood-metal 1.7x, metal-metal 2.4x.
+        Assert.Equal(JointConnectionStrength.Normal, strength[1]);
+        Assert.Equal(JointConnectionStrength.High, strength[18]);
+    }
+
+    [Fact]
+    public void APartWithCapabilitiesButNoStrengthReadsAsNone()
+    {
+        PartContentDocument document = PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
+            ]
+        }
+        """);
+
+        Assert.Equal(JointConnectionStrength.None, document.Parts[0].Capabilities!.JointConnectionStrength);
+    }
+
+    [Theory]
+    [InlineData("highlyextreme")]
+    [InlineData("1")]
+    public void RejectsAnUnknownJointConnectionStrength(string value)
+    {
+        AssertRejected(
+            $$"""{ "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionStrength": "{{value}}" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }""",
+            "jointConnectionStrength");
+    }
+
     private const string SinglePartJson = """
     {
         "format": "pigforge.part-content",

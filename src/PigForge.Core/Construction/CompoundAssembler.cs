@@ -246,6 +246,17 @@ public static class CompoundAssembler
     public const float DefaultSeamBreakImpulse = 10f;
 
     /// <summary>
+    /// The strength the original's <c>Normal</c> enum resolves to under the shipped
+    /// <c>INFeature.ConnectionStrength</c> of 2 (INSettingsBExp.json:208-210): the
+    /// <c>Contraption.GetJointConnectionStrength</c> table (Contraption.cs:1494-1506) reads
+    /// 125 from <c>GameData.asset:101-105</c> and doubles <em>only</em> the Normal arm
+    /// (Contraption.cs:1500), so Normal is 250 while Weak stays 125 and High/Extreme/
+    /// HighlyExtreme are 600/900/1200 unchanged. It is also the fallback for a part whose
+    /// strength was never extracted.
+    /// </summary>
+    private const float NormalJointStrength = 250f;
+
+    /// <summary>
     /// Welds the connected dynamic parts into clusters, splits them along preset seams, and
     /// resolves the wheel hinges that keep wheels spinning on their own bodies.
     /// </summary>
@@ -630,6 +641,29 @@ public static class CompoundAssembler
             : JointConnectionType.None;
 
     /// <summary>
+    /// The original's joint-connection strength for one part, in its own units: the enum
+    /// resolved through the <c>GameData.asset:101-105</c> floats with the Normal-only x2 the
+    /// shipped <c>ConnectionStrength</c> of 2 applies (Contraption.cs:1494-1506). A part with
+    /// no extracted strength (the three without a prefab) falls back to Normal.
+    /// </summary>
+    private static float JointConnectionStrengthOf(EntityId entity, ConstructionRules construction, PartContentLibrary content)
+    {
+        if (!construction.TryGetPartTypeId(entity, out uint partTypeId))
+        {
+            return NormalJointStrength;
+        }
+
+        return content.GetPart(partTypeId).Capabilities?.JointConnectionStrength switch
+        {
+            JointConnectionStrength.Weak => 125f,
+            JointConnectionStrength.High => 600f,
+            JointConnectionStrength.Extreme => 900f,
+            JointConnectionStrength.HighlyExtreme => 1200f,
+            _ => NormalJointStrength
+        };
+    }
+
+    /// <summary>
     /// Revolute attachments for wheel parts: each wheel keeps its own body and hinges to
     /// one neighbour (the lowest-id non-wheel neighbour, else the lowest-id neighbour).
     /// </summary>
@@ -849,7 +883,19 @@ public static class CompoundAssembler
                     construction.TryGetTransform(new EntityId(left), out EntityTransform leftTransform);
                     construction.TryGetTransform(new EntityId(right), out EntityTransform rightTransform);
                     PhysicsVector3 midpoint = (leftTransform.Position + rightTransform.Position) * 0.5f;
-                    seams.Add(new CompoundSeam(new EntityId(left), new EntityId(right), midpoint - com, seamBreakImpulse));
+                    // The original's general path sums both ends' strengths and multiplies by
+                    // ConnectionStrength (Contraption.cs:1541-1543 then :2268). That factor is a
+                    // constant here, so it cancels against the Normal pair: the seam keeps the
+                    // caller's fallback for Normal-Normal and scales by the strength ratio
+                    // (wood-wood 1.0, wood-metal 1.7, metal-metal 2.4, timebomb-timebomb 4.8).
+                    float pairStrength =
+                        JointConnectionStrengthOf(new EntityId(left), construction, content)
+                        + JointConnectionStrengthOf(new EntityId(right), construction, content);
+                    seams.Add(new CompoundSeam(
+                        new EntityId(left),
+                        new EntityId(right),
+                        midpoint - com,
+                        seamBreakImpulse * pairStrength / (2f * NormalJointStrength)));
                 }
             }
 
