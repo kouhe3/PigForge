@@ -477,6 +477,58 @@ public sealed class PartContentTests
     }
 
     [Fact]
+    public void ReadsTheFrictionCombineMode()
+    {
+        PartContentDocument document = PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 1, "name": "tyre", "mode": "dynamic", "mass": 1, "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
+            ]
+        }
+        """);
+
+        Assert.Equal(0.025f, document.Parts[0].Friction, precision: 4);
+        Assert.Equal(FrictionCombine.Multiply, document.Parts[0].FrictionCombine);
+    }
+
+    [Fact]
+    public void AMaterialWithoutACombineModeReadsAsAverage()
+    {
+        Assert.Equal(FrictionCombine.Average, PartContentParser.Parse(SinglePartJson).Parts[0].FrictionCombine);
+    }
+
+    [Fact]
+    public void RejectsAnUnknownFrictionCombine()
+    {
+        AssertRejected(
+            """{ "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "material": { "restitution": 0, "friction": 0.5, "frictionCombine": "blend" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }""",
+            "material");
+    }
+
+    [Fact]
+    public void TheRealContentGivesWheelsTheirTyreMaterial()
+    {
+        PartContentDocument document = PartContentParser.Parse(File.ReadAllText(FindRepositoryFile("content/parts.json")));
+        Dictionary<uint, PartDefinition> parts = document.Parts.ToDictionary(part => part.PartTypeId);
+
+        // A wheel's physics body is its tyre spheres (ADR-009) and its support box rides the
+        // parent body, so the tyre's Multiply material is what touches the ground — not the hub's
+        // Average 0.7 that the old "material most colliders use" rule picked.
+        foreach (uint wheel in new uint[] { 7, 14, 15, 16, 17 })
+        {
+            Assert.Equal(FrictionCombine.Multiply, parts[wheel].FrictionCombine);
+            Assert.InRange(parts[wheel].Friction, 0.02f, 0.06f);
+        }
+
+        Assert.Equal(0.05f, parts[15].Friction, precision: 3); // the wooden wheel's own tyre
+        Assert.Equal(FrictionCombine.Average, parts[1].FrictionCombine); // wooden block
+        Assert.Equal(0.7f, parts[1].Friction, precision: 4);
+    }
+
+    [Fact]
     public void TheRealContentCarriesTheExtractedJointStrength()
     {
         PartContentDocument document = PartContentParser.Parse(File.ReadAllText(FindRepositoryFile("content/parts.json")));

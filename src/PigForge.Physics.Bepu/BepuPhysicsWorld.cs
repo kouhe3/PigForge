@@ -18,8 +18,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private readonly Dictionary<PhysicsBodyId, StaticHandle> _staticBodies = new();
     private readonly Dictionary<PhysicsBodyId, TypedIndex> _shapesByBody = new();
     private readonly Dictionary<TypedIndex, List<TypedIndex>> _childShapesByCompound = new();
-    private readonly Dictionary<int, float> _frictionByDynamicHandle = new();
-    private readonly Dictionary<int, float> _frictionByStaticHandle = new();
+    private readonly Dictionary<int, PhysicsMaterial> _materialByDynamicHandle = new();
+    private readonly Dictionary<int, PhysicsMaterial> _materialByStaticHandle = new();
     // A hinged wheel's body and its parent are one mechanism: the original keeps a wheel's
     // support collider and its tire on the same rigid body, and after the split that keeps
     // wheels spinning (see ADR-009) the two overlap on purpose. Contacts between them would
@@ -127,7 +127,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             StaticHandle handle = _simulation.Statics.Add(new StaticDescription(pose, shapeIndex));
             _staticBodies.Add(id, handle);
             _staticIdsByHandle.Add(handle.Value, id);
-            _frictionByStaticHandle.Add(handle.Value, definition.Material.Friction);
+            _materialByStaticHandle.Add(handle.Value, definition.Material);
         }
         else
         {
@@ -140,7 +140,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             BodyHandle handle = _simulation.Bodies.Add(body);
             _dynamicBodies.Add(id, handle);
             _dynamicIdsByHandle.Add(handle.Value, id);
-            _frictionByDynamicHandle.Add(handle.Value, definition.Material.Friction);
+            _materialByDynamicHandle.Add(handle.Value, definition.Material);
             SetConstraints(handle.Value, definition.Constraints, definition.Position.Z);
             // Sleeping bodies would ignore impulses, and waking via the BodyReference
             // setter corrupts solver state; keep dynamics always awake.
@@ -179,14 +179,14 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             }
 
             _dynamicIdsByHandle.Remove(dynamicHandle.Value);
-            _frictionByDynamicHandle.Remove(dynamicHandle.Value);
+            _materialByDynamicHandle.Remove(dynamicHandle.Value);
             SetConstraints(dynamicHandle.Value, PhysicsConstraintMask.None, 0f);
             _simulation.Bodies.Remove(dynamicHandle);
         }
         else if (_staticBodies.Remove(body, out StaticHandle staticHandle))
         {
             _staticIdsByHandle.Remove(staticHandle.Value);
-            _frictionByStaticHandle.Remove(staticHandle.Value);
+            _materialByStaticHandle.Remove(staticHandle.Value);
             _simulation.Statics.Remove(staticHandle);
         }
         else
@@ -670,8 +670,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _staticBodies.Clear();
         _shapesByBody.Clear();
         _childShapesByCompound.Clear();
-        _frictionByDynamicHandle.Clear();
-        _frictionByStaticHandle.Clear();
+        _materialByDynamicHandle.Clear();
+        _materialByStaticHandle.Clear();
         _dynamicIdsByHandle.Clear();
         _staticIdsByHandle.Clear();
         _bodyOrder.Clear();
@@ -754,16 +754,17 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             ? default
             : _simulation.Bodies[reference.BodyHandle].Velocity.Linear;
 
-    internal float CombineFriction(CollidablePair pair)
-    {
-        float frictionA = GetMaterialFriction(pair.A);
-        float frictionB = GetMaterialFriction(pair.B);
-        return (frictionA + frictionB) * 0.5f;
-    }
+    /// <summary>
+    /// The pair's friction coefficient. Unity picks the higher-priority combine mode of the two
+    /// surfaces (Average &lt; Minimum &lt; Multiply &lt; Maximum) and applies only that mode
+    /// (see <see cref="PhysicsMaterial.FrictionWith"/>); until the extraction landed every
+    /// material was Average, so this is the same pair average it has always been.
+    /// </summary>
+    internal float CombineFriction(CollidablePair pair) => GetMaterial(pair.A).FrictionWith(GetMaterial(pair.B));
 
-    private float GetMaterialFriction(CollidableReference reference) => reference.Mobility == CollidableMobility.Static
-        ? _frictionByStaticHandle.GetValueOrDefault(reference.StaticHandle.Value, PhysicsMaterial.Default.Friction)
-        : _frictionByDynamicHandle.GetValueOrDefault(reference.BodyHandle.Value, PhysicsMaterial.Default.Friction);
+    private PhysicsMaterial GetMaterial(CollidableReference reference) => reference.Mobility == CollidableMobility.Static
+        ? _materialByStaticHandle.GetValueOrDefault(reference.StaticHandle.Value, PhysicsMaterial.Default)
+        : _materialByDynamicHandle.GetValueOrDefault(reference.BodyHandle.Value, PhysicsMaterial.Default);
 
     private bool TryGetBodyId(CollidableReference reference, out PhysicsBodyId body)
     {
@@ -938,7 +939,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         {
             pairMaterial = new PairMaterialProperties
             {
-                // Per-body friction from content, combined as the pair average.
+                // Per-body friction from content, combined by Unity's PhysicMaterialCombine rule.
                 // BepuPhysics v2 exposes no restitution term; the rules layer turns the
                 // recorded contact impact into a bounce impulse instead (see PhysicsMaterial).
                 FrictionCoefficient = _world.CombineFriction(pair),

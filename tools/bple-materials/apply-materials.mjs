@@ -64,36 +64,87 @@ if (!unityDefault || !Number.isFinite(unityDefault.bounciness) || !Number.isFini
 
 const num = (value) => (Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4))));
 
+const COMBINE_NAMES = ["average", "minimum", "multiply", "maximum"];
+
+/** The report carries the combine either as Unity's index or as its title-case name. */
+const combineNameOf = (value) => {
+  if (typeof value === "number") return COMBINE_NAMES[value] ?? "average";
+  if (typeof value === "string" && value.length > 0) return value.toLowerCase();
+  return "average";
+};
+
+/**
+ * The material of the colliders that actually make up a part's physics body. A wheel's body is
+ * its tyre spheres (ADR-009) and its support box rides the parent body, so a wheel takes the
+ * tyre's material: the hub's `Contraption_PhysMat` (Average, 0.7) only ever touches the parent.
+ * Everything else keeps the report's primary material (the one most colliders use).
+ */
+function bodyMaterialOf(row, part) {
+  if (part?.capabilities?.wheel !== true) return null;
+  const colliders = report.prefabs?.[row.prefab]?.colliders ?? [];
+  const tyre = colliders.find((collider) => collider.kind === "sphere" && !collider.isTrigger && collider.hasMaterial);
+  return tyre ? report.materials[tyre.materialName] ?? null : null;
+}
+
 /**
  * The material the report admits for one part, or null when the report has no extracted source
  * for it (`prefabNotMapped`, or no row at all). Throws on a status the extractor should never
  * emit with usable numbers, so a report-format change fails loudly instead of writing garbage.
  */
-function desiredMaterial(row) {
+function desiredMaterial(row, part) {
   if (!row) return null;
   if (!row.originalPrefabFound) return null; // prefabNotMapped: authored content, not extracted
   if (row.originalStatus === "noMaterial") {
-    return { restitution: unityDefault.bounciness, friction: unityDefault.dynamicFriction, unityDefault: true };
+    return {
+      restitution: unityDefault.bounciness,
+      friction: unityDefault.dynamicFriction,
+      frictionCombine: combineNameOf(unityDefault.frictionCombine),
+      unityDefault: true,
+    };
   }
 
   if (row.originalStatus !== "single" && row.originalStatus !== "mixed") {
     throw new Error(`part ${row.partTypeId}: unexpected originalStatus ${JSON.stringify(row.originalStatus)}`);
   }
 
+  const body = bodyMaterialOf(row, part);
+  if (body) {
+    if (!Number.isFinite(body.bounciness) || !Number.isFinite(body.dynamicFriction)) {
+      throw new Error(`part ${row.partTypeId}: body material without numeric values: ${JSON.stringify(body)}`);
+    }
+
+    return {
+      restitution: body.bounciness,
+      friction: body.dynamicFriction,
+      frictionCombine: combineNameOf(body.frictionCombine),
+      unityDefault: false,
+    };
+  }
+
   if (!Number.isFinite(row.originalBounciness) || !Number.isFinite(row.originalDynamicFriction)) {
     throw new Error(`part ${row.partTypeId}: ${row.originalStatus} row without numeric values: ${JSON.stringify(row)}`);
   }
 
-  return { restitution: row.originalBounciness, friction: row.originalDynamicFriction, unityDefault: false };
+  return {
+    restitution: row.originalBounciness,
+    friction: row.originalDynamicFriction,
+    frictionCombine: combineNameOf(row.originalFrictionCombine),
+    unityDefault: false,
+  };
 }
 
 /** partTypeId -> desired material (null = leave untouched), derived only from the report. */
+const contentParts = new Map(JSON.parse(readFileSync(CONTENT, "utf8")).parts.map((part) => [String(part.partTypeId), part]));
 const desired = new Map();
 for (const row of report.diff ?? []) {
-  desired.set(String(row.partTypeId), desiredMaterial(row));
+  desired.set(String(row.partTypeId), desiredMaterial(row, contentParts.get(String(row.partTypeId))));
 }
 
-const materialText = (value) => `{ "restitution": ${num(value.restitution)}, "friction": ${num(value.friction)} }`;
+// Average is Unity's default and the pre-extraction behaviour, so it stays implicit; only a
+// mode that actually changes the blend is written.
+const materialText = (value) => (value.frictionCombine === "average"
+  ? `{ "restitution": ${num(value.restitution)}, "friction": ${num(value.friction)} }`
+  : `{ "restitution": ${num(value.restitution)}, "friction": ${num(value.friction)}, "frictionCombine": ${JSON.stringify(value.frictionCombine)} }`);
 
 /** Rewrites one document text with the report's material values, preserving everything else. */
 function rewrite(text) {
@@ -137,7 +188,10 @@ function rewrite(text) {
       text = `${text.slice(0, lineStart)}      "material": ${rendered},\n${text.slice(lineStart)}`;
     }
 
-    if (before.get(key) !== JSON.stringify({ restitution: want.restitution, friction: want.friction })) changed += 1;
+    const wantMaterial = want.frictionCombine === "average"
+      ? { restitution: want.restitution, friction: want.friction }
+      : { restitution: want.restitution, friction: want.friction, frictionCombine: want.frictionCombine };
+    if (before.get(key) !== JSON.stringify(wantMaterial)) changed += 1;
     if (want.unityDefault) unityDefaultParts += 1;
     updated += 1;
   }
@@ -162,7 +216,11 @@ function verify(result) {
       continue;
     }
 
-    if (material === null || material.restitution !== want.restitution || material.friction !== want.friction) {
+    const wantCombine = want.frictionCombine === "average" ? undefined : want.frictionCombine;
+    if (material === null
+      || material.restitution !== want.restitution
+      || material.friction !== want.friction
+      || material.frictionCombine !== wantCombine) {
       throw new Error(
         `part ${part.partTypeId}: material mismatch ${JSON.stringify(material)} != ${JSON.stringify(want)}`,
       );
@@ -181,7 +239,7 @@ if (second.text !== first.text) throw new Error("rewrite is not idempotent");
 
 if (!DRY_RUN) writeFileSync(CONTENT, first.text);
 
-const tally = (pick) => {
+const tally = (pick, format = num) => {
   const counts = new Map();
   for (const part of JSON.parse(first.text).parts) {
     const want = desired.get(String(part.partTypeId));
@@ -190,13 +248,17 @@ const tally = (pick) => {
     counts.set(value, (counts.get(value) ?? 0) + 1);
   }
 
-  return [...counts].sort((a, b) => a[0] - b[0]).map(([value, count]) => `${num(value)}×${count}`).join(", ");
+  return [...counts]
+    .sort((a, b) => (typeof a[0] === "number" && typeof b[0] === "number" ? a[0] - b[0] : String(a[0]).localeCompare(String(b[0]))))
+    .map(([value, count]) => `${format(value)}×${count}`)
+    .join(", ");
 };
 
 console.log(`${DRY_RUN ? "would update" : "updated"} ${first.updated} parts in ${CONTENT} (${first.changed} changed)`);
 console.log(`unity default material (no PhysicMaterial in the original): ${first.unityDefaultParts}`);
 console.log(`restitution: ${tally((want) => want.restitution)}`);
 console.log(`friction: ${tally((want) => want.friction)}`);
+console.log(`frictionCombine: ${tally((want) => want.frictionCombine, String)}`);
 const mappedSkips = first.skipped.filter((part) => part.mapped);
 const unmappedSkips = first.skipped.filter((part) => !part.mapped);
 console.log(`skipped (report has no source): ${first.skipped.length}`);

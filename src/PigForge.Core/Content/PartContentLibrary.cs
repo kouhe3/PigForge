@@ -211,7 +211,7 @@ public sealed class PartContentLibrary
             shapes,
             linearVelocity,
             angularVelocity,
-            new PhysicsMaterial(part.Restitution, part.Friction),
+            new PhysicsMaterial(part.Restitution, part.Friction, part.FrictionCombine),
             constraints);
     }
 

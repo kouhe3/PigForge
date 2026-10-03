@@ -159,14 +159,42 @@ public readonly record struct FixedTimeStep(float Seconds)
 	}
 }
 
+/// <summary>
+/// Unity's <c>PhysicMaterialCombine</c>: how two surfaces' friction coefficients blend. The
+/// original's assets use Average (the built-in default) and Multiply (the wheel tyres, which is
+/// what makes a tire slide); Unity resolves a pair by the higher-priority mode,
+/// Average &lt; Minimum &lt; Multiply &lt; Maximum, and applies that mode alone.
+/// </summary>
+public enum FrictionCombine
+{
+	Average = 0,
+	Minimum = 1,
+	Multiply = 2,
+	Maximum = 3
+}
+
 /// <summary>Per-body surface properties. Restitution is honoured by the backend when
 /// <see cref="PhysicsCapabilities.AppliesRestitutionNatively"/> is true (Jolt); a backend
 /// without native support (Bepu v2 has no restitution term at all) still reports the
 /// pre-solve contact normal and approach speed so the rules layer can synthesize the
 /// same bounce as a deterministic impulse pair (see GameplayRules restitution).</summary>
-public sealed record PhysicsMaterial(float Restitution, float Friction)
+public sealed record PhysicsMaterial(float Restitution, float Friction, FrictionCombine FrictionCombine = FrictionCombine.Average)
 {
 	public static PhysicsMaterial Default { get; } = new(Restitution: 0f, Friction: 0.8f);
+
+	/// <summary>
+	/// Unity's pair blend: the pair uses whichever side declares the higher-priority combine
+	/// mode and applies that mode alone to both coefficients. Two Average surfaces therefore
+	/// average (the historical PigForge behaviour); a Multiply tyre against an Average ground
+	/// multiplies instead of averaging, which is what the original actually runs.
+	/// </summary>
+	public float FrictionWith(PhysicsMaterial other) => (FrictionCombine)Math.Max((int)FrictionCombine, (int)other.FrictionCombine) switch
+	{
+		FrictionCombine.Minimum => MathF.Min(Friction, other.Friction),
+		FrictionCombine.Multiply => Friction * other.Friction,
+		FrictionCombine.Maximum => MathF.Max(Friction, other.Friction),
+		_ => (Friction + other.Friction) * 0.5f
+	};
 }
 
 public abstract record ShapeDefinition(PhysicsShapeKind Kind);

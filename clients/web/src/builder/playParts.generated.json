@@ -121,7 +121,8 @@
       "mass": 0.5,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -360,7 +361,8 @@
       "mass": 0.3,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -401,7 +403,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -442,7 +445,8 @@
       "mass": 0.6,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -488,7 +492,8 @@
       "mass": 0.8,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -3024,7 +3029,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3066,7 +3072,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3108,7 +3115,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3150,7 +3158,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3192,7 +3201,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3234,7 +3244,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3276,7 +3287,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3318,7 +3330,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3360,7 +3373,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -3402,7 +3416,8 @@
       "mass": 1.2,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.05,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -5485,7 +5500,8 @@
       "mass": 2,
       "material": {
         "restitution": 0,
-        "friction": 0
+        "friction": 0,
+        "frictionCombine": "minimum"
       },
       "capabilities": {
         "jointConnectionStrength": "high",
@@ -5513,7 +5529,8 @@
       "mass": 0.3,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -5555,7 +5572,8 @@
       "mass": 0.3,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -5597,7 +5615,8 @@
       "mass": 0.3,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -5639,7 +5658,8 @@
       "mass": 0.3,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -5681,7 +5701,8 @@
       "mass": 0.3,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -5723,7 +5744,8 @@
       "mass": 0.3,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -5765,7 +5787,8 @@
       "mass": 0.3,
       "material": {
         "restitution": 0,
-        "friction": 0.025
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6391,7 +6414,8 @@
       "mass": 0.8,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6438,7 +6462,8 @@
       "mass": 0.8,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6485,7 +6510,8 @@
       "mass": 0.8,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6532,7 +6558,8 @@
       "mass": 0.8,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6579,7 +6606,8 @@
       "mass": 0.8,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6626,7 +6654,8 @@
       "mass": 0.8,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6706,7 +6735,8 @@
       "mass": 0.5,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6748,7 +6778,8 @@
       "mass": 0.5,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6790,7 +6821,8 @@
       "mass": 0.5,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6832,7 +6864,8 @@
       "mass": 0.5,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6874,7 +6907,8 @@
       "mass": 0.5,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -6916,7 +6950,8 @@
       "mass": 0.5,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -8473,7 +8508,8 @@
       "mass": 0.6,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -8520,7 +8556,8 @@
       "mass": 0.6,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",
@@ -8567,7 +8604,8 @@
       "mass": 0.6,
       "material": {
         "restitution": 0,
-        "friction": 0.7
+        "friction": 0.025,
+        "frictionCombine": "multiply"
       },
       "capabilities": {
         "jointConnectionStrength": "extreme",

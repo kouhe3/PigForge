@@ -143,7 +143,7 @@ public sealed class CompoundCluster
                 tires,
                 linearVelocity,
                 angularVelocity,
-                new PhysicsMaterial(first.Restitution, first.Friction),
+                new PhysicsMaterial(first.Restitution, first.Friction, first.FrictionCombine),
                 constraints);
         }
 
@@ -208,7 +208,7 @@ public sealed class CompoundCluster
             new ShapeDefinition[] { new CompoundShapeDefinition(children) },
             linearVelocity,
             angularVelocity,
-            new PhysicsMaterial(first.Restitution, first.Friction),
+            new PhysicsMaterial(first.Restitution, first.Friction, first.FrictionCombine),
             constraints);
     }
 

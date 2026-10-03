@@ -183,14 +183,16 @@ public static class PartContentParser
 
         float restitution = 0f;
         float friction = 0.8f;
+        FrictionCombine frictionCombine = FrictionCombine.Average;
         if (seen.Contains("material") && element.TryGetProperty("material", out JsonElement materialElement))
         {
             if (materialElement.ValueKind != JsonValueKind.Object
-                || !TryReadMaterial(materialElement, path, out restitution, out friction))
+                || !TryReadMaterial(materialElement, path, out restitution, out friction, out frictionCombine))
             {
-                errors.Add($"{path}.material: must be an object with restitution in [0, 1] and friction in [0, 4].");
+                errors.Add($"{path}.material: must be an object with restitution in [0, 1], friction in [0, 4] and an optional frictionCombine of \"average\", \"minimum\", \"multiply\" or \"maximum\".");
                 restitution = 0f;
                 friction = 0.8f;
+                frictionCombine = FrictionCombine.Average;
             }
         }
 
@@ -265,6 +267,7 @@ public static class PartContentParser
             restitution,
             friction,
             shapes,
+            frictionCombine,
             capabilities,
             variantOf,
             variantName));
@@ -1431,10 +1434,11 @@ public static class PartContentParser
             offset));
     }
 
-    private static bool TryReadMaterial(JsonElement element, string path, out float restitution, out float friction)
+    private static bool TryReadMaterial(JsonElement element, string path, out float restitution, out float friction, out FrictionCombine frictionCombine)
     {
         restitution = 0f;
         friction = 0.8f;
+        frictionCombine = FrictionCombine.Average;
         HashSet<string> seen = new();
         foreach (JsonProperty property in element.EnumerateObject())
         {
@@ -1444,7 +1448,9 @@ public static class PartContentParser
             }
         }
 
-        if (!seen.SetEquals(new HashSet<string> { "restitution", "friction" })
+        if (!seen.Contains("restitution")
+            || !seen.Contains("friction")
+            || !seen.All(name => name is "restitution" or "friction" or "frictionCombine")
             || !element.TryGetProperty("restitution", out JsonElement restitutionElement)
             || !element.TryGetProperty("friction", out JsonElement frictionElement)
             || restitutionElement.ValueKind != JsonValueKind.Number
@@ -1455,9 +1461,39 @@ public static class PartContentParser
             return false;
         }
 
+        if (seen.Contains("frictionCombine")
+            && (!element.TryGetProperty("frictionCombine", out JsonElement combineElement)
+                || combineElement.ValueKind != JsonValueKind.String
+                || !TryReadFrictionCombine(combineElement.GetString(), out frictionCombine)))
+        {
+            return false;
+        }
+
         restitution = restitutionElement.GetSingle();
         friction = frictionElement.GetSingle();
         return restitution is >= 0f and <= 1f && friction is >= 0f and <= 4f;
+    }
+
+    private static bool TryReadFrictionCombine(string? value, out FrictionCombine frictionCombine)
+    {
+        switch (value)
+        {
+            case "average":
+                frictionCombine = FrictionCombine.Average;
+                return true;
+            case "minimum":
+                frictionCombine = FrictionCombine.Minimum;
+                return true;
+            case "multiply":
+                frictionCombine = FrictionCombine.Multiply;
+                return true;
+            case "maximum":
+                frictionCombine = FrictionCombine.Maximum;
+                return true;
+            default:
+                frictionCombine = FrictionCombine.Average;
+                return false;
+        }
     }
 
     private static string? ReadVersion(JsonElement element, string path, List<string> errors)

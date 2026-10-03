@@ -45,7 +45,11 @@
       "required": ["restitution", "friction"],
       "properties": {
         "restitution": { "type": "number", "minimum": 0, "maximum": 1 },
-        "friction": { "type": "number", "minimum": 0, "maximum": 4 }
+        "friction": { "type": "number", "minimum": 0, "maximum": 4 },
+        "frictionCombine": {
+          "description": "Unity's PhysicMaterialCombine, extracted per collider by tools/bple-materials. A pair uses the higher-priority mode (Average < Minimum < Multiply < Maximum); the wheel tyres are Multiply, which is why a tyre slides instead of gripping like its hub.",
+          "enum": ["average", "minimum", "multiply", "maximum"]
+        }
       }
     },
     "partDefinition": {

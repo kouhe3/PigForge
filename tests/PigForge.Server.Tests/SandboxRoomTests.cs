@@ -833,15 +833,18 @@ public sealed class SandboxRoomTests
         Assert.NotEqual(chassisBody, frontWheel.PhysicsBodyId);
         Assert.NotEqual(rearWheel.PhysicsBodyId, frontWheel.PhysicsBodyId);
 
-        // Free rolling, not skidding: each wheel spins at v / r about its axle (r = 0.33). A
-        // cart moving in -x rolls with a positive spin (the contact point is stationary).
+        // The original's tyres are low-friction Multiply surfaces (0.025–0.05 against the
+        // ground), so this cart skids down the 14° slope: the wheels turn, but slower than free
+        // rolling would demand (measured about half). The regression this guards is a wheel that
+        // cannot turn at all, so require real spin and cap it at free rolling; the old
+        // exact-free-roll assertion was an artefact of the pre-extraction 0.7 friction.
         foreach (SnapshotEntity wheel in new[] { rearWheel, frontWheel })
         {
             float speed = MathF.Sqrt(
                 (wheel.LinearVelocity.X * wheel.LinearVelocity.X) + (wheel.LinearVelocity.Y * wheel.LinearVelocity.Y));
-            float expected = speed / 0.33f;
+            float freeRoll = speed / 0.33f;
             Assert.True(speed > 2f, $"the wheel must be moving: {speed}");
-            Assert.InRange(wheel.AngularVelocity.Z, expected * 0.9f, expected * 1.1f);
+            Assert.InRange(wheel.AngularVelocity.Z, 1f, freeRoll * 1.1f);
         }
     }
 

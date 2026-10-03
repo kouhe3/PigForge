@@ -19,6 +19,7 @@ public sealed record PartDefinition(
     float Restitution,
     float Friction,
     IReadOnlyList<PartShapeDefinition> Shapes,
+    FrictionCombine FrictionCombine = FrictionCombine.Average,
     PartCapabilities? Capabilities = null,
     uint? VariantOf = null,
     string? VariantName = null);

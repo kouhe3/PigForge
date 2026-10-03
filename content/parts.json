@@ -75,7 +75,7 @@
       "name": "wheel",
       "mode": "dynamic",
       "mass": 0.5,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -182,7 +182,7 @@
       "name": "small-wheel",
       "mode": "dynamic",
       "mass": 0.3,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -202,7 +202,7 @@
       "name": "cart-wheel",
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -222,7 +222,7 @@
       "name": "sticky-wheel",
       "mode": "dynamic",
       "mass": 0.6,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 4.4, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -242,7 +242,7 @@
       "name": "motor-wheel",
       "mode": "dynamic",
       "mass": 0.8,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -1390,7 +1390,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1411,7 +1411,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1432,7 +1432,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1453,7 +1453,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1474,7 +1474,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1495,7 +1495,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1516,7 +1516,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1537,7 +1537,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1558,7 +1558,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -1579,7 +1579,7 @@
       "variantOf": 15,
       "mode": "dynamic",
       "mass": 1.2,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.05, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -2611,7 +2611,7 @@
       "variantOf": 18,
       "mode": "dynamic",
       "mass": 2.0,
-      "material": { "restitution": 0, "friction": 0 },
+      "material": { "restitution": 0, "friction": 0, "frictionCombine": "minimum" },
       "capabilities": { "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "canEnclose": true },
       "shapes": [
         {
@@ -2626,7 +2626,7 @@
       "variantOf": 14,
       "mode": "dynamic",
       "mass": 0.3,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -2647,7 +2647,7 @@
       "variantOf": 14,
       "mode": "dynamic",
       "mass": 0.3,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -2668,7 +2668,7 @@
       "variantOf": 14,
       "mode": "dynamic",
       "mass": 0.3,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -2689,7 +2689,7 @@
       "variantOf": 14,
       "mode": "dynamic",
       "mass": 0.3,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -2710,7 +2710,7 @@
       "variantOf": 14,
       "mode": "dynamic",
       "mass": 0.3,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -2731,7 +2731,7 @@
       "variantOf": 14,
       "mode": "dynamic",
       "mass": 0.3,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -2752,7 +2752,7 @@
       "variantOf": 14,
       "mode": "dynamic",
       "mass": 0.3,
-      "material": { "restitution": 0, "friction": 0.025 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -3051,7 +3051,7 @@
       "variantOf": 17,
       "mode": "dynamic",
       "mass": 0.8,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -3072,7 +3072,7 @@
       "variantOf": 17,
       "mode": "dynamic",
       "mass": 0.8,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -3093,7 +3093,7 @@
       "variantOf": 17,
       "mode": "dynamic",
       "mass": 0.8,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -3114,7 +3114,7 @@
       "variantOf": 17,
       "mode": "dynamic",
       "mass": 0.8,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -3135,7 +3135,7 @@
       "variantOf": 17,
       "mode": "dynamic",
       "mass": 0.8,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -3156,7 +3156,7 @@
       "variantOf": 17,
       "mode": "dynamic",
       "mass": 0.8,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 2.2, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -3193,7 +3193,7 @@
       "variantOf": 7,
       "mode": "dynamic",
       "mass": 0.5,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -3214,7 +3214,7 @@
       "variantOf": 7,
       "mode": "dynamic",
       "mass": 0.5,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -3235,7 +3235,7 @@
       "variantOf": 7,
       "mode": "dynamic",
       "mass": 0.5,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -3256,7 +3256,7 @@
       "variantOf": 7,
       "mode": "dynamic",
       "mass": 0.5,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -3277,7 +3277,7 @@
       "variantOf": 7,
       "mode": "dynamic",
       "mass": 0.5,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -3298,7 +3298,7 @@
       "variantOf": 7,
       "mode": "dynamic",
       "mass": 0.5,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
       "shapes": [
         {
@@ -4014,7 +4014,7 @@
       "variantOf": 16,
       "mode": "dynamic",
       "mass": 0.6,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 4.4, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -4035,7 +4035,7 @@
       "variantOf": 16,
       "mode": "dynamic",
       "mass": 0.6,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 4.4, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
@@ -4056,7 +4056,7 @@
       "variantOf": 16,
       "mode": "dynamic",
       "mass": 0.6,
-      "material": { "restitution": 0, "friction": 0.7 },
+      "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" },
       "capabilities": { "jointConnectionStrength": "extreme", "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 4.4, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
