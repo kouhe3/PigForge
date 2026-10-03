@@ -662,6 +662,13 @@ public static class PartContentParser
             hasError = true;
         }
 
+        PartSuspension? suspension = null;
+        if (seenKeys.Contains("suspension")
+            && !TryReadSuspension(capabilitiesElement, path, errors, out suspension))
+        {
+            hasError = true;
+        }
+
         if (blasterRadius is not null && activation != PartActivation.Trigger)
         {
             errors.Add($"{path}.capabilities.blaster: requires activation \"trigger\" (the blaster fires from its switch).");
@@ -670,7 +677,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "canEnclose" or "attachment" or "powerConsumption" or "enginePower"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -682,7 +689,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, canEnclose, attachment, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, canEnclose, attachment, suspension, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -824,6 +831,82 @@ public static class PartContentParser
             && IsFiniteNumber(element)
             && element.TryGetSingle(out value)
             && value >= 0f;
+    }
+
+    /// <summary>
+    /// The wheel's linear-limit spring. Every number is required: the original declares a
+    /// stiffness (serialized per prefab), a damper and a rest offset (constants in
+    /// OffRoadWheel.CustomConnectToPart), so a partial declaration is content drift, not a
+    /// default to invent.
+    /// </summary>
+    private static bool TryReadSuspension(JsonElement capabilities, string path, List<string> errors, out PartSuspension? suspension)
+    {
+        suspension = null;
+        string field = $"{path}.capabilities.suspension";
+        if (!capabilities.TryGetProperty("suspension", out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{field}: must be an object.");
+            return false;
+        }
+
+        HashSet<string> keys = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!keys.Add(property.Name))
+            {
+                errors.Add($"{field}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        bool ok = true;
+        float stiffness = 0f;
+        if (!keys.Contains("stiffness")
+            || !element.TryGetProperty("stiffness", out JsonElement stiffnessElement)
+            || stiffnessElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(stiffnessElement)
+            || !stiffnessElement.TryGetSingle(out stiffness)
+            || stiffness <= 0f)
+        {
+            errors.Add($"{field}.stiffness: must be a finite positive number.");
+            ok = false;
+        }
+
+        float damper = 0f;
+        if (!keys.Contains("damper")
+            || !element.TryGetProperty("damper", out JsonElement damperElement)
+            || !TryReadNonNegative(damperElement, out damper))
+        {
+            errors.Add($"{field}.damper: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        float restOffset = 0f;
+        if (!keys.Contains("restOffset")
+            || !element.TryGetProperty("restOffset", out JsonElement offsetElement)
+            || offsetElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(offsetElement)
+            || !offsetElement.TryGetSingle(out restOffset))
+        {
+            errors.Add($"{field}.restOffset: must be a finite number.");
+            ok = false;
+        }
+
+        foreach (string key in keys)
+        {
+            if (key is not ("stiffness" or "damper" or "restOffset"))
+            {
+                errors.Add($"{field}: unknown property '{key}'.");
+                ok = false;
+            }
+        }
+
+        if (!ok)
+        {
+            return false;
+        }
+
+        suspension = new PartSuspension(stiffness, damper, restOffset);
+        return true;
     }
 
     private static bool TryReadAttachmentDirection(string? value, out AttachmentDirection direction)

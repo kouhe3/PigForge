@@ -17,6 +17,15 @@
 // from a stale one. `0` is the model's "not a consumer / not an engine" (the parser stores them
 // as plain numbers, never as null).
 //
+// A part the report marks as a driven wheel (its original script overrides InitializeEngine)
+// additionally gets `motor: { thrustPerTick, directionX: 1 }` and `activation: "toggle"`, the
+// same two fields the motor wheel and propeller already carry: `motor` is the per-tick impulse
+// GameplayRules.RunMotors gates with the cluster power factor, `activation` is the switch the
+// sandbox starts off. Both go at the end of the capabilities object, matching the hand-authored
+// motor-wheel line. Nothing else is touched -- the propeller keeps the drive numbers it was
+// calibrated with, because its original force is modulated by INSettings (FanPropeller.cs:95-101)
+// rather than being the prefab's plain `m_force`.
+//
 // Usage:
 //   node tools/bple-power/apply-power.mjs [--report <file>] [--content <file>] [--dry-run]
 
@@ -43,11 +52,19 @@ const num = (value) => (Number.isInteger(value) ? String(value) : String(Number(
 /** Matches one property's value in the inline capabilities text (values nest at most one level). */
 const propertyPattern = (key) => new RegExp(`"${key}":\\s*(?:"[^"]*"|true|false|-?[0-9.]+|\\{(?:[^{}]|\\{[^{}]*\\})*\\})`);
 
+/** Applies each `[key, rendered, append]` field to a single-line capabilities object: missing
+ * fields are inserted (at the front by default, at the end when `append` is set so the drive
+ * fields land after `wheel` like the hand-authored motor-wheel line), existing ones replaced. */
 function upsert(capabilities, desired) {
   let cap = capabilities;
-  const missing = desired.filter(([key]) => !propertyPattern(key).test(cap));
-  if (missing.length > 0) {
-    cap = `{ ${missing.map(([, rendered]) => rendered).join(", ")},${cap.slice(1)}`;
+  const missingHead = desired.filter(([key, , append]) => !append && !propertyPattern(key).test(cap));
+  const missingTail = desired.filter(([key, , append]) => append && !propertyPattern(key).test(cap));
+  if (missingHead.length > 0) {
+    cap = `{ ${missingHead.map(([, rendered]) => rendered).join(", ")},${cap.slice(1)}`;
+  }
+
+  if (missingTail.length > 0) {
+    cap = `${cap.slice(0, -1).replace(/\s+$/, "")}, ${missingTail.map(([, rendered]) => rendered).join(", ")} }`;
   }
 
   for (const [key, rendered] of desired) {
@@ -63,6 +80,7 @@ function rewrite(text) {
   let updated = 0;
   let powered = 0;
   let engines = 0;
+  let driven = 0;
 
   for (const part of document.parts) {
     const entry = report[String(part.partTypeId)];
@@ -79,6 +97,16 @@ function rewrite(text) {
       ["powerConsumption", `"powerConsumption": ${num(powerConsumption)}`],
       ["enginePower", `"enginePower": ${num(enginePower)}`],
     ];
+
+    const drive = entry.drive ?? null;
+    if (drive !== null) {
+      desired.push([
+        "motor",
+        `"motor": { "thrustPerTick": ${num(drive.motorThrustPerTick)}, "directionX": 1 }`,
+        true,
+      ]);
+      desired.push(["activation", `"activation": "${drive.activation}"`, true]);
+    }
 
     const anchor = `"partTypeId": ${part.partTypeId},`;
     const anchorIndex = text.indexOf(anchor);
@@ -105,10 +133,11 @@ function rewrite(text) {
 
     if (powerConsumption > 0) powered += 1;
     if (enginePower > 0) engines += 1;
+    if (drive !== null) driven += 1;
     updated += 1;
   }
 
-  return { text, updated, powered, engines };
+  return { text, updated, powered, engines, driven };
 }
 
 // Re-parse and re-derive: the rewrite must be valid JSON and exactly match the report, and the
@@ -131,6 +160,22 @@ function verify(text) {
         `part ${part.partTypeId}: power mismatch ${capabilities.powerConsumption}/${capabilities.enginePower} != ${entry.powerConsumption}/${entry.enginePower}`,
       );
     }
+
+    if (entry.drive) {
+      const motor = capabilities.motor;
+      if (
+        motor === null
+        || motor === undefined
+        || num(motor.thrustPerTick) !== num(entry.drive.motorThrustPerTick)
+        || motor.directionX !== 1
+        || capabilities.activation !== entry.drive.activation
+      ) {
+        throw new Error(
+          `part ${part.partTypeId}: drive mismatch ${JSON.stringify(motor)}/${capabilities.activation} != ` +
+            `thrustPerTick ${entry.drive.motorThrustPerTick}/${entry.drive.activation}`,
+        );
+      }
+    }
   }
 
   return document;
@@ -148,3 +193,4 @@ if (second.text !== first.text) {
 if (!DRY_RUN) writeFileSync(CONTENT, first.text);
 console.log(`${DRY_RUN ? "would update" : "updated"} ${first.updated} parts in ${CONTENT}`);
 console.log(`powered (powerConsumption > 0): ${first.powered}; engines (enginePower > 0): ${first.engines}`);
+console.log(`driven wheels (motor + toggle): ${first.driven}`);

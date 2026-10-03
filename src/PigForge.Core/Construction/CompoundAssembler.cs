@@ -114,7 +114,8 @@ public sealed class CompoundCluster
     public BodyDefinition CreateBodyDefinition(
         PartContentLibrary content,
         PhysicsVector3 linearVelocity = default,
-        PhysicsVector3 angularVelocity = default)
+        PhysicsVector3 angularVelocity = default,
+        PhysicsConstraintMask constraints = PhysicsConstraintMask.None)
     {
         ArgumentNullException.ThrowIfNull(content);
         PartDefinition first = content.GetPart(Members[0].PartTypeId);
@@ -142,7 +143,8 @@ public sealed class CompoundCluster
                 tires,
                 linearVelocity,
                 angularVelocity,
-                new PhysicsMaterial(first.Restitution, first.Friction));
+                new PhysicsMaterial(first.Restitution, first.Friction),
+                constraints);
         }
 
         if (Members.Count == 1 && Attachments.Count == 0)
@@ -161,7 +163,8 @@ public sealed class CompoundCluster
                     WorldRotation,
                     single.Scale,
                     linearVelocity,
-                    angularVelocity);
+                    angularVelocity,
+                    constraints);
             }
         }
 
@@ -205,7 +208,8 @@ public sealed class CompoundCluster
             new ShapeDefinition[] { new CompoundShapeDefinition(children) },
             linearVelocity,
             angularVelocity,
-            new PhysicsMaterial(first.Restitution, first.Friction));
+            new PhysicsMaterial(first.Restitution, first.Friction),
+            constraints);
     }
 
     /// <summary>Stable hash over member identity, local poses, and remaining seams.</summary>

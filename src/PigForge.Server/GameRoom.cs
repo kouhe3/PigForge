@@ -103,6 +103,17 @@ public sealed class GameRoom : IDisposable
     private readonly List<(uint EntityValue, uint PartTypeId, float PositionX, float PositionY, float Angle, float Scale)> _retryLayout = new();
     private bool _disposed;
 
+    /// <summary>
+    /// The 2.5D lock every authoritative body carries: freeze the Z translation and the X/Y
+    /// rotations, exactly the original's <c>RigidbodyConstraints</c> 56
+    /// (<c>FreezePositionZ | FreezeRotationX | FreezeRotationY</c>, Sandbag.cs:135, Pig.cs:235);
+    /// the build plane is X-Y, only a Z rotation is free. It is applied when a body is created,
+    /// so a body born from a seam split stays planar like the compound it came from, and it is
+    /// the physics layer (the pose integrator) that enforces it, not the rules.
+    /// </summary>
+    private const PhysicsConstraintMask PlanarConstraintMask =
+        PhysicsConstraintMask.LockPositionZ | PhysicsConstraintMask.LockRotationX | PhysicsConstraintMask.LockRotationY;
+
     public GameRoom(GameRoomOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -461,6 +472,14 @@ public sealed class GameRoom : IDisposable
             _rules.AddGrapple(entity, capabilities.GrappleImpulse!.Value, capabilities.GrappleDirectionX ?? 1f, capabilities.GrappleDirectionY ?? 0f);
         }
 
+        // A detacher is a switch-fired seam split: its trigger makes the room detach the part
+        // along the nearest seam of the compound it sits in (GameRoom.DetachFromCompound,
+        // original detacher part), and a hard impact does the same (DetachOnImpact).
+        if (capabilities.IsDetacher)
+        {
+            _rules.AddDetacher(entity);
+        }
+
         if (_sandboxMode && IsSwitchable(partTypeId))
         {
             _rules.AddActivation(entity);
@@ -514,7 +533,7 @@ public sealed class GameRoom : IDisposable
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
-            BindCluster(cluster, cluster.CreateBodyDefinition(_content));
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content, constraints: PlanarConstraintMask));
         }
 
         BindWheelHinges(assembly.Hinges);
@@ -845,7 +864,7 @@ public sealed class GameRoom : IDisposable
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
-            BindCluster(cluster, cluster.CreateBodyDefinition(_content));
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content, constraints: PlanarConstraintMask));
         }
 
         BindWheelHinges(assembly.Hinges);
@@ -882,7 +901,7 @@ public sealed class GameRoom : IDisposable
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
-            BindCluster(cluster, cluster.CreateBodyDefinition(_content));
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content, constraints: PlanarConstraintMask));
         }
 
         BindWheelHinges(assembly.Hinges);
@@ -1347,6 +1366,11 @@ public sealed class GameRoom : IDisposable
     /// body at the wheel axle, so wheels roll instead of skidding with the chassis. The axle
     /// is the wheel's spin centre (its tire centre), not its part origin: hinging anywhere
     /// else makes the tire orbit the joint like a cam.
+    /// A wheel whose content carries a <see cref="PartSuspension"/> gets the original's
+    /// elastic attachment instead of a rigid axle: the same revolute joint plus the sprung
+    /// linear degree of freedom the original declares along the wheel's own Y
+    /// (OffRoadWheel.CustomConnectToPart, OffRoadWheel.cs:202-220). The spring numbers are the
+    /// extracted Unity ones, converted by the shared <see cref="TrySpringResponse"/>.
     /// </summary>
     private void BindWheelHinges(IReadOnlyList<CompoundHinge> hinges)
     {
@@ -1363,6 +1387,37 @@ public sealed class GameRoom : IDisposable
             }
 
             PhysicsVector3 axle = transform.Position + transform.Rotation.Rotate(hinge.LocalAxle);
+            // The original locks every angular axis of the wheel and keeps only its local Y
+            // Limited, so that Y is the suspension line; because it also locks the wheel's
+            // rotation, the line is rigid to the chassis. Our wheel body spins (ADR-009), so
+            // the line is expressed in the parent body's frame and the wheel's own build-frame
+            // Y is the direction it points along.
+            PhysicsVector3 suspensionAxis = PhysicsVector3.Zero;
+            float suspensionFrequency = 0f;
+            float suspensionDampingRatio = 1f;
+            float suspensionRestOffset = 0f;
+            if (_parts.TryGet(hinge.Wheel, out PartLink wheelPartLink)
+                && _content.GetPart(wheelPartLink.PartTypeId).Capabilities?.Suspension is PartSuspension suspension)
+            {
+                // The spring joins the two bodies, so their masses are what turns the extracted
+                // N/m into the solver's frequency: the wheel's own body (its tire) and the whole
+                // parent body, mounts included, exactly the masses the constraint will solve
+                // with. The original's stiffness is then the stiffness the solver applies, and
+                // the sag stays load / stiffness whatever the chassis is made of.
+                if (TrySpringResponse(
+                        BodyMass(wheelLink.Body),
+                        BodyMass(parentLink.Body),
+                        suspension.Stiffness,
+                        suspension.Damper,
+                        out suspensionFrequency,
+                        out suspensionDampingRatio))
+                {
+                    PhysicsVector3 wheelUp = transform.Rotation.Rotate(new PhysicsVector3(0f, 1f, 0f));
+                    suspensionAxis = PhysicsVector3.Normalize(parentPose.Rotation.Inverse.Rotate(wheelUp));
+                    suspensionRestOffset = suspension.RestOffset;
+                }
+            }
+
             JointDefinition definition = new(
                 PhysicsJointKind.Revolute,
                 parentLink.Body,
@@ -1374,7 +1429,11 @@ public sealed class GameRoom : IDisposable
                 localAnchorA: parentPose.Rotation.Inverse.Rotate(axle - parentPose.Position),
                 localAnchorB: wheelPose.Rotation.Inverse.Rotate(axle - wheelPose.Position),
                 localAxisA: new PhysicsVector3(0f, 0f, 1f),
-                localAxisB: new PhysicsVector3(0f, 0f, 1f));
+                localAxisB: new PhysicsVector3(0f, 0f, 1f),
+                springFrequency: suspensionFrequency,
+                springDampingRatio: suspensionDampingRatio,
+                localSuspensionAxis: suspensionAxis,
+                suspensionRestOffset: suspensionRestOffset);
             _wheelJoints.Add((_world.CreateJoint(definition), wheelLink.Body, parentLink.Body));
             // A hinged wheel's power belongs to the chassis's cluster: the original's power
             // component is the joint graph (Contraption.cs:1293 unions every m_jointMap entry),
@@ -1398,6 +1457,35 @@ public sealed class GameRoom : IDisposable
     private const float AttachmentSpring = 100f;
 
     private const float AttachmentDamper = 10f;
+
+    /// <summary>
+    /// Unity's spring (N/m) and damper (N*s/m) in the solver's frequency/damping-ratio form:
+    /// <c>omega = sqrt(k / m)</c> and <c>zeta = c / (2 sqrt(k m))</c>, with the pair's reduced
+    /// mass <c>m = mA * mB / (mA + mB)</c>. Every extracted Unity spring goes through this one
+    /// conversion — the runtime attachments (ADR-011) and the elastic wheel (ADR-012) alike —
+    /// so the N/m an extractor reports is the stiffness the solver actually applies, for the
+    /// masses it actually joins. Returns false when no usable spring exists (zero masses).
+    /// </summary>
+    private static bool TrySpringResponse(
+        float massA,
+        float massB,
+        float spring,
+        float damper,
+        out float frequency,
+        out float dampingRatio)
+    {
+        frequency = 0f;
+        dampingRatio = 1f;
+        float reducedMass = massA > 0f && massB > 0f ? massA * massB / (massA + massB) : 0f;
+        if (!(reducedMass > 0f) || !(spring > 0f) || !float.IsFinite(damper) || damper < 0f)
+        {
+            return false;
+        }
+
+        frequency = MathF.Sqrt(spring / reducedMass) / (2f * MathF.PI);
+        dampingRatio = damper / (2f * MathF.Sqrt(spring * reducedMass));
+        return float.IsFinite(frequency) && frequency > 0f && float.IsFinite(dampingRatio) && dampingRatio >= 0f;
+    }
 
     /// <summary>The original anchors the rope half a unit along the attach part's facing edge
     /// (<c>Vector3.up * 0.5f</c> for a sandbag, <c>Vector3.up * -0.5f</c> for a balloon).</summary>
@@ -1455,18 +1543,13 @@ public sealed class GameRoom : IDisposable
                 continue;
             }
 
-            // Unity's spring (N/m) and damper (N*s/m) become the solver's frequency and damping
-            // ratio through the pair's reduced mass: omega = sqrt(k / m), zeta = c / (2 sqrt(k m)).
             float attachMass = attachPart.Mass * transform.Scale * transform.Scale * transform.Scale;
             float anchorMass = anchorPart.Mass * anchorTransform.Scale * anchorTransform.Scale * anchorTransform.Scale;
-            float reducedMass = attachMass > 0f && anchorMass > 0f ? attachMass * anchorMass / (attachMass + anchorMass) : 0f;
-            if (!(reducedMass > 0f))
+            if (!TrySpringResponse(attachMass, anchorMass, AttachmentSpring, AttachmentDamper, out float frequency, out float dampingRatio))
             {
                 continue;
             }
 
-            float frequency = MathF.Sqrt(AttachmentSpring / reducedMass) / (2f * MathF.PI);
-            float dampingRatio = AttachmentDamper / (2f * MathF.Sqrt(AttachmentSpring * reducedMass));
             JointDefinition definition = new(
                 PhysicsJointKind.Distance,
                 anchorLink.Body,
@@ -1490,6 +1573,32 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.TryGetValue(entityValue, out (PhysicsVector3 Offset, PhysicsQuaternion Rotation) local)
             ? local.Offset + local.Rotation.Rotate(point)
             : point;
+
+    /// <summary>
+    /// The mass of a body's own members: the sum of their content masses scaled the way
+    /// <see cref="CompoundAssembler"/> scales them. A wheel's mounts are shapes hosted by its
+    /// parent body, not members of it, so they are not counted here — and neither are they
+    /// counted in the body the assembler builds, so this is the mass the solver uses.
+    /// </summary>
+    private float BodyMass(PhysicsBodyId body)
+    {
+        if (!_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
+        {
+            return 0f;
+        }
+
+        float mass = 0f;
+        foreach (uint memberValue in members)
+        {
+            EntityId member = new(memberValue);
+            if (_parts.TryGet(member, out PartLink link) && _transforms.TryGet(member, out EntityTransform transform))
+            {
+                mass += _content.GetPart(link.PartTypeId).Mass * transform.Scale * transform.Scale * transform.Scale;
+            }
+        }
+
+        return mass;
+    }
 
     /// <summary>
     /// World Z yaw of a rotation, matching the client's `yawFromQuaternion`. Every sprite the
@@ -1627,7 +1736,7 @@ public sealed class GameRoom : IDisposable
             _world.DestroyBody(live.Body);
             foreach (CompoundCluster piece in pieces)
             {
-                BindCluster(piece, piece.CreateBodyDefinition(_content, snapshot.LinearVelocity, snapshot.AngularVelocity));
+                BindCluster(piece, piece.CreateBodyDefinition(_content, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
             }
 
             EnsureBuffers();
@@ -1699,7 +1808,7 @@ public sealed class GameRoom : IDisposable
         _world.DestroyBody(link.Body);
         foreach (CompoundCluster piece in pieces)
         {
-            BindCluster(piece, piece.CreateBodyDefinition(_content, snapshot.LinearVelocity, snapshot.AngularVelocity));
+            BindCluster(piece, piece.CreateBodyDefinition(_content, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
         }
 
         EnsureBuffers();

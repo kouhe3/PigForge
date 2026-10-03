@@ -71,6 +71,21 @@ public sealed record PartAttachment(
     float? PigDistanceBonus = null);
 
 /// <summary>
+/// The elastic wheel attachment of a part that overrides the original's
+/// <c>BasePart.CustomConnectToPart</c> with a linear-limit spring
+/// (OffRoadWheel.cs:202-220): the wheel's own joint locks every rotation and the
+/// translations except its local Y, which is <c>Limited</c> and held at
+/// <see cref="RestOffset"/> by <see cref="Stiffness"/> N/m with <see cref="Damper"/>
+/// N·s/m. The axis is not content — it is the wheel's build-frame Y, perpendicular to
+/// its axle, and the joint attaches it to the non-spinning parent body so a rolling
+/// wheel cannot carry the suspension line around with it.
+/// </summary>
+public sealed record PartSuspension(
+    float Stiffness,
+    float Damper,
+    float RestOffset);
+
+/// <summary>
 /// Gameplay capabilities a part carries (ADR-002): a pig is indestructible bouncy
 /// cargo, a wheel gates motor thrust to ground contact, a motor pushes the body each
 /// tick, and TNT is a pure momentum source with a fuse. Absence of a flag means the
@@ -115,6 +130,7 @@ public sealed record PartCapabilities(
     JointConnectionType JointConnectionType = JointConnectionType.None,
     bool CanEnclose = false,
     PartAttachment? Attachment = null,
+    PartSuspension? Suspension = null,
     // Power system (spec docs/specs/power-system.md). Both come straight from the original
     // part prefabs: BasePart.cs:162,164 declare them, the template copies them at
     // BasePart.cs:1445-1446, and `tools/bple-power` extracts them for every mapped part --
@@ -124,6 +140,12 @@ public sealed record PartCapabilities(
     float EnginePower = 0f)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
+
+    /// <summary>
+    /// True when the part's own joint is the original's spring-suspended wheel attachment
+    /// instead of a rigid axle weld (see <see cref="PartSuspension"/>).
+    /// </summary>
+    public bool HasSuspension => Suspension is not null;
 
     public bool HasBalloon => BalloonLiftPerTick is float lift && lift != 0f;
 

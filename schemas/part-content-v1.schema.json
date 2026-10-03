@@ -116,6 +116,10 @@
           "description": "Runtime attachment (balloon string, sandbag tie): searched for an anchor part at start of simulation and tied to it with a rope joint (minDistance 0).",
           "$ref": "#/$defs/attachmentCapability"
         },
+        "suspension": {
+          "description": "Elastic wheel attachment: the original's own joint for a wheel that overrides CustomConnectToPart declares its local Y as a Limited axis held at restOffset by a linear-limit spring (OffRoadWheel.cs:202-220). Extracted by tools/bple-springs, never authored; parts without it keep the rigid axle weld.",
+          "$ref": "#/$defs/suspensionCapability"
+        },
         "powerConsumption": {
           "description": "Original BasePart.m_powerConsumption (BasePart.cs:162): > 0 makes the part a consumer. While its switch is on it adds this to its cluster's consumption, the denominator of the power factor (Contraption.cs:540-556, :2633-2644). Extracted by tools/bple-power, never authored.",
           "type": "number",
@@ -153,6 +157,27 @@
       },
       "distanceOffset": { "type": "number" },
       "pigDistanceBonus": { "type": "number", "minimum": 0 }
+    }
+  },
+  "suspensionCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["stiffness", "damper", "restOffset"],
+    "properties": {
+      "stiffness": {
+        "description": "Unity linear-limit spring of the wheel's own joint, in N/m (m_springStiffness; OffRoadWheel.cs:49 default 150, Part_MotorWheel_08_SET serializes 50).",
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "damper": {
+        "description": "Unity linear-limit spring damper, in N*s/m (OffRoadWheel.cs:214, a constant 5).",
+        "type": "number",
+        "minimum": 0
+      },
+      "restOffset": {
+        "description": "The limited axis' rest offset along the wheel's own Y (linearLimit.limit, 0 = hold the build separation).",
+        "type": "number"
+      }
     }
   },
   "grappleCapability": {

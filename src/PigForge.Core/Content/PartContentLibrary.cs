@@ -170,7 +170,8 @@ public sealed class PartContentLibrary
         PhysicsQuaternion rotation,
         float scale = 1f,
         PhysicsVector3 linearVelocity = default,
-        PhysicsVector3 angularVelocity = default)
+        PhysicsVector3 angularVelocity = default,
+        PhysicsConstraintMask constraints = PhysicsConstraintMask.None)
     {
         PartDefinition part = GetPart(partTypeId);
         ValidateScale(partTypeId, scale);
@@ -210,7 +211,8 @@ public sealed class PartContentLibrary
             shapes,
             linearVelocity,
             angularVelocity,
-            new PhysicsMaterial(part.Restitution, part.Friction));
+            new PhysicsMaterial(part.Restitution, part.Friction),
+            constraints);
     }
 
     private static void ValidateScale(uint partTypeId, float scale)

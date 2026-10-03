@@ -98,6 +98,13 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(definition);
+        if (definition.Constraints != PhysicsConstraintMask.None)
+        {
+            // The 2.5D lock (BodyDefinition.Constraints) has no mapping here yet; failing loudly
+            // keeps a Jolt run from silently simulating bodies the room expects to stay planar.
+            throw new NotSupportedException("JoltPhysicsSharp backend does not implement per-body constraint masks yet.");
+        }
+
         BoxShapeDefinition shape = GetSingleBoxShape(definition);
 
         float minHalfExtent = Math.Min(shape.HalfExtentX, Math.Min(shape.HalfExtentY, shape.HalfExtentZ));

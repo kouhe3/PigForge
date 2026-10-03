@@ -37,7 +37,7 @@ Accepted。取代 ADR-008 决策 1 里「除轮子外相邻即焊」的隐含默
 
 1. **气球绳长的随机因子取均值**：原版 `Random.Range(0.8, 1.2)` 与 PigForge 的确定性要求冲突（双跑哈希测试），故取 `1.0 × (距离 − 0.5) + (锚点是猪 ? 0.3 : 0)`；代码注释里标注了差异与原版出处。
 2. **锚点重定位未实现**：原版 `Initialize` 会把气球/沙袋**瞬移**到锚点附近的固定偏移（`transform.position = anchor + vector`），PigForge 只建关节、不搬位置，让绳子的最小/最大距离去约束。静止垂度 `mg/k = 0.29 m` 与原版一致；气球 9g 级拉升下软限位会拉伸到 1.9 m 左右，原版同样是软弹簧，未视为缺陷。
-3. **气球机身参数未采纳**：原版运行时把气球改写为 `mass 0.1`、`linearDamping 2`、`angularDamping 0.5`、`constraints 48`、半径 0.5 的球碰撞体（`Balloon.cs:124-131`），而内容里是 0.3/0.6/0.9。本轮**不动内容质量**，留待手感验收。
+3. **气球机身参数**（试玩验收后由 ADR-013 决策 4 处理）：原版运行时把气球改写为 `mass 0.1`、`linearDamping 2`、`angularDamping 0.5`、`constraints 48`、半径 0.5 的球碰撞体（`Balloon.cs:124-132`）。运行时**质量**（0.1/0.2/0.3）与升力换算（`m_force × BalloonForce / 60`，原版 23 N / 0.1 kg = 230 m/s²）已由 `tools/bple-lift/` 写入内容；`constraints` 由 ADR-013 的 2.5D 掩码统一覆盖（气球用 56 而非 48，见该 ADR 偏差 2）。**阻尼**（`linearDamping 2` / `angularDamping 0.5`，沙袋 `1` / `10`）仍未建模，记录于 ADR-013 偏差 1。
 4. **`BalloonBalancer` 未实现**：原版给气球的锚点挂的摇摆抑制组件，属稳定性辅助件，视试玩决定是否补。
 5. **缺省即 `none`**：内容未给 `jointConnectionType` 的零件（仅 3 个 PigForge 自造的静态关卡件 2/5/6）不能建关节。这是有意的严格默认，避免静默焊接。
 

@@ -37,6 +37,8 @@ export interface PartCapabilities {
   activation?: "toggle" | "trigger";
   /** True only for frames: their cell hosts one enclosed part. Enclosable is derived as !canEnclose. */
   canEnclose?: boolean;
+  /** Elastic wheel attachment: the original's linear-limit spring (N/m, N*s/m) holding the wheel at restOffset along its own Y. */
+  suspension?: { stiffness: number; damper: number; restOffset: number };
 }
 
 export interface PartDefinition {

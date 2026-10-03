@@ -246,13 +246,16 @@ public sealed class PhysicsContractTests
             new PhysicsVector3(0f, 4f, 0f),
             PhysicsQuaternion.Identity,
             1f,
-            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+            new ShapeDefinition[] { new SphereShapeDefinition(0.1f) }));
         PhysicsBodyId hanging = world.CreateBody(new BodyDefinition(
             PhysicsBodyMode.Dynamic,
             new PhysicsVector3(0f, 2f, 0f),
             PhysicsQuaternion.Identity,
             3f,
-            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+            // Small shapes on purpose: a rope pair collides like the original's SpringJoint
+            // (Balloon.cs:143-166, Sandbag.cs:136-164 call no IgnoreCollision), so this test
+            // measures the band alone and keeps the two bodies out of contact inside it.
+            new ShapeDefinition[] { new SphereShapeDefinition(0.1f) }));
 
         PhysicsJointId joint = world.CreateJoint(new JointDefinition(
             PhysicsJointKind.Distance,

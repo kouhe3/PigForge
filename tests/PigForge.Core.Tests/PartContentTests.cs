@@ -19,6 +19,20 @@ public sealed class PartContentTests
     }
 
     [Fact]
+    public void RepositoryContentDeclaresNoWheelSuspensionYet()
+    {
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        // tools/bple-springs found exactly one prefab in the original that declares a wheel
+        // spring: Part_MotorWheel_08_SET (= the OffRoadWheel, BasePart.cs:509), an IN extension
+        // part GameData.m_customParts never listed, so the catalog has no part for it (ADR-012
+        // decision 2) and no wheel may claim a suspension. The capability itself is exercised by
+        // the parser cases above and by WheelSuspensionRoomTests' fixture content.
+        Assert.DoesNotContain(library.Document.Parts, part => part.Capabilities?.HasSuspension == true);
+        Assert.True(library.GetPart(7).Capabilities!.IsWheel);
+    }
+
+    [Fact]
     public void ImportedOriginalVariantsCarryTheirCuratedOverrides()
     {
         PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
@@ -123,7 +137,8 @@ public sealed class PartContentTests
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source", "canEnclose": true }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
                 { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "none", "pig": true }, "shapes": [ { "kind": "sphere", "radius": 0.42 } ] },
                 { "partTypeId": 3, "name": "sandbag", "mode": "dynamic", "mass": 3, "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] } }, "shapes": [ { "kind": "sphere", "radius": 0.13 } ] },
-                { "partTypeId": 4, "name": "balloon", "mode": "dynamic", "mass": 0.3, "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "down", "offset": [0, 0.5, 0], "distanceFactor": 1, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 } }, "shapes": [ { "kind": "sphere", "radius": 0.5 } ] }
+                { "partTypeId": 4, "name": "balloon", "mode": "dynamic", "mass": 0.3, "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "down", "offset": [0, 0.5, 0], "distanceFactor": 1, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 } }, "shapes": [ { "kind": "sphere", "radius": 0.5 } ] },
+                { "partTypeId": 5, "name": "offroad-wheel", "mode": "dynamic", "mass": 1, "capabilities": { "wheel": true, "suspension": { "stiffness": 50, "damper": 5, "restOffset": 0 } }, "shapes": [ { "kind": "sphere", "radius": 0.9 } ] }
             ]
         }
         """);
@@ -152,6 +167,14 @@ public sealed class PartContentTests
         Assert.Equal(-0.5f, balloon.DistanceOffset);
         Assert.Equal(0.3f, balloon.PigDistanceBonus);
         Assert.Equal(new PhysicsVector3(0f, 0.5f, 0f), balloon.Offset);
+
+        // The suspension is all-or-nothing: stiffness, damper and rest offset together.
+        PartCapabilities sprungWheel = document.Parts[4].Capabilities!;
+        Assert.True(sprungWheel.HasSuspension);
+        Assert.Equal(50f, sprungWheel.Suspension!.Stiffness);
+        Assert.Equal(5f, sprungWheel.Suspension.Damper);
+        Assert.Equal(0f, sprungWheel.Suspension.RestOffset);
+        Assert.Null(frame.Suspension);
     }
 
     [Fact]
@@ -175,6 +198,12 @@ public sealed class PartContentTests
     [InlineData("{ \"attachment\": { \"direction\": \"up\" } }", "maxDistance or distanceFactor")]
     [InlineData("{ \"attachment\": { \"direction\": \"up\", \"maxDistance\": 0.5, \"distanceFactor\": 1 } }", "mutually exclusive")]
     [InlineData("{ \"attachment\": { \"direction\": \"up\", \"maxDistance\": -1 } }", "maxDistance")]
+    [InlineData("{ \"suspension\": 50 }", "suspension")]
+    [InlineData("{ \"suspension\": { \"damper\": 5, \"restOffset\": 0 } }", "stiffness")]
+    [InlineData("{ \"suspension\": { \"stiffness\": 0, \"damper\": 5, \"restOffset\": 0 } }", "stiffness")]
+    [InlineData("{ \"suspension\": { \"stiffness\": 50, \"damper\": -1, \"restOffset\": 0 } }", "damper")]
+    [InlineData("{ \"suspension\": { \"stiffness\": 50, \"damper\": 5 } }", "restOffset")]
+    [InlineData("{ \"suspension\": { \"stiffness\": 50, \"damper\": 5, \"restOffset\": 0, \"limit\": 0 } }", "unknown property")]
     public void InvalidJointEnclosureAndAttachmentCapabilitiesAreRejected(string capabilities, string expectedErrorFragment)
     {
         AssertRejected(

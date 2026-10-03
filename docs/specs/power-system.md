@@ -39,6 +39,7 @@
 2. **引擎改为纯动力源**：引擎不再产生 `ApplyImpulse`；它的作用是把「本簇有效」这一事实提供给功率计算（对应原版 #3）。`Engine.ValidatePart`（#4）体现为放置规则：引擎未被包裹时**不供能**（而不是拒绝建造，保留可搭建性）。
 3. **功率因子按簇计算**：规则层对每个簇累加成员 `enginePower` 与**启用中**的 `powerConsumption`（#5），按 #6 的公式取 `factor`（`raw` 的两段指数与上限逐字照搬）。因子随成员/启用状态变化重算，计入状态哈希。**簇 = 刚体 + 铰接在它上面的件**（现状 5）：装配层把每条轮子铰链登记进规则层，否则「自己一个刚体」的轮子永远看不到底盘的引擎功率。
 4. **动力轮门控**：带 `powerConsumption` 的推进件，其每 tick 冲量按 `factor` 缩放（#8）；`factor = 0` 即完全不出力。**最高速一项不落地**（现状 4）：本模型没有速度上限可乘，见 §7。
+   - **驱动轮集合由提取器判定**（后续补丁）：原版「是不是驱动轮」看脚本有没有 override `InitializeEngine()`——`MotorWheel`/`OffRoadWheel`/`StickyWheel` 有（`MotorWheel.cs:99-104`、`OffRoadWheel.cs:172-180`、`StickyWheel.cs:117-122`），只会滚的 `CartWheel` 没有（`CartWheel.cs:129-149`）。`tools/bple-power/extract-power.mjs` 用 `m_Script` guid → 类名 → 基类链推出这个集合，再从 prefab 读 `m_force`，按马达轮的标定锚（`m_force` 50 → 冲量 2.2）比例换算，写进 `motor` + `activation:"toggle"`。因此粘轮（`m_force` 100）得到 4.4，与马达轮共用同一条门控路径。
 5. 不改协议：因子是服务端规则态。
 
 ## 5. 实施分期与验收
@@ -61,5 +62,5 @@
 - 电气回路（`ElectricalPart`/`Wire`/`Electrode` 的逻辑电平系统）与 `FuelTube`：那是开关/逻辑子系统，与机械动力无关。
 - 旧分支（`DynamicPowerSystem = false`）。
 - **原作马达限速**：`m_maximumSpeed = 15 × factor` 与 `LimitForceForSpeed`（`MotorWheel.cs:103,292-296`）。本模型没有速度上限量（现状 4），本切片只把 `factor` 乘到每 tick 冲量上。
-- **推进件的因子**：原作对 `FanPropeller`/`PoweredUmbrella`/`StickyWheel` 同样乘因子（`FanPropeller.cs:85`、`PoweredUmbrella.cs:66`、`StickyWheel.cs:119`）；它们在 PigForge 分别走 `fan`/`umbrella`/`wheel` 能力而非 `motor`，本切片只门控 `motor` 驱动路径。
+- **推进件的因子**：原作对 `FanPropeller`/`PoweredUmbrella`/`StickyWheel` 同样乘因子（`FanPropeller.cs:85`、`PoweredUmbrella.cs:66`、`StickyWheel.cs:119`）。粘轮已归入 `motor` 驱动路径（决议 4 的补丁）；`fan`/`umbrella` 两条路径仍不门控。
 - **引擎按钮联动**：原作点引擎会开关同分量内全部耗能件（`Engine.cs:29`、`Contraption.cs:1013-1090 ActivateAllPoweredParts`）。本切片只做供能与门控，引擎的 `activation: toggle` 保留但不联动（各耗能件仍用自己的开关）。

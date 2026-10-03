@@ -122,9 +122,9 @@
       "partTypeId": 10,
       "name": "balloon",
       "mode": "dynamic",
-      "mass": 0.3,
+      "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -223,7 +223,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
+      "capabilities": { "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 4.4, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -275,9 +275,9 @@
       "partTypeId": 19,
       "name": "balloon-double",
       "mode": "dynamic",
-      "mass": 0.6,
+      "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -289,9 +289,9 @@
       "partTypeId": 20,
       "name": "balloon-triple",
       "mode": "dynamic",
-      "mass": 0.9,
+      "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -754,9 +754,9 @@
       "name": "balloon-v02",
       "variantOf": 10,
       "mode": "dynamic",
-      "mass": 0.3,
+      "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -769,9 +769,9 @@
       "name": "balloon-v03",
       "variantOf": 10,
       "mode": "dynamic",
-      "mass": 0.3,
+      "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -784,9 +784,9 @@
       "name": "balloon-v04",
       "variantOf": 10,
       "mode": "dynamic",
-      "mass": 0.3,
+      "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -799,9 +799,9 @@
       "name": "balloon-v05",
       "variantOf": 10,
       "mode": "dynamic",
-      "mass": 0.3,
+      "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -814,9 +814,9 @@
       "name": "balloon-v06",
       "variantOf": 10,
       "mode": "dynamic",
-      "mass": 0.3,
+      "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -829,9 +829,9 @@
       "name": "balloon-v07",
       "variantOf": 10,
       "mode": "dynamic",
-      "mass": 0.3,
+      "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -844,9 +844,9 @@
       "name": "balloon-v08",
       "variantOf": 10,
       "mode": "dynamic",
-      "mass": 0.3,
+      "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -859,9 +859,9 @@
       "name": "balloon-double-v02",
       "variantOf": 19,
       "mode": "dynamic",
-      "mass": 0.6,
+      "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -874,9 +874,9 @@
       "name": "balloon-double-v03",
       "variantOf": 19,
       "mode": "dynamic",
-      "mass": 0.6,
+      "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -889,9 +889,9 @@
       "name": "balloon-double-v04",
       "variantOf": 19,
       "mode": "dynamic",
-      "mass": 0.6,
+      "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -904,9 +904,9 @@
       "name": "balloon-double-v05",
       "variantOf": 19,
       "mode": "dynamic",
-      "mass": 0.6,
+      "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -919,9 +919,9 @@
       "name": "balloon-double-v06",
       "variantOf": 19,
       "mode": "dynamic",
-      "mass": 0.6,
+      "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -934,9 +934,9 @@
       "name": "balloon-double-v07",
       "variantOf": 19,
       "mode": "dynamic",
-      "mass": 0.6,
+      "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -949,9 +949,9 @@
       "name": "balloon-double-v08",
       "variantOf": 19,
       "mode": "dynamic",
-      "mass": 0.6,
+      "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 3.0, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -964,9 +964,9 @@
       "name": "balloon-triple-v02",
       "variantOf": 20,
       "mode": "dynamic",
-      "mass": 0.9,
+      "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -979,9 +979,9 @@
       "name": "balloon-triple-v03",
       "variantOf": 20,
       "mode": "dynamic",
-      "mass": 0.9,
+      "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -994,9 +994,9 @@
       "name": "balloon-triple-v04",
       "variantOf": 20,
       "mode": "dynamic",
-      "mass": 0.9,
+      "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1009,9 +1009,9 @@
       "name": "balloon-triple-v05",
       "variantOf": 20,
       "mode": "dynamic",
-      "mass": 0.9,
+      "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1024,9 +1024,9 @@
       "name": "balloon-triple-v06",
       "variantOf": 20,
       "mode": "dynamic",
-      "mass": 0.9,
+      "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1039,9 +1039,9 @@
       "name": "balloon-triple-v07",
       "variantOf": 20,
       "mode": "dynamic",
-      "mass": 0.9,
+      "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1054,9 +1054,9 @@
       "name": "balloon-triple-v08",
       "variantOf": 20,
       "mode": "dynamic",
-      "mass": 0.9,
+      "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 4.5, "activation": "trigger" },
+      "capabilities": { "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -4015,7 +4015,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
+      "capabilities": { "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 4.4, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -4036,7 +4036,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
+      "capabilities": { "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 4.4, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",
@@ -4057,7 +4057,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true },
+      "capabilities": { "powerConsumption": 80, "enginePower": 0, "jointConnectionType": "target", "wheel": true, "motor": { "thrustPerTick": 4.4, "directionX": 1 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "sphere",

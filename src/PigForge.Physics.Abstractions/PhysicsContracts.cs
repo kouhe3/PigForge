@@ -304,7 +304,8 @@ public sealed class BodyDefinition
 		IReadOnlyList<ShapeDefinition> shapes,
 		PhysicsVector3 linearVelocity = default,
 		PhysicsVector3 angularVelocity = default,
-		PhysicsMaterial? material = null)
+		PhysicsMaterial? material = null,
+		PhysicsConstraintMask constraints = PhysicsConstraintMask.None)
 	{
 		if (!Enum.IsDefined(mode))
 		{
@@ -372,6 +373,7 @@ public sealed class BodyDefinition
 		AngularVelocity = angularVelocity;
 		Material = material ?? PhysicsMaterial.Default;
 		Shapes = shapes;
+		Constraints = constraints;
 	}
 
 	public PhysicsBodyMode Mode { get; }
@@ -382,6 +384,15 @@ public sealed class BodyDefinition
 	public PhysicsVector3 AngularVelocity { get; }
 	public PhysicsMaterial Material { get; }
 	public IReadOnlyList<ShapeDefinition> Shapes { get; }
+
+	/// <summary>
+	/// Degrees of freedom the body must never integrate. The original is 2.5D: every
+	/// contraption body freezes the Z translation and the X/Y rotations
+	/// (<c>RigidbodyConstraints</c> 56 — <c>Sandbag.cs:135</c>, <c>Pig.cs:235</c>), so the
+	/// build plane is the only plane a body can leave. <see cref="PhysicsConstraintMask.None"/>
+	/// leaves the body unconstrained, which is what the physics tests and the replay path use.
+	/// </summary>
+	public PhysicsConstraintMask Constraints { get; }
 }
 
 
@@ -391,6 +402,11 @@ public sealed class BodyDefinition
 /// A <see cref="PhysicsJointKind.Distance"/> joint is a rope: the two anchors may be
 /// anywhere between <see cref="MinimumDistance"/> and <see cref="MaximumDistance"/> apart,
 /// with the given spring pulling toward that band.
+/// A <see cref="PhysicsJointKind.Revolute"/> joint is rigid unless it carries a
+/// <see cref="LocalSuspensionAxis"/>. That axis then adds a second degree of freedom
+/// beside the free spin — a linear one, sprung at <see cref="SuspensionRestOffset"/> —
+/// which is how Unity's ConfigurableJoint expresses an elastic wheel (Locked x/z,
+/// Limited y, linear-limit spring).
 /// </summary>
 public sealed record JointDefinition
 {
@@ -408,7 +424,9 @@ public sealed record JointDefinition
 		float minimumDistance = 0f,
 		float maximumDistance = 0f,
 		float springFrequency = 0f,
-		float springDampingRatio = 1f)
+		float springDampingRatio = 1f,
+		PhysicsVector3 localSuspensionAxis = default,
+		float suspensionRestOffset = 0f)
 	{
 		if (!Enum.IsDefined(kind))
 		{
@@ -456,6 +474,25 @@ public sealed record JointDefinition
 			}
 		}
 
+		if (!localSuspensionAxis.IsFinite || !float.IsFinite(suspensionRestOffset))
+		{
+			throw new ArgumentException("The suspension axis and rest offset must be finite.", nameof(localSuspensionAxis));
+		}
+
+		if (kind == PhysicsJointKind.Revolute && (localSuspensionAxis != PhysicsVector3.Zero || springFrequency != 0f))
+		{
+			if (localSuspensionAxis == PhysicsVector3.Zero)
+			{
+				throw new ArgumentException("A sprung revolute joint needs the suspension axis in body A's frame.", nameof(localSuspensionAxis));
+			}
+
+			if (!float.IsFinite(springFrequency) || springFrequency <= 0f
+				|| !float.IsFinite(springDampingRatio) || springDampingRatio < 0f)
+			{
+				throw new ArgumentOutOfRangeException(nameof(springFrequency), springFrequency, "A sprung revolute joint needs a positive spring frequency and a non-negative damping ratio.");
+			}
+		}
+
 		Kind = kind;
 		BodyA = bodyA;
 		BodyB = bodyB;
@@ -470,6 +507,8 @@ public sealed record JointDefinition
 		MaximumDistance = maximumDistance;
 		SpringFrequency = springFrequency;
 		SpringDampingRatio = springDampingRatio;
+		LocalSuspensionAxis = localSuspensionAxis;
+		SuspensionRestOffset = suspensionRestOffset;
 	}
 
 	public PhysicsJointKind Kind { get; }
@@ -492,6 +531,17 @@ public sealed record JointDefinition
 	public float SpringFrequency { get; }
 
 	public float SpringDampingRatio { get; }
+
+	/// <summary>
+	/// Sprung linear degree of freedom of a <see cref="PhysicsJointKind.Revolute"/> joint, in
+	/// body A's local frame (the non-spinning parent: the axis must not ride the wheel's
+	/// spin). Zero keeps the joint rigid along every translation.
+	/// </summary>
+	public PhysicsVector3 LocalSuspensionAxis { get; }
+
+	/// <summary>Offset along <see cref="LocalSuspensionAxis"/> the spring holds the two
+	/// anchors at; zero for a rigid revolute joint.</summary>
+	public float SuspensionRestOffset { get; }
 }
 
 public readonly record struct PhysicsCommand

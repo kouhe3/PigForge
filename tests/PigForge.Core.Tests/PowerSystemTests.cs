@@ -17,6 +17,13 @@ public sealed class PowerSystemTests
     private const float EnginePower = 150f;
     private const float WheelConsumption = 100f;
     private const float WheelImpulse = 2.2f;
+    // The sticky wheel is a driven wheel too: StickyWheel.cs:117-122 overrides InitializeEngine
+    // exactly like MotorWheel.cs:99-104, so its m_force 100 (Part_StickyWheel_01_SET.prefab:172)
+    // rides the same power factor. Its consumption is 80 and its extracted impulse is 4.4 --
+    // twice the motor wheel's, which is the original's own force ratio (100 / 50).
+    private const float StickyWheelConsumption = 80f;
+    private const float StickyWheelImpulse = 4.4f;
+    private const float StickyWheelFactor = 1.44446f;
 
     [Fact]
     public void PowerFactorFollowsTheOriginalFormulaIncludingCapAndBothExponents()
@@ -58,6 +65,52 @@ public sealed class PowerSystemTests
         harness.IngestBody(new PhysicsBodyId(1));
 
         Assert.Equal(0f, harness.Rules.ClusterPowerFactor(wheel));
+
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+
+        Assert.Empty(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void StickyWheelDrivesWithItsExtractedForceScaledByTheClusterFactor()
+    {
+        EntityStore entities = new();
+        PowerHarness harness = new(entities);
+        EntityId engine = entities.Create();
+        EntityId sticky = entities.Create();
+        harness.Rules.AddMotor(sticky, StickyWheelImpulse, 1f);
+        harness.Rules.AddWheel(sticky);
+        harness.Rules.AddPower(engine, 0f, EnginePower);
+        harness.Rules.AddPower(sticky, StickyWheelConsumption, 0f);
+        harness.Rules.SetEngineEnclosed(engine, enclosed: true);
+        harness.Link(engine, new PhysicsBodyId(1));
+        harness.Link(sticky, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1));
+
+        // 150 / 80 = 1.875 > 1 -> the 0.585 branch, the same path the motor wheel's 150 / 100
+        // takes; the drive is the extracted 4.4 times that factor.
+        Assert.Equal(StickyWheelFactor, harness.Rules.ClusterPowerFactor(sticky), 5);
+
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(StickyWheelImpulse * StickyWheelFactor, command.Impulse.X, 3);
+    }
+
+    [Fact]
+    public void StickyWheelWithoutAnEngineDoesNotDrive()
+    {
+        EntityStore entities = new();
+        PowerHarness harness = new(entities);
+        EntityId sticky = entities.Create();
+        harness.Rules.AddMotor(sticky, StickyWheelImpulse, 1f);
+        harness.Rules.AddWheel(sticky);
+        harness.Rules.AddPower(sticky, StickyWheelConsumption, 0f);
+        harness.Link(sticky, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1));
+
+        // The gate is the power factor, not the wheel: no engine -> 0 -> no impulse.
+        Assert.Equal(0f, harness.Rules.ClusterPowerFactor(sticky));
 
         harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
 
@@ -295,6 +348,23 @@ public sealed class PowerSystemTests
         Assert.True(wheel.IsPowered);
         Assert.False(wheel.IsEngine);
         Assert.True(wheel.HasMotor);
+
+        // The sticky wheel is the second driven wheel family the original ships
+        // (StickyWheel.cs:117-122): same consumption shape, twice the extracted force, and the
+        // toggle switch the original exposes (StickyWheel.cs:68-76, prefab m_enabled 0).
+        PartCapabilities sticky = library.GetPart(16).Capabilities!;
+        Assert.True(sticky.IsWheel);
+        Assert.True(sticky.IsPowered);
+        Assert.False(sticky.IsEngine);
+        Assert.Equal(80f, sticky.PowerConsumption);
+        Assert.True(sticky.HasMotor);
+        Assert.Equal(4.4f, sticky.MotorThrustPerTick);
+        Assert.Equal(1f, sticky.MotorDirectionX);
+        Assert.Equal(PartActivation.Toggle, sticky.Activation);
+
+        // Every sticky-wheel skin rides the same driven wheel: variants copy their base entry.
+        PartCapabilities stickyVariant = library.Document.Parts.Single(part => part.Name == "sticky-wheel-v04").Capabilities!;
+        Assert.Equal(sticky, stickyVariant);
 
         // A pig carries m_enginePower 20 in the prefab; the extractor copies the prefab truth.
         Assert.Equal(20f, library.GetPart(4).Capabilities!.EnginePower);

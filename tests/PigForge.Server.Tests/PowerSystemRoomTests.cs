@@ -11,10 +11,11 @@ namespace PigForge.Server.Tests;
 public sealed class PowerSystemRoomTests
 {
     // Real content: 17 = motor-wheel (consumption 100), 8 = engine (power 150), 1 = wooden frame
-    // (canEnclose), 4 = pig.
+    // (canEnclose), 4 = pig, 16 = sticky-wheel (consumption 80, driven like the motor wheel).
     private const uint PartFrame = 1;
     private const uint PartPig = 4;
     private const uint PartEngine = 8;
+    private const uint PartStickyWheel = 16;
     private const uint PartMotorWheel = 17;
 
     [Fact]
@@ -59,6 +60,27 @@ public sealed class PowerSystemRoomTests
         Assert.Equal(first.StateHash, second.StateHash);
     }
 
+    [Fact]
+    public void StickyWheelCartDrivesOnceAnEnclosedEnginePowersIt()
+    {
+        CartRun first = RunCart(EnginePlacement.Enclosed, activateWheels: true, wheelPart: PartStickyWheel);
+        CartRun second = RunCart(EnginePlacement.Enclosed, activateWheels: true, wheelPart: PartStickyWheel);
+        CartRun idle = RunCart(EnginePlacement.Enclosed, activateWheels: false, wheelPart: PartStickyWheel);
+        CartRun unpowered = RunCart(EnginePlacement.None, activateWheels: true, wheelPart: PartStickyWheel);
+        CartRun unpoweredOff = RunCart(EnginePlacement.None, activateWheels: false, wheelPart: PartStickyWheel);
+
+        // The original's sticky wheel is a driven wheel (StickyWheel.cs:117-122, m_force 100), so
+        // the same rig drives on the same rule path as the motor wheels.
+        Assert.True(first.BlockX > idle.BlockX + 0.2f, $"the sticky-wheel cart must drive: {idle.BlockX} -> {first.BlockX}");
+
+        // And it is gated by the cluster factor, not by the switch: with no enclosed engine the
+        // switch changes nothing (150 / 160 -> 0.9375^0.585 when it is enclosed).
+        Assert.Equal(unpoweredOff.BlockX, unpowered.BlockX);
+        Assert.Equal(unpoweredOff.BlockY, unpowered.BlockY);
+
+        Assert.Equal(first.StateHash, second.StateHash);
+    }
+
     private enum EnginePlacement
     {
         None,
@@ -70,7 +92,7 @@ public sealed class PowerSystemRoomTests
 
     private sealed record CartRun(float BlockX, float BlockY, uint BlockBody, uint EngineBody, uint WheelBody, long StateHash);
 
-    private static CartRun RunCart(EnginePlacement engine, bool activateWheels)
+    private static CartRun RunCart(EnginePlacement engine, bool activateWheels, uint wheelPart = PartMotorWheel)
     {
         using GameRoom room = PlayHost.CreateSandboxRoom();
         uint player = PlayHost.NextPlayerId();
@@ -83,8 +105,8 @@ public sealed class PowerSystemRoomTests
             return outcome.EntityId;
         }
 
-        uint rearWheel = Place(PartMotorWheel, -8.5f, -2.5f);
-        uint frontWheel = Place(PartMotorWheel, -7.5f, -2.5f);
+        uint rearWheel = Place(wheelPart, -8.5f, -2.5f);
+        uint frontWheel = Place(wheelPart, -7.5f, -2.5f);
         uint frame = Place(PartFrame, -8.0f, -1.5f);
         Place(PartPig, -8.0f, -0.5f);
         uint engineEntity = engine switch
@@ -102,7 +124,7 @@ public sealed class PowerSystemRoomTests
 
         if (activateWheels)
         {
-            Assert.True(room.Submit(PlayHost.BindPlayer(SetTypeActive(++sequence, PartMotorWheel, active: true), player)).IsAccepted);
+            Assert.True(room.Submit(PlayHost.BindPlayer(SetTypeActive(++sequence, wheelPart, active: true), player)).IsAccepted);
         }
 
         for (int tick = 0; tick < 30; tick++)

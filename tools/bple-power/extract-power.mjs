@@ -1,7 +1,8 @@
 // Power capability extractor: reads each part prefab's `m_powerConsumption` and
-// `m_enginePower` and reports the values per PigForge partTypeId. This is the ONLY
-// admissible source for power data in content/parts.json -- the same rule
-// tools/bple-joints and tools/bple-materials established for their values.
+// `m_enginePower` -- plus, for the wheels the original drives, its `m_force` -- and reports
+// the values per PigForge partTypeId. This is the ONLY admissible source for power and wheel
+// drive data in content/parts.json -- the same rule tools/bple-joints and tools/bple-materials
+// established for their values.
 //
 // Why it matters (Contraption.cs:540-556, the DynamicPowerSystem = true branch):
 //
@@ -21,7 +22,7 @@
 //
 // Usage: node tools/bple-power/extract-power.mjs [--bple <path>] [--json <path>] [--md <path>]
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -36,6 +37,7 @@ const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE
 const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-power-report.json")));
 const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-power-report.md")));
 const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
+const SCRIPTS = join(BPLE, "Assets", "Scripts", "Assembly-CSharp");
 const CONTENT_PARTS = join(REPO, "content", "parts.json");
 const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
 
@@ -45,6 +47,11 @@ if (!existsSync(GAMEOBJECT)) {
 }
 
 const warnings = [];
+
+const fail = (message) => {
+  console.error(message);
+  process.exit(1);
+};
 
 function prefabText(name) {
   const path = join(GAMEOBJECT, `${name}.prefab`);
@@ -74,6 +81,104 @@ function readPower(text) {
   return { powerConsumption, enginePower };
 }
 
+// ---------------------------------------------------------------- wheel drive
+//
+// The original separates the wheels it drives from the wheels that only roll. A driven wheel
+// overrides `InitializeEngine()` -- BasePart's engine hook -- and scales `m_force` and its top
+// speed by its component's engine power factor (MotorWheel.cs:99-104, StickyWheel.cs:117-122,
+// OffRoadWheel.cs:172-180), and it toggles through `HasOnOffToggle()` (MotorWheel.cs:65-73,
+// StickyWheel.cs:68-76). The passive CartWheel overrides neither: its FixedUpdate only reads
+// contact (CartWheel.cs:129-149). Both driven classes overwrite the serialized `m_maximumSpeed`
+// in InitializeEngine (MotorWheel.cs:103, StickyWheel.cs:121), so `m_force` is the only usable
+// drive number in the prefab.
+//
+// PigForge models a driven wheel as `wheel` + `motor` (its per-tick impulse, the same capability
+// the motor-wheel and propeller use, GameplayRules.RunMotors) + `activation: "toggle"`. Only the
+// motor wheel's impulse has been calibrated by playtest so far -- 2.2 for `m_force` 50
+// (content part 17, docs/specs/part-texture-animation.md "阈值标定") -- so every other driven
+// wheel scales from that anchor by the original's own force ratio. That keeps the original's
+// relative strengths: the sticky wheel carries `m_force` 100 against the motor wheel's 50, so it
+// drives twice as hard.
+
+/** guid -> script class name, so a prefab's `m_Script` references become class names
+ * (the same index tools/bple-springs builds for the wheel-suspension extraction). */
+function buildGuidIndex() {
+  const byGuid = new Map();
+  for (const entry of readdirSync(SCRIPTS)) {
+    if (!entry.endsWith(".cs.meta")) continue;
+    const match = /^guid:\s*([0-9a-f]{32})/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
+    if (match) byGuid.set(match[1], basename(entry, ".cs.meta"));
+  }
+
+  return byGuid;
+}
+
+/** class name -> the class it derives from, for every script in the assembly. */
+function buildClassBases() {
+  const bases = new Map();
+  for (const entry of readdirSync(SCRIPTS)) {
+    if (!entry.endsWith(".cs")) continue;
+    const match = /^\s*public class (\w+)\s*:\s*([\w<>]+)/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
+    if (match) bases.set(match[1], match[2]);
+  }
+
+  return bases;
+}
+
+/** Whether a class overrides BasePart's engine hook, i.e. is driven by the power factor. */
+function overridesInitializeEngine(scriptName) {
+  const text = readFileSync(join(SCRIPTS, `${scriptName}.cs`), "utf8");
+  return /public override void InitializeEngine\s*\(\s*\)/.test(text);
+}
+
+const guidIndex = buildGuidIndex();
+const classBases = buildClassBases();
+
+const derivesFromBasePart = (name) => {
+  const seen = new Set();
+  let current = name;
+  while (current && !seen.has(current)) {
+    if (current === "BasePart") return true;
+    seen.add(current);
+    current = classBases.get(current);
+  }
+
+  return false;
+};
+
+// Derived, not listed: a driven wheel is a BasePart subclass whose name ends in `Wheel` and
+// which overrides InitializeEngine (MotorWheel, OffRoadWheel, StickyWheel on 2.4.0 BPLE).
+const drivenWheelClasses = new Set(
+  [...classBases.keys()]
+    .filter((name) => name.endsWith("Wheel") && derivesFromBasePart(name) && overridesInitializeEngine(name)),
+);
+
+/** The driven-wheel script a prefab instantiates, or null when it is a passive wheel
+ * (or not a wheel at all). */
+function drivenWheelScript(text) {
+  const referenced = new Set(
+    [...text.matchAll(/m_Script:\s*\{fileID:\s*-?\d+,\s*guid:\s*([0-9a-f]{32})/g)]
+      .map((match) => guidIndex.get(match[1]))
+      .filter(Boolean),
+  );
+  const driven = [...referenced].filter((name) => drivenWheelClasses.has(name));
+  if (driven.length > 0) return driven[0];
+  return null;
+}
+
+/** The serialized `m_force` / `m_maximumSpeed` of a wheel MonoBehaviour, plus whether the prefab
+ * carries the `m_enabled` switch field the original toggles. */
+function readDrive(text) {
+  const force = readPowerField(text, "m_force");
+  const maximumSpeed = readPowerField(text, "m_maximumSpeed");
+  const enabled = readPowerField(text, "m_enabled");
+  if (force === null || force <= 0 || maximumSpeed === null || enabled === null) {
+    return null;
+  }
+
+  return { force, maximumSpeed };
+}
+
 /** partTypeId -> prefab name, reusing the mapping the shapes/textures extractors established so
  * this tool cannot drift into a second convention. */
 function loadAssignments() {
@@ -96,6 +201,25 @@ const assignments = loadAssignments();
 const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
 const nameByPart = new Map(content.parts.map((part) => [part.partTypeId, part.name ?? ""]));
 
+// The drive anchor: the motor wheel is the one driven wheel whose PigForge impulse has been
+// calibrated by playtest. Its original force comes from the prefab, its impulse from content,
+// so re-running this tool can never drift away from the number the game was tuned around.
+const DRIVE_ANCHOR_PREFAB = "Part_MotorWheel_01_SET";
+const DRIVE_ANCHOR_PART = 17;
+const anchorText = prefabText(DRIVE_ANCHOR_PREFAB);
+const anchorForce = anchorText === null ? null : readDrive(anchorText);
+const anchorPart = content.parts.find((part) => part.partTypeId === DRIVE_ANCHOR_PART);
+const anchorImpulse = anchorPart?.capabilities?.motor?.thrustPerTick;
+if (anchorForce === null || typeof anchorImpulse !== "number" || !(anchorImpulse > 0)) {
+  fail(
+    `drive anchor missing: ${DRIVE_ANCHOR_PREFAB} must carry m_force/m_maximumSpeed/m_enabled and ` +
+      `content part ${DRIVE_ANCHOR_PART} must carry capabilities.motor.thrustPerTick`,
+  );
+}
+
+/** The original's force ratio against the anchor, applied to the calibrated impulse. */
+const motorThrustPerTick = (force) => anchorImpulse * (force / anchorForce.force);
+
 const parts = {};
 const unmapped = [];
 for (const part of content.parts) {
@@ -117,7 +241,7 @@ for (const part of content.parts) {
     continue;
   }
 
-  parts[part.partTypeId] = {
+  const entry = {
     prefab,
     name: nameByPart.get(part.partTypeId) ?? "",
     powerConsumption: power.powerConsumption,
@@ -126,6 +250,26 @@ for (const part of content.parts) {
     powered: power.powerConsumption > 0,
     engine: power.enginePower > 0,
   };
+
+  const script = drivenWheelScript(text);
+  if (script !== null) {
+    const drive = readDrive(text);
+    if (drive === null) {
+      warnings.push(`part ${part.partTypeId} (${prefab}): ${script} prefab has no m_force/m_maximumSpeed/m_enabled`);
+    } else {
+      entry.drive = {
+        script,
+        force: drive.force,
+        maximumSpeed: drive.maximumSpeed,
+        motorThrustPerTick: motorThrustPerTick(drive.force),
+        // HasOnOffToggle() => true on every driven wheel (MotorWheel.cs:65-73,
+        // StickyWheel.cs:68-76); the sandbox starts every toggle off, as the prefab does.
+        activation: "toggle",
+      };
+    }
+  }
+
+  parts[part.partTypeId] = entry;
 }
 
 // Whole-project tally, so the report can state the distribution even for prefabs that never made
@@ -202,6 +346,23 @@ for (const [partTypeId, value] of byField("powerConsumption")) {
   md.push(`- \`${partTypeId}\` ${value.name} — \`${value.prefab}\`，powerConsumption ${value.powerConsumption}`);
 }
 
+const drivenWheels = Object.entries(parts)
+  .filter(([, value]) => value.drive)
+  .sort((left, right) => Number(left[0]) - Number(right[0]));
+md.push("", `### 驱动轮（原版脚本 override \`InitializeEngine()\`，${drivenWheels.length} 条）`, "");
+md.push(
+  `每 tick 冲量以马达轮为标定锚：\`${anchorImpulse} × m_force / ${anchorForce.force}\``,
+  `（锚值来自 content 的 part ${DRIVE_ANCHOR_PART}，力来自 \`${DRIVE_ANCHOR_PREFAB}\`）。`,
+  "驱动轮一律写成 `motor{directionX:1}` + `activation:\"toggle\"`，与马达轮/螺旋桨同一条 `GameplayRules.RunMotors` 门控路径。",
+  "",
+);
+for (const [partTypeId, value] of drivenWheels) {
+  md.push(
+    `- \`${partTypeId}\` ${value.name} — \`${value.prefab}\`（${value.drive.script}），m_force ${value.drive.force}、` +
+      `m_maximumSpeed ${value.drive.maximumSpeed}（运行时被覆盖）→ thrustPerTick ${value.drive.motorThrustPerTick}`,
+  );
+}
+
 if (unmapped.length > 0) {
   md.push("", "## 未映射到 prefab 的 partTypeId", "", unmapped.join(", "), "");
 }
@@ -224,6 +385,11 @@ for (const field of ["enginePower", "powerConsumption"]) {
   const rows = byField(field);
   console.log(`${field.padEnd(16)} parts=${String(rows.length).padStart(3)}  ${rows.map(([id, value]) => `${id}:${value.name}`).join(", ")}`);
 }
+
+console.log(
+  `drivenWheels:     parts=${String(drivenWheels.length).padStart(3)}  ` +
+    `${drivenWheels.map(([id, value]) => `${id}:${value.drive.script} force ${value.drive.force} -> ${value.drive.motorThrustPerTick}`).join(", ")}`,
+);
 
 if (unmapped.length > 0) {
   console.log(`unmapped partTypeIds: ${unmapped.join(", ")}`);

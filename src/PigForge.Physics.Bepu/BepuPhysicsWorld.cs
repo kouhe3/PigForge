@@ -20,16 +20,26 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private readonly Dictionary<TypedIndex, List<TypedIndex>> _childShapesByCompound = new();
     private readonly Dictionary<int, float> _frictionByDynamicHandle = new();
     private readonly Dictionary<int, float> _frictionByStaticHandle = new();
-    // Bodies joined by a PigForge joint are one mechanism: the original keeps a wheel's
+    // A hinged wheel's body and its parent are one mechanism: the original keeps a wheel's
     // support collider and its tire on the same rigid body, and after the split that keeps
     // wheels spinning (see ADR-009) the two overlap on purpose. Contacts between them would
-    // be a permanent, deeply penetrating collision.
+    // be a permanent, deeply penetrating collision. Only revolute (wheel) joints suppress:
+    // the original's runtime ropes are `SpringJoint`s and never call `Physics.IgnoreCollision`
+    // (Sandbag.cs:136-164, Balloon.cs:143-166), so a sandbag or balloon collides with the part
+    // it is tied to, while a frame-enclosed pair is one body and cannot collide by construction.
     private readonly HashSet<long> _jointedPairs = new();
     // Pairs whose contact must be skipped for the step a bounce is delivered, so the injected
     // separation speed is not pulled back to the contact's own velocity goal. Cleared every tick.
     private readonly HashSet<long> _suppressedPairs = new();
     private readonly Dictionary<int, PhysicsBodyId> _dynamicIdsByHandle = new();
     private readonly Dictionary<int, PhysicsBodyId> _staticIdsByHandle = new();
+    // Per-body frozen degrees of freedom, indexed by BodyHandle.Value. The pose integrator
+    // zeroes exactly these velocity components every substep, so a body can never leave the
+    // build plane (the original's `RigidbodyConstraints`, see BodyDefinition.Constraints).
+    private PhysicsConstraintMask[] _constraintsByHandle = new PhysicsConstraintMask[64];
+    // The Z a frozen body was created at: the original's freeze pins the degree of freedom at
+    // the value it had when the constraint was applied, and a body is born in the build plane.
+    private float[] _frozenPositionZByHandle = new float[64];
     private readonly List<PhysicsBodyId> _bodyOrder = new();
     private readonly List<PhysicsEvent> _events = new();
     private readonly HashSet<ContactPair> _activeContacts = new();
@@ -38,11 +48,17 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     // the contact events are emitted. Cleared at the start of every step.
     private readonly Dictionary<ContactPair, ContactImpact> _contactImpacts = new();
     private readonly List<ContactPair> _orderedContacts = new();
-    private readonly Dictionary<PhysicsJointId, ConstraintHandle> _joints = new();
+    // One PigForge joint may own several solver constraints: a sprung wheel is an angular
+    // hinge plus a rigid line lock plus the spring itself (see CreateJoint).
+    private readonly Dictionary<PhysicsJointId, ConstraintHandle[]> _joints = new();
     private readonly List<(PhysicsJointId Joint, BodyHandle A, BodyHandle B)> _jointBodies = new();
     private uint _nextBodyId = 1;
     private uint _nextJointId = 1;
     private bool _disposed;
+
+    /// <summary>Bepu's own stiff spring (30 Hz, critically damped): what a constraint that
+    /// must not visibly give uses, and the default the contact material builds as well.</summary>
+    private static readonly SpringSettings RigidSpring = new(30f, 1f);
 
     public BepuPhysicsWorld(PhysicsVector3 gravity)
     {
@@ -55,7 +71,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _simulation = Simulation.Create(
             _bufferPool,
             new NarrowPhaseCallbacks(this),
-            new PoseIntegratorCallbacks(ToNumerics(gravity)),
+            new PoseIntegratorCallbacks(this, ToNumerics(gravity)),
             new SolveDescription(8, 1));
     }
 
@@ -125,6 +141,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             _dynamicBodies.Add(id, handle);
             _dynamicIdsByHandle.Add(handle.Value, id);
             _frictionByDynamicHandle.Add(handle.Value, definition.Material.Friction);
+            SetConstraints(handle.Value, definition.Constraints, definition.Position.Z);
             // Sleeping bodies would ignore impulses, and waking via the BodyReference
             // setter corrupts solver state; keep dynamics always awake.
             _simulation.Bodies[handle].Activity.SleepThreshold = -1f;
@@ -149,9 +166,12 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
                     continue;
                 }
 
-                if (_joints.Remove(jointId, out ConstraintHandle constraint))
+                if (_joints.Remove(jointId, out ConstraintHandle[]? constraints))
                 {
-                    _simulation.Solver.Remove(constraint);
+                    foreach (ConstraintHandle constraint in constraints)
+                    {
+                        _simulation.Solver.Remove(constraint);
+                    }
                 }
 
                 _jointedPairs.Remove(PairKey(jointA, jointB));
@@ -160,6 +180,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
 
             _dynamicIdsByHandle.Remove(dynamicHandle.Value);
             _frictionByDynamicHandle.Remove(dynamicHandle.Value);
+            SetConstraints(dynamicHandle.Value, PhysicsConstraintMask.None, 0f);
             _simulation.Bodies.Remove(dynamicHandle);
         }
         else if (_staticBodies.Remove(body, out StaticHandle staticHandle))
@@ -205,20 +226,12 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             throw new KeyNotFoundException("Both joint bodies must be dynamic bodies created by this world.");
         }
 
-        ConstraintHandle handle;
+        ConstraintHandle[] handles;
         if (definition.Kind == PhysicsJointKind.Revolute)
         {
-            // The hinge keeps the two anchors coincident and lets the bodies rotate about the
-            // shared axis; the spring settings are stiff so it behaves as a rigid axle.
-            Hinge hinge = new()
-            {
-                LocalOffsetA = ToNumerics(definition.LocalAnchorA),
-                LocalOffsetB = ToNumerics(definition.LocalAnchorB),
-                LocalHingeAxisA = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisA)),
-                LocalHingeAxisB = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisB)),
-                SpringSettings = new SpringSettings(30f, 1f),
-            };
-            handle = _simulation.Solver.Add(handleA, handleB, hinge);
+            handles = definition.LocalSuspensionAxis == PhysicsVector3.Zero
+                ? new[] { AddRigidHinge(handleA, handleB, definition) }
+                : AddSprungWheel(handleA, handleB, definition);
         }
         else
         {
@@ -233,7 +246,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
                 MaximumDistance = definition.MaximumDistance,
                 SpringSettings = new SpringSettings(definition.SpringFrequency, definition.SpringDampingRatio),
             };
-            handle = _simulation.Solver.Add(handleA, handleB, limit);
+            handles = new[] { _simulation.Solver.Add(handleA, handleB, limit) };
         }
 
         if (_nextJointId == 0)
@@ -242,9 +255,16 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         }
 
         PhysicsJointId id = new(_nextJointId++);
-        _joints.Add(id, handle);
+        _joints.Add(id, handles);
         _jointBodies.Add((id, handleA, handleB));
-        _jointedPairs.Add(PairKey(handleA, handleB));
+        // Only the wheel hinge suppresses contacts between its ends: the tire sphere and the
+        // support box that rides the parent overlap on purpose (ADR-009). The runtime ropes
+        // (balloon string, sandbag tie) are Unity SpringJoints whose pair still collides.
+        if (definition.Kind == PhysicsJointKind.Revolute)
+        {
+            _jointedPairs.Add(PairKey(handleA, handleB));
+        }
+
         return id;
     }
 
@@ -253,6 +273,81 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         left.Value <= right.Value
             ? ((long)left.Value << 32) | (uint)right.Value
             : ((long)right.Value << 32) | (uint)left.Value;
+
+    /// <summary>
+    /// The rigid revolute attachment: a hinge keeps the two anchors coincident and lets the
+    /// bodies rotate about the shared axis, with stiff settings so it behaves as a rigid axle.
+    /// Its linear part is one rigid point constraint, so it cannot express compliance — a
+    /// sprung wheel takes <see cref="AddSprungWheel"/> instead.
+    /// </summary>
+    private ConstraintHandle AddRigidHinge(BodyHandle handleA, BodyHandle handleB, JointDefinition definition)
+    {
+        Hinge hinge = new()
+        {
+            LocalOffsetA = ToNumerics(definition.LocalAnchorA),
+            LocalOffsetB = ToNumerics(definition.LocalAnchorB),
+            LocalHingeAxisA = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisA)),
+            LocalHingeAxisB = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisB)),
+            SpringSettings = RigidSpring,
+        };
+        return _simulation.Solver.Add(handleA, handleB, hinge);
+    }
+
+    /// <summary>
+    /// The elastic wheel attachment. The wheel spins about the axle and its centre may
+    /// translate along the suspension axis (body A's <see cref="JointDefinition.LocalSuspensionAxis"/>,
+    /// perpendicular to that axle) against the spring, while the other two translations stay
+    /// rigid — the original's ConfigurableJoint with Locked angular XYZ, Locked x/z,
+    /// Limited y and a linear-limit spring at a zero offset (OffRoadWheel.cs:202-220).
+    /// <para>
+    /// Built from three constraints because no single Bepu constraint has that shape:
+    /// an <see cref="AngularHinge"/> for the spin, a <see cref="PointOnLineServo"/> pinning
+    /// B's anchor to the line through A's anchor along the axis (the rigid x/z locks), and a
+    /// <see cref="LinearAxisServo"/> for the sprung axial degree of freedom. Both servos use
+    /// <see cref="ServoSettings.Default"/>: unlimited speed and force, so what is left is the
+    /// spring itself, with the accumulated impulse free to push either way.
+    /// </para>
+    /// </summary>
+    private ConstraintHandle[] AddSprungWheel(BodyHandle handleA, BodyHandle handleB, JointDefinition definition)
+    {
+        // Only A's frame carries the axis: it must not ride the wheel's spin (B is the wheel).
+        Vector3 axis = ToNumerics(PhysicsVector3.Normalize(definition.LocalSuspensionAxis));
+        Vector3 anchorA = ToNumerics(definition.LocalAnchorA);
+        Vector3 anchorB = ToNumerics(definition.LocalAnchorB);
+
+        AngularHinge spin = new()
+        {
+            LocalHingeAxisA = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisA)),
+            LocalHingeAxisB = ToNumerics(PhysicsVector3.Normalize(definition.LocalAxisB)),
+            SpringSettings = RigidSpring,
+        };
+
+        PointOnLineServo lateralLock = new()
+        {
+            LocalOffsetA = anchorA,
+            LocalOffsetB = anchorB,
+            LocalDirection = axis,
+            ServoSettings = ServoSettings.Default,
+            SpringSettings = RigidSpring,
+        };
+
+        LinearAxisServo suspension = new()
+        {
+            LocalOffsetA = anchorA,
+            LocalOffsetB = anchorB,
+            LocalPlaneNormal = axis,
+            TargetOffset = definition.SuspensionRestOffset,
+            ServoSettings = ServoSettings.Default,
+            SpringSettings = new SpringSettings(definition.SpringFrequency, definition.SpringDampingRatio),
+        };
+
+        return new[]
+        {
+            _simulation.Solver.Add(handleA, handleB, spin),
+            _simulation.Solver.Add(handleA, handleB, lateralLock),
+            _simulation.Solver.Add(handleA, handleB, suspension),
+        };
+    }
 
     /// <summary>Statics get their own key space so a dynamic-vs-static pair can be keyed too —
     /// a bounce pairs the pig with the floor, and the floor is static.</summary>
@@ -309,6 +404,104 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private bool IsSuppressed(in CollidableReference left, in CollidableReference right) =>
         _suppressedPairs.Contains(CollidablePairKey(left, right));
 
+    /// <summary>Records a body's frozen degrees of freedom for the pose integrator, growing the
+    /// handle-indexed table as Bepu reuses low handles.</summary>
+    private void SetConstraints(int handle, PhysicsConstraintMask constraints, float positionZ)
+    {
+        if (handle >= _constraintsByHandle.Length)
+        {
+            int capacity = _constraintsByHandle.Length;
+            while (capacity <= handle)
+            {
+                capacity *= 2;
+            }
+
+            Array.Resize(ref _constraintsByHandle, capacity);
+            Array.Resize(ref _frozenPositionZByHandle, capacity);
+        }
+
+        _constraintsByHandle[handle] = constraints;
+        _frozenPositionZByHandle[handle] = positionZ;
+    }
+
+    /// <summary>The mask the pose integrator applies to one body handle; none when the handle
+    /// was never seen (a static body, or a freed dynamic slot).</summary>
+    private PhysicsConstraintMask ConstraintsOf(int handle) =>
+        (uint)handle < (uint)_constraintsByHandle.Length ? _constraintsByHandle[handle] : PhysicsConstraintMask.None;
+
+    /// <summary>
+    /// The last word on a frozen degree of freedom. The pose integrator already drops the locked
+    /// velocity components before the pose moves, but a solver constraint (a rope or a contact)
+    /// writes them back during the step, and a non-conserving orientation integration can then
+    /// rotate a body by a fraction of a degree over hundreds of ticks. The original snaps those
+    /// axes instead of trusting the solver (`RigidbodyRotationConstraints` restores the locked
+    /// components of the rotation every `LateUpdate`), so this does the same once per step:
+    /// locked axis values return to what the body was created with, everything else is untouched.
+    /// Bodies are walked in the world's own creation order, so the pass stays deterministic.
+    /// </summary>
+    private void ApplyFrozenDegreesOfFreedom()
+    {
+        for (int index = 0; index < _bodyOrder.Count; index++)
+        {
+            if (!_dynamicBodies.TryGetValue(_bodyOrder[index], out BodyHandle handle))
+            {
+                continue;
+            }
+
+            PhysicsConstraintMask constraints = ConstraintsOf(handle.Value);
+            if (constraints == PhysicsConstraintMask.None)
+            {
+                continue;
+            }
+
+            BodyReference body = _simulation.Bodies[handle];
+            BodyVelocity velocity = body.Velocity;
+            Vector3 position = body.Pose.Position;
+            Quaternion orientation = body.Pose.Orientation;
+            if ((constraints & PhysicsConstraintMask.LockPositionX) != 0)
+            {
+                velocity.Linear.X = 0f;
+            }
+
+            if ((constraints & PhysicsConstraintMask.LockPositionY) != 0)
+            {
+                velocity.Linear.Y = 0f;
+            }
+
+            if ((constraints & PhysicsConstraintMask.LockPositionZ) != 0)
+            {
+                velocity.Linear.Z = 0f;
+                position.Z = _frozenPositionZByHandle[handle.Value];
+            }
+
+            if ((constraints & PhysicsConstraintMask.LockRotationX) != 0)
+            {
+                velocity.Angular.X = 0f;
+                orientation.X = 0f;
+            }
+
+            if ((constraints & PhysicsConstraintMask.LockRotationY) != 0)
+            {
+                velocity.Angular.Y = 0f;
+                orientation.Y = 0f;
+            }
+
+            if ((constraints & PhysicsConstraintMask.LockRotationZ) != 0)
+            {
+                velocity.Angular.Z = 0f;
+                orientation.Z = 0f;
+            }
+
+            if ((constraints & (PhysicsConstraintMask.LockRotationX | PhysicsConstraintMask.LockRotationY | PhysicsConstraintMask.LockRotationZ)) != 0)
+            {
+                orientation = Quaternion.Normalize(orientation);
+            }
+
+            body.Velocity = velocity;
+            body.Pose = new RigidPose(position, orientation);
+        }
+    }
+
     public void DestroyJoint(PhysicsJointId joint)
     {
         ThrowIfDisposed();
@@ -317,9 +510,13 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             throw new ArgumentException("A joint ID must be valid.", nameof(joint));
         }
 
-        if (_joints.Remove(joint, out ConstraintHandle handle))
+        if (_joints.Remove(joint, out ConstraintHandle[]? handles))
         {
-            _simulation.Solver.Remove(handle);
+            foreach (ConstraintHandle handle in handles)
+            {
+                _simulation.Solver.Remove(handle);
+            }
+
             for (int index = _jointBodies.Count - 1; index >= 0; index--)
             {
                 (PhysicsJointId jointId, BodyHandle jointA, BodyHandle jointB) = _jointBodies[index];
@@ -381,6 +578,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _currentContacts.Clear();
         _contactImpacts.Clear();
         _simulation.Timestep(timeStep.Seconds);
+        ApplyFrozenDegreesOfFreedom();
 
         _orderedContacts.Clear();
         _orderedContacts.AddRange(_currentContacts);
@@ -777,11 +975,13 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
 
     private struct PoseIntegratorCallbacks : IPoseIntegratorCallbacks
     {
+        private readonly BepuPhysicsWorld _world;
         private readonly Vector3 _gravity;
         private Vector3Wide _gravityWideDt;
 
-        public PoseIntegratorCallbacks(Vector3 gravity)
+        public PoseIntegratorCallbacks(BepuPhysicsWorld world, Vector3 gravity)
         {
+            _world = world;
             _gravity = gravity;
             _gravityWideDt = default;
         }
@@ -807,6 +1007,45 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             ref BodyVelocityWide velocity)
         {
             velocity.Linear += _gravityWideDt;
+            // Frozen degrees of freedom (the original's `RigidbodyConstraints`): a body that must
+            // stay in the build plane never integrates the locked component, whatever the solver
+            // wrote into it. Velocity is written back, so the freeze survives to the next substep.
+            // `integrationMask` is deliberately not consulted: a lane that is not integrated keeps
+            // the base integrator's own garbage index, whose mask lookup resolves to None.
+            int laneCount = Vector<float>.Count;
+            for (int lane = 0; lane < laneCount; lane++)
+            {
+                PhysicsConstraintMask constraints = _world.ConstraintsOf(bodyIndices[lane]);
+                if ((constraints & PhysicsConstraintMask.LockPositionX) != 0)
+                {
+                    velocity.Linear.X = Vector.WithElement(velocity.Linear.X, lane, 0f);
+                }
+
+                if ((constraints & PhysicsConstraintMask.LockPositionY) != 0)
+                {
+                    velocity.Linear.Y = Vector.WithElement(velocity.Linear.Y, lane, 0f);
+                }
+
+                if ((constraints & PhysicsConstraintMask.LockPositionZ) != 0)
+                {
+                    velocity.Linear.Z = Vector.WithElement(velocity.Linear.Z, lane, 0f);
+                }
+
+                if ((constraints & PhysicsConstraintMask.LockRotationX) != 0)
+                {
+                    velocity.Angular.X = Vector.WithElement(velocity.Angular.X, lane, 0f);
+                }
+
+                if ((constraints & PhysicsConstraintMask.LockRotationY) != 0)
+                {
+                    velocity.Angular.Y = Vector.WithElement(velocity.Angular.Y, lane, 0f);
+                }
+
+                if ((constraints & PhysicsConstraintMask.LockRotationZ) != 0)
+                {
+                    velocity.Angular.Z = Vector.WithElement(velocity.Angular.Z, lane, 0f);
+                }
+            }
         }
     }
 }
