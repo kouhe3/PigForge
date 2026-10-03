@@ -135,28 +135,32 @@ describe("part contact snap", () => {
     expect(projected?.offsetY).toBe(0);
   });
 
-  it("sizes a multi-cell all-edge part by whole cells centred on its origin", () => {
-    // Wooden glider wing (content partTypeId 31): its art is 2.04 x 1.02 cells centred on the
-    // origin, but its collider sits half a cell to the left, so a collider box would push the
-    // wing half a cell into its neighbour.
+  it("aligns a bracketed part on its bracket, not on its collider", () => {
+    // Wooden glider wing (partTypeId 31): its frame spans x [-0.2404, 0.8698] while its collider
+    // spans x [-1.45, 0.45], so a collider box would press the wing half a cell into the
+    // neighbour. The bracket is what the player lines up.
     const wing: PartDefinition = {
       ...block,
+      partTypeId: 31,
       capabilities: { jointConnectionType: "target", jointConnectionDirection: "any" },
       shapes: [{ kind: "box", halfExtents: [0.95, 0.3061, 0.75], offset: [-0.5, -0.15, 0] }],
     };
 
     const box = snapBoxOf(base, wing);
 
-    expect(box).toMatchObject({ halfX: 1, halfY: 0.5, offsetX: 0, offsetY: 0 });
+    expect(box?.halfX).toBeCloseTo(0.5551);
+    expect(box?.offsetX).toBeCloseTo(0.3147);
     expect(box?.edges).toEqual({ up: true, down: true, left: true, right: true });
     if (box === null) {
-      throw new Error("the glider wing must project to a box");
+      throw new Error("the glider wing must have a bracket box");
     }
 
-    // Snapped against a frame at x = 1 (right face 1.5) the wing takes the two cells beyond it:
-    // 2.5 - 1 = 1.5, matching the frame's 1 + 0.5.
+    // Snapped against a frame at x = 1 (right face 1.5), the bracket's left edge lands on 1.5.
     const frame = { entityId: 1, x: 1, y: 0, halfX: 0.5, halfY: 0.5, offsetX: 0, offsetY: 0 };
-    expect(snapMoveToParts(2.4, 0, box, [frame]).x).toBeCloseTo(2.5);
+    const snapped = snapMoveToParts(1.66, 0, box, [frame]);
+
+    expect(snapped.x).toBeCloseTo(1.7404);
+    expect(snapped.x + box.offsetX - box.halfX).toBeCloseTo(1.5);
   });
 
   it("has no box without a part or a usable shape", () => {

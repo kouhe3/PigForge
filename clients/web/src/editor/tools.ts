@@ -1,4 +1,5 @@
 import type { DrawEntity, PartDefinition } from "@/schema/types";
+import { PART_FRAME_BOXES } from "@/builder/frameBoxes.generated";
 
 /**
  * Build-mode editing tools (advanced building): the tool set, its snap steps, and the
@@ -205,13 +206,11 @@ export interface SnapBox extends SnapTarget {
  * welds only on its left, a wheel above its hub, a spring above and below, and a part that
  * refuses welds has none at all.
  *
- * A part that welds on all four edges but whose body spans more than one cell is anchored by its
- * origin cell instead: the original gives a glider wing its four connection points to a frame at
- * the origin that carries no collider of its own (`Part_WoodenWings_01_SET` has a single collider
- * at centre x = -0.5 plus `TopFrameSprite`/`BottomFrameSprite` at x ≈ 0.06), so the wing's body
- * overhangs its neighbours while the bracket sits in one cell. Four edges can only meet the grid
- * at once when the box is a single cell. A part whose brackets have colliders (a rocket) keeps its
- * bracket box, and a body that is already a cell is unaffected.
+ * A part whose original art carries a bracket (`condition.kind === "frame"`) is aligned on that
+ * bracket instead: a glider wing's collider sits half a cell left of its frame, so a collider box
+ * plants the wing half a cell into whichever neighbour it is snapped to. The bracket bounds come
+ * from the texture manifest (see `frameBoxes.generated`). A rocket's brackets have colliders of
+ * their own and are already part of its box.
  */
 export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined): SnapBox | null {
   if (part === undefined) {
@@ -224,23 +223,12 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
   let minY = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
-  let bareMinX = Number.POSITIVE_INFINITY;
-  let bareMinY = Number.POSITIVE_INFINITY;
-  let bareMaxX = Number.NEGATIVE_INFINITY;
-  let bareMaxY = Number.NEGATIVE_INFINITY;
-  let hasBracket = false;
-
   for (const shape of part.shapes) {
-    hasBracket ||= shape.condition !== undefined;
     const offset = shape.offset ?? [0, 0, 0];
     const centreX = (offset[0] * cos - offset[1] * sin) * entity.scale;
     const centreY = (offset[0] * sin + offset[1] * cos) * entity.scale;
-    const bareCentreX = offset[0] * cos - offset[1] * sin;
-    const bareCentreY = offset[0] * sin + offset[1] * cos;
     let extentX: number;
     let extentY: number;
-    let bareX: number;
-    let bareY: number;
 
     if (shape.kind === "sphere") {
       if (shape.radius === undefined) {
@@ -249,8 +237,6 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
 
       extentX = shape.radius * entity.scale;
       extentY = extentX;
-      bareX = shape.radius;
-      bareY = bareX;
     } else {
       const half = shape.halfExtents;
       if (half === undefined) {
@@ -261,18 +247,12 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
       const halfY = half[1] * entity.scale;
       extentX = Math.abs(halfX * cos) + Math.abs(halfY * sin);
       extentY = Math.abs(halfX * sin) + Math.abs(halfY * cos);
-      bareX = Math.abs(half[0] * cos) + Math.abs(half[1] * sin);
-      bareY = Math.abs(half[0] * sin) + Math.abs(half[1] * cos);
     }
 
     minX = Math.min(minX, centreX - extentX);
     maxX = Math.max(maxX, centreX + extentX);
     minY = Math.min(minY, centreY - extentY);
     maxY = Math.max(maxY, centreY + extentY);
-    bareMinX = Math.min(bareMinX, bareCentreX - bareX);
-    bareMaxX = Math.max(bareMaxX, bareCentreX + bareX);
-    bareMinY = Math.min(bareMinY, bareCentreY - bareY);
-    bareMaxY = Math.max(bareMaxY, bareCentreY + bareY);
   }
 
   if (minX > maxX) {
@@ -280,25 +260,20 @@ export function snapBoxOf(entity: SnapEntity, part: PartDefinition | undefined):
   }
 
   const edges = connectionEdges(part, entity.yaw);
-  const weldsEveryEdge = edges.up && edges.down && edges.left && edges.right;
-  // Unscaled, so a part the player has stretched past a cell keeps its own box as its anchor.
-  const spansACell = bareMaxX - bareMinX > 1 || bareMaxY - bareMinY > 1;
-  if (weldsEveryEdge && !hasBracket && spansACell) {
-    // Whole cells centred on the origin. The original sizes such a part by its art: a glider
-    // wing's sprite is 2.04 x 1.02 cells centred on the origin while its collider sits half a
-    // cell to the left, so a collider box would plant the wing's tip half a cell inside its
-    // neighbour. Its four edges only meet the grid when the box is the whole, centred, cell
-    // count.
-    const cellsX = Math.max(1, Math.round(bareMaxX - bareMinX));
-    const cellsY = Math.max(1, Math.round(bareMaxY - bareMinY));
+  const bracket = PART_FRAME_BOXES.get(part.partTypeId);
+  if (bracket !== undefined) {
+    // A part with a bracket (the original's `frame` art) lines up on the bracket, not on its
+    // body: a glider wing's collider sits half a cell left of its frame, so a collider box
+    // plants the wing half a cell into its neighbour. The bracket is close to square, so it is
+    // scaled but not re-rotated by yaw.
     return {
       entityId: entity.entityId,
       x: entity.x,
       y: entity.y,
-      halfX: (cellsX * entity.scale) / 2,
-      halfY: (cellsY * entity.scale) / 2,
-      offsetX: 0,
-      offsetY: 0,
+      halfX: bracket.halfX * entity.scale,
+      halfY: bracket.halfY * entity.scale,
+      offsetX: bracket.offsetX * entity.scale,
+      offsetY: bracket.offsetY * entity.scale,
       edges,
     };
   }

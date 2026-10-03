@@ -1,0 +1,69 @@
+{
+  "format": "pigforge.part-frame-boxes",
+  "schemaVersion": 1,
+  "boxes": [
+    {
+      "partTypeId": 31,
+      "halfX": 0.5551,
+      "halfY": 0.508,
+      "offsetX": 0.3147,
+      "offsetY": 0
+    },
+    {
+      "partTypeId": 32,
+      "halfX": 0.5966,
+      "halfY": 0.5,
+      "offsetX": 0.3023,
+      "offsetY": 0
+    },
+    {
+      "partTypeId": 144,
+      "halfX": 0.5551,
+      "halfY": 0.5383,
+      "offsetX": 0.3264,
+      "offsetY": 0
+    },
+    {
+      "partTypeId": 145,
+      "halfX": 0.5343,
+      "halfY": 0.5225,
+      "offsetX": 0.4091,
+      "offsetY": 0
+    },
+    {
+      "partTypeId": 146,
+      "halfX": 0.3265,
+      "halfY": 0.5355,
+      "offsetX": 0.3444,
+      "offsetY": 0
+    },
+    {
+      "partTypeId": 147,
+      "halfX": 0.3265,
+      "halfY": 0.5268,
+      "offsetX": 0.3449,
+      "offsetY": 0
+    },
+    {
+      "partTypeId": 178,
+      "halfX": 0.6001,
+      "halfY": 0.5323,
+      "offsetX": 0.4435,
+      "offsetY": 0
+    },
+    {
+      "partTypeId": 179,
+      "halfX": 0.4461,
+      "halfY": 0.5501,
+      "offsetX": 0.354,
+      "offsetY": 0
+    },
+    {
+      "partTypeId": 180,
+      "halfX": 0.5213,
+      "halfY": 0.5237,
+      "offsetX": 0.3978,
+      "offsetY": 0
+    }
+  ]
+}

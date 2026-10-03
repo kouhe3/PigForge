@@ -69,6 +69,16 @@ export interface PartDefinition {
   variantName?: string;
 }
 
+/** Build-mode alignment bounds of a part's bracket (the original's `frame` art). */
+export interface PartFrameBox {
+  partTypeId: number;
+  halfX: number;
+  halfY: number;
+  /** Bracket centre relative to the entity origin. */
+  offsetX: number;
+  offsetY: number;
+}
+
 export interface PartContentDocument {
   format: "pigforge.part-content";
   schemaVersion: 1;
