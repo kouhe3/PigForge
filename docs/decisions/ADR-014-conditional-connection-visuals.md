@@ -29,7 +29,7 @@ Accepted
    - `conditionalSpriteVisible` 按族还原原版公式：`attachmentFallback`（bottom 兼作「无其它侧」幽灵）、`attachmentPlain`（各侧独立，无 fallback）、`attachmentEight`（对角仅在 45° 朝向时显示，正交反之，另有兜底 bottom）、`frame`（局部 Right/Up/Left 与 Left/Down/Right 两个集合）。
    - `draw.ts` 只画通过判定的精灵；无 `connectionVisual` 的零件不画任何条件精灵。
 3. **不建模的部分，明确记录：**
-   - **条件碰撞体不做。** `*Attachment` 的 BoxCollider（显示时实心、隐藏时 `isTrigger`，`Rocket.cs:157-160`）与滑翔翼 body collider 的两态（`center.y/size.y`，`Wings.cs:62-71`）都还没有进内容或物理——形状集合目前仍是每零件静态的。这是下一步工作，需要新的内容键与服务端 shape 条件。
+   - **条件碰撞体不做。** `*Attachment` 的 BoxCollider（显示时实心、隐藏时 `isTrigger`，`Rocket.cs:157-160`）与滑翔翼 body collider 的两态（`center.y/size.y`，`Wings.cs:62-71`）都还没有进内容或物理——形状集合目前仍是每零件静态的。这是下一步工作，需要新的内容键与服务端 shape 条件。**（2026-10-03 完成：ADR-021，内容键 `connectionVisual` + 服务端 `ConnectionShapes`。）**
    - **per-shape material 不做。** 轮胎（`Contraption_*WheelFriction_PhysMat` 0.025/0.05，`frictionCombine=Multiply`）与轮毂（0.7）的差异无法在 Bepu 2.4 的 body 级材质表里表达：`INarrowPhaseCallbacks.cs` 的 child 回调**没有** `PairMaterialProperties` 出参，上游以 TODO 明确写着「finer grained material tuning, both per child and per contact」尚未实现。修轮胎摩擦需要三方之一，均需先拍板：升级 Bepu、在规则层自研摩擦（Bepu 摩擦置零）、或接受「混合材质取单一值 + 实现 Unity 的 frictionCombine 优先级」的近似。
    - **声明方向（`m_jointConnectionDirection`）与包裹短路（`enclosedInto`）未建模。** 当前 43 个条件件的该字段全是 `Any`（`Any ⇒ 恒真`），包裹短路只影响被塞进框里的少数情形，暂不实现。
 4. **原版的一处编译器痕迹按语义实现。** `SpotLight.cs:101-104` 的兜底行重复检查 `flag6` 且漏掉 `flag2`；本实现按「八个方向都检查」的语义写，并在代码注释标注（ADR 记录此偏离）。

@@ -124,7 +124,8 @@ public static class PartContentParser
             "capabilities",
             "variantOf",
             "variantName",
-            "gridBox");
+            "gridBox",
+            "connectionVisual");
         RejectEngineAssetReferences(seen, path, errors);
         uint partTypeId = 0;
         if (seen.Contains("partTypeId") && element.TryGetProperty("partTypeId", out JsonElement idElement))
@@ -247,6 +248,20 @@ public static class PartContentParser
             }
         }
 
+        ConnectionVisualKind? connectionVisual = null;
+        if (seen.Contains("connectionVisual") && element.TryGetProperty("connectionVisual", out JsonElement connectionVisualElement))
+        {
+            if (connectionVisualElement.ValueKind == JsonValueKind.String
+                && TryReadConnectionVisual(connectionVisualElement.GetString()!, out ConnectionVisualKind parsedVisual))
+            {
+                connectionVisual = parsedVisual;
+            }
+            else
+            {
+                errors.Add($"{path}.connectionVisual: must be one of \"attachmentFallback\", \"attachmentPlain\", \"attachmentEight\" or \"frame\".");
+            }
+        }
+
         List<PartShapeDefinition> shapes = new();
         if (seen.Contains("shapes") && element.TryGetProperty("shapes", out JsonElement shapesElement))
         {
@@ -270,6 +285,15 @@ public static class PartContentParser
             errors.Add($"{path}.partTypeId: part type id {partTypeId} is declared more than once.");
         }
 
+        // A conditional shape is a collider the original gates on the connection state, and the
+        // gate is the prefab's mounted script. Without the rule the shape has no state to follow,
+        // so the content must not carry one -- refusing here keeps a conditional part from silently
+        // losing every bracket at spawn (tools/bple-connections).
+        if (connectionVisual is null && shapes.Any(shape => shape.ConditionKind is not null))
+        {
+            errors.Add($"{path}.connectionVisual: a part with conditional shapes must declare its connection-visual rule.");
+        }
+
         parts.Add(new PartDefinition(
             partTypeId,
             seen.Contains("name") && element.TryGetProperty("name", out JsonElement nameProperty) && nameProperty.ValueKind == JsonValueKind.String
@@ -286,7 +310,36 @@ public static class PartContentParser
             capabilities,
             variantOf,
             variantName,
-            gridBox));
+            gridBox,
+            connectionVisual));
+    }
+
+    /// <summary>
+    /// The connection-visual rule the original prefab's mounted script carries: which conditional
+    /// collider sides are solid (<c>Rocket.cs:139-165</c>) and which body form a wing takes
+    /// (<c>Wings.cs:41-75</c>). Copied from the sprite manifest's already-derived rule by
+    /// <c>tools/bple-connections</c>; the client renderer reads its own copy from that manifest.
+    /// </summary>
+    private static bool TryReadConnectionVisual(string value, out ConnectionVisualKind visual)
+    {
+        switch (value)
+        {
+            case "attachmentFallback":
+                visual = ConnectionVisualKind.AttachmentFallback;
+                return true;
+            case "attachmentPlain":
+                visual = ConnectionVisualKind.AttachmentPlain;
+                return true;
+            case "attachmentEight":
+                visual = ConnectionVisualKind.AttachmentEight;
+                return true;
+            case "frame":
+                visual = ConnectionVisualKind.Frame;
+                return true;
+            default:
+                visual = default;
+                return false;
+        }
     }
 
     /// <summary>

@@ -78,6 +78,7 @@
           "maxLength": 64
         },
         "gridBox": { "$ref": "#/$defs/gridBox" },
+        "connectionVisual": { "$ref": "#/$defs/connectionVisual" },
         "shapes": {
           "type": "array",
           "minItems": 1,
@@ -96,6 +97,10 @@
         "minY": { "description": "Bottommost occupied cell index, relative to the part's own cell (0).", "type": "integer" },
         "maxY": { "description": "Topmost occupied cell index, inclusive; never below minY.", "type": "integer" }
       }
+    },
+    "connectionVisual": {
+      "description": "The script the original prefab mounts to decide which conditional colliders are solid for the current connection state (Rocket.cs:139-165 sets `isTrigger = !activeInHierarchy`, so only the shown marker is solid; TNT.cs:86-108 / SpotLight.cs:70-105 / GrapplingHook.cs:218-255 do the same with SetActive; Wings.cs:41-75 also swaps the root collider between a thin top-only and a thick bottom form). `attachmentFallback` = Rocket.cs (each marker follows its side, and `bottom` is also the ghost shown when no other side can connect); `attachmentPlain` = TNT.cs (each marker follows its side, no fallback); `attachmentEight` = SpotLight.cs/GrapplingHook.cs (the diagonals show only on a 45-degree turn); `frame` = Wings.cs/JetEngine.cs. Copied from the sprite manifest's already-derived rule by tools/bple-connections; the client renderer keeps its own copy in that manifest (ADR-014). Absent means the part has no conditional colliders to gate.",
+      "enum": ["attachmentFallback", "attachmentPlain", "attachmentEight", "frame"]
     },
     "capabilities": {
       "type": "object",
@@ -310,7 +315,7 @@
         },
         "offset": { "$ref": "#/$defs/vector3" },
         "condition": {
-          "description": "Build-time-only geometry. An `attachment` marker is the collider the original shows on one part-local side (Rocket.cs:157-160 turns a hidden marker into a trigger). A `frame` is the mounting bracket a part is aligned and welded by (ADR-018): the editor snaps it by the bracket and the server's connection proximity includes it. Occupancy no longer uses it -- that is the part's declared `gridBox` (tools/bple-grid). Physics ignores both.",
+          "description": "Connection-gated geometry. An `attachment` marker is the collider the original shows on one part-local side (Rocket.cs:157-160 turns a hidden marker into a trigger): the spawn-time body includes the markers the connection state shows and excludes the rest, under the part's `connectionVisual` rule. A `frame` is the mounting bracket a part is aligned and welded by (ADR-018): the editor snaps it by the bracket and the server's connection proximity includes it, and a wing's `frame` additionally selects its two-state root collider (Wings.cs:62-71). Occupancy never uses either -- that is the part's declared `gridBox` (tools/bple-grid).",
           "$ref": "#/$defs/shapeCondition"
         }
       }

@@ -12,10 +12,11 @@ export interface PartShape {
   /** Part-local shape offset, +y up (wheels carry their support box at the top). */
   offset?: Vec3;
   /**
-   * Build-time-only geometry: an `attachment` marker (the collider the original shows on one
+   * Connection-gated geometry: an `attachment` marker (the collider the original shows on one
    * part-local side) or a `frame` (the mounting bracket a part is aligned and welded by). The
-   * original turns a hidden marker's collider into a trigger, so physics skips both; drag snapping
-   * and connection proximity line up against them. Occupancy does not -- that is the part's
+   * spawn-time body includes the attachment markers the connection state shows and excludes the
+   * rest, and a wing's `frame` selects its two-state root collider (Wings.cs:62-71); drag snapping
+   * and connection proximity line up against both. Occupancy does not -- that is the part's
    * declared `gridBox`.
    */
   condition?:
@@ -68,12 +69,21 @@ export interface PartDefinition {
   capabilities?: PartCapabilities;
   /** The original's build-grid cell box; absent means the default single cell at the origin. */
   gridBox?: GridBox;
+  /**
+   * The script the original prefab mounts to gate its conditional colliders
+   * (Rocket.cs:139-165, TNT.cs:86-108, SpotLight.cs:70-105, GrapplingHook.cs:218-255,
+   * Wings.cs:41-75). Copied from the sprite manifest by `tools/bple-connections`; the renderer
+   * keeps its own copy in that manifest, and the server reads this one for the physics body.
+   */
+  connectionVisual?: ConnectionVisual;
   shapes: PartShape[];
   /** Base partTypeId this entry is a skin/variant of. Never points at another variant. */
   variantOf?: number;
   /** Display label for the variant (falls back to `name`). */
   variantName?: string;
 }
+
+export type ConnectionVisual = "attachmentFallback" | "attachmentPlain" | "attachmentEight" | "frame";
 
 /**
  * The original's per-part build-grid cell box (`m_gridXmin/m_gridXmax/m_gridYmin/m_gridYmax`,

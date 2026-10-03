@@ -51,19 +51,35 @@ public sealed class PartContentLibrary
     {
         PartDefinition part = GetPart(partTypeId);
         ValidateScale(partTypeId, scale);
-        // A conditional shape is a joint attachment bracket: the original turns its collider into
-        // a trigger while the bracket is hidden (Rocket.cs:157-160), so it is never body geometry.
-        // Drag snapping and connection proximity read it straight from the content instead.
+        // The static, connection-free body: a conditional shape is a joint attachment bracket the
+        // original turns into a trigger while hidden (Rocket.cs:157-160), so only the spawn path --
+        // which knows the connection state -- adds the visible ones back
+        // (Construction.ConnectionShapes.SpawnShapes). Drag snapping and connection proximity read
+        // them straight from the content instead.
         PartShapeDefinition[] bodyShapes = part.Shapes.Where(shape => shape.ConditionKind is null).ToArray();
         if (bodyShapes.Length == 0)
         {
             throw new InvalidOperationException($"Part type {partTypeId} has no body shape: every collider is conditional.");
         }
 
-        ShapePlacement[] placements = new ShapePlacement[bodyShapes.Length];
-        for (int index = 0; index < bodyShapes.Length; index++)
+        return PlaceShapes(partTypeId, scale, bodyShapes);
+    }
+
+    /// <summary>
+    /// Maps an explicit selection of a part's shapes to physics placements at a uniform
+    /// <paramref name="scale"/>. The spawn path uses this: the connection state decides which
+    /// conditional brackets are solid and which form a wing's body box takes
+    /// (<see cref="Construction.ConnectionShapes.SpawnShapes"/>), and the resulting list then goes
+    /// through exactly the same shape-to-physics mapping as the static body.
+    /// </summary>
+    public ShapePlacement[] PlaceShapes(uint partTypeId, float scale, IReadOnlyList<PartShapeDefinition> shapes)
+    {
+        ArgumentNullException.ThrowIfNull(shapes);
+        ValidateScale(partTypeId, scale);
+        ShapePlacement[] placements = new ShapePlacement[shapes.Count];
+        for (int index = 0; index < shapes.Count; index++)
         {
-            PartShapeDefinition shape = bodyShapes[index];
+            PartShapeDefinition shape = shapes[index];
             ShapeDefinition definition = shape.Kind switch
             {
                 PhysicsShapeKind.Box when shape.BoxHalfExtents is { Length: 3 } halfExtents
@@ -128,8 +144,17 @@ public sealed class PartContentLibrary
     /// roll, so all of its shapes spin about their own volume centre (the original's propeller).
     /// </summary>
     public (PhysicsVector3 Axle, WheelShape[] Shapes) DescribeWheel(uint partTypeId, float scale = 1f)
+        => DescribeWheelFrom(EnumerateShapePlacements(partTypeId, scale));
+
+    /// <summary>
+    /// <see cref="DescribeWheel(uint, float)"/> over an explicit shape selection (the spawn path,
+    /// where the connection state decides which conditional brackets the body carries).
+    /// </summary>
+    public (PhysicsVector3 Axle, WheelShape[] Shapes) DescribeWheel(uint partTypeId, float scale, IReadOnlyList<PartShapeDefinition> shapes)
+        => DescribeWheelFrom(PlaceShapes(partTypeId, scale, shapes));
+
+    private static (PhysicsVector3 Axle, WheelShape[] Shapes) DescribeWheelFrom(ShapePlacement[] placements)
     {
-        ShapePlacement[] placements = EnumerateShapePlacements(partTypeId, scale);
         bool hasTire = false;
         foreach (ShapePlacement placement in placements)
         {

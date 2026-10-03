@@ -552,7 +552,7 @@ public sealed class GameRoom : IDisposable
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
-            BindCluster(cluster, cluster.CreateBodyDefinition(_content, constraints: PlanarConstraintMask));
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content, _construction, constraints: PlanarConstraintMask));
         }
 
         BindWheelHinges(assembly.Hinges);
@@ -884,7 +884,7 @@ public sealed class GameRoom : IDisposable
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
-            BindCluster(cluster, cluster.CreateBodyDefinition(_content, constraints: PlanarConstraintMask));
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content, _construction, constraints: PlanarConstraintMask));
         }
 
         BindWheelHinges(assembly.Hinges);
@@ -922,7 +922,7 @@ public sealed class GameRoom : IDisposable
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
-            BindCluster(cluster, cluster.CreateBodyDefinition(_content, constraints: PlanarConstraintMask));
+            BindCluster(cluster, cluster.CreateBodyDefinition(_content, _construction, constraints: PlanarConstraintMask));
         }
 
         BindWheelHinges(assembly.Hinges);
@@ -1772,7 +1772,7 @@ public sealed class GameRoom : IDisposable
             _world.DestroyBody(live.Body);
             foreach (CompoundCluster piece in pieces)
             {
-                BindCluster(piece, piece.CreateBodyDefinition(_content, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
+                BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
             }
 
             EnsureBuffers();
@@ -1870,7 +1870,7 @@ public sealed class GameRoom : IDisposable
         _world.DestroyBody(link.Body);
         foreach (CompoundCluster piece in pieces)
         {
-            BindCluster(piece, piece.CreateBodyDefinition(_content, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
+            BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
         }
 
         EnsureBuffers();

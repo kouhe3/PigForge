@@ -190,6 +190,7 @@
     {
       "partTypeId": 9,
       "name": "tnt",
+      "connectionVisual": "attachmentPlain",
       "mode": "dynamic",
       "mass": 1,
       "material": {
@@ -328,6 +329,7 @@
     {
       "partTypeId": 13,
       "name": "rocket",
+      "connectionVisual": "attachmentFallback",
       "mode": "dynamic",
       "mass": 0.9,
       "material": {
@@ -866,6 +868,7 @@
     {
       "partTypeId": 25,
       "name": "soda-bottle-black",
+      "connectionVisual": "attachmentFallback",
       "mode": "dynamic",
       "mass": 0.8,
       "material": {
@@ -973,6 +976,7 @@
     {
       "partTypeId": 26,
       "name": "soda-bottle-green",
+      "connectionVisual": "attachmentFallback",
       "mode": "dynamic",
       "mass": 0.8,
       "material": {
@@ -1141,6 +1145,7 @@
     {
       "partTypeId": 30,
       "name": "firework-red",
+      "connectionVisual": "attachmentFallback",
       "mode": "dynamic",
       "mass": 0.9,
       "material": {
@@ -1250,6 +1255,7 @@
     {
       "partTypeId": 31,
       "name": "wooden-glider-wing",
+      "connectionVisual": "frame",
       "mode": "dynamic",
       "mass": 0.6,
       "material": {
@@ -1302,6 +1308,7 @@
     {
       "partTypeId": 32,
       "name": "metal-glider-wing",
+      "connectionVisual": "frame",
       "mode": "dynamic",
       "mass": 0.9,
       "material": {
@@ -1785,6 +1792,7 @@
     {
       "partTypeId": 45,
       "name": "spotlight",
+      "connectionVisual": "attachmentEight",
       "mode": "dynamic",
       "mass": 0.8,
       "material": {
@@ -1813,6 +1821,7 @@
     {
       "partTypeId": 46,
       "name": "grappling-hook",
+      "connectionVisual": "attachmentEight",
       "mode": "dynamic",
       "mass": 0.7,
       "material": {
@@ -1846,6 +1855,7 @@
     {
       "partTypeId": 47,
       "name": "tnt-nitro",
+      "connectionVisual": "attachmentPlain",
       "variantOf": 9,
       "variantName": "Nitro TNT",
       "mode": "dynamic",
@@ -1879,6 +1889,7 @@
     {
       "partTypeId": 48,
       "name": "tnt-bomb",
+      "connectionVisual": "attachmentPlain",
       "variantOf": 9,
       "variantName": "Bomb TNT",
       "mode": "dynamic",
@@ -1912,6 +1923,7 @@
     {
       "partTypeId": 49,
       "name": "tnt-gift",
+      "connectionVisual": "attachmentPlain",
       "variantOf": 9,
       "variantName": "Gift TNT",
       "mode": "dynamic",
@@ -1945,6 +1957,7 @@
     {
       "partTypeId": 50,
       "name": "tnt-pumpkin",
+      "connectionVisual": "attachmentPlain",
       "variantOf": 9,
       "variantName": "Pumpkin TNT",
       "mode": "dynamic",
@@ -5190,6 +5203,7 @@
     {
       "partTypeId": 144,
       "name": "wooden-glider-wing-v02",
+      "connectionVisual": "frame",
       "variantOf": 31,
       "mode": "dynamic",
       "mass": 0.6,
@@ -5243,6 +5257,7 @@
     {
       "partTypeId": 145,
       "name": "wooden-glider-wing-v03",
+      "connectionVisual": "frame",
       "variantOf": 31,
       "mode": "dynamic",
       "mass": 0.6,
@@ -5296,6 +5311,7 @@
     {
       "partTypeId": 146,
       "name": "wooden-glider-wing-v04",
+      "connectionVisual": "frame",
       "variantOf": 31,
       "mode": "dynamic",
       "mass": 0.6,
@@ -5349,6 +5365,7 @@
     {
       "partTypeId": 147,
       "name": "wooden-glider-wing-v05",
+      "connectionVisual": "frame",
       "variantOf": 31,
       "mode": "dynamic",
       "mass": 0.6,
@@ -5678,6 +5695,7 @@
     {
       "partTypeId": 157,
       "name": "rocket-v02",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 13,
       "mode": "dynamic",
       "mass": 0.9,
@@ -5785,6 +5803,7 @@
     {
       "partTypeId": 158,
       "name": "rocket-v03",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 13,
       "mode": "dynamic",
       "mass": 0.9,
@@ -5892,6 +5911,7 @@
     {
       "partTypeId": 159,
       "name": "rocket-v04",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 13,
       "mode": "dynamic",
       "mass": 0.9,
@@ -6642,6 +6662,7 @@
     {
       "partTypeId": 178,
       "name": "metal-glider-wing-v02",
+      "connectionVisual": "frame",
       "variantOf": 32,
       "mode": "dynamic",
       "mass": 0.9,
@@ -6695,6 +6716,7 @@
     {
       "partTypeId": 179,
       "name": "metal-glider-wing-v03",
+      "connectionVisual": "frame",
       "variantOf": 32,
       "mode": "dynamic",
       "mass": 0.9,
@@ -6748,6 +6770,7 @@
     {
       "partTypeId": 180,
       "name": "metal-glider-wing-v04",
+      "connectionVisual": "frame",
       "variantOf": 32,
       "mode": "dynamic",
       "mass": 0.9,
@@ -8341,6 +8364,7 @@
     {
       "partTypeId": 217,
       "name": "soda-bottle-black-v02",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 25,
       "mode": "dynamic",
       "mass": 0.8,
@@ -8449,6 +8473,7 @@
     {
       "partTypeId": 218,
       "name": "soda-bottle-black-v03",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 25,
       "mode": "dynamic",
       "mass": 0.8,
@@ -8557,6 +8582,7 @@
     {
       "partTypeId": 219,
       "name": "soda-bottle-black-v04",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 25,
       "mode": "dynamic",
       "mass": 0.8,
@@ -8665,6 +8691,7 @@
     {
       "partTypeId": 220,
       "name": "soda-bottle-black-v05",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 25,
       "mode": "dynamic",
       "mass": 0.8,
@@ -9013,6 +9040,7 @@
     {
       "partTypeId": 227,
       "name": "firework-red-v02",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 30,
       "mode": "dynamic",
       "mass": 0.9,
@@ -9123,6 +9151,7 @@
     {
       "partTypeId": 228,
       "name": "firework-red-v03",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 30,
       "mode": "dynamic",
       "mass": 0.9,
@@ -9233,6 +9262,7 @@
     {
       "partTypeId": 229,
       "name": "firework-red-v04",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 30,
       "mode": "dynamic",
       "mass": 0.9,
@@ -9343,6 +9373,7 @@
     {
       "partTypeId": 230,
       "name": "soda-bottle-green-v02",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 26,
       "mode": "dynamic",
       "mass": 0.8,
@@ -9451,6 +9482,7 @@
     {
       "partTypeId": 231,
       "name": "soda-bottle-green-v03",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 26,
       "mode": "dynamic",
       "mass": 0.8,
@@ -9559,6 +9591,7 @@
     {
       "partTypeId": 232,
       "name": "soda-bottle-green-v04",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 26,
       "mode": "dynamic",
       "mass": 0.8,
@@ -9667,6 +9700,7 @@
     {
       "partTypeId": 233,
       "name": "soda-bottle-green-v05",
+      "connectionVisual": "attachmentFallback",
       "variantOf": 26,
       "mode": "dynamic",
       "mass": 0.8,
@@ -10354,6 +10388,7 @@
     {
       "partTypeId": 249,
       "name": "grappling-hook-v02",
+      "connectionVisual": "attachmentEight",
       "variantOf": 46,
       "mode": "dynamic",
       "mass": 0.7,
@@ -10388,6 +10423,7 @@
     {
       "partTypeId": 250,
       "name": "grappling-hook-v03",
+      "connectionVisual": "attachmentEight",
       "variantOf": 46,
       "mode": "dynamic",
       "mass": 0.7,
@@ -10422,6 +10458,7 @@
     {
       "partTypeId": 251,
       "name": "grappling-hook-v04",
+      "connectionVisual": "attachmentEight",
       "variantOf": 46,
       "mode": "dynamic",
       "mass": 0.7,
@@ -10456,6 +10493,7 @@
     {
       "partTypeId": 252,
       "name": "grappling-hook-v05",
+      "connectionVisual": "attachmentEight",
       "variantOf": 46,
       "mode": "dynamic",
       "mass": 0.7,
@@ -10490,6 +10528,7 @@
     {
       "partTypeId": 253,
       "name": "grappling-hook-v06",
+      "connectionVisual": "attachmentEight",
       "variantOf": 46,
       "mode": "dynamic",
       "mass": 0.7,
@@ -10980,6 +11019,7 @@
     {
       "partTypeId": 267,
       "name": "spotlight-v02",
+      "connectionVisual": "attachmentEight",
       "variantOf": 45,
       "mode": "dynamic",
       "mass": 0.8,
@@ -11009,6 +11049,7 @@
     {
       "partTypeId": 268,
       "name": "spotlight-v03",
+      "connectionVisual": "attachmentEight",
       "variantOf": 45,
       "mode": "dynamic",
       "mass": 0.8,
@@ -11038,6 +11079,7 @@
     {
       "partTypeId": 269,
       "name": "spotlight-v04",
+      "connectionVisual": "attachmentEight",
       "variantOf": 45,
       "mode": "dynamic",
       "mass": 0.8,
@@ -11067,6 +11109,7 @@
     {
       "partTypeId": 52,
       "name": "tnt-blaster",
+      "connectionVisual": "attachmentPlain",
       "variantOf": 9,
       "variantName": "Blaster TNT",
       "mode": "dynamic",

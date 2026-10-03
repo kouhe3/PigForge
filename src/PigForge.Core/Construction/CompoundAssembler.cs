@@ -111,8 +111,15 @@ public sealed class CompoundCluster
     public PhysicsVector3 WorldMidpoint(CompoundSeam seam) =>
         WorldPosition + WorldRotation.Rotate(seam.LocalMidpoint);
 
+    /// <summary>
+    /// Builds the physics body for this cluster. <paramref name="construction"/> is the build
+    /// layout the body is spawned from: it resolves which conditional brackets are solid and which
+    /// form a wing's box takes (see <see cref="ConnectionShapes.SpawnShapes"/>). The layout does
+    /// not change while a room runs, so a body rebuilt after a split resolves the same shapes.
+    /// </summary>
     public BodyDefinition CreateBodyDefinition(
         PartContentLibrary content,
+        ConstructionRules construction,
         PhysicsVector3 linearVelocity = default,
         PhysicsVector3 angularVelocity = default,
         PhysicsConstraintMask constraints = PhysicsConstraintMask.None)
@@ -125,7 +132,10 @@ public sealed class CompoundCluster
             // tires, so spinning it moves nothing but the tires. Its mounts were handed to the
             // parent body (see Assemble) and are not duplicated here.
             CompoundMember wheel = Members[0];
-            (PhysicsVector3 _, PartContentLibrary.WheelShape[] shapes) = content.DescribeWheel(wheel.PartTypeId, wheel.Scale);
+            (PhysicsVector3 _, PartContentLibrary.WheelShape[] shapes) = content.DescribeWheel(
+                wheel.PartTypeId,
+                wheel.Scale,
+                ConnectionShapes.SpawnShapes(wheel.Entity, construction, content));
             List<ShapeDefinition> tires = new(shapes.Length);
             foreach (PartContentLibrary.WheelShape shape in shapes)
             {
@@ -150,13 +160,18 @@ public sealed class CompoundCluster
         if (Members.Count == 1 && Attachments.Count == 0)
         {
             CompoundMember single = Members[0];
-            PartContentLibrary.ShapePlacement[] placements = content.EnumerateShapePlacements(single.PartTypeId, single.Scale);
+            PartContentLibrary.ShapePlacement[] placements = content.PlaceShapes(
+                single.PartTypeId,
+                single.Scale,
+                ConnectionShapes.SpawnShapes(single.Entity, construction, content));
             if (placements.Length == 1
                 && placements[0].Offset == PhysicsVector3.Zero
                 && single.LocalOffset == PhysicsVector3.Zero
                 && single.LocalRotation == PhysicsQuaternion.Identity)
             {
-                // A single centred shape keeps the cheap primitive body (static-friendly).
+                // A single centred shape keeps the cheap primitive body (static-friendly). The
+                // resolved list already excludes every conditional shape the layout hides, so this
+                // is the same single shape the content-only body would build.
                 return content.CreateBodyDefinition(
                     single.PartTypeId,
                     WorldPosition,
@@ -172,7 +187,10 @@ public sealed class CompoundCluster
         for (int index = 0; index < Members.Count; index++)
         {
             CompoundMember member = Members[index];
-            foreach (PartContentLibrary.ShapePlacement placement in content.EnumerateShapePlacements(member.PartTypeId, member.Scale))
+            foreach (PartContentLibrary.ShapePlacement placement in content.PlaceShapes(
+                member.PartTypeId,
+                member.Scale,
+                ConnectionShapes.SpawnShapes(member.Entity, construction, content)))
             {
                 PhysicsVector3 offset = member.LocalOffset + member.LocalRotation.Rotate(placement.Offset);
                 children.Add(new CompoundChild(placement.Shape, offset, member.LocalRotation));
@@ -853,7 +871,10 @@ public static class CompoundAssembler
             // The physics backend recentres compound children onto their volume-weighted
             // centre, so the body pose must be that centre for the shapes to land where
             // the content places them.
-            (PhysicsVector3 _, PartContentLibrary.WheelShape[] memberShapes) = content.DescribeWheel(partTypeId, transform.Scale);
+            (PhysicsVector3 _, PartContentLibrary.WheelShape[] memberShapes) = content.DescribeWheel(
+                partTypeId,
+                transform.Scale,
+                ConnectionShapes.SpawnShapes(entity, construction, content));
             foreach (PartContentLibrary.WheelShape shape in memberShapes)
             {
                 if (soleHinge is not null && !shape.Spins)

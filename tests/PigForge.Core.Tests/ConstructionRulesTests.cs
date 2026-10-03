@@ -42,7 +42,7 @@ public sealed class ConstructionRulesTests
             "contentVersion": "bracket-test-v1",
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
-                { "partTypeId": 2, "name": "rocket", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target" }, "shapes": [
+                { "partTypeId": 2, "name": "rocket", "mode": "dynamic", "mass": 1, "connectionVisual": "attachmentFallback", "capabilities": { "jointConnectionType": "target" }, "shapes": [
                     { "kind": "box", "halfExtents": [0.35, 0.15, 0.5], "offset": [0, -0.03, 0] },
                     { "kind": "box", "halfExtents": [0.25, 0.14, 0.5], "offset": [0.37, 0, 0], "condition": { "kind": "attachment", "side": "right" } } ] }
             ]

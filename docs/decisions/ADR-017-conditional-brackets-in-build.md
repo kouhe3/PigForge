@@ -27,6 +27,7 @@ Accepted
 3. **贴合与连接包含条件形状**：客户端 `snapBoxOf`（拖拽贴合的 AABB）读全部形状；服务端新增 `PartFootprint.Touches`（含条件形状）并让 `ConstructionRules.CollectOverlapping(..., connect)` 在**连接**语义下用它、在**占用**语义下仍用 `Overlaps`。`Bounds` 始终取全集，候选桶不会漏。
 4. **全条件形状的零件不覆盖内容**：spotlight 的全部碰撞体都是支架（没有主体 collider），若照抄会把它的物理体清空。`apply-shapes.mjs` 对这种 prefab 退回「保持已写形状」，`PartContentLibrary` 则对「一个非条件形状都没有」的零件**显式抛错**（宁可失败也不造出空刚体）。
 5. **不做**（留在 ADR-014/§5.1 的后续）：支架随连接状态切换实心/trigger 的双向语义、滑翔翼 body collider 的两态（`Wings.cs:62-71`，`center.y/size.y` 在 0.05/0.3 与 −0.15/0.6 之间切换）。
+   - 2026-10-03：**两条都已实现**，见 ADR-021（内容键 `connectionVisual` + 服务端 `ConnectionShapes`）；本决策的「物理永远不含支架」被它取代，占格仍按 ADR-020 的声明格盒。
 
 ## 影响
 

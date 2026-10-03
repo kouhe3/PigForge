@@ -146,7 +146,7 @@ public sealed class CompoundAssemblerTests
         EntityId ramp = rules.Place(PartRamp, -18.125f, -1.758f, 0.25f, 1f, 0).Entity;
 
         CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { ramp }, rules, content).Clusters);
-        BodyDefinition body = cluster.CreateBodyDefinition(content);
+        BodyDefinition body = cluster.CreateBodyDefinition(content, rules);
 
         Assert.Equal(PhysicsBodyMode.Static, body.Mode);
         BoxShapeDefinition shape = Assert.IsType<BoxShapeDefinition>(Assert.Single(body.Shapes));
@@ -222,7 +222,7 @@ public sealed class CompoundAssemblerTests
         EntityId frame = materialRules.Place(1, 0.5f, 0.5f, 0f, 1f, 0).Entity;
         EntityId tyre = materialRules.Place(2, 1.5f, 0.5f, 0f, 1f, 0).Entity;
         CompoundCluster mixed = Assert.Single(CompoundAssembler.Assemble(new[] { frame, tyre }, materialRules, materialContent).Clusters);
-        BodyDefinition mixedBody = mixed.CreateBodyDefinition(materialContent);
+        BodyDefinition mixedBody = mixed.CreateBodyDefinition(materialContent, materialRules);
 
         // The tyre's Multiply outranks the frame's Average, so it wins and multiplies the two
         // coefficients; the strongest restitution survives.
@@ -234,7 +234,7 @@ public sealed class CompoundAssemblerTests
         EntityId plainFrame = materialRules.Place(1, 10.5f, 0.5f, 0f, 1f, 0).Entity;
         EntityId plank = materialRules.Place(3, 11.5f, 0.5f, 0f, 1f, 0).Entity;
         CompoundCluster average = Assert.Single(CompoundAssembler.Assemble(new[] { plainFrame, plank }, materialRules, materialContent).Clusters);
-        BodyDefinition averageBody = average.CreateBodyDefinition(materialContent);
+        BodyDefinition averageBody = average.CreateBodyDefinition(materialContent, materialRules);
 
         Assert.Equal(0.2f, averageBody.Material.Restitution, precision: 5);
         Assert.Equal(FrictionCombine.Average, averageBody.Material.FrictionCombine);
@@ -291,14 +291,14 @@ public sealed class CompoundAssemblerTests
         // rides the frame body, which does not spin, so an axle mount cannot sweep into it.
         CompoundCluster wheelCluster = assembly.Clusters.Single(cluster => cluster.Members[0].Entity == wheel);
         Assert.Equal(-1f + hinge.LocalAxle.Y, wheelCluster.WorldPosition.Y, precision: 4);
-        BodyDefinition wheelBody = wheelCluster.CreateBodyDefinition(content);
+        BodyDefinition wheelBody = wheelCluster.CreateBodyDefinition(content, rules);
         Assert.Equal(wheelCluster.WorldPosition.Y, wheelBody.Position.Y, precision: 6);
         SphereShapeDefinition tire = Assert.IsType<SphereShapeDefinition>(Assert.Single(wheelBody.Shapes));
         Assert.Equal(0.33f, tire.Radius, precision: 4);
 
         CompoundCluster frameCluster = assembly.Clusters.Single(cluster => cluster.Members[0].Entity == frame);
         CompoundShapeDefinition frameBody = Assert.IsType<CompoundShapeDefinition>(
-            Assert.Single(frameCluster.CreateBodyDefinition(content).Shapes));
+            Assert.Single(frameCluster.CreateBodyDefinition(content, rules).Shapes));
         Assert.Equal(2, frameBody.Children.Count);
         Assert.Contains(frameBody.Children, child => MathF.Abs(((BoxShapeDefinition)child.Shape).HalfExtentX - 0.2f) < 1e-4f);
         Assert.Contains(frameBody.Children, child => child.Shape.Kind == PhysicsShapeKind.Box && MathF.Abs(((BoxShapeDefinition)child.Shape).HalfExtentX - 0.5f) < 1e-4f);

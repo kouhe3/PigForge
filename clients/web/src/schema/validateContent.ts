@@ -1,4 +1,4 @@
-import type { GridBox, PartContentDocument, PartDefinition, PartShape } from "./types";
+import type { ConnectionVisual, GridBox, PartContentDocument, PartDefinition, PartShape } from "./types";
 
 export function validatePartContent(value: unknown): string[] {
   const errors: string[] = [];
@@ -64,6 +64,9 @@ function validatePart(part: PartDefinition, seen: Set<number>, errors: string[])
   if (part.gridBox !== undefined) {
     validateGridBox(part.partTypeId, part.gridBox, errors);
   }
+  if (part.connectionVisual !== undefined && !CONNECTION_VISUALS.includes(part.connectionVisual)) {
+    errors.push(`Part ${part.partTypeId} connectionVisual must be one of attachmentFallback, attachmentPlain, attachmentEight or frame.`);
+  }
   if (!Array.isArray(part.shapes) || part.shapes.length === 0) {
     errors.push(`Part ${part.partTypeId} needs at least one shape.`);
     return;
@@ -72,6 +75,9 @@ function validatePart(part: PartDefinition, seen: Set<number>, errors: string[])
     validateShape(part.partTypeId, shape, errors);
   }
 }
+
+/** The original prefab scripts that gate conditional colliders (see `tools/bple-connections`). */
+const CONNECTION_VISUALS: readonly ConnectionVisual[] = ["attachmentFallback", "attachmentPlain", "attachmentEight", "frame"];
 
 /**
  * The original's build-grid cell box (`m_gridXmin/m_gridXmax/m_gridYmin/m_gridYmax`). The bounds are

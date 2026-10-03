@@ -23,7 +23,34 @@ public sealed record PartDefinition(
     PartCapabilities? Capabilities = null,
     uint? VariantOf = null,
     string? VariantName = null,
-    GridCellBox? GridBox = null);
+    GridCellBox? GridBox = null,
+    ConnectionVisualKind? ConnectionVisual = null);
+
+/// <summary>
+/// The script the original prefab mounts to decide which of a part's conditional colliders are
+/// solid for the current connection state (<c>Rocket.cs:139-165</c>, <c>TNT.cs:86-108</c>,
+/// <c>SpotLight.cs:70-105</c>, <c>GrapplingHook.cs:218-255</c>, <c>Wings.cs:41-75</c>). The
+/// client renderer reads the same value from the sprite manifest (ADR-014); content carries it
+/// so the server can mirror the rule instead of guessing it from shape kinds
+/// (<c>tools/bple-connections</c>).
+/// </summary>
+public enum ConnectionVisualKind
+{
+    /// <summary>Rocket.cs: a side marker follows its own direction, and the bottom marker is also
+    /// the ghost shown when no other side can connect.</summary>
+    AttachmentFallback = 0,
+
+    /// <summary>TNT.cs: each side marker follows its own direction only, with no fallback.</summary>
+    AttachmentPlain = 1,
+
+    /// <summary>SpotLight.cs/GrapplingHook.cs: eight markers; the diagonals show only while the
+    /// part sits on a 45-degree turn, the orthogonal ones otherwise.</summary>
+    AttachmentEight = 2,
+
+    /// <summary>Wings.cs/JetEngine.cs: two mutually exclusive mounts (top and bottom), and the
+    /// part's root collider switches between its thin top-only and thick bottom form.</summary>
+    Frame = 3
+}
 
 /// <summary>
 /// The original's per-part build-grid cell box: the <b>inclusive</b> rectangle of build-grid
