@@ -62,7 +62,38 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 | 23 三沙袋 | Sandbag3 | 3 | 24 猪王 | KingPig | 6 |
 | 25 黑汽水 | CokeBottle | 4 | 26 绿汽水 | SodaBottle | 4 |
 
-合计 217 件 + TNT 两件（51/52）= **219** 条新内容；导入时基准 50 条 → 269，后来删除 PigForge 自制件 3/29 → 现 **267** 条（44 基准 + 223 变体）。
+合计 217 件 + TNT 两件（51/52）= **219** 条新内容；导入时基准 50 条 → 269，后来删除 PigForge 自制件 3/29 → **267** 条；再补两族引擎（见下）→ 现 **284** 条（**46 基准 + 238 变体**）。
+
+### 引擎族补全（G87，2026-10-04）
+
+原版有**三个引擎 PartType**，PigForge 先前只有一个：`16 Engine`（150，`Part_Engine_01..07`）、
+`25 EngineSmall`（50，`Part_EngineSmall_01..10`）、`26 EngineBig`（250，`Part_EngineBig_01..07`）。
+
+**真因不是「注册表里没有」**（这一条以前的记录是错的）：三族的 prefab **全部**在 `GameData.asset`
+（按 guid 引用，所以按名字 grep 命中 0）。真因是 `tools/bple-variants` 只把注册表分组挂到**已有基座**上
+（`part-map.json.parts` 的 prefab 的 `m_partType` → 我们的基座 id），而 PartType 25/26 从来没有基座 →
+那两个分组被 `if (!base) continue;` **静默跳过**。
+
+修法与落地：
+
+1. **两个新基座**（不是把 15 个皮肤挂在 150 引擎下——原版是三个独立 PartType，功率 50/150/250 各不相同）：
+   `270 engine-small`（mass **0.3**、`enginePower` **50**、box `0.35/0.3/0.5` 偏 `(0.06, -0.06)`）、
+   `271 engine-big`（mass **1.8**、`enginePower` **250**、box `0.5/0.4/0.5` 偏 `(0, -0.03)`）。
+   质量按原版比（`m_mass` 0.25 / 1.5 对 150 引擎的 1.0）乘 PigForge 标定的 1.2；碰撞体来自各自 prefab
+   （三族确实不同：150 是 0.9×0.9×1 居中）；材质、`jointConnectionType`、`jointConnectionDirection`、
+   `powerConsumption`、`activation`、默认阻尼全部与 150 引擎逐字段相同（同一个 `Engine` 类）。
+2. **15 个皮肤走原有注册表路径**（`import-variants.mjs` 的分组导入）：`272..280` = small 的 9 个兄弟、
+   `281..286` = big 的 6 个兄弟，`variantOf` 指向 270/271。
+3. **`Part_EngineSmall_05_SET` 的 5000**：它自己的 prefab 写着 `m_enginePower: 5000`（同族其余 9 件都是 50，
+   100 倍），**照原版保留**（`variant-overrides.json` 的 `variants` 覆盖 `enginePower`，并附 `note`）。
+   无需 PigForge 平衡决定：原版自己的 raw 比上限（`10 × EnginePowerLimit = 40`，`Contraption.cs:545`）已经把它截住——
+   现有公式测试里 `ComputePowerFactor(5000, 100)` 与 `(4000, 100)` 相等（都是上限值 8.6539）。
+4. **漂移守卫**：`import-variants.mjs` 现在对「注册表里有分组、但没有基座、且成员没写进 `extras`」**发警告**
+   （以前是静默 `continue`，G87 就是这么漏掉的），并**断言** `extras`/变体覆盖里声明的 `enginePower` 等于
+   prefab 的 `m_enginePower`、`massFactor` 等于「prefab 质量 / 基准 prefab 质量」（所以那两个数字不是手写的）。
+   新守卫一上线就立刻报出**另外两族也没进内容**：PartType 42 `Pumpkin`（2 件）与 PartType 45 `GoldenPig`
+   （4 件，`m_mass` **10**、3×2 占格），见 `tasks/original-vs-implemented.md` 的 G91（它们需要自己的**基座**，
+   不能走 `extras`）。
 
 **参数变体**（复制基准件后覆盖，均为原版实测值）：
 
@@ -72,10 +103,13 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 | `Part_SmallWheel_08_SET` | 加 `motor { thrustPerTick: 2.2, directionX: 1 }` + `activation: toggle` | 脚本是 `MotorWheel`（force 50/power 100/mass 1），同组其余是 `CartWheel` |
 | `Part_MetalFrame_11_SET` | `light: 2.14` | prefab 内置 `PointLightSource` size 5；PigForge 手电筒 size 7 → 3.0，按比例 5/7 |
 | `Part_Bellows_07_SET` | `bellows: 32.0` | prefab `m_alienBellow=1, m_boostForce=120`，兄弟件 30；PigForge 风箱 8.0，按 120/30 |
+| `Part_EngineSmall_05_SET` | `enginePower: 5000` | 自己的 prefab 就是 5000（同族 9 件都是 50）；原版 raw 比上限 40 已把它截住，照原版保留 |
 
 **明确不建模（皮肤处理 + 文档记录）**：`Balloon_08` 不可碰破（PigForge 气球本就不破）、`Rope_03/04` 绳段可碰撞、`Kicker_2..5` 自动/弹性/标记连接器、`PointLight` 家族的闪烁/夜视/常亮、`SpringBoxingGlove_05` 出拳距离 5 vs 2.5、`MetalFrame_09` 随机贴图、瓶子 `Cork` 装饰。
 
-**排除（原版基准件 PigForge 没有）**：Basket、EngineSmall、EngineBig、JetEngine、Pumpkin、GoldenPig、ColoredFrame、CustomPart、电路/机械 IN 扩展件、`Part_GrapplingHook_06`（异形枪：发射弹体，需要投射物子系统）、特殊蛋 `Egg_02..05`（引力/反重力/幽灵：需要逐刚体重力与碰撞过滤，`IPhysicsWorld` 无此能力）。
+**排除（原版基准件 PigForge 没有）**：Basket、JetEngine、Pumpkin、GoldenPig（后两族见 G91：需要各自的新基座）、ColoredFrame、CustomPart、电路/机械 IN 扩展件、`Part_GrapplingHook_06`（异形枪：发射弹体，需要投射物子系统）、特殊蛋 `Egg_02..05`（引力/反重力/幽灵：需要逐刚体重力与碰撞过滤，`IPhysicsWorld` 无此能力）。
+
+> ~~EngineSmall、EngineBig~~ **已补**（G87，2026-10-04，见上：两个新基座 + 15 个皮肤）。
 
 ## 能力扩展（part-content-v1，全部可选、向后兼容）
 
@@ -129,8 +163,8 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 ## Success Criteria
 
 1. `dotnet test PigForge.slnx`、`pnpm test`、`pnpm build` 全绿。
-2. `content/parts.json` 267 条；每个有原版变体的基准件在调色板里都能展开皮肤，顺序与原版 `customPartIndex` 一致。
-3. `tools/bple-textures/extract.mjs` 对全部 267 条映射输出 0 警告（`parts: 264/267`，3 个 null 为 ground-slab/terrain-box/ramp-plank）。
+2. `content/parts.json` **284** 条（46 基准 + 238 变体）；每个有原版变体的基准件在调色板里都能展开皮肤，顺序与原版 `customPartIndex` 一致。
+3. `tools/bple-textures/extract.mjs` 对全部 284 条映射输出 0 警告（281 条有 prefab；3 个 null 为 ground-slab/terrain-box/ramp-plank）。
 4. AlienTNT 撞击不点火、开关点火后连锁半径内普通 TNT；BlasterTNT 触发后推飞周围动态体且自身存活；含 AlienEgg 的簇在超阈冲量下不裂缝。
 5. `docs/decisions/ADR-004-part-variants.md` 的 AlienTNT 描述修正为实测结论。
 
