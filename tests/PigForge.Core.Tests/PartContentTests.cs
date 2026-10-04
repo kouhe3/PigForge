@@ -68,6 +68,64 @@ public sealed class PartContentTests
         }
     }
 
+    /// <summary>
+    /// The only two catalogued families whose original collision is a capsule: the king pig's body
+    /// (r 0.9, h 2.1, X axis, 0.4 above the origin -- Part_KingPig_01_SET.prefab's
+    /// CapsuleCollider 136336590748365959) and the egg's (r 0.3, h 0.85, Y axis on a -45 degree node
+    /// -- Part_Egg_01_SET.prefab's 136099118695303065; the king pig's second capsule sits on the
+    /// MouthPos node with m_IsTrigger 1, so it is not body geometry). The physics contract has no
+    /// capsule, so tools/bple-shapes writes a chain of spheres of the capsule's own radius along its
+    /// own axis. The envelope box it used to write made the king pig square, and a box cannot roll
+    /// (tests/PigForge.Physics.Tests/SphereChainRollTests).
+    /// </summary>
+    [Fact]
+    public void TheOriginalCapsulesBecomeSphereChainsInsteadOfEnvelopeBoxes()
+    {
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        // King pig: two spheres r 0.9, 0.3 apart, so the body is 2.1 wide and 1.8 tall at y 0.4 --
+        // the capsule's own envelope, but round.
+        PartDefinition kingPig = library.GetPart(24);
+        Assert.Equal(2, kingPig.Shapes.Count);
+        Assert.All(kingPig.Shapes, shape =>
+        {
+            Assert.Equal(PhysicsShapeKind.Sphere, shape.Kind);
+            Assert.Equal(0.9f, shape.Radius!.Value, precision: 4);
+            Assert.Equal(0.4f, shape.Offset![1], precision: 4);
+            Assert.Equal(0f, shape.Offset[2]);
+        });
+        Assert.Equal(new[] { -0.15f, 0.15f }, kingPig.Shapes.Select(shape => shape.Offset![0]).Order().ToArray());
+        Assert.Equal(-1.05f, kingPig.Shapes.Min(shape => shape.Offset![0] - shape.Radius!.Value), precision: 4);
+        Assert.Equal(1.05f, kingPig.Shapes.Max(shape => shape.Offset![0] + shape.Radius!.Value), precision: 4);
+        Assert.Equal(-0.5f, kingPig.Shapes.Min(shape => shape.Offset![1] - shape.Radius!.Value), precision: 4);
+
+        // Every one of its six skins carries the same round body.
+        PartDefinition[] skins = library.Document.Parts.Where(part => part.VariantOf == 24).ToArray();
+        Assert.Equal(6, skins.Length);
+        Assert.All(skins, skin => Assert.Equal(kingPig.Shapes.Count, skin.Shapes.Count));
+
+        // Egg: four spheres r 0.3 along the collider node's -45 degree axis (dx == dy on every step),
+        // spanning the capsule's 0.25 of cylinder.
+        PartDefinition egg = library.GetPart(27);
+        Assert.Equal(4, egg.Shapes.Count);
+        Assert.All(egg.Shapes, shape =>
+        {
+            Assert.Equal(PhysicsShapeKind.Sphere, shape.Kind);
+            Assert.Equal(0.3f, shape.Radius!.Value, precision: 4);
+            Assert.Equal(shape.Offset![0], shape.Offset[1], precision: 4);
+        });
+        // The chain runs along the node's -45 degree axis, so its length is the diagonal of the
+        // offsets' X/Y span: sqrt(0.1768^2 + 0.1768^2) = 0.25 = 2 * (height/2 - radius).
+        float spanX = egg.Shapes[^1].Offset![0] - egg.Shapes[0].Offset![0];
+        float spanY = egg.Shapes[^1].Offset![1] - egg.Shapes[0].Offset![1];
+        Assert.Equal(0.25f, MathF.Sqrt((spanX * spanX) + (spanY * spanY)), precision: 4);
+
+        // Nothing in the shipped content asks for a shape kind the physics contract cannot build.
+        Assert.All(
+            library.Document.Parts.SelectMany(part => part.Shapes),
+            shape => Assert.Contains(shape.Kind, new[] { PhysicsShapeKind.Box, PhysicsShapeKind.Sphere }));
+    }
+
     [Fact]
     public void RepositoryContentDeclaresNoWheelSuspensionYet()
     {

@@ -11,9 +11,15 @@
 //   - Every non-trigger body collider of the original becomes one PigForge shape with
 //     its local offset: a wheel is the tire sphere plus the support box that mounts it,
 //     exactly as BPLE builds it.
-//   - Capsules become their X/Y envelope box (the physics contract has no capsule shape);
-//     Z half-extent comes from the collider's Z size when positive, otherwise the
-//     previous shape's Z.
+//   - A capsule becomes a CHAIN OF SPHERES of its own radius along its own axis (the physics
+//     contract has no capsule shape): the original's capsules are round, and their envelope box
+//     gave the king pig a square collision. Sphere centres run from -reach to +reach along the
+//     capsule's axis, `reach = max(height/2 - radius, 0)`, spaced at most `radius / 3` apart
+//     (so the union's surface dips at most `radius - sqrt(radius^2 - (radius/6)^2)`, 1.4% of the
+//     radius, between spheres) and capped at 12 spheres. The node's Z rotation is applied to the
+//     chain, so a tilted capsule (the egg's collider sits at -45 degrees) keeps its axis.
+//   - Z half-extent of a box comes from the collider's Z size when positive, otherwise the
+//     previous shape's Z (parts are one unit deep).
 //   - Parts with no body collider keep their authored shape.
 //   - This tool REPLACES a part's whole `shapes` array, so it also drops the conditional
 //     `condition.kind === "frame"` bracket that tools/bple-brackets/apply-brackets.mjs appends
@@ -49,30 +55,47 @@ function shapesFor(partTypeId, current) {
   // extract: keep the authored shape instead of replacing the part's body with nothing.
   if (entry.shapes.every((shape) => shape.condition)) return null;
   const previousZ = current[0].kind === "box" ? current[0].halfExtents[2] : current[0].radius;
-  const body = entry.shapes.map((shape) => {
+  const body = [];
+  for (const shape of entry.shapes) {
     const offset = [round4(shape.offset[0]), round4(shape.offset[1]), round4(shape.offset[2])];
     const place = (value) => (offset.some((component) => component !== 0) ? { ...value, offset } : value);
-    let value;
+    const values = [];
     if (shape.kind === "box") {
       const zHalf = shape.size[2] > 0 ? shape.size[2] / 2 : previousZ;
-      value = place({ kind: "box", halfExtents: [round4(shape.size[0] / 2), round4(shape.size[1] / 2), round4(zHalf)] });
+      values.push({ kind: "box", halfExtents: [round4(shape.size[0] / 2), round4(shape.size[1] / 2), round4(zHalf)] });
     } else if (shape.kind === "sphere") {
-      value = place({ kind: "sphere", radius: round4(shape.radius) });
+      values.push({ kind: "sphere", radius: round4(shape.radius) });
     } else {
-      // Capsules: radius around a segment along m_Direction (0 = X, 1 = Y, 2 = Z).
+      // Capsule: `radius` around a segment along `m_Direction` (0 = X, 1 = Y, 2 = Z), rotated by
+      // the node's own Z angle.
       const reach = Math.max(shape.height / 2 - shape.radius, 0);
-      value = place({
-        kind: "box",
-        halfExtents: [
-          round4(shape.radius + (shape.direction === 0 ? reach : 0)),
-          round4(shape.radius + (shape.direction === 1 ? reach : 0)),
-          round4(previousZ),
-        ],
-      });
+      const radius = round4(shape.radius);
+      const count = reach > 0
+        // The epsilon keeps float noise out of the count: `2 * 0.15` is 0.30000000000000004, which
+        // would otherwise round the king pig's chain up from two spheres to three.
+        ? Math.min(Math.max(Math.ceil((2 * reach) / (shape.radius / 3) - 1e-9) + 1, 2), 12)
+        : 1;
+      const axis = shape.direction === 0 ? [1, 0, 0] : shape.direction === 1 ? [0, 1, 0] : [0, 0, 1];
+      const cos = Math.cos(shape.angle ?? 0);
+      const sin = Math.sin(shape.angle ?? 0);
+      const rotated = [cos * axis[0] - sin * axis[1], sin * axis[0] + cos * axis[1], axis[2]];
+      for (let index = 0; index < count; index++) {
+        const along = count === 1 ? 0 : -reach + (2 * reach * index) / (count - 1);
+        values.push({
+          kind: "sphere",
+          radius,
+          offset: [offset[0] + rotated[0] * along, offset[1] + rotated[1] * along, offset[2] + rotated[2] * along].map(round4),
+        });
+      }
     }
 
-    return shape.condition ? { ...value, condition: shape.condition } : value;
-  });
+    for (const value of values) {
+      // `place` only adds an offset when the collider had one; a chain sphere always carries its
+      // own computed offset, so it is already placed.
+      const placed = value.offset ? value : place(value);
+      body.push(shape.condition ? { ...placed, condition: shape.condition } : placed);
+    }
+  }
   // This rewrite replaces the whole `shapes` array, so it must carry over the frame shape that
   // `tools/bple-brackets/apply-brackets.mjs` adds (ADR-018) — otherwise running this tool after
   // that one silently drops every part's build bracket.

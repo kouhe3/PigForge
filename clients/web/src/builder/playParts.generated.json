@@ -887,14 +887,19 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            1.05,
-            0.9,
-            0.5
-          ],
+          "kind": "sphere",
+          "radius": 0.9,
           "offset": [
-            0,
+            -0.15,
+            0.4,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.9,
+          "offset": [
+            0.15,
             0.4,
             0
           ]
@@ -1136,15 +1141,38 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            0.3,
-            0.425,
-            0.3
-          ],
+          "kind": "sphere",
+          "radius": 0.3,
           "offset": [
-            0.0141,
-            0.0141,
+            -0.0743,
+            -0.0743,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0154,
+            -0.0154,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.0436,
+            0.0436,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.1025,
+            0.1025,
             0
           ]
         }
@@ -9124,14 +9152,19 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            1.05,
-            0.9,
-            0.5
-          ],
+          "kind": "sphere",
+          "radius": 0.9,
           "offset": [
-            0,
+            -0.15,
+            0.4,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.9,
+          "offset": [
+            0.15,
             0.4,
             0
           ]
@@ -9168,14 +9201,19 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            1.05,
-            0.9,
-            0.5
-          ],
+          "kind": "sphere",
+          "radius": 0.9,
           "offset": [
-            0,
+            -0.15,
+            0.4,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.9,
+          "offset": [
+            0.15,
             0.4,
             0
           ]
@@ -9212,14 +9250,19 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            1.05,
-            0.9,
-            0.5
-          ],
+          "kind": "sphere",
+          "radius": 0.9,
           "offset": [
-            0,
+            -0.15,
+            0.4,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.9,
+          "offset": [
+            0.15,
             0.4,
             0
           ]
@@ -9256,14 +9299,19 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            1.05,
-            0.9,
-            0.5
-          ],
+          "kind": "sphere",
+          "radius": 0.9,
           "offset": [
-            0,
+            -0.15,
+            0.4,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.9,
+          "offset": [
+            0.15,
             0.4,
             0
           ]
@@ -9300,14 +9348,19 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            1.05,
-            0.9,
-            0.5
-          ],
+          "kind": "sphere",
+          "radius": 0.9,
           "offset": [
-            0,
+            -0.15,
+            0.4,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.9,
+          "offset": [
+            0.15,
             0.4,
             0
           ]
@@ -9344,14 +9397,19 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            1.05,
-            0.9,
-            0.5
-          ],
+          "kind": "sphere",
+          "radius": 0.9,
           "offset": [
-            0,
+            -0.15,
+            0.4,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.9,
+          "offset": [
+            0.15,
             0.4,
             0
           ]
@@ -10291,15 +10349,38 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            0.3,
-            0.425,
-            0.3
-          ],
+          "kind": "sphere",
+          "radius": 0.3,
           "offset": [
-            0.0192,
-            -0.1002,
+            -0.1058,
+            -0.0992,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0225,
+            -0.0999,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.0609,
+            -0.1005,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.1442,
+            -0.1012,
             0
           ]
         }
@@ -10325,15 +10406,38 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            0.3,
-            0.425,
-            0.3
-          ],
+          "kind": "sphere",
+          "radius": 0.3,
           "offset": [
-            -0.0002,
-            0.02,
+            0.001,
+            -0.105,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.0002,
+            -0.0217,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0006,
+            0.0617,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0014,
+            0.145,
             0
           ]
         }
@@ -10359,15 +10463,38 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            0.3,
-            0.425,
-            0.3
-          ],
+          "kind": "sphere",
+          "radius": 0.3,
           "offset": [
-            0.0141,
-            0.0141,
+            -0.0743,
+            -0.0743,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0154,
+            -0.0154,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.0436,
+            0.0436,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.1025,
+            0.1025,
             0
           ]
         }
@@ -10393,15 +10520,38 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            0.3,
-            0.425,
-            0.3
-          ],
+          "kind": "sphere",
+          "radius": 0.3,
           "offset": [
-            -0.0002,
-            0.02,
+            0.001,
+            -0.105,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.0002,
+            -0.0217,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0006,
+            0.0617,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0014,
+            0.145,
             0
           ]
         }
@@ -10429,15 +10579,38 @@
       },
       "shapes": [
         {
-          "kind": "box",
-          "halfExtents": [
-            0.3,
-            0.425,
-            0.3
-          ],
+          "kind": "sphere",
+          "radius": 0.3,
           "offset": [
-            -0.0002,
-            0.02,
+            0.001,
+            -0.105,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            0.0002,
+            -0.0217,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0006,
+            0.0617,
+            0
+          ]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.3,
+          "offset": [
+            -0.0014,
+            0.145,
             0
           ]
         }
