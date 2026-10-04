@@ -77,7 +77,7 @@
 |---|---|---|
 | 0 | 原版基准探针（2021.3.45f2 + 原版关节/物理；28 格，含 8 框链） | **已交付**：`unity/PigForge.WeldProbe`、`tasks/weld-compliance-probe.json` |
 | 1 | 拟合目标固化：把 `chain8_ppon_gap0/gap1` 的「尖端下沉 + 每关节角」写成本规格的验收表（含容差） | 表格 + 容差进本规格；探针可复跑 |
-| 2 | 契约 `PhysicsJointKind.Weld`（六自由度 + spring）→ Bepu `Weld` / Jolt `SixDOFConstraint` | 契约测试（非法参数拒绝）+ 两后端「两刚体保持相对位姿，且角位移随 spring 变化」 |
+| 2 | 契约 `PhysicsJointKind.Weld`（六自由度 + spring）→ Bepu `Weld` / Jolt `SixDOFConstraint` | **已交付（2026-10-04）**：见 §4.3 |
 | 3 | 装配：按缝拆体 + 保留相邻接触 + 房间接线 + 断裂路径 | `CompoundAssemblerTests`（框链拆成 N 体 + N-1 Weld）、`GameRoom` 房间级用例、双跑哈希一致 |
 | 4 | 对照验收：Bepu 侧跑同一 8 框链，比 `chain8_ppon_gap0` 的下沉/角 | 数字落在期 1 的容差内；基准（body 数 vs 帧预算）与实机探针写回 |
 
@@ -107,6 +107,15 @@
 5. **断裂**：拆体后该对**没有 seam**（`NearestSeam`/`SplitAlongSeam` 都按 seam 工作）→ weld 条目自己要带中点与 `BreakImpulse`（沿用现有强度数学 `:1000-1009`），否则框对变成不可断。
 6. **随之变化的量**：`BodyCount`/`_entitiesByBody.Count`（缓冲尺寸 `:1957`）、`GameplayRules` 的每 body 代表实体/材质聚合（`:253-303`）——都是「一个 body 一个代表」的假设，拆体后每个框各自代表自己。
 7. **最大风险（要在期 3 实测）**：**Bepu `Weld` 没有 anchor 参数**（它约束 B 在 A 坐标系里的相对位姿）→ 契约要带这个相对位姿；并且 §3.3 要求**保留相邻接触**，焊接的两面会互相推（原版如此），其在本仓库求解器下的稳定性**未经验证**。
+
+### 4.3 期 2 交付记录（2026-10-04）
+
+- **契约**：`JointDefinition.Weld(...)`（`PhysicsJointKind.Weld`），参数 = 两侧局部 anchor + `breakForce`/`breakTorque` + 可选 `springFrequency`/`springDampingRatio`（0 = 刚性）+ **`RestRotation`**（B 的局部坐标系在 A 里的静息朝向，缺省 Identity）。`RestRotation` 是我复查时补的：weld 必须锁在**摆放时的相对位姿**，而框按 90° 步进摆放是常态——原版 `ConfigurableJoint` 锁的就是创建时的相对位姿。
+- **Bepu**（`BepuPhysics 2.4 Constraints.Weld`：`LocalOffset`/`LocalOrientation`/`SpringSettings`）：`LocalOffset = anchorA − RestRotation·anchorB`（**不能**直接 `anchorA − anchorB`，那个只在相对朝向为单位四元数时成立，我复查时抓到这个 bug），`LocalOrientation = RestRotation`；spring 覆盖位置与朝向（Bepu 的软 weld 是完整六自由度弹簧）。
+- **Jolt**（`SixDOFConstraintSettings` + 六轴 `MakeFixedAxis`）：A 的约束轴取单位基，**B 的轴取 `RestRotation⁻¹` 旋过**（这样两系只在 B 处于摆放朝向时对齐）。**已知分歧**：JoltPhysicsSharp 的 `SixDOFConstraintSettings` 只有 3 个 translation 的 `limitsSpringSettings`，旋转限位没有 spring → Jolt 的软 weld 是「平移软、旋转仍硬」，与 Bepu 不同；已在 `CreateJoint` 注释里写明是**有意分歧**而非静默降级。Jolt 目前只实现 weld 一种关节（其余抛 `NotSupportedException`）。
+- **能力申报**：Bepu `{Revolute, Distance, Weld}`；Jolt `{Weld}`。
+- **测试**：非 Jolt **41**（+9）、Jolt **11**（+5）；含契约（缺省 Identity、非有限值拒绝）、两后端各一条「quarter-turn 摆放保持 90° 且间距 1」——**非空验证**：把 `LocalOrientation`/`LocalOffset`/Jolt 轴改回朴素写法即红。
+- 验收命令：`dotnet test … --filter "FullyQualifiedName!~Jolt"` 与 `--filter "FullyQualifiedName~Jolt"` 分开跑；`dotnet build PigForge.slnx -c Release` 与（Jolt 不在 slnx 里）单独 `-c Release` 编译 Jolt 工程。
 
 ## 5. 开放问题（需甲方拍板）
 

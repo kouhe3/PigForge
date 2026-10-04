@@ -225,7 +225,7 @@ public sealed class PhysicsContractTests
             1,
             new ShapeDefinition[] { new UnsupportedShapeDefinition() })));
         Assert.Equal(
-            new[] { PhysicsJointKind.Distance, PhysicsJointKind.Revolute },
+            new[] { PhysicsJointKind.Distance, PhysicsJointKind.Revolute, PhysicsJointKind.Weld },
             world.Capabilities.SupportedJointKinds.OrderBy(kind => kind));
         PhysicsBodyId first = world.CreateBody(DynamicBox());
         PhysicsBodyId second = world.CreateBody(DynamicBox());

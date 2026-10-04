@@ -29,7 +29,11 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
     private readonly HashSet<ContactPair> _activeContacts = new();
     private readonly HashSet<ContactPair> _currentContacts = new();
     private readonly List<ContactPair> _orderedContacts = new();
+    private readonly Dictionary<PhysicsJointId, TwoBodyConstraint> _joints = new();
+    // Reused scratch list so destroying a body with joints stays allocation-free.
+    private readonly List<PhysicsJointId> _doomedJoints = new();
     private uint _nextBodyId = 1;
+    private uint _nextJointId = 1;
     private bool _disposed;
 
     static JoltPhysicsWorld()
@@ -87,7 +91,7 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
     }
 
     public PhysicsCapabilities Capabilities { get; } = new(
-        new HashSet<PhysicsJointKind>(),
+        new HashSet<PhysicsJointKind> { PhysicsJointKind.Weld },
         SupportsContinuousCollision: true,
         SupportsPerBodyInertia: true,
         // Jolt owns the restitution term (see BodyCreationSettings.Restitution below), so the
@@ -164,6 +168,7 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
             throw new KeyNotFoundException($"Physics body {body.Value} does not exist.");
         }
 
+        DetachJointsForBody(rid);
         _bodiesByRid.Remove(rid.ID);
         _dynamicRids.Remove(rid.ID);
         _bodyInterface.RemoveAndDestroyBody(rid);
@@ -176,7 +181,98 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(definition);
-        throw new NotSupportedException("Jolt backend does not implement PigForge joints yet.");
+        if (definition.Kind != PhysicsJointKind.Weld)
+        {
+            // Only the weld is implemented on Jolt. Anything else fails loudly instead of
+            // silently degrading, exactly like the other unimplemented capabilities here.
+            throw new NotSupportedException($"JoltPhysicsSharp backend only implements weld joints, not {definition.Kind}.");
+        }
+
+        if (!_ridsByBody.TryGetValue(definition.BodyA, out BodyID first)
+            || !_ridsByBody.TryGetValue(definition.BodyB, out BodyID second))
+        {
+            throw new KeyNotFoundException("Both joint bodies must have been created by this world.");
+        }
+
+        if (!_dynamicRids.Contains(first.ID) || !_dynamicRids.Contains(second.ID))
+        {
+            throw new ArgumentException("Both joint bodies must be dynamic.", nameof(definition));
+        }
+
+        // SixDOFConstraint is Jolt's all-six-degrees-of-freedom constraint. Fixed axes are
+        // hard, so the rigid weld is every axis fixed, the anchors are the constraint points and
+        // body B's constraint axes are body A's turned by the inverse of the rest rotation, so
+        // the two frames line up exactly when B sits at the rotation the pair was built with —
+        // the contract's rest pose (anchors coincident, B at RestRotation inside A). Body A's
+        // axes stay the identity basis (AxisX1/AxisY1/Jolt derives Z). The optional compliance
+        // can only live
+        // on the three translation axes here because JoltPhysicsSharp's SixDOFConstraintSettings
+        // exposes JPH_SixDOFConstraintSettings.limitsSpringSettings[3] ("spring settings for
+        // the translation limits"); Jolt's rotational limits have no spring, so a soft weld
+        // is a translation spring with the rotations still hard — the angular compliance the
+        // Bepu backend gets from Weld.SpringSettings has no Jolt equivalent. That divergence
+        // is deliberate and visible, not a silent degrade of the kind.
+        SixDOFConstraintSettings settings = new()
+        {
+            // The anchors are body-local offsets, and a Jolt body with one centred box puts
+            // its centre of mass at the body origin, so they are already COM-relative. The
+            // Y axis (the second constraint axis) is what the solver derives Z from.
+            Space = ConstraintSpace.LocalToBodyCOM,
+            Position1 = ToVector3(definition.LocalAnchorA),
+            Position2 = ToVector3(definition.LocalAnchorB),
+            AxisX1 = Vector3.UnitX,
+            AxisY1 = Vector3.UnitY,
+            AxisX2 = ToVector3(definition.RestRotation.Inverse.Rotate(new PhysicsVector3(1f, 0f, 0f))),
+            AxisY2 = ToVector3(definition.RestRotation.Inverse.Rotate(new PhysicsVector3(0f, 1f, 0f))),
+        };
+        settings.MakeFixedAxis(SixDOFConstraintAxis.TranslationX);
+        settings.MakeFixedAxis(SixDOFConstraintAxis.TranslationY);
+        settings.MakeFixedAxis(SixDOFConstraintAxis.TranslationZ);
+        settings.MakeFixedAxis(SixDOFConstraintAxis.RotationX);
+        settings.MakeFixedAxis(SixDOFConstraintAxis.RotationY);
+        settings.MakeFixedAxis(SixDOFConstraintAxis.RotationZ);
+        if (definition.SpringFrequency > 0f)
+        {
+            // A limited axis carries the spring instead of the hard limit: zero width, one
+            // frequency/damping pair shared by the three translations.
+            SpringSettings spring = new(SpringMode.FrequencyAndDamping, definition.SpringFrequency, definition.SpringDampingRatio);
+            for (int axis = 0; axis < (int)SixDOFConstraintAxis.NumTranslation; axis++)
+            {
+                settings.SetLimitedAxis((SixDOFConstraintAxis)axis, 0f, 0f);
+                settings.LimitsSpringSettings[axis] = spring;
+            }
+        }
+
+        BodyLockInterface locks = _physicsSystem.BodyLockInterface;
+        locks.LockRead(first, out BodyLockRead firstLock);
+        locks.LockRead(second, out BodyLockRead secondLock);
+        TwoBodyConstraint constraint;
+        try
+        {
+            Body? bodyA = firstLock.Body;
+            Body? bodyB = secondLock.Body;
+            if (bodyA is null || bodyB is null)
+            {
+                throw new InvalidOperationException("The Jolt native runtime no longer owns a jointed body.");
+            }
+
+            constraint = settings.CreateConstraint(bodyA, bodyB);
+        }
+        finally
+        {
+            locks.UnlockRead(secondLock);
+            locks.UnlockRead(firstLock);
+        }
+
+        _physicsSystem.AddConstraint(constraint);
+        if (_nextJointId == 0)
+        {
+            throw new InvalidOperationException("The physics joint ID space is exhausted.");
+        }
+
+        PhysicsJointId id = new(_nextJointId++);
+        _joints.Add(id, constraint);
+        return id;
     }
 
     public void DestroyJoint(PhysicsJointId joint)
@@ -187,7 +283,40 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
             throw new ArgumentException("A joint ID must be valid.", nameof(joint));
         }
 
-        throw new NotSupportedException("Jolt backend does not implement PigForge joints yet.");
+        // An unknown joint is a no-op, exactly like the Bepu backend.
+        if (_joints.Remove(joint, out TwoBodyConstraint? constraint))
+        {
+            DestroyConstraint(constraint);
+        }
+    }
+
+    /// <summary>Removes every joint that still references a body about to be destroyed, so the
+    /// native solver never keeps a constraint whose end has been freed.</summary>
+    private void DetachJointsForBody(BodyID rid)
+    {
+        _doomedJoints.Clear();
+        foreach ((PhysicsJointId jointId, TwoBodyConstraint constraint) in _joints)
+        {
+            if (constraint.Body1.ID == rid || constraint.Body2.ID == rid)
+            {
+                _doomedJoints.Add(jointId);
+            }
+        }
+
+        for (int index = 0; index < _doomedJoints.Count; index++)
+        {
+            TwoBodyConstraint constraint = _joints[_doomedJoints[index]];
+            _joints.Remove(_doomedJoints[index]);
+            DestroyConstraint(constraint);
+        }
+
+        _doomedJoints.Clear();
+    }
+
+    private void DestroyConstraint(TwoBodyConstraint constraint)
+    {
+        _physicsSystem.RemoveConstraint(constraint);
+        constraint.Dispose();
     }
 
     public void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands)
@@ -309,6 +438,12 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         _disposed = true;
         _physicsSystem.OnContactAdded -= OnContactAdded;
         _physicsSystem.OnContactPersisted -= OnContactPersisted;
+        foreach (TwoBodyConstraint constraint in _joints.Values)
+        {
+            DestroyConstraint(constraint);
+        }
+
+        _joints.Clear();
         ((IDisposable)_physicsSystem).Dispose();
         _jobSystem.Dispose();
         _ridsByBody.Clear();

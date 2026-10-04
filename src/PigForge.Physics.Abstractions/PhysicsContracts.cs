@@ -35,7 +35,17 @@ public enum PhysicsJointKind
 	Fixed,
 	Distance,
 	Revolute,
-	Configurable
+	Configurable,
+
+	/// <summary>
+	/// A rigid six-degree-of-freedom weld with an optional sprung compliance: the two local
+	/// anchors are held coincident and the two bodies' local frames aligned, which is the pose
+	/// the seam split that consumes this kind builds both halves in. A zero
+	/// <see cref="JointDefinition.SpringFrequency"/> is rigid; a positive one turns the whole
+	/// constraint into a spring, the mechanism the weld-compliance spec fits to the original's
+	/// bends.
+	/// </summary>
+	Weld
 }
 
 public enum PhysicsCommandKind
@@ -435,6 +445,16 @@ public sealed class BodyDefinition
 /// beside the free spin — a linear one, sprung at <see cref="SuspensionRestOffset"/> —
 /// which is how Unity's ConfigurableJoint expresses an elastic wheel (Locked x/z,
 /// Limited y, linear-limit spring).
+/// A <see cref="PhysicsJointKind.Weld"/> joint locks all six degrees of freedom at the two
+/// local anchors: it holds <see cref="LocalAnchorA"/> (in body A's frame) and
+/// <see cref="LocalAnchorB"/> (in body B's frame) coincident and body B's local frame at
+/// <see cref="RestRotation"/> inside body A's (identity when omitted), so the rest pose of the
+/// pair is fixed by the anchors and that rotation — not by assuming the frames are aligned.
+/// A positive
+/// <see cref="SpringFrequency"/> softens the whole weld (the original's chain of welded
+/// frames bends under a bending moment, see docs/specs/weld-compliance.md); zero keeps it
+/// rigid. A weld never suppresses contacts between its two bodies — the original's adjacent
+/// parts still collide.
 /// </summary>
 public sealed record JointDefinition
 {
@@ -454,8 +474,15 @@ public sealed record JointDefinition
 		float springFrequency = 0f,
 		float springDampingRatio = 1f,
 		PhysicsVector3 localSuspensionAxis = default,
-		float suspensionRestOffset = 0f)
+		float suspensionRestOffset = 0f,
+		PhysicsQuaternion? restRotation = null)
 	{
+		PhysicsQuaternion relativeRest = restRotation ?? PhysicsQuaternion.Identity;
+		if (!relativeRest.IsFinite)
+		{
+			throw new ArgumentException("A joint's rest rotation must be finite.", nameof(restRotation));
+		}
+
 		if (!Enum.IsDefined(kind))
 		{
 			throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown physics joint kind.");
@@ -502,6 +529,19 @@ public sealed record JointDefinition
 			}
 		}
 
+		if (kind == PhysicsJointKind.Weld)
+		{
+			if (!float.IsFinite(springFrequency) || springFrequency < 0f)
+			{
+				throw new ArgumentOutOfRangeException(nameof(springFrequency), springFrequency, "A weld joint needs a finite, non-negative spring frequency; zero welds rigidly.");
+			}
+
+			if (!float.IsFinite(springDampingRatio) || springDampingRatio < 0f || springDampingRatio > 1f)
+			{
+				throw new ArgumentOutOfRangeException(nameof(springDampingRatio), springDampingRatio, "A weld joint needs a damping ratio in [0, 1].");
+			}
+		}
+
 		if (!localSuspensionAxis.IsFinite || !float.IsFinite(suspensionRestOffset))
 		{
 			throw new ArgumentException("The suspension axis and rest offset must be finite.", nameof(localSuspensionAxis));
@@ -537,6 +577,7 @@ public sealed record JointDefinition
 		SpringDampingRatio = springDampingRatio;
 		LocalSuspensionAxis = localSuspensionAxis;
 		SuspensionRestOffset = suspensionRestOffset;
+		RestRotation = relativeRest;
 	}
 
 	public PhysicsJointKind Kind { get; }
@@ -555,9 +596,12 @@ public sealed record JointDefinition
 
 	public float MaximumDistance { get; }
 
-	/// <summary>Spring of a distance joint in Hz; zero for other kinds.</summary>
+	/// <summary>Spring of a distance joint or of a compliant weld in Hz; zero means a rigid
+	/// weld and is unused by the other kinds.</summary>
 	public float SpringFrequency { get; }
 
+	/// <summary>Damping ratio of a distance joint or of a compliant weld; unused by the other
+	/// kinds.</summary>
 	public float SpringDampingRatio { get; }
 
 	/// <summary>
@@ -570,6 +614,45 @@ public sealed record JointDefinition
 	/// <summary>Offset along <see cref="LocalSuspensionAxis"/> the spring holds the two
 	/// anchors at; zero for a rigid revolute joint.</summary>
 	public float SuspensionRestOffset { get; }
+
+	/// <summary>
+	/// Orientation of body B's local frame in body A's local frame at the weld's rest pose
+	/// (<see cref="PhysicsJointKind.Weld"/> only; identity everywhere else). Both backends need
+	/// it: a welded frame pair is normally placed at a quarter-turn step, so the weld has to hold
+	/// the rotation the pair was built with instead of snapping B's frame onto A's. Body A's
+	/// frame is the reference, so the value is <c>A.Rotation.Inverse * B.Rotation</c>.
+	/// </summary>
+	public PhysicsQuaternion RestRotation { get; }
+
+	/// <summary>
+	/// The <see cref="PhysicsJointKind.Weld"/> factory: a six-degree-of-freedom weld holding
+	/// the two local anchors coincident with body B's frame at <paramref name="restRotation"/>
+	/// inside body A's (identity when omitted, i.e. the frames aligned). A zero
+	/// <paramref name="springFrequency"/> welds rigidly; a positive one makes the whole
+	/// constraint compliant at that frequency (band-limited to a damping ratio in [0, 1]).
+	/// </summary>
+	public static JointDefinition Weld(
+		PhysicsBodyId bodyA,
+		PhysicsBodyId bodyB,
+		PhysicsVector3 localAnchorA = default,
+		PhysicsVector3 localAnchorB = default,
+		float breakForce = 0f,
+		float breakTorque = 0f,
+		float springFrequency = 0f,
+		float springDampingRatio = 1f,
+		PhysicsConstraintMask constraints = PhysicsConstraintMask.None,
+		PhysicsQuaternion? restRotation = null) => new(
+			PhysicsJointKind.Weld,
+			bodyA,
+			bodyB,
+			constraints,
+			breakForce,
+			breakTorque,
+			localAnchorA,
+			localAnchorB,
+			springFrequency: springFrequency,
+			springDampingRatio: springDampingRatio,
+			restRotation: restRotation);
 }
 
 public readonly record struct PhysicsCommand

@@ -76,7 +76,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     }
 
     public PhysicsCapabilities Capabilities { get; } = new(
-        new HashSet<PhysicsJointKind> { PhysicsJointKind.Revolute, PhysicsJointKind.Distance },
+        new HashSet<PhysicsJointKind> { PhysicsJointKind.Revolute, PhysicsJointKind.Distance, PhysicsJointKind.Weld },
         SupportsContinuousCollision: false,
         SupportsPerBodyInertia: true,
         // BepuPhysics v2 has no restitution term in PairMaterialProperties, so the rules
@@ -215,9 +215,9 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(definition);
-        if (definition.Kind is not (PhysicsJointKind.Revolute or PhysicsJointKind.Distance))
+        if (definition.Kind is not (PhysicsJointKind.Revolute or PhysicsJointKind.Distance or PhysicsJointKind.Weld))
         {
-            throw new NotSupportedException($"BepuPhysics backend only implements revolute and distance joints, not {definition.Kind}.");
+            throw new NotSupportedException($"BepuPhysics backend only implements revolute, distance and weld joints, not {definition.Kind}.");
         }
 
         if (!_dynamicBodies.TryGetValue(definition.BodyA, out BodyHandle handleA)
@@ -232,6 +232,31 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             handles = definition.LocalSuspensionAxis == PhysicsVector3.Zero
                 ? new[] { AddRigidHinge(handleA, handleB, definition) }
                 : AddSprungWheel(handleA, handleB, definition);
+        }
+        else if (definition.Kind == PhysicsJointKind.Weld)
+        {
+            // BepuPhysics.Constraints.Weld constrains all six degrees of freedom at once and
+            // carries its own SpringSettings covering both the position and the orientation
+            // part (BepuPhysics 2.4 Weld: LocalOffset, LocalOrientation, SpringSettings), so
+            // the optional compliance needs no extra constraint. The rest pose is the one the
+            // definition describes: the two local anchors are the same world point expressed in
+            // each body's frame (Unity's AddFixedJoint builds them that way), so B's origin in
+            // A's frame is anchorA - RestRotation * anchorB -- subtracting the anchors directly
+            // is only right while the rest rotation is identity -- and B's frame sits at
+            // RestRotation inside A's (Bepu's LocalOrientation is exactly "target orientation of
+            // body B in body A's local space"), which is what a quarter-turn-placed frame pair
+            // needs. A zero frequency is the same 30 Hz rigid
+            // spring the other rigid joints use; a positive one is the definition's
+            // frequency/damping pair directly.
+            Weld weld = new()
+            {
+                LocalOffset = ToNumerics(definition.LocalAnchorA - definition.RestRotation.Rotate(definition.LocalAnchorB)),
+                LocalOrientation = ToNumerics(definition.RestRotation),
+                SpringSettings = definition.SpringFrequency > 0f
+                    ? new SpringSettings(definition.SpringFrequency, definition.SpringDampingRatio)
+                    : RigidSpring,
+            };
+            handles = new[] { _simulation.Solver.Add(handleA, handleB, weld) };
         }
         else
         {
@@ -259,7 +284,9 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _jointBodies.Add((id, handleA, handleB));
         // Only the wheel hinge suppresses contacts between its ends: the tire sphere and the
         // support box that rides the parent overlap on purpose (ADR-009). The runtime ropes
-        // (balloon string, sandbag tie) are Unity SpringJoints whose pair still collides.
+        // (balloon string, sandbag tie) are Unity SpringJoints whose pair still collides, and
+        // a weld's pair collides too (the original's adjacent parts are joint plus contact,
+        // see the weld-compliance spec's decision 3).
         if (definition.Kind == PhysicsJointKind.Revolute)
         {
             _jointedPairs.Add(PairKey(handleA, handleB));
