@@ -661,8 +661,6 @@ function extractPart(prefabName) {
     maxY = Math.max(maxY, s.cy + s.sy / 2);
   }
   const bbox = [maxX - minX, maxY - minY];
-  const centreX = (minX + maxX) / 2;
-  const centreY = (minY + maxY) / 2;
   const round = (value) => Math.round(value * 1e4) / 1e4;
   // The axis the part's rotating sprites turn about, in the same frame as `cx`/`cy`
   // (relative to the composite's layout anchor). Absent for parts that never spin. Read
@@ -675,19 +673,19 @@ function extractPart(prefabName) {
   // hole and hides its axle behind the wheel (the reported motor-wheel regression).
   sprites.sort((a, b) => b.z - a.z);
   const expression = pigExpression(prefab);
-  // Clip frames carry their art centre in the node's frame like every other sprite; shift them
-  // onto the composite anchor (where the emitted `cx`/`cy` live) before the emitter rounds them.
-  for (const sprite of sprites) {
-    for (const clip of Object.values(sprite.clips ?? {})) {
-      for (const frame of clip.frames) {
-        frame.cx -= centreX;
-        frame.cy -= centreY;
-      }
-    }
-  }
+  // Everything below stays in the PART-ORIGIN frame (`localOffset`'s accumulation), because that
+  // is the frame the wire uses: `PGFS` carries the part's own origin (a lone member's body pose is
+  // its shape centre, and the room re-bases each entity by the member's local offset), so a sprite
+  // offset measured from the part origin lands exactly where the original's own node chain puts it.
+  //
+  // This used to re-base every offset onto the composite's art centre instead. That looked
+  // equivalent only while a part's art happened to be centred on its origin: the king pig's crown
+  // lifts its art centre 0.63 above the part origin, so its art was drawn 0.63 below its collision
+  // (the reported "collision box and texture are misaligned"). Palette thumbnails do not depend on
+  // this frame -- `thumbnailPlacements` fits the composite's own bounds.
   return {
     bbox: [round(bbox[0]), round(bbox[1])],
-    ...(pivot ? { pivot: [round(pivot[0] - centreX), round(pivot[1] - centreY)] } : {}),
+    ...(pivot ? { pivot: [round(pivot[0]), round(pivot[1])] } : {}),
     ...(expression ? { expression } : {}),
     ...(connectionVisual ? { connectionVisual } : {}),
     sprites: sprites.map((s) => ({
@@ -696,8 +694,8 @@ function extractPart(prefabName) {
       y: s.y,
       w: s.w,
       h: s.h,
-      cx: round(s.cx - centreX),
-      cy: round(s.cy - centreY),
+      cx: round(s.cx),
+      cy: round(s.cy),
       sx: round(s.sx),
       sy: round(s.sy),
       rot: round(s.rot),
