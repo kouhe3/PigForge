@@ -50,7 +50,7 @@ Accepted
 
 ## 已知偏差
 
-1. **施力点已对齐，但只到簇质心这一层**：`RunFans` 现在把冲量打到原版的 `transform.position + dir × 0.5`（`FanPropeller.cs:151-152`，`:209`），单件刚体时逐位一致，多成员簇则相对簇质心而不是零件自己的刚体（近似；实测见 `docs/specs/fan-propeller.md` §7.1、`FanThrustTests`）。**推力轴仍不跟零件的实时姿态**（原版 `TransformDirection(GetDirectionVector(m_forceDirection))`）：2026-10-04 接上后 `RotorThrustTests` 的转子簇实测下沉 −1.45 m，因为原版还有 `m_rotorTargetDirection` 混合与 `angularDamping` 在托着——两者都是本 ADR 的未做项，故整条链留待一个独立切片。
+1. **施力点已对齐，但只到簇质心这一层**：`RunFans` 现在把冲量打到原版的 `transform.position + dir × 0.5`（`FanPropeller.cs:151-152`，`:209`），单件刚体时逐位一致，多成员簇则相对簇质心而不是零件自己的刚体（近似；实测见 `docs/specs/fan-propeller.md` §7.1、`FanThrustTests`）。~~**推力轴仍不跟零件的实时姿态**~~ —— **2026-10-04 已补做**（用户报「风扇推力方向反了」）：轴的取法现在逐字对应 `transform.TransformDirection`（刚体姿态 × 成员局部旋转 × 内容方向），旋翼的 `m_rotorTargetDirection` 混合按 `:73-79`/`:156-161` 一并落地（施力点仍用未混合的轴，与原版 `:152` 一致）。第一次接的时候只接了轴、没接混合，`RotorThrustTests` 的转子簇实测下沉 −1.45 m——**这条真值是一条链，单接一环会倒退**。读数与测试见 `docs/specs/fan-propeller.md` §7.2。
 2. **旋翼的运行期角阻尼仍未施加**：原版旋翼开/关会把 `rigidbody.angularDamping` 设为 `1000`/`1`（`:138-148`）。契约现在有角阻尼字段了（ADR-025 的 `BodyDefinition.AngularDamping`），但这是一条**运行期覆盖**（不是 prefab 值），`tools/bple-damping` 把它报在 `runtimeOverrides` 里而没有折进内容——和 `Pig.FixedUpdate` 的慢速增阻、绳逐节阻尼、`NoDrag` 一起排在 G90。
-3. **不做**左向风扇的贴地/悬浮射线增益（`:166-197`）与 `m_rotorTargetDirection` 方向混合（`:156-161`）。
+3. **不做**左向风扇的贴地/悬浮射线增益（`:166-197`，纯倍率，需要物理射线查询）；~~`m_rotorTargetDirection` 方向混合（`:156-161`）~~ 已于 2026-10-04 落地（偏差 1）。另记 **G96**：建造时按连接方向的自动对齐（`Contraption.cs:1889-1900`）未实现——推力现在跟着玩家设的角度走，但同一个摆法的**默认朝向**仍与原版不同。
 4. **风扇推力方向 1 → -1 是可见行为变化**：`m_forceDirection: 2` = Left 是 prefab 真值，PigForge 的 x 轴未镜像（同 prefab 的螺旋桨碰撞体 `m_Center.x -0.3124` 被逐位抄进内容，可作证）。旧值 `1` 是 `25455eb` 手写的。

@@ -89,10 +89,11 @@
 ## 7. 不做
 
 - ~~**螺旋桨转换**（§4 决议 4）~~ —— **2026-10-04 已补做**（10 件转成 `fan`，**不写** `maxSpeed`）。
-- **推力轴不跟零件的实时姿态**：原版 `vector = transform.TransformDirection(GetDirectionVector(m_forceDirection))`（真值 4）读的是零件**当前**的旋转，PigForge 用内容方向（世界轴）。2026-10-04 试过接上（`GameplayRules` 记录成员局部旋转、`bodyRotation * localRotation` 再 `Rotate` 内容方向），**实测否决**：`RotorThrustTests` 的「木框 + 包裹引擎 + 旋翼」在落地微倾后，推力跟着倾角走，60 tick 内竖直位移从 +（有界爬升）变成 **−1.45 m**（下沉）——原版这条轴能成立，是因为还有旋翼的 `m_rotorTargetDirection` 混合（`:156-161`）与 `rigidbody.angularDamping`（`:138-148`）在托着，两者都在下面的「不做」里。要接就必须整条链一起接。
+- ~~**推力轴不跟零件的实时姿态**~~ —— **2026-10-04 已补做，见 §7.2**（原版 `transform.TransformDirection` 已落地；旋翼的 `m_rotorTargetDirection` 混合一并接上，运行期 `angularDamping` 见下一条）。
 - 旋翼的运行期角阻尼（真值 7，`:138-148`）：契约现在有角阻尼字段（ADR-025 的 `BodyDefinition.AngularDamping`），但这是一条**运行期覆盖**、不是 prefab 值，`tools/bple-damping` 把它报在 `runtimeOverrides` 里；落地排在 G90（与 `Pig.FixedUpdate` 的慢速增阻、绳逐节阻尼、`NoDrag` 一起）。
 - 左向风扇的贴地/悬浮射线增益（`:166-197`）。
-- 旋翼的 `m_rotorTargetDirection` 方向混合（`:156-161`）。
+- ~~旋翼的 `m_rotorTargetDirection` 方向混合（`:156-161`）~~ —— **2026-10-04 已补做，见 §7.2**。
+- **建造时按连接方向的自动对齐**（G96）：原版放置/邻居变化时把 `m_autoAlign == Rotate` 的件转到「连接口朝邻居」（`Contraption.cs:1889-1900`、`BasePart.RotationTo`），PigForge 的客户端只在拖拽吸附时选边、不设 yaw。推力现在跟着玩家设的角度走，但**同一个摆法的默认朝向**仍与原版不同。
 - 风扇关闭后的转速衰减曲线：**客户端已实现**（`clients/web/src/renderer/animation/spin.ts`），纯表现层不上线。
 - 引擎按钮联动全部耗能件（`Engine.cs:29`），仍见 `docs/specs/power-system.md` §7。
 
@@ -104,3 +105,37 @@
 杠杆臂相同）；多成员簇则相对簇质心而不是零件自己的刚体——近似，见 `ADR-022` 偏差 1。
 实测（`FanThrustTests`，真房间 + 真 Bepu）：木框 + 包裹引擎 + 风扇放在质心上方一格，开开关后 30 tick
 角速度 **4.63 rad/s**（改前 1.2e-7，即零力矩）。
+
+### 7.2 推力轴 = 零件自己的 transform（2026-10-04 补做，用户报「风扇推力方向反了」）
+
+**症状**：把风扇转过去（或换个朝向摆），推力方向不变——永远按内容里的 `Left` 推 −x，与画面上
+看到的朝向相反。**根因**：`RunFans` 把**件局部**的内容方向当成**世界**轴用，原版读的是
+`transform.TransformDirection(GetDirectionVector(m_forceDirection))`（真值 4，`:155`）——零件的
+建造角度（`Contraption.SetRotation`，绕 **z**；`BasePart.Rotate(Left, Deg_180) == Right`）与刚体的
+实时姿态都在里面。风扇的 `m_forceDirection 2`(Left) 与它的连接口 `m_jointConnectionDirection 3`(Left)
+在**同一侧**，所以「转 180° 摆」在原版里推力也翻 180°。
+
+**落地**：
+- `GameplayRules` 记录每个成员在体坐标系里的旋转（`LinkBody(..., localRotation)`，`GameRoom.BindCluster`
+  传 `CompoundMember.LocalRotation`；同一份成员姿态，`CompoundAssembler` 用它算世界位姿），
+  `RunFans` 用 `(bodyRotation * localRotation)` 旋转内容方向——**逐字**对应原版的 transform。
+- 旋翼的 `m_rotorTargetDirection`（`:73-79` 在 `Initialize()` 抓一次，`:156-161` 在 `dot > 0` 时按
+  0.5 混回）：新表 `_fanSpawnDirectionByEntity` 在零件**第一个被模拟的 tick**（在读开关之前，所以
+  一开始关着的旋翼也抓到的是建造姿态）记录当时的轴，`y < 0` 时按原版把 y 抬到 1。限速与过速刹车
+  都改用混合后的轴（原版 `vector2`），而**施力点**仍用未混合的 `vector`（`:152`）。
+
+**读数**（真服务器 + 真内容 + 真 Bepu + 真 PGFS，`tasks/` 里的探针已删）：同一套「木框 + 包裹引擎 +
+风扇」在**空中**开开关 0.5 s 后：正摆（yaw 0，风扇在车架右侧）`vx = −2.842 m/s`；转 180° 摆（风扇在
+车架左侧）`vx = +2.842 m/s`——**符号相反、幅度相同**（改前转过去的那个是 −2.751，即同一个方向）。
+房间用例 `PropellerThrustTests`/`FanThrustTests` 与新增的 `AFanTurnedAroundPushesTheOtherWay`
+（改前红：**−2.7513 m/s**，期望 > 2）守住这条路。真客户端（vite）走 UI：放木块 + 发动机 + 风扇，
+用 Q/E 把放置角设到 180° 再放到车架左侧 → Start → 点开关栏的「风扇」→ 车向右走了 **1.24 m**
+（之后落在 `ramp_plank` 上停住，与之前几轮「沙盒关卡没有长直道」一致）。
+
+**仍差的两条**（都不改方向）：左向风扇的贴地射线增益（`:166-197`，纯倍率，需要物理射线查询）与旋翼的
+运行期 `angularDamping 1000/1`（排在 G90）；建造时的自动对齐见 G96。
+
+**测试**：Core `AFanPushesAlongTheRotationItWasBuiltWith`、`AFanFollowsTheTiltOfTheBodyItIsWeldedTo`
+（都做过非空验证：分别去掉成员旋转/刚体旋转即红）、Server `AFanTurnedAroundPushesTheOtherWay`
+（改前红）。计数 Core **265** / Server **127** / Protocol 39 / Replay 11 / Physics **82**（66 + 16）/ web **221**；
+Release **0 警告 0 错误**。
