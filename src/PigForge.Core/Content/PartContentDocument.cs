@@ -217,6 +217,72 @@ public sealed record PartSuspension(
     float RestOffset);
 
 /// <summary>
+/// The original <c>Spring</c>'s own joint (Spring.cs:100-134): the part does not weld its
+/// neighbours, it holds them at their assembly distance with either a bungee rope
+/// (<c>SpringJoint</c>: <c>minDistance == maxDistance == 0</c>, i.e. no slack) or a one-axis
+/// soft limit (the remaining skins). Every number is extracted per prefab by
+/// <c>tools/bple-springs</c>, never authored: <c>Stiffness</c>/<c>Damper</c> are the declared
+/// N/m and N·s/m, <c>Limit</c>/<c>Bounciness</c> the linear limit of the <c>limit</c> path,
+/// <c>BreakForce</c> the published breaking force (<c>StrongSpringConnection = true</c>
+/// doubles it, Spring.cs:38) and <c>Mass</c> the published rigidbody mass
+/// (<c>StableSpringConnection = true</c> forces 1, Spring.cs:74).
+/// </summary>
+public sealed record PartSpring(
+    string Joint,
+    float Stiffness,
+    float Damper,
+    float Limit,
+    float Bounciness,
+    float BreakForce,
+    float Mass);
+
+/// <summary>One axis of the glove joint's position drive (spring N/m, damper N·s/m).</summary>
+public sealed record PartGloveDrive(
+    float Spring,
+    float Damper);
+
+/// <summary>
+/// The shoot move (SpringBoxingGlove.cs:224-262): the glove's target position is
+/// <c>(±deviationX, distanceY * BoxingGloveLength, 0)</c> in part-local space (the probe shows
+/// the glove travels down its local -Y), held by <c>LimitSpring</c> once thrown.
+/// </summary>
+public sealed record PartGloveShoot(
+    float DistanceY,
+    float DeviationX,
+    float Time,
+    float LimitSpring);
+
+/// <summary>
+/// The wind-back move (SpringBoxingGlove.cs:280-330): after <c>Time</c> the glove goes limp
+/// (<c>Mass</c> drops to the winding mass), is pulled home by a softer drive, and its collider
+/// is switched off until it is back.
+/// </summary>
+public sealed record PartGloveWind(
+    float Time,
+    float Mass,
+    float DriveSpring,
+    float DriveDamper);
+
+/// <summary>
+/// The interactive <c>SpringBoxingGlove</c> (spec docs/specs/boxing-glove.md): a second rigid
+/// body "glove" (<paramref name="Mass"/>, <paramref name="Shapes"/>) held to the host by a
+/// y-limited, y/x-driven joint, shot out on trigger, and wound back. Extracted by
+/// <c>tools/bple-springs</c> from the part prefab and its <c>BoxingGlove*.prefab</c>
+/// reference, never authored; the original welds the host to its neighbours as usual
+/// (<c>jointConnectionType: target</c>), so only the host-glove joint lives here.
+/// </summary>
+public sealed record PartGlove(
+    float Mass,
+    IReadOnlyList<PartShapeDefinition> Shapes,
+    float Limit,
+    PartGloveDrive YDrive,
+    PartGloveDrive XDrive,
+    float ProjectionDistance,
+    PartGloveShoot Shoot,
+    PartGloveWind Wind,
+    float SolverIterationScale);
+
+/// <summary>
 /// Gameplay capabilities a part carries (ADR-002): a pig is indestructible bouncy
 /// cargo, a wheel gates motor thrust to ground contact, a motor pushes the body each
 /// tick, and TNT is a pure momentum source with a fuse. Absence of a flag means the
@@ -239,7 +305,7 @@ public sealed record PartCapabilities(
     // `FanIsRotor` is `m_isRotor`, which adds the overspeed brake (FanPropeller.cs:198-207).
     float? FanMaxSpeed = null,
     bool FanIsRotor = false,
-    float? SpringBounceImpulsePerTick = null,
+    PartSpring? Spring = null,
     float? RocketThrustPerTick = null,
     float? RocketDirectionX = null,
     float? RocketDirectionY = null,
@@ -271,6 +337,7 @@ public sealed record PartCapabilities(
     bool CanEnclose = false,
     PartAttachment? Attachment = null,
     PartSuspension? Suspension = null,
+    PartGlove? Glove = null,
     // Power system (spec docs/specs/power-system.md). Both come straight from the original
     // part prefabs: BasePart.cs:162,164 declare them, the template copies them at
     // BasePart.cs:1445-1446, and `tools/bple-power` extracts them for every mapped part --
@@ -290,8 +357,6 @@ public sealed record PartCapabilities(
     public bool HasBalloon => BalloonLiftPerTick is float lift && lift != 0f;
 
     public bool HasFan => FanThrustPerTick is float thrust && thrust != 0f;
-
-    public bool HasSpring => SpringBounceImpulsePerTick is float bounce && bounce != 0f;
 
     public bool HasRocket => RocketThrustPerTick is float thrust && thrust != 0f;
 

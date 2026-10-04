@@ -119,6 +119,59 @@ public sealed class PhysicsContractTests
     }
 
     [Fact]
+    public void ConfigurableJointDefinitionRejectsPayloadsNoBackendCanBuild()
+    {
+        PhysicsBodyId first = new(1);
+        PhysicsBodyId second = new(2);
+        ConfigurableJointDefinition payload = new(
+            DriveAxisInA: new PhysicsVector3(0f, -1f, 0f),
+            DriveTargetOffset: 2.5f,
+            DriveFrequency: 4.4f,
+            DriveDampingRatio: 0.13f,
+            LateralAxisInA: new PhysicsVector3(1f, 0f, 0f),
+            LateralTargetOffset: 0f,
+            LateralFrequency: 7f,
+            LateralDampingRatio: 0.1f,
+            LimitMinimumOffset: -1f,
+            LimitMaximumOffset: 1f,
+            LimitFrequency: 0f,
+            LimitDampingRatio: 0f);
+
+        // A configurable joint carries its payload, and only that kind may.
+        Assert.Throws<ArgumentException>(() => new JointDefinition(
+            PhysicsJointKind.Configurable, first, second, PhysicsConstraintMask.None, 0f, 0f));
+        Assert.Throws<ArgumentException>(() => new JointDefinition(
+            PhysicsJointKind.Revolute, first, second, PhysicsConstraintMask.None, 0f, 0f,
+            localAxisA: new PhysicsVector3(0f, 0f, 1f), localAxisB: new PhysicsVector3(0f, 0f, 1f),
+            configurable: payload));
+
+        JointDefinition joint = new(
+            PhysicsJointKind.Configurable, first, second, PhysicsConstraintMask.None, 0f, 0f,
+            restRotation: new PhysicsQuaternion(0f, 0f, 0.3826834f, 0.9238795f),
+            configurable: payload);
+        Assert.Same(payload, joint.Configurable);
+        Assert.Equal(2.5f, joint.Configurable!.DriveTargetOffset);
+
+        // Parallel or zero axes, a reversed band and a non-positive drive frequency are rejected
+        // before any backend sees them.
+        Assert.Throws<ArgumentException>(() => new JointDefinition(
+            PhysicsJointKind.Configurable, first, second, PhysicsConstraintMask.None, 0f, 0f,
+            configurable: payload with { LateralAxisInA = new PhysicsVector3(0f, -2f, 0f) }));
+        Assert.Throws<ArgumentException>(() => new JointDefinition(
+            PhysicsJointKind.Configurable, first, second, PhysicsConstraintMask.None, 0f, 0f,
+            configurable: payload with { LateralAxisInA = PhysicsVector3.Zero }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new JointDefinition(
+            PhysicsJointKind.Configurable, first, second, PhysicsConstraintMask.None, 0f, 0f,
+            configurable: payload with { LimitMinimumOffset = 1f, LimitMaximumOffset = -1f }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new JointDefinition(
+            PhysicsJointKind.Configurable, first, second, PhysicsConstraintMask.None, 0f, 0f,
+            configurable: payload with { DriveFrequency = 0f }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new JointDefinition(
+            PhysicsJointKind.Configurable, first, second, PhysicsConstraintMask.None, 0f, 0f,
+            configurable: payload with { LimitFrequency = -1f }));
+    }
+
+    [Fact]
     public void DisposedWorldRejectsFurtherOperations()
     {
         RecordingPhysicsWorld world = new();
@@ -225,7 +278,9 @@ public sealed class PhysicsContractTests
             1,
             new ShapeDefinition[] { new UnsupportedShapeDefinition() })));
         Assert.Equal(
-            new[] { PhysicsJointKind.Distance, PhysicsJointKind.Revolute, PhysicsJointKind.Weld },
+            // Sorted by the enum's own value order: Fixed(0), Distance(1), Revolute(2),
+            // Configurable(3), Weld(4).
+            new[] { PhysicsJointKind.Distance, PhysicsJointKind.Revolute, PhysicsJointKind.Configurable, PhysicsJointKind.Weld },
             world.Capabilities.SupportedJointKinds.OrderBy(kind => kind));
         PhysicsBodyId first = world.CreateBody(DynamicBox());
         PhysicsBodyId second = world.CreateBody(DynamicBox());
@@ -571,6 +626,16 @@ public sealed class PhysicsContractTests
         {
             ThrowIfDisposed();
             _bodies.Remove(body);
+        }
+
+        public void SetBodyMass(PhysicsBodyId body, float mass)
+        {
+            ThrowIfDisposed();
+        }
+
+        public void SetBodyCollisionEnabled(PhysicsBodyId body, bool enabled)
+        {
+            ThrowIfDisposed();
         }
 
         public PhysicsJointId CreateJoint(JointDefinition definition)

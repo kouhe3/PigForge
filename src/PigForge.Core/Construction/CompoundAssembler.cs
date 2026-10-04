@@ -42,7 +42,6 @@ public readonly record struct CompoundHinge(EntityId Wheel, EntityId Parent, Phy
 /// part's own frame, so both name the same world point when the pair is built. They are stored in
 /// the parts' frames because that is what the original's joint holds rigid; a room re-resolves them
 /// into body frames at bind time (a frame may share its body with the parts it encloses).
-/// </para>
 /// </summary>
 public readonly record struct CompoundWeld(
     EntityId Left,
@@ -50,6 +49,40 @@ public readonly record struct CompoundWeld(
     PhysicsVector3 AnchorInLeft,
     PhysicsVector3 AnchorInRight,
     float BreakImpulse);
+
+/// <summary>
+/// A spring seam: a pair whose either end carries the content's <c>capabilities.spring</c>. The
+/// original's <c>Spring</c> never welds — its own joint is elastic (<c>Spring.cs:100-134</c>) — so
+/// the pair stays two bodies held by a soft, breakable distance link instead of one rigid
+/// compound (docs/specs/spring-joint.md §3). The shape is the one ADR-024 gave frame pairs: keep
+/// both bodies, register the joint.
+/// <para>
+/// The anchors are the original's <c>anchor (0, -0.5, 0)</c> expressed in each part's own frame
+/// (<c>Spring.cs:106</c>). Unity auto-configures the far end to the same world point, so the
+/// original's link settles at the pair's assembly spacing; PigForge uses the same local anchor on
+/// both ends and takes their assembly separation as the joint's rest length, which the
+/// <c>JointDefinition.Distance</c> contract needs to stay positive
+/// (docs/specs/spring-joint.md §7).
+/// </para>
+/// <para>
+/// <see cref="Joint"/> is the per-skin route the extractor found (<c>"bungee"</c> for the
+/// <c>SpringJoint</c> skins, <c>"limit"</c> for the <c>ConfigurableJoint</c> ones); it selects the
+/// PigForge calibration scale, not a different constraint. <see cref="Stiffness"/>/<see cref="Damper"/>
+/// /<see cref="Limit"/>/<see cref="Bounciness"/>/<see cref="BreakForce"/> are the declared content
+/// values in the original's own units (N/m, N·s/m, m, -, N).
+/// </para>
+/// </summary>
+public readonly record struct CompoundSpring(
+    EntityId Left,
+    EntityId Right,
+    PhysicsVector3 AnchorInLeft,
+    PhysicsVector3 AnchorInRight,
+    string Joint,
+    float Stiffness,
+    float Damper,
+    float Limit,
+    float Bounciness,
+    float BreakForce);
 
 /// <summary>
 /// Shapes this body hosts that belong to no member: a hinged wheel's non-rotating colliders
@@ -66,7 +99,8 @@ public readonly record struct CompoundAttachment(
 public sealed record CompoundAssembly(
     IReadOnlyList<CompoundCluster> Clusters,
     IReadOnlyList<CompoundHinge> Hinges,
-    IReadOnlyList<CompoundWeld> Welds);
+    IReadOnlyList<CompoundWeld> Welds,
+    IReadOnlyList<CompoundSpring> Springs);
 
 /// <summary>
 /// A connected group of dynamic parts welded into one rigid body. Singletons
@@ -375,6 +409,50 @@ public static class CompoundAssembler
     public const float FrameWeldSpringDampingRatio = 1f;
 
     /// <summary>
+    /// The fraction of the declared <c>SPRING_LIMIT_SPRING</c> (250 N/m) the original's PhysX
+    /// actually delivers on the bungee skins (the <c>SpringJoint</c> route, content
+    /// <c>joint: "bungee"</c>). The declared 250 is <b>not</b> the stiffness the solver applies:
+    /// the original probe hangs a 1 kg load and reads a 0.0645 m sag at a 9.68 N joint force —
+    /// an effective stiffness of <b>150.16 N/m</b> (<c>tasks/spring-probe.json</c> cell
+    /// <c>bungee_auto_mass1</c>, Unity 2021.3.45f2 with the original's own physics settings; the
+    /// 2 kg cell reads 190.54 N/m, i.e. the delivered rate is load-dependent). Bepu's
+    /// <c>Distance(min == max)</c> is an exact spring, so copying the declared 250 would make
+    /// PigForge 39% stiffer than the original — outside the ±25% band of
+    /// docs/specs/spring-joint.md §6. This is a PigForge calibration like
+    /// <see cref="FrameWeldSpringFrequency"/>: it takes the probe's 1 kg cell (the shipped IN has
+    /// <c>StrongSpringConnection</c>/<c>StableSpringConnection</c> both true, so every spring part
+    /// is a 1 kg bungee), and the residual 0.0654 vs 0.0645 m is the 2 kg cell's load dependence
+    /// the linear spring cannot express (spec §7).
+    /// </summary>
+    public const float SpringEffectiveStiffnessScale = 0.6006452f;
+
+    /// <summary>
+    /// The same calibration for the y-soft-limit skins (content <c>joint: "limit"</c>, the original
+    /// <c>ConfigurableJoint</c> route). Its 1 kg probe cell
+    /// (<c>tasks/spring-probe.json</c> <c>limit_auto_mass1</c>) reads a 0.1385 m sag at 9.76 N —
+    /// an effective stiffness of <b>70.48 N/m</b>, i.e. the limit path is roughly half as stiff as
+    /// the bungee one. PigForge does not open a new single-axis competence for it (ADR-012's
+    /// <c>LinearAxisServo</c> stays with the wheel suspension); the difference is this calibration
+    /// (spec §7).
+    /// </summary>
+    public const float SpringLimitEffectiveStiffnessScale = 0.28192f;
+
+    /// <summary>
+    /// Separation of the two spring anchors past which the room tears the spring down: the
+    /// original's <c>FixedUpdate</c> destroys the part's fixed joints and spawns the
+    /// <c>SpringEndpoint</c> body once its two anchor points are more than 3 m apart and the
+    /// contraption carries no SuperGlue (<c>Spring.cs:78-92</c>).
+    /// </summary>
+    public const float SpringBreakDistance = 3f;
+
+    /// <summary>
+    /// The original's spring anchor in the spring part's own frame: <c>Spring.cs:106</c> sets
+    /// <c>anchor = (0, -0.5, 0)</c> on the part, and the auto-configured far end names the same
+    /// world point. PigForge applies it to both ends — see <see cref="CompoundSpring"/>.
+    /// </summary>
+    private static readonly PhysicsVector3 SpringAnchor = new(0f, -0.5f, 0f);
+
+    /// <summary>
     /// The strength the original's <c>Normal</c> enum resolves to under the shipped
     /// <c>INFeature.ConnectionStrength</c> of 2 (INSettingsBExp.json:208-210): the
     /// <c>Contraption.GetJointConnectionStrength</c> table (Contraption.cs:1494-1506) reads
@@ -407,6 +485,7 @@ public static class CompoundAssembler
         Dictionary<uint, uint> parent = new(entities.Count);
         Dictionary<uint, EntityId> byValue = new(entities.Count);
         Dictionary<long, CompoundWeld> welds = new();
+        Dictionary<long, CompoundSpring> springs = new();
         foreach (EntityId entity in entities)
         {
             parent[entity.Value] = entity.Value;
@@ -473,6 +552,17 @@ public static class CompoundAssembler
                 if (IsFramePair(entity, neighbourEntity, construction))
                 {
                     RegisterWeld(welds, entity, neighbourEntity, construction, content, seamBreakImpulse);
+                    continue;
+                }
+
+                // The original's Spring never welds either: its own joint is elastic
+                // (Spring.cs:100-134), so a seam whose either end carries the spring capability
+                // stays two bodies held by a soft distance link (docs/specs/spring-joint.md §3).
+                // Merging it would erase the elasticity outright.
+                if (SpringOf(entity, construction, content) is not null
+                    || SpringOf(neighbourEntity, construction, content) is not null)
+                {
+                    RegisterSpring(springs, entity, neighbourEntity, construction, content);
                     continue;
                 }
 
@@ -551,7 +641,14 @@ public static class CompoundAssembler
             return compare != 0 ? compare : left.Right.Value.CompareTo(right.Right.Value);
         });
 
-        return new CompoundAssembly(clusters, hinges, weldList);
+        List<CompoundSpring> springList = new(springs.Values);
+        springList.Sort((left, right) =>
+        {
+            int compare = left.Left.Value.CompareTo(right.Left.Value);
+            return compare != 0 ? compare : left.Right.Value.CompareTo(right.Right.Value);
+        });
+
+        return new CompoundAssembly(clusters, hinges, weldList, springList);
     }
 
     public static CompoundSeam? NearestSeam(CompoundCluster cluster, PhysicsVector3 worldPoint)
@@ -632,28 +729,49 @@ public static class CompoundAssembler
     /// rebuilt at the members' current world poses; otherwise one cluster with the
     /// seam dropped.
     /// </summary>
-    public static IReadOnlyList<CompoundCluster> SplitAlongSeam(CompoundCluster cluster, CompoundSeam seam)
+    public static IReadOnlyList<CompoundCluster> SplitAlongSeam(CompoundCluster cluster, CompoundSeam seam) =>
+        SplitAlongSeams(cluster, new[] { seam });
+
+    /// <summary>
+    /// Removes a set of seams and rebuilds what is left: one cluster when the graph stays
+    /// connected, otherwise one cluster per connected component, ascending by their first member
+    /// entity — the order <see cref="SplitAlongSeam"/> already used. A part whose every seam goes
+    /// leaves the contraption this way, which is what the boxing glove's punch does to the part it
+    /// hits (<c>SpringBoxingGlove.cs:224-262</c> destroys the target's FixedJoints;
+    /// docs/specs/boxing-glove.md §4).
+    /// </summary>
+    public static IReadOnlyList<CompoundCluster> SplitAlongSeams(
+        CompoundCluster cluster,
+        IReadOnlyCollection<CompoundSeam> seams)
     {
         ArgumentNullException.ThrowIfNull(cluster);
-        bool found = false;
+        ArgumentNullException.ThrowIfNull(seams);
+        if (seams.Count == 0)
+        {
+            throw new ArgumentException("A split needs at least one seam.", nameof(seams));
+        }
+
+        HashSet<long> doomed = new(seams.Count);
+        foreach (CompoundSeam seam in seams)
+        {
+            if (!cluster.Seams.Any(candidate => SameSeam(candidate, seam)))
+            {
+                throw new ArgumentException("The seam does not belong to this cluster.", nameof(seams));
+            }
+
+            doomed.Add(SeamKey(seam));
+        }
+
         List<CompoundSeam> remaining = new(cluster.Seams.Count);
         foreach (CompoundSeam candidate in cluster.Seams)
         {
-            if (SameSeam(candidate, seam))
+            if (!doomed.Contains(SeamKey(candidate)))
             {
-                found = true;
-                continue;
+                remaining.Add(candidate);
             }
-
-            remaining.Add(candidate);
         }
 
-        if (!found)
-        {
-            throw new ArgumentException("The seam does not belong to this cluster.", nameof(seam));
-        }
-
-        Dictionary<uint, List<uint>> adjacency = new();
+        Dictionary<uint, List<uint>> adjacency = new(cluster.Members.Count);
         foreach (CompoundMember member in cluster.Members)
         {
             adjacency[member.Entity.Value] = new List<uint>();
@@ -665,46 +783,72 @@ public static class CompoundAssembler
             adjacency[leftover.Right.Value].Add(leftover.Left.Value);
         }
 
-        HashSet<uint> firstComponent = Walk(cluster.Members[0].Entity.Value, adjacency);
-        if (firstComponent.Count == cluster.Members.Count)
+        // Components are discovered walking the members in their own order, so the partition never
+        // depends on a hash order; the first component is always the one holding Members[0].
+        Dictionary<uint, int> componentOf = new(cluster.Members.Count);
+        int componentCount = 0;
+        foreach (CompoundMember member in cluster.Members)
+        {
+            if (componentOf.ContainsKey(member.Entity.Value))
+            {
+                continue;
+            }
+
+            Stack<uint> stack = new();
+            stack.Push(member.Entity.Value);
+            componentOf[member.Entity.Value] = componentCount;
+            while (stack.Count > 0)
+            {
+                uint current = stack.Pop();
+                foreach (uint next in adjacency[current])
+                {
+                    if (componentOf.ContainsKey(next))
+                    {
+                        continue;
+                    }
+
+                    componentOf[next] = componentCount;
+                    stack.Push(next);
+                }
+            }
+
+            componentCount++;
+        }
+
+        if (componentCount == 1)
         {
             return new[] { Rebuild(cluster.Members, remaining, cluster) };
         }
 
-        List<CompoundMember> first = new();
-        List<CompoundMember> second = new();
+        List<CompoundMember>[] members = new List<CompoundMember>[componentCount];
+        List<CompoundSeam>[] componentSeams = new List<CompoundSeam>[componentCount];
+        for (int index = 0; index < componentCount; index++)
+        {
+            members[index] = new List<CompoundMember>();
+            componentSeams[index] = new List<CompoundSeam>();
+        }
+
         foreach (CompoundMember member in cluster.Members)
         {
-            if (firstComponent.Contains(member.Entity.Value))
-            {
-                first.Add(member);
-            }
-            else
-            {
-                second.Add(member);
-            }
+            members[componentOf[member.Entity.Value]].Add(member);
         }
 
-        List<CompoundSeam> firstSeams = new();
-        List<CompoundSeam> secondSeams = new();
         foreach (CompoundSeam leftover in remaining)
         {
-            if (firstComponent.Contains(leftover.Left.Value))
-            {
-                firstSeams.Add(leftover);
-            }
-            else
-            {
-                secondSeams.Add(leftover);
-            }
+            componentSeams[componentOf[leftover.Left.Value]].Add(leftover);
         }
 
-        CompoundCluster left = Rebuild(first, firstSeams, cluster);
-        CompoundCluster right = Rebuild(second, secondSeams, cluster);
-        return left.Members[0].Entity.Value < right.Members[0].Entity.Value
-            ? new[] { left, right }
-            : new[] { right, left };
+        CompoundCluster[] pieces = new CompoundCluster[componentCount];
+        for (int index = 0; index < componentCount; index++)
+        {
+            pieces[index] = Rebuild(members[index], componentSeams[index], cluster);
+        }
+
+        Array.Sort(pieces, static (left, right) => left.Members[0].Entity.Value.CompareTo(right.Members[0].Entity.Value));
+        return pieces;
     }
+
+    private static long SeamKey(in CompoundSeam seam) => ((long)seam.Left.Value << 32) | seam.Right.Value;
 
     private static CompoundCluster Rebuild(
         IReadOnlyList<CompoundMember> members,
@@ -765,28 +909,6 @@ public static class CompoundAssembler
         }
 
         return totalMass > 0f ? new PartDamping(linear / totalMass, angular / totalMass) : default;
-    }
-
-    private static HashSet<uint> Walk(uint start, Dictionary<uint, List<uint>> adjacency)
-    {
-        HashSet<uint> seen = new();
-        Stack<uint> stack = new();
-        stack.Push(start);
-        while (stack.Count > 0)
-        {
-            uint current = stack.Pop();
-            if (!seen.Add(current))
-            {
-                continue;
-            }
-
-            foreach (uint next in adjacency[current])
-            {
-                stack.Push(next);
-            }
-        }
-
-        return seen;
     }
 
     private static bool SameSeam(CompoundSeam left, CompoundSeam right) =>
@@ -924,6 +1046,64 @@ public static class CompoundAssembler
     }
 
     /// <summary>
+    /// Registers one spring seam, once per pair, in ascending entity order. Both anchors are the
+    /// original's <c>(0, -0.5, 0)</c> expressed in each part's own frame; the room turns their
+    /// assembly separation into the distance joint's rest length (<see cref="CompoundSpring"/>).
+    /// The declared numbers are the spring part's own content values (the extractor's per-skin
+    /// route selects the calibration, not the numbers).
+    /// </summary>
+    private static void RegisterSpring(
+        Dictionary<long, CompoundSpring> springs,
+        EntityId first,
+        EntityId second,
+        ConstructionRules construction,
+        PartContentLibrary content)
+    {
+        EntityId left = first.Value <= second.Value ? first : second;
+        EntityId right = first.Value <= second.Value ? second : first;
+        long key = ((long)left.Value << 32) | right.Value;
+        if (springs.ContainsKey(key))
+        {
+            return;
+        }
+
+        PartSpring? spring = SpringOf(left, construction, content) ?? SpringOf(right, construction, content);
+        if (spring is null)
+        {
+            return;
+        }
+
+        springs.Add(key, new CompoundSpring(
+            left,
+            right,
+            SpringAnchor,
+            SpringAnchor,
+            spring.Joint,
+            spring.Stiffness,
+            spring.Damper,
+            spring.Limit,
+            spring.Bounciness,
+            spring.BreakForce));
+    }
+
+    /// <summary>
+    /// The stiffness the solver applies for one registered spring, in N/m: the declared content
+    /// value scaled by the route's PigForge calibration. This is the only place the calibration is
+    /// applied; the room then converts it with the shared <c>GameRoom.TrySpringResponse</c>, so the
+    /// frequency/damping-ratio maths is not duplicated (docs/specs/spring-joint.md §3).
+    /// </summary>
+    public static float EffectiveStiffness(in CompoundSpring spring) =>
+        spring.Stiffness * (string.Equals(spring.Joint, "limit", StringComparison.Ordinal)
+            ? SpringLimitEffectiveStiffnessScale
+            : SpringEffectiveStiffnessScale);
+
+    /// <summary>The spring capability of one part, or <c>null</c> when it has none.</summary>
+    private static PartSpring? SpringOf(EntityId entity, ConstructionRules construction, PartContentLibrary content) =>
+        construction.TryGetPartTypeId(entity, out uint partTypeId)
+            ? content.GetPart(partTypeId).Capabilities?.Spring
+            : null;
+
+    /// <summary>
     /// Revolute attachments for wheel parts: each wheel keeps its own body and hinges to
     /// one neighbour (the lowest-id non-wheel neighbour, else the lowest-id neighbour).
     /// </summary>
@@ -1018,7 +1198,7 @@ public static class CompoundAssembler
             construction.TryGetPartTypeId(entity, out uint partTypeId);
             construction.TryGetTransform(entity, out EntityTransform transform);
             PartDefinition part = content.GetPart(partTypeId);
-            float memberMass = part.Mass * (transform.Scale * transform.Scale * transform.Scale);
+            float memberMass = content.MassOf(part, transform.Scale);
             mass += memberMass;
             // The physics backend recentres compound children onto their volume-weighted
             // centre, so the body pose must be that centre for the shapes to land where

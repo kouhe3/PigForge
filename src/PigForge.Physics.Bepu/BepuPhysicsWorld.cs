@@ -23,11 +23,18 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     // A hinged wheel's body and its parent are one mechanism: the original keeps a wheel's
     // support collider and its tire on the same rigid body, and after the split that keeps
     // wheels spinning (see ADR-009) the two overlap on purpose. Contacts between them would
-    // be a permanent, deeply penetrating collision. Only revolute (wheel) joints suppress:
-    // the original's runtime ropes are `SpringJoint`s and never call `Physics.IgnoreCollision`
+    // be a permanent, deeply penetrating collision. The boxing glove is the same story: the
+    // glove prefab is instantiated inside the part it belongs to and the original calls
+    // `Physics.IgnoreCollision` for that one pair (SpringBoxingGlove). Revolute and configurable
+    // joints therefore suppress their own pair. The original's runtime ropes are `SpringJoint`s
+    // and never call `Physics.IgnoreCollision`
     // (Sandbag.cs:136-164, Balloon.cs:143-166), so a sandbag or balloon collides with the part
     // it is tied to, while a frame-enclosed pair is one body and cannot collide by construction.
     private readonly HashSet<long> _jointedPairs = new();
+    // Bodies whose collider a rule switched off (`Collider.enabled = false`): no contact pair
+    // involving them is generated, in either direction, until the flag goes back on. The glove
+    // uses it while it is limp (SpringBoxingGlove's wind-back turns the collider off).
+    private readonly HashSet<int> _collisionDisabledHandles = new();
     // Pairs whose contact must be skipped for the step a bounce is delivered, so the injected
     // separation speed is not pulled back to the contact's own velocity goal. Cleared every tick.
     private readonly HashSet<long> _suppressedPairs = new();
@@ -56,6 +63,13 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     // hinge plus a rigid line lock plus the spring itself (see CreateJoint).
     private readonly Dictionary<PhysicsJointId, ConstraintHandle[]> _joints = new();
     private readonly List<(PhysicsJointId Joint, BodyHandle A, BodyHandle B)> _jointBodies = new();
+    // Break thresholds of the joints that carry one (docs/specs/spring-joint.md): the spring's
+    // Distance joints, whose reaction is one linear constraint impulse. A joint with neither
+    // threshold is not tracked at all, so the per-step pass costs nothing when nothing can break.
+    private readonly Dictionary<PhysicsJointId, JointBreakLimits> _breakLimits = new();
+    // Scratch for the per-step break pass, reused so the hot path stays allocation-free.
+    private readonly List<PhysicsJointId> _jointsToBreak = new();
+    private int _breakableJoints;
     private uint _nextBodyId = 1;
     private uint _nextJointId = 1;
     private bool _disposed;
@@ -80,7 +94,13 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     }
 
     public PhysicsCapabilities Capabilities { get; } = new(
-        new HashSet<PhysicsJointKind> { PhysicsJointKind.Revolute, PhysicsJointKind.Distance, PhysicsJointKind.Weld },
+        new HashSet<PhysicsJointKind>
+        {
+            PhysicsJointKind.Revolute,
+            PhysicsJointKind.Distance,
+            PhysicsJointKind.Weld,
+            PhysicsJointKind.Configurable,
+        },
         SupportsContinuousCollision: false,
         SupportsPerBodyInertia: true,
         // BepuPhysics v2 has no restitution term in PairMaterialProperties, so the rules
@@ -184,6 +204,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
 
             _dynamicIdsByHandle.Remove(dynamicHandle.Value);
             _materialByDynamicHandle.Remove(dynamicHandle.Value);
+            _collisionDisabledHandles.Remove(dynamicHandle.Value);
             SetConstraints(dynamicHandle.Value, PhysicsConstraintMask.None, 0f);
             _simulation.Bodies.Remove(dynamicHandle);
         }
@@ -215,13 +236,78 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _events.Add(PhysicsEvent.BodyDestroyed(body));
     }
 
+    public void SetBodyMass(PhysicsBodyId body, float mass)
+    {
+        ThrowIfDisposed();
+        if (!float.IsFinite(mass) || mass <= 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(mass), mass, "A body mass must be finite and positive.");
+        }
+
+        if (!_dynamicBodies.TryGetValue(body, out BodyHandle handle))
+        {
+            throw new KeyNotFoundException($"Physics body {body.Value} does not exist or is not a dynamic body.");
+        }
+
+        BodyReference reference = _simulation.Bodies[handle];
+        BodyInertia inertia = reference.LocalInertia;
+        float previous = inertia.InverseMass > 0f ? 1f / inertia.InverseMass : 0f;
+        if (!(previous > 0f))
+        {
+            throw new InvalidOperationException($"Physics body {body.Value} has locked inertia, so it has no mass to rescale.");
+        }
+
+        if (previous == mass)
+        {
+            return;
+        }
+
+        // Uniform density: the shape's inertia tensor is its unit tensor times the mass, so the
+        // inverse tensor scales by the mass ratio the other way round. The pose and the velocity
+        // the body already carries stay as they are -- the original's glove changes mass in
+        // mid-flight (SpringBoxingGlove.cs:280-330), and SetLocalInertia wakes the body for us.
+        float inverseScale = previous / mass;
+        Symmetric3x3 tensor = inertia.InverseInertiaTensor;
+        reference.SetLocalInertia(new BodyInertia
+        {
+            InverseInertiaTensor = new Symmetric3x3
+            {
+                XX = tensor.XX * inverseScale,
+                YX = tensor.YX * inverseScale,
+                YY = tensor.YY * inverseScale,
+                ZX = tensor.ZX * inverseScale,
+                ZY = tensor.ZY * inverseScale,
+                ZZ = tensor.ZZ * inverseScale,
+            },
+            InverseMass = 1f / mass,
+        });
+    }
+
+    public void SetBodyCollisionEnabled(PhysicsBodyId body, bool enabled)
+    {
+        ThrowIfDisposed();
+        if (!_dynamicBodies.TryGetValue(body, out BodyHandle handle))
+        {
+            throw new KeyNotFoundException($"Physics body {body.Value} does not exist or is not a dynamic body.");
+        }
+
+        if (enabled)
+        {
+            _collisionDisabledHandles.Remove(handle.Value);
+        }
+        else
+        {
+            _collisionDisabledHandles.Add(handle.Value);
+        }
+    }
+
     public PhysicsJointId CreateJoint(JointDefinition definition)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(definition);
-        if (definition.Kind is not (PhysicsJointKind.Revolute or PhysicsJointKind.Distance or PhysicsJointKind.Weld))
+        if (definition.Kind is not (PhysicsJointKind.Revolute or PhysicsJointKind.Distance or PhysicsJointKind.Weld or PhysicsJointKind.Configurable))
         {
-            throw new NotSupportedException($"BepuPhysics backend only implements revolute, distance and weld joints, not {definition.Kind}.");
+            throw new NotSupportedException($"BepuPhysics backend only implements revolute, distance, weld and configurable joints, not {definition.Kind}.");
         }
 
         if (!_dynamicBodies.TryGetValue(definition.BodyA, out BodyHandle handleA)
@@ -236,6 +322,10 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             handles = definition.LocalSuspensionAxis == PhysicsVector3.Zero
                 ? new[] { AddRigidHinge(handleA, handleB, definition) }
                 : AddSprungWheel(handleA, handleB, definition);
+        }
+        else if (definition.Kind == PhysicsJointKind.Configurable)
+        {
+            handles = AddConfigurable(handleA, handleB, definition);
         }
         else if (definition.Kind == PhysicsJointKind.Weld)
         {
@@ -286,14 +376,27 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         PhysicsJointId id = new(_nextJointId++);
         _joints.Add(id, handles);
         _jointBodies.Add((id, handleA, handleB));
-        // Only the wheel hinge suppresses contacts between its ends: the tire sphere and the
-        // support box that rides the parent overlap on purpose (ADR-009). The runtime ropes
+        // The wheel hinge and the glove's linear drive suppress contacts between their ends (the
+        // tire sphere overlapping its support box, ADR-009; the glove colliding with the part it
+        // was instantiated inside, which the original IgnoreCollision's). The runtime ropes
         // (balloon string, sandbag tie) are Unity SpringJoints whose pair still collides, and
         // a weld's pair collides too (the original's adjacent parts are joint plus contact,
         // see the weld-compliance spec's decision 3).
-        if (definition.Kind == PhysicsJointKind.Revolute)
+        if (definition.Kind is PhysicsJointKind.Revolute or PhysicsJointKind.Configurable)
         {
             _jointedPairs.Add(PairKey(handleA, handleB));
+        }
+
+        // The spring's Distance joint is the one kind the backend breaks itself: it is a single
+        // linear constraint, so its accumulated impulse magnitude is exactly the joint's
+        // reaction, and force = impulse / dt. The other kinds keep the rules layer's impulse
+        // break (ADR-015/ADR-024): a rigid hinge or weld mixes angular and linear impulses in one
+        // handle, so reading a break force off it would be a different number, not a better one.
+        if (definition.Kind == PhysicsJointKind.Distance
+            && (definition.BreakForce > 0f || definition.BreakImpulse > 0f))
+        {
+            _breakLimits.Add(id, new JointBreakLimits(definition.BreakForce, definition.BreakImpulse));
+            _breakableJoints++;
         }
 
         return id;
@@ -380,6 +483,92 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         };
     }
 
+    /// <summary>
+    /// The Unity ConfigurableJoint the boxing glove declares (docs/specs/boxing-glove.md §3):
+    /// body B's rotation is held at the joint's rest rotation (angular XYZ Locked, an
+    /// <see cref="AngularServo"/> at the rest pose), and two orthogonal axes of body A's frame
+    /// each carry a linear servo — the driven axis (the original's yMotion Limited plus its
+    /// yDrive) and the lateral axis (its xDrive) — while the third is held rigidly at zero
+    /// (zMotion Locked). The driven axis also carries the original's linear limit as a
+    /// <see cref="LinearAxisLimit"/>: a soft spring when the definition gives a limit frequency,
+    /// the same 30 Hz stand-in for a hard limit otherwise.
+    /// <para>
+    /// Built from five constraints because Bepu has no single constraint with that shape; the
+    /// linear servo half is exactly the machine <see cref="AddSprungWheel"/> uses, minus the free
+    /// spin (the glove does not rotate relative to its part) and plus the second driven axis.
+    /// </para>
+    /// </summary>
+    private ConstraintHandle[] AddConfigurable(BodyHandle handleA, BodyHandle handleB, JointDefinition definition)
+    {
+        ConfigurableJointDefinition drive = definition.Configurable
+            ?? throw new ArgumentException("A configurable joint needs its linear-drive payload.", nameof(definition));
+        Vector3 anchorA = ToNumerics(definition.LocalAnchorA);
+        Vector3 anchorB = ToNumerics(definition.LocalAnchorB);
+        Vector3 axis = ToNumerics(PhysicsVector3.Normalize(drive.DriveAxisInA));
+        Vector3 lateral = ToNumerics(PhysicsVector3.Normalize(drive.LateralAxisInA));
+        // Bepu normalises the servo normals itself, so the raw cross product is enough; a zero
+        // cross product (parallel axes) is rejected by the definition's own validation.
+        Vector3 normal = ToNumerics(PhysicsVector3.Normalize(PhysicsVector3.Cross(drive.DriveAxisInA, drive.LateralAxisInA)));
+
+        AngularServo orientation = new()
+        {
+            TargetRelativeRotationLocalA = ToNumerics(definition.RestRotation),
+            SpringSettings = RigidSpring,
+            ServoSettings = ServoSettings.Default,
+        };
+
+        LinearAxisServo thrown = new()
+        {
+            LocalOffsetA = anchorA,
+            LocalOffsetB = anchorB,
+            LocalPlaneNormal = axis,
+            TargetOffset = drive.DriveTargetOffset,
+            ServoSettings = ServoSettings.Default,
+            SpringSettings = new SpringSettings(drive.DriveFrequency, drive.DriveDampingRatio),
+        };
+
+        LinearAxisServo lateralDrive = new()
+        {
+            LocalOffsetA = anchorA,
+            LocalOffsetB = anchorB,
+            LocalPlaneNormal = lateral,
+            TargetOffset = drive.LateralTargetOffset,
+            ServoSettings = ServoSettings.Default,
+            SpringSettings = new SpringSettings(drive.LateralFrequency, drive.LateralDampingRatio),
+        };
+
+        LinearAxisServo locked = new()
+        {
+            LocalOffsetA = anchorA,
+            LocalOffsetB = anchorB,
+            LocalPlaneNormal = normal,
+            TargetOffset = 0f,
+            ServoSettings = ServoSettings.Default,
+            SpringSettings = RigidSpring,
+        };
+
+        LinearAxisLimit limit = new()
+        {
+            LocalOffsetA = anchorA,
+            LocalOffsetB = anchorB,
+            LocalAxis = axis,
+            MinimumOffset = drive.LimitMinimumOffset,
+            MaximumOffset = drive.LimitMaximumOffset,
+            SpringSettings = drive.LimitFrequency > 0f
+                ? new SpringSettings(drive.LimitFrequency, drive.LimitDampingRatio)
+                : RigidSpring,
+        };
+
+        return new[]
+        {
+            _simulation.Solver.Add(handleA, handleB, orientation),
+            _simulation.Solver.Add(handleA, handleB, thrown),
+            _simulation.Solver.Add(handleA, handleB, lateralDrive),
+            _simulation.Solver.Add(handleA, handleB, locked),
+            _simulation.Solver.Add(handleA, handleB, limit),
+        };
+    }
+
     /// <summary>Statics get their own key space so a dynamic-vs-static pair can be keyed too —
     /// a bounce pairs the pig with the floor, and the floor is static.</summary>
     private const long StaticKeyBit = 1L << 40;
@@ -434,6 +623,12 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     /// static terrain, so unlike <see cref="AreJointed"/> this must not require two dynamics.</summary>
     private bool IsSuppressed(in CollidableReference left, in CollidableReference right) =>
         _suppressedPairs.Contains(CollidablePairKey(left, right));
+
+    /// <summary>True when a rule switched this collidable's body off (`Collider.enabled = false`,
+    /// <see cref="SetBodyCollisionEnabled"/>). Statics are never switched off.</summary>
+    private bool IsCollisionDisabled(in CollidableReference reference) =>
+        reference.Mobility != CollidableMobility.Static
+        && _collisionDisabledHandles.Contains(reference.BodyHandle.Value);
 
     /// <summary>Records a body's frozen degrees of freedom for the pose integrator, growing the
     /// handle-indexed table as Bepu reuses low handles.</summary>
@@ -572,23 +767,91 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             throw new ArgumentException("A joint ID must be valid.", nameof(joint));
         }
 
-        if (_joints.Remove(joint, out ConstraintHandle[]? handles))
+        RemoveJoint(joint);
+    }
+
+    /// <summary>Removes a joint's solver constraints and every table entry that tracks it.
+    /// Returns false for an id the world no longer owns — a joint that already broke, or one
+    /// destroyed twice — so the caller stays idempotent.</summary>
+    private bool RemoveJoint(PhysicsJointId joint)
+    {
+        if (!_joints.Remove(joint, out ConstraintHandle[]? handles))
         {
-            foreach (ConstraintHandle handle in handles)
+            return false;
+        }
+
+        foreach (ConstraintHandle handle in handles)
+        {
+            _simulation.Solver.Remove(handle);
+        }
+
+        for (int index = _jointBodies.Count - 1; index >= 0; index--)
+        {
+            (PhysicsJointId jointId, BodyHandle jointA, BodyHandle jointB) = _jointBodies[index];
+            if (jointId != joint)
             {
-                _simulation.Solver.Remove(handle);
+                continue;
             }
 
-            for (int index = _jointBodies.Count - 1; index >= 0; index--)
-            {
-                (PhysicsJointId jointId, BodyHandle jointA, BodyHandle jointB) = _jointBodies[index];
-                if (jointId != joint)
-                {
-                    continue;
-                }
+            _jointedPairs.Remove(PairKey(jointA, jointB));
+            _jointBodies.RemoveAt(index);
+        }
 
-                _jointedPairs.Remove(PairKey(jointA, jointB));
-                _jointBodies.RemoveAt(index);
+        if (_breakLimits.Remove(joint))
+        {
+            _breakableJoints--;
+        }
+
+        return true;
+    }
+
+    /// <summary>A tracked joint's break thresholds, in newtons and newton-seconds; a zero
+    /// threshold never fires (<see cref="JointDefinition.BreakImpulse"/>).</summary>
+    private readonly record struct JointBreakLimits(float Force, float Impulse);
+
+    /// <summary>
+    /// The spring's break check. After a step, a tracked joint whose reaction impulse over the
+    /// step (force = impulse / dt) or whose impulse itself passed its threshold is torn down and
+    /// reported as <see cref="PhysicsEvent.JointBroken"/> — the original's <c>OnJointBreak</c>
+    /// (Spring.cs:59) by another route, which is how the rules layer notices and re-hangs the
+    /// endpoint. Joints are walked in creation order, so simultaneous breaks are deterministic.
+    /// </summary>
+    private void BreakOverloadedJoints(float seconds)
+    {
+        if (_breakableJoints == 0)
+        {
+            return;
+        }
+
+        _jointsToBreak.Clear();
+        for (int index = 0; index < _jointBodies.Count; index++)
+        {
+            PhysicsJointId id = _jointBodies[index].Joint;
+            if (!_breakLimits.TryGetValue(id, out JointBreakLimits limits)
+                || !_joints.TryGetValue(id, out ConstraintHandle[]? handles))
+            {
+                continue;
+            }
+
+            float impulse = 0f;
+            for (int handleIndex = 0; handleIndex < handles.Length; handleIndex++)
+            {
+                impulse = MathF.Max(impulse, _simulation.Solver.GetAccumulatedImpulseMagnitude(handles[handleIndex]));
+            }
+
+            if ((limits.Impulse > 0f && impulse > limits.Impulse)
+                || (limits.Force > 0f && impulse / seconds > limits.Force))
+            {
+                _jointsToBreak.Add(id);
+            }
+        }
+
+        for (int index = 0; index < _jointsToBreak.Count; index++)
+        {
+            PhysicsJointId id = _jointsToBreak[index];
+            if (RemoveJoint(id))
+            {
+                _events.Add(PhysicsEvent.JointBroken(id));
             }
         }
     }
@@ -641,6 +904,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _contactImpacts.Clear();
         _simulation.Timestep(timeStep.Seconds);
         ApplyFrozenDegreesOfFreedom();
+        BreakOverloadedJoints(timeStep.Seconds);
 
         _orderedContacts.Clear();
         _orderedContacts.AddRange(_currentContacts);
@@ -739,7 +1003,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _bodyOrder.Clear();
         _joints.Clear();
         _jointBodies.Clear();
+        _breakLimits.Clear();
+        _jointsToBreak.Clear();
+        _breakableJoints = 0;
         _jointedPairs.Clear();
+        _collisionDisabledHandles.Clear();
         _suppressedPairs.Clear();
         _events.Clear();
         _activeContacts.Clear();
@@ -988,7 +1256,9 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin)
             => (a.Mobility == CollidableMobility.Dynamic || b.Mobility == CollidableMobility.Dynamic)
             && !_world.AreJointed(a, b)
-            && !_world.IsSuppressed(a, b);
+            && !_world.IsSuppressed(a, b)
+            && !_world.IsCollisionDisabled(a)
+            && !_world.IsCollisionDisabled(b);
 
         public bool AllowContactGeneration(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB) => true;
 

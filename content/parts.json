@@ -156,7 +156,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "spring": 12.0 },
+      "capabilities": { "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "spring": { "joint": "bungee", "stiffness": 250, "damper": 20, "limit": 0.1, "bounciness": 1, "breakForce": 1200, "mass": 1 } },
       "shapes": [
         {
           "kind": "box",
@@ -515,7 +515,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "spring": 25.0 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3654,7 +3654,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "spring": 12.0 },
+      "capabilities": { "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "spring": { "joint": "limit", "stiffness": 250, "damper": 20, "limit": 0.1, "bounciness": 1, "breakForce": 1200, "mass": 1 } },
       "shapes": [
         {
           "kind": "box",
@@ -3670,7 +3670,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "spring": 12.0 },
+      "capabilities": { "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "spring": { "joint": "bungee", "stiffness": 250, "damper": 20, "limit": 0.1, "bounciness": 1, "breakForce": 1200, "mass": 1 } },
       "shapes": [
         {
           "kind": "box",
@@ -3686,7 +3686,7 @@
       "mode": "dynamic",
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "spring": 12.0 },
+      "capabilities": { "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "source", "spring": { "joint": "limit", "stiffness": 250, "damper": 20, "limit": 0.1, "bounciness": 1, "breakForce": 1200, "mass": 1 } },
       "shapes": [
         {
           "kind": "box",
@@ -4681,7 +4681,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "spring": 25.0 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4696,7 +4696,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "spring": 25.0 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4711,7 +4711,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "spring": 25.0 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4726,7 +4726,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "spring": 25.0 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 50, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",

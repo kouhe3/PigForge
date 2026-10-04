@@ -158,7 +158,6 @@ public sealed class FrozenContraptionTests
         new MotorStore(entities),
         new BalloonStore(entities),
         new FanStore(entities),
-        new SpringStore(entities),
         new RocketStore(entities),
         new TntStore(entities),
         new BlasterStore(entities),

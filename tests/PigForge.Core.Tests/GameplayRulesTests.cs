@@ -408,7 +408,6 @@ public sealed class GameplayRulesTests
                 new MotorStore(entities),
                 new BalloonStore(entities),
                 new FanStore(entities),
-                new SpringStore(entities),
                 new RocketStore(entities),
                 new TntStore(entities),
                 new BlasterStore(entities),
@@ -475,7 +474,6 @@ public sealed class GameplayRulesTests
                 new MotorStore(_entities),
                 new BalloonStore(_entities),
                 new FanStore(_entities),
-                new SpringStore(_entities),
                 new RocketStore(_entities),
                 new TntStore(_entities),
                 new BlasterStore(_entities),
@@ -876,32 +874,6 @@ public sealed class GameplayRulesTests
         harness.Tick(2, Array.Empty<PhysicsEvent>());
         Assert.Single(harness.Output.Commands);
         Assert.Empty(harness.Output.DestroyedEntities);
-    }
-
-    [Fact]
-    public void SpringLaunchesOncePerTouchdown()
-    {
-        EntityStore entities = new();
-        GameplayHarness harness = new(entities, FarZonesConfig());
-        EntityId spring = entities.Create();
-        harness.Rules.AddSpring(spring, 12f);
-        harness.Link(spring, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
-
-        // First grounded tick: one launch impulse.
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
-        PhysicsCommand command = Assert.Single(harness.Output.Commands);
-        Assert.Equal(new PhysicsBodyId(1), command.Body);
-        Assert.Equal(12f, command.Impulse.Y);
-
-        // Still grounded next tick: no second launch (BouncedRecently holds).
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
-        Assert.Empty(harness.Output.Commands);
-
-        // Leaves ground, lands again: second launch.
-        harness.Tick(3, Array.Empty<PhysicsEvent>());
-        harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
-        Assert.Single(harness.Output.Commands);
     }
 
     [Fact]

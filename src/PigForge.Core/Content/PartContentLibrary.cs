@@ -45,6 +45,20 @@ public sealed class PartContentLibrary
         return part.Mode == PhysicsBodyMode.Dynamic ? part.Damping ?? Document.Physics.Damping : default;
     }
 
+    /// <summary>
+    /// The mass the original's rigidbody actually carries for this part at this scale (scale cubes
+    /// the mass, like every other body here). One capability overrides the extracted prefab value:
+    /// under the shipped <c>StableSpringConnection</c> a spring part forces <c>rigidbody.mass = 1</c>
+    /// (<c>Spring.cs:69-75</c>), which the extractor publishes as <c>capabilities.spring.mass</c>
+    /// (<c>tools/bple-springs</c>). Everything else keeps its own extracted mass.
+    /// </summary>
+    public float MassOf(PartDefinition part, float scale = 1f)
+    {
+        ArgumentNullException.ThrowIfNull(part);
+        float mass = part.Capabilities?.Spring is PartSpring spring && spring.Mass > 0f ? spring.Mass : part.Mass;
+        return mass * scale * scale * scale;
+    }
+
     public PartDefinition GetPart(uint partTypeId)
     {
         if (!_partsByTypeId.TryGetValue(partTypeId, out PartDefinition? part))
@@ -261,7 +275,7 @@ public sealed class PartContentLibrary
             part.Mode,
             position,
             rotation,
-            part.Mass * (scale * scale * scale),
+            MassOf(part, scale),
             shapes,
             linearVelocity,
             angularVelocity,

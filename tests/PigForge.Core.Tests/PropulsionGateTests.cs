@@ -225,7 +225,6 @@ public sealed class PropulsionGateTests
                 new MotorStore(_entities),
                 new BalloonStore(_entities),
                 new FanStore(_entities),
-                new SpringStore(_entities),
                 new RocketStore(_entities),
                 new TntStore(_entities),
                 new BlasterStore(_entities),

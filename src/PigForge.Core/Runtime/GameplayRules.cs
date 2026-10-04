@@ -80,7 +80,6 @@ public sealed class GameplayRules
     private readonly MotorStore _motors;
     private readonly BalloonStore _balloons;
     private readonly FanStore _fans;
-    private readonly SpringStore _springs;
     private readonly RocketStore _rockets;
     private readonly TntStore _tnt;
     private readonly BlasterStore _blasters;
@@ -195,7 +194,6 @@ public sealed class GameplayRules
         MotorStore motors,
         BalloonStore balloons,
         FanStore fans,
-        SpringStore springs,
         RocketStore rockets,
         TntStore tnt,
         BlasterStore blasters,
@@ -220,7 +218,6 @@ public sealed class GameplayRules
         _motors = motors ?? throw new ArgumentNullException(nameof(motors));
         _balloons = balloons ?? throw new ArgumentNullException(nameof(balloons));
         _fans = fans ?? throw new ArgumentNullException(nameof(fans));
-        _springs = springs ?? throw new ArgumentNullException(nameof(springs));
         _rockets = rockets ?? throw new ArgumentNullException(nameof(rockets));
         _tnt = tnt ?? throw new ArgumentNullException(nameof(tnt));
         _blasters = blasters ?? throw new ArgumentNullException(nameof(blasters));
@@ -550,9 +547,6 @@ public sealed class GameplayRules
     public void AddFan(EntityId entity, float impulsePerTick, float directionX, float directionY, float maxSpeed = 0f, bool isRotor = false) =>
         _fans.Set(entity, new FanState(impulsePerTick, directionX, directionY, maxSpeed, isRotor));
 
-    public void AddSpring(EntityId entity, float bounceImpulsePerTick) =>
-        _springs.Set(entity, new SpringState(bounceImpulsePerTick, BouncedRecently: false));
-
     public void AddRocket(EntityId entity, float thrustPerTick, float directionX, float directionY, ushort durationTicks, float explodeRadius = 0f, float explodeImpulse = 0f) =>
         _rockets.Set(entity, new RocketState(thrustPerTick, directionX, directionY, durationTicks, Ignited: false, explodeRadius, explodeImpulse));
 
@@ -654,7 +648,6 @@ public sealed class GameplayRules
         RunBalloons(output);
         RunFans(output);
         RunAerodynamics(output);
-        RunSprings(output);
         RunBellows(output);
         RunGrapples(output);
         RunDetachers(output);
@@ -787,9 +780,8 @@ public sealed class GameplayRules
             return;
         }
 
-        // Re-arm guard: while a body keeps touching something it must not bounce once per tick
-        // (the same shape as the spring bounce guard). Cleared by ReArmBounces the moment the
-        // body leaves contact.
+        // Re-arm guard: while a body keeps touching something it must not bounce once per tick.
+        // Cleared by ReArmBounces the moment the body leaves contact.
         if ((dynamicA && _bouncedBodies.Contains(bodyA)) || (dynamicB && _bouncedBodies.Contains(bodyB)))
         {
             return;
@@ -1432,34 +1424,6 @@ public sealed class GameplayRules
         }
     }
 
-    private void RunSprings(GameplayTickOutput output)
-    {
-        var springs = _springs.GetEnumerator();
-        while (springs.MoveNext())
-        {
-            if (!_bodies.TryGet(springs.CurrentId, out PhysicsBodyLink link)
-                || !_kinematicsByBody.ContainsKey(link.Body.Value))
-            {
-                continue;
-            }
-
-            SpringState spring = springs.CurrentValue;
-            bool touched = _touchedBodies.Contains(link.Body.Value);
-            if (touched && !spring.BouncedRecently)
-            {
-                _springs.Set(springs.CurrentId, spring with { BouncedRecently = true });
-                output.Commands.Add(PhysicsCommand.ApplyImpulse(
-                    link.Body,
-                    new PhysicsVector3(0f, spring.BounceImpulsePerTick, 0f),
-                    _kinematicsByBody[link.Body.Value].Position));
-            }
-            else if (!touched && spring.BouncedRecently)
-            {
-                _springs.Set(springs.CurrentId, spring with { BouncedRecently = false });
-            }
-        }
-    }
-
     private void RunBellows(GameplayTickOutput output)
     {
         var bellows = _bellows.GetEnumerator();
@@ -1963,7 +1927,6 @@ public sealed class GameplayRules
         _motors.Remove(entity);
         _balloons.Remove(entity);
         _fans.Remove(entity);
-        _springs.Remove(entity);
         _rockets.Remove(entity);
         _tnt.Remove(entity);
         _wheels.Remove(entity);
@@ -2029,15 +1992,6 @@ public sealed class GameplayRules
             }
         }
 
-        var springs = _springs.GetEnumerator();
-        while (springs.MoveNext())
-        {
-            if (springs.CurrentValue.BouncedRecently)
-            {
-                _springs.Set(springs.CurrentId, springs.CurrentValue with { BouncedRecently = false });
-            }
-        }
-
         var bellows = _bellows.GetEnumerator();
         while (bellows.MoveNext())
         {
@@ -2073,7 +2027,6 @@ public sealed class GameplayRules
         _motors.Clear();
         _balloons.Clear();
         _fans.Clear();
-        _springs.Clear();
         _rockets.Clear();
         _tnt.Clear();
         _wheels.Clear();
@@ -2111,7 +2064,6 @@ public sealed class GameplayRules
         _motors.Remove(entity);
         _balloons.Remove(entity);
         _fans.Remove(entity);
-        _springs.Remove(entity);
         _rockets.Remove(entity);
         _tnt.Remove(entity);
         _wheels.Remove(entity);

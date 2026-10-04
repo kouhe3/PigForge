@@ -138,7 +138,14 @@
         "tnt": { "$ref": "#/$defs/tntCapability" },
         "balloon": { "$ref": "#/$defs/balloonCapability" },
         "fan": { "$ref": "#/$defs/fanCapability" },
-        "spring": { "$ref": "#/$defs/springCapability" },
+        "spring": {
+          "description": "The original Spring's own joint (Spring.cs:100-134): a breakable bungee rope (SpringJoint) or a y soft limit (ConfigurableJoint) holding the two neighbours at their assembly distance. It never applies an impulse -- the old bounce-pad reading is gone. Extracted per skin by tools/bple-springs, never authored.",
+          "$ref": "#/$defs/springCapability"
+        },
+        "glove": {
+          "description": "The interactive SpringBoxingGlove (spec docs/specs/boxing-glove.md): a second rigid body 'glove' held to the host by a y-limited, y/x-driven joint, shot out on trigger and wound back. Extracted by tools/bple-springs from the part prefab and its BoxingGlove*.prefab reference, never authored.",
+          "$ref": "#/$defs/gloveCapability"
+        },
         "rocket": { "$ref": "#/$defs/rocketCapability" },
         "egg": { "type": "boolean" },
         "wing": { "$ref": "#/$defs/wingCapability" },
@@ -262,7 +269,73 @@
     "type": "number"
   },
   "springCapability": {
-    "type": "number"
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["joint", "stiffness", "damper", "limit", "bounciness", "breakForce", "mass"],
+    "properties": {
+      "joint": {
+        "enum": ["bungee", "limit"],
+        "description": "'bungee' = the original takes the SpringJoint rope branch (StableSpringConnection and customPartIndex 0 or 2, Spring.cs:104); 'limit' = the y linear-limit ConfigurableJoint branch (Spring.cs:120). Extracted per skin by tools/bple-springs, never authored."
+      },
+      "stiffness": { "type": "number", "exclusiveMinimum": 0, "description": "SPRING_LIMIT_SPRING, 250 N/m (Spring.cs:7)." },
+      "damper": { "type": "number", "minimum": 0, "description": "SPRING_DAMPING, 20 N*s/m (Spring.cs:9)." },
+      "limit": { "type": "number", "minimum": 0, "description": "SPRING_LIMIT, 0.1 m; the 'limit' path's linear limit (Spring.cs:11)." },
+      "bounciness": { "type": "number", "minimum": 0, "description": "SPRING_BOUNCINESS, 1; the 'limit' path's linear-limit bounciness (Spring.cs:13)." },
+      "breakForce": { "type": "number", "exclusiveMinimum": 0, "description": "The published breaking force: SPRING_BREAK_FORCE 250 doubled to 1200 by IN StrongSpringConnection (Spring.cs:15,38)." },
+      "mass": { "type": "number", "exclusiveMinimum": 0, "description": "The published rigidbody mass: IN StableSpringConnection forces 1 (Spring.cs:69-75)." }
+    }
+  },
+  "gloveCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["mass", "shapes", "limit", "yDrive", "xDrive", "projectionDistance", "shoot", "wind", "solverIterationScale"],
+    "properties": {
+      "mass": { "type": "number", "exclusiveMinimum": 0, "description": "The glove prefab's rigidbody mass (0.5, BoxingGlove*.prefab)." },
+      "shapes": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/shapeDefinition" },
+        "description": "The glove prefab's colliders (a SphereCollider r 0.3)."
+      },
+      "limit": { "type": "number", "minimum": 0, "description": "The host-glove joint's y linear limit (1)." },
+      "yDrive": { "$ref": "#/$defs/gloveDriveCapability" },
+      "xDrive": { "$ref": "#/$defs/gloveDriveCapability" },
+      "projectionDistance": { "type": "number", "minimum": 0, "description": "ConfigurableJoint.projectionDistance (0.1, SpringBoxingGlove.cs:252)." },
+      "shoot": { "$ref": "#/$defs/gloveShootCapability" },
+      "wind": { "$ref": "#/$defs/gloveWindCapability" },
+      "solverIterationScale": { "type": "number", "exclusiveMinimum": 0, "description": "The glove rigidbody's solver iteration factor (1.6, SpringBoxingGlove.cs:262)." }
+    }
+  },
+  "gloveDriveCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["spring", "damper"],
+    "properties": {
+      "spring": { "type": "number", "exclusiveMinimum": 0 },
+      "damper": { "type": "number", "minimum": 0 }
+    }
+  },
+  "gloveShootCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["distanceY", "deviationX", "time", "limitSpring"],
+    "properties": {
+      "distanceY": { "type": "number", "minimum": 0, "description": "m_targetDistanceY; the glove's target is distanceY * IN BoxingGloveLength along the part's local -Y (the probe shows the glove travels down it)." },
+      "deviationX": { "type": "number", "minimum": 0, "description": "m_targetDeviationX, the lateral offset of the thrown glove." },
+      "time": { "type": "number", "exclusiveMinimum": 0, "description": "m_ShootTime: how long the throw lasts before the wind-back (SpringBoxingGlove.cs:280-330)." },
+      "limitSpring": { "type": "number", "minimum": 0, "description": "The linear-limit spring the throw sets (0.1, SpringBoxingGlove.cs:333)." }
+    }
+  },
+  "gloveWindCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["time", "mass", "driveSpring", "driveDamper"],
+    "properties": {
+      "time": { "type": "number", "exclusiveMinimum": 0, "description": "m_WindingTime: the wind-back deadline; the original also ends early once the glove is within 0.1 of home." },
+      "mass": { "type": "number", "exclusiveMinimum": 0, "description": "The glove's mass while winding back (0.01, SpringBoxingGlove.cs:395)." },
+      "driveSpring": { "type": "number", "exclusiveMinimum": 0, "description": "10 * m_targetDistanceY * IN BoxingGloveLength (SpringBoxingGlove.cs:385)." },
+      "driveDamper": { "type": "number", "minimum": 0, "description": "The wind-back position damper (2.5)." }
+    }
   },
   "rocketCapability": {
     "type": "object",

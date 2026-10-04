@@ -59,7 +59,6 @@ public sealed class GameRoom : IDisposable
     private readonly MotorStore _motors;
     private readonly BalloonStore _balloons;
     private readonly FanStore _fans;
-    private readonly SpringStore _springs;
     private readonly RocketStore _rockets;
     private readonly TntStore _tnt;
     private readonly WheelStore _wheels;
@@ -90,6 +89,19 @@ public sealed class GameRoom : IDisposable
     private readonly List<(PhysicsJointId Joint, PhysicsBodyId Left, PhysicsBodyId Right, CompoundWeld Weld)> _weldJoints = new();
     private readonly List<CompoundWeld> _welds = new();
     private readonly HashSet<long> _weldKeys = new();
+    private readonly List<SpringJoint> _springJoints = new();
+    private readonly List<CompoundSpring> _springs = new();
+    private readonly HashSet<long> _springKeys = new();
+    private readonly Dictionary<uint, List<SubEntity>> _subEntitiesByHost = new();
+    private int _subEntityCount;
+    // Boxing gloves (docs/specs/boxing-glove.md): the host entity's runtime state, walked in
+    // ascending host order each tick so the transitions — and the joints they rebuild — are
+    // deterministic. _effectCandidates/_doomedSeams are tick scratch, reused so a punch never
+    // allocates.
+    private readonly Dictionary<uint, GloveLink> _glovesByHost = new();
+    private readonly List<uint> _gloveHosts = new();
+    private readonly List<uint> _effectCandidates = new();
+    private readonly List<CompoundSeam> _doomedSeams = new();
     private readonly List<(PhysicsJointId Joint, PhysicsBodyId Attach, PhysicsBodyId Anchor)> _attachmentJoints = new();
     private readonly Dictionary<uint, (PhysicsBodyId Body, PhysicsQuaternion LocalRotation)> _attachByEntity = new();
     private readonly List<LiveCompound> _liveCompounds = new();
@@ -147,7 +159,6 @@ public sealed class GameRoom : IDisposable
         _motors = new MotorStore(_entities);
         _balloons = new BalloonStore(_entities);
         _fans = new FanStore(_entities);
-        _springs = new SpringStore(_entities);
         _rockets = new RocketStore(_entities);
         _tnt = new TntStore(_entities);
         _wheels = new WheelStore(_entities);
@@ -169,7 +180,7 @@ public sealed class GameRoom : IDisposable
         // Elasticity is owned by whichever side can express it: a backend with a native
         // restitution term applies it in the solver, otherwise the rules layer synthesizes it.
         _rules = new GameplayRules(
-            _entities, _motors, _balloons, _fans, _springs, _rockets, _tnt, _blasters, _glues, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _activations, _restitutions, _powers, _bodies, options.GameplayConfig with
+            _entities, _motors, _balloons, _fans, _rockets, _tnt, _blasters, _glues, _wheels, _pigs, _eggs, _wings, _tails, _umbrellas, _gearboxes, _bellows, _detachers, _grapples, _activations, _restitutions, _powers, _bodies, options.GameplayConfig with
             {
                 RestitutionAppliedNatively = _world.Capabilities.AppliesRestitutionNatively,
             });
@@ -191,9 +202,19 @@ public sealed class GameRoom : IDisposable
     /// joint between two bodies and appears in no snapshot (docs/specs/weld-compliance.md).</summary>
     public int WeldJointCount => _weldJoints.Count;
 
+    /// <summary>Live spring seams. Diagnostic like <see cref="WeldJointCount"/>: a spring is a joint
+    /// between two placed parts and appears in no snapshot of its own (docs/specs/spring-joint.md).</summary>
+    public int SpringJointCount => _springJoints.Count;
+
+    /// <summary>Live runtime sub-entities (ADR-027): bodies a host part spawned, whose first
+    /// consumer is the spring's endpoint rigid body. Diagnostic like <see cref="WeldJointCount"/>.</summary>
+    public int SubEntityCount => _subEntityCount;
+
     /// <summary>Upper bound on the entity count of the next published frame. Sandbox
     /// frames also carry previews that have no physics body, so transports must size
-    /// their encode buffer from this value rather than from <see cref="BodyCount"/>.</summary>
+    /// their encode buffer from this value rather than from <see cref="BodyCount"/>.
+    /// Runtime sub-entities (ADR-027) carry a part link and a body, so they count in both
+    /// terms — a spring endpoint spawned mid-run must not push a frame past the buffer.</summary>
     public int MaxSnapshotEntityCount => Math.Max(_parts.Count, _bodyByEntity.Count);
 
     public IReadOnlyList<CommandOutcome> OutcomeLog => _outcomeLog;
@@ -208,7 +229,7 @@ public sealed class GameRoom : IDisposable
         _parts.Set(entity, new PartLink(spec.PartTypeId));
         _transforms.Set(entity, new EntityTransform(spec.Position, PhysicsQuaternion.FromZAngle(spec.Angle)));
         PartDefinition part = _content.GetPart(spec.PartTypeId);
-        _rules.AddRestitution(entity, part.Restitution, part.Mass);
+        _rules.AddRestitution(entity, part.Restitution, _content.MassOf(part));
 
         // Level actors carry no construction relations, so an engine spawned straight from a level
         // is never enclosed and supplies nothing (Engine.cs:61); a level-authored consumer still
@@ -397,7 +418,7 @@ public sealed class GameRoom : IDisposable
         PartDefinition part = _content.GetPart(partTypeId);
         // Elasticity is plain material data, so it registers whether or not the part carries
         // any capability at all.
-        _rules.AddRestitution(entity, part.Restitution, part.Mass);
+        _rules.AddRestitution(entity, part.Restitution, _content.MassOf(part));
         PartCapabilities? capabilities = part.Capabilities;
         if (capabilities is null)
         {
@@ -453,11 +474,6 @@ public sealed class GameRoom : IDisposable
                 capabilities.FanDirectionY ?? 0f,
                 capabilities.FanMaxSpeed ?? 0f,
                 capabilities.FanIsRotor);
-        }
-
-        if (capabilities.HasSpring)
-        {
-            _rules.AddSpring(entity, capabilities.SpringBounceImpulsePerTick!.Value);
         }
 
         if (capabilities.HasRocket)
@@ -574,7 +590,9 @@ public sealed class GameRoom : IDisposable
 
         BindWheelHinges(assembly.Hinges);
         BindWeldJoints(assembly.Welds);
+        BindSpringJoints(assembly.Springs);
         BindAttachments();
+        BindGloves();
 
         EnsureBuffers();
         Mode = RoomMode.Running;
@@ -615,6 +633,9 @@ public sealed class GameRoom : IDisposable
         _weldJoints.Clear();
         _welds.Clear();
         _weldKeys.Clear();
+        _springJoints.Clear();
+        _springs.Clear();
+        _springKeys.Clear();
         _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
@@ -656,6 +677,10 @@ public sealed class GameRoom : IDisposable
                 SetupFromLevel(_level);
             }
         }
+
+        // Runtime sub-entities never survive a build-mode re-entry: their bodies were destroyed with
+        // every other body above, and their entity ids and part entries go now (ADR-027 decision 3).
+        ClearSubEntities();
     }
 
     /// <summary>
@@ -695,9 +720,13 @@ public sealed class GameRoom : IDisposable
         _weldJoints.Clear();
         _welds.Clear();
         _weldKeys.Clear();
+        _springJoints.Clear();
+        _springs.Clear();
+        _springKeys.Clear();
         _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
+        ClearSubEntities();
 
         Mode = RoomMode.Building;
         _construction.ResetAll();
@@ -917,7 +946,9 @@ public sealed class GameRoom : IDisposable
 
         BindWheelHinges(assembly.Hinges);
         BindWeldJoints(assembly.Welds);
+        BindSpringJoints(assembly.Springs);
         BindAttachments();
+        BindGloves();
 
         _sandboxPlayers.MarkMaterialized(playerId);
         EnsureBuffers();
@@ -952,6 +983,8 @@ public sealed class GameRoom : IDisposable
         // The frames survive the reset, so their weld definitions have to go with the joints the
         // destroyed bodies took with them (see ForgetWeldsForEntities).
         ForgetWeldsForEntities(owned);
+        // Same for the spring parts: the next Start re-registers their seams from the assembler.
+        ForgetSpringsForEntities(owned);
 
         if (materialized && _startLayoutByPlayer.TryGetValue(playerId, out List<CapturedPart>? layout))
         {
@@ -1013,6 +1046,7 @@ public sealed class GameRoom : IDisposable
         }
 
         ForgetWeldsForEntities(owned);
+        ForgetSpringsForEntities(owned);
         _startLayoutByPlayer.Remove(playerId);
         _sandboxPlayers.Forget(playerId);
         _validator.Forget(playerId);
@@ -1034,7 +1068,9 @@ public sealed class GameRoom : IDisposable
 
         BindWheelHinges(assembly.Hinges);
         BindWeldJoints(assembly.Welds);
+        BindSpringJoints(assembly.Springs);
         BindAttachments();
+        BindGloves();
 
         EnsureBuffers();
         Mode = RoomMode.Running;
@@ -1229,11 +1265,18 @@ public sealed class GameRoom : IDisposable
 
         // Phase 5 (cleanup): bodies of destroyed entities leave the authoritative scene
         // and their construction footprint is released so the cells can be reused.
+        HandleBrokenSprings(eventCount);
         foreach (EntityId destroyed in _output.DestroyedEntities)
         {
             _construction.Forget(destroyed);
             UnbindEntity(destroyed, destroyBodyIfOrphan: true);
         }
+
+        // The gloves' state machines run on this tick's telemetry: the switch level, the throw's
+        // timers and the glove's own offset. A transition rewrites the joint/body, and a throw can
+        // split the host's compound (the part behind the glove leaves), so this runs before the
+        // split paths that read _liveCompounds.
+        RunGloves(eventCount, snapshotCount);
 
         // Detachers fired this tick: split their compound so the part flies free.
         foreach (EntityId detached in _output.DetachedEntities)
@@ -1243,6 +1286,11 @@ public sealed class GameRoom : IDisposable
 
         SplitFromAppliedCommands(snapshotCount);
         BreakWeldsFromAppliedCommands(snapshotCount);
+        BreakSpringsFromPull(snapshotCount);
+        // A spring endpoint spawned this tick added a body after the buffers were sized, and the next
+        // tick's snapshot copy must have room for it. Done last: growing the snapshot buffer discards
+        // this tick's telemetry, which the phase above still reads.
+        EnsureBuffers();
 
         if (_sandboxMode)
         {
@@ -1488,9 +1536,14 @@ public sealed class GameRoom : IDisposable
         _weldJoints.Clear();
         _welds.Clear();
         _weldKeys.Clear();
+        _springJoints.Clear();
+        _springs.Clear();
+        _springKeys.Clear();
         _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
+        _subEntitiesByHost.Clear();
+        _subEntityCount = 0;
         _appliedCommands.Clear();
         _outcomeLog.Clear();
         _output.Clear();
@@ -1759,6 +1812,1002 @@ public sealed class GameRoom : IDisposable
     }
 
     /// <summary>
+    /// Creates the soft distance links the assembler registered for the content's spring parts
+    /// (docs/specs/spring-joint.md §3). The original's Spring never welds its neighbour: it holds it
+    /// at the pair's assembly spacing with a spring (<c>Spring.cs:100-134</c>), so the pair is two
+    /// bodies and one joint. Binding is idempotent per pair, like the frame welds.
+    /// </summary>
+    private void BindSpringJoints(IReadOnlyList<CompoundSpring> springs)
+    {
+        PruneDeadSprings();
+        foreach (CompoundSpring spring in springs)
+        {
+            if (!_springKeys.Add(PairKey(spring.Left.Value, spring.Right.Value)))
+            {
+                continue;
+            }
+
+            _springs.Add(spring);
+            CreateSpringJoint(spring);
+        }
+    }
+
+    /// <summary>
+    /// Drops the spring definitions whose parts are gone. A player's reset removes its parts (bodies
+    /// and joints with them) and re-places them under new ids, so a stale definition would only
+    /// leave an entry no bind can use (mirrors <see cref="PruneDeadWelds"/>).
+    /// </summary>
+    private void PruneDeadSprings()
+    {
+        if (_springs.RemoveAll(spring => !_entities.IsAlive(spring.Left) || !_entities.IsAlive(spring.Right)) == 0)
+        {
+            return;
+        }
+
+        _springKeys.Clear();
+        foreach (CompoundSpring spring in _springs)
+        {
+            _springKeys.Add(PairKey(spring.Left.Value, spring.Right.Value));
+        }
+    }
+
+    /// <summary>
+    /// Drops the spring definitions a player's reset invalidates. The reset destroys the bodies the
+    /// joints were bound to but keeps the placed parts and their entity ids, so the definitions
+    /// survive <see cref="PruneDeadSprings"/> while they no longer have a joint; the next Start
+    /// re-registers them, and without this the idempotence key would swallow the fresh pair
+    /// (mirrors <see cref="ForgetWeldsForEntities"/>).
+    /// </summary>
+    private void ForgetSpringsForEntities(IReadOnlyCollection<uint> entityValues)
+    {
+        if (_springs.Count == 0 || entityValues.Count == 0)
+        {
+            return;
+        }
+
+        HashSet<uint> owned = new(entityValues);
+        if (_springs.RemoveAll(spring => owned.Contains(spring.Left.Value) || owned.Contains(spring.Right.Value)) == 0)
+        {
+            return;
+        }
+
+        _springKeys.Clear();
+        foreach (CompoundSpring spring in _springs)
+        {
+            _springKeys.Add(PairKey(spring.Left.Value, spring.Right.Value));
+        }
+    }
+
+    /// <summary>
+    /// Binds one spring seam between the two bodies its parts sit in (a spring part is a singleton
+    /// cluster, but the enclosable path can still fold it into a frame's body). The link is the
+    /// contract's slackless distance joint: the rest band is shut at the pair's own assembly anchor
+    /// separation, and the rate is the declared content stiffness after the PigForge calibration
+    /// (<see cref="CompoundAssembler.EffectiveStiffness"/>) converted by the shared
+    /// <see cref="TrySpringResponse"/> over the two bodies' masses — the same conversion the wheel
+    /// suspension and the runtime ropes use, never a second copy. The joint carries the extractor's
+    /// declared break force and the 3 m pull check is the other break path; both hand the seam to an
+    /// endpoint body (docs/specs/spring-joint.md §4).
+    /// </summary>
+    private void CreateSpringJoint(CompoundSpring spring)
+    {
+        if (!_bodies.TryGet(spring.Left, out PhysicsBodyLink leftLink)
+            || !_bodies.TryGet(spring.Right, out PhysicsBodyLink rightLink)
+            || leftLink.Body == rightLink.Body
+            || !_bodyPose.TryGetValue(leftLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) leftPose)
+            || !_bodyPose.TryGetValue(rightLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) rightPose))
+        {
+            return;
+        }
+
+        PhysicsVector3 anchorInLeft = ToBodyLocal(spring.Left.Value, spring.AnchorInLeft);
+        PhysicsVector3 anchorInRight = ToBodyLocal(spring.Right.Value, spring.AnchorInRight);
+        float restDistance = PhysicsVector3.Distance(
+            leftPose.Position + leftPose.Rotation.Rotate(anchorInLeft),
+            rightPose.Position + rightPose.Rotation.Rotate(anchorInRight));
+        if (!(restDistance > 0f)
+            || !TrySpringResponse(
+                BodyMass(leftLink.Body),
+                BodyMass(rightLink.Body),
+                CompoundAssembler.EffectiveStiffness(spring),
+                spring.Damper,
+                out float frequency,
+                out float dampingRatio))
+        {
+            return;
+        }
+
+        JointDefinition definition = new(
+            PhysicsJointKind.Distance,
+            leftLink.Body,
+            rightLink.Body,
+            PhysicsConstraintMask.None,
+            // The extractor's published break force (1200 N under StrongSpringConnection,
+            // Spring.cs:38). The Bepu backend enforces it for Distance joints exactly as Unity's
+            // SpringJoint does, so a spring that carries too much snaps and hands over to its
+            // endpoint body; the 3 m pull below is the other break path (Spring.cs:78-92).
+            breakForce: spring.BreakForce,
+            breakTorque: 0f,
+            localAnchorA: anchorInLeft,
+            localAnchorB: anchorInRight,
+            minimumDistance: restDistance,
+            maximumDistance: restDistance,
+            springFrequency: frequency,
+            springDampingRatio: dampingRatio);
+        EntityId host = SpringHostOf(spring);
+        PhysicsJointId joint = _world.CreateJoint(definition);
+        _springJoints.Add(new SpringJoint
+        {
+            Spring = spring,
+            Host = host,
+            Joint = joint,
+            HostBody = host == spring.Left ? leftLink.Body : rightLink.Body,
+            OtherBody = host == spring.Left ? rightLink.Body : leftLink.Body,
+            AnchorInHostBody = host == spring.Left ? anchorInLeft : anchorInRight,
+            AnchorInOtherBody = host == spring.Left ? anchorInRight : anchorInLeft,
+        });
+        // The original's power component is the whole joint graph (Contraption.cs:1293 unions every
+        // m_jointMap entry), so a spring edge is a power edge like a weld's.
+        _rules.LinkPowerCluster(spring.Right, spring.Left);
+    }
+
+    /// <summary>
+    /// The end of a spring seam that owns the joint: the part carrying <c>capabilities.spring</c>
+    /// (a spring pair is always a spring part next to a plain one). Falls back to <c>Left</c> for a
+    /// seam two spring parts share.
+    /// </summary>
+    private EntityId SpringHostOf(in CompoundSpring spring) =>
+        SpringCapabilityOf(spring.Left) is not null || SpringCapabilityOf(spring.Right) is null
+            ? spring.Left
+            : spring.Right;
+
+    /// <summary>The spring capability of one placed part, or <c>null</c> when it has none.</summary>
+    private PartSpring? SpringCapabilityOf(EntityId entity) =>
+        _parts.TryGet(entity, out PartLink link) ? _content.GetPart(link.PartTypeId).Capabilities?.Spring : null;
+
+    /// <summary>
+    /// Recreates the spring links a rebuild left unbound. A split destroys a compound's body and
+    /// binds new ones, and the backend drops every joint of a destroyed body, so the surviving pairs
+    /// take their current relative pose as the new rest pose (mirrors <see cref="RebindWeldJoints"/>
+    /// and ADR-024 decision 7).
+    /// </summary>
+    private void RebindSpringJoints()
+    {
+        if (_springs.Count == 0 && _subEntitiesByHost.Count == 0)
+        {
+            return;
+        }
+
+        PruneDeadSprings();
+        HashSet<long> bound = new();
+        for (int index = _springJoints.Count - 1; index >= 0; index--)
+        {
+            SpringJoint link = _springJoints[index];
+            if (!_entitiesByBody.ContainsKey(link.HostBody.Value) || !_entitiesByBody.ContainsKey(link.OtherBody.Value))
+            {
+                _springJoints.RemoveAt(index);
+                continue;
+            }
+
+            bound.Add(PairKey(link.Spring.Left.Value, link.Spring.Right.Value));
+        }
+
+        foreach (CompoundSpring spring in _springs)
+        {
+            if (!bound.Contains(PairKey(spring.Left.Value, spring.Right.Value)))
+            {
+                CreateSpringJoint(spring);
+            }
+        }
+
+        RebindSubEntityJoints();
+    }
+
+    /// <summary>The pull break of the original's <c>FixedUpdate</c> (<c>Spring.cs:78-92</c>): every
+    /// tick it measures the two anchor points, and once they are more than 3 m apart and the
+    /// contraption carries no SuperGlue it tears the joint down and spawns the endpoint rigid body to
+    /// continue the link. Springs are few, so the loop is direct and reads the tick's own snapshots
+    /// (a link whose bodies were rebound this tick is simply skipped — the next tick sees them).</summary>
+    private void BreakSpringsFromPull(int snapshotCount)
+    {
+        for (int index = _springJoints.Count - 1; index >= 0; index--)
+        {
+            SpringJoint link = _springJoints[index];
+            if (!TryFindSnapshot(link.HostBody, snapshotCount, out PhysicsBodySnapshot hostSnapshot)
+                || !TryFindSnapshot(link.OtherBody, snapshotCount, out PhysicsBodySnapshot otherSnapshot))
+            {
+                continue;
+            }
+
+            PhysicsVector3 hostAnchor = hostSnapshot.Position + hostSnapshot.Rotation.Rotate(link.AnchorInHostBody);
+            PhysicsVector3 otherAnchor = otherSnapshot.Position + otherSnapshot.Rotation.Rotate(link.AnchorInOtherBody);
+            if (PhysicsVector3.Distance(hostAnchor, otherAnchor) <= CompoundAssembler.SpringBreakDistance
+                || IsGluedCompound(link.HostBody)
+                || IsGluedCompound(link.OtherBody))
+            {
+                continue;
+            }
+
+            _world.DestroyJoint(link.Joint);
+            BreakSpringLink(index);
+        }
+    }
+
+    /// <summary>
+    /// Takes over the spring links the backend tore down on their declared break force
+    /// (<see cref="CompoundSpring.BreakForce"/>): the joint is already gone, so this only drops the
+    /// seam and spawns the endpoint rigid body, exactly as the original's <c>OnJointBreak</c> does
+    /// (<c>Spring.cs:60-67,131-176</c>).
+    /// </summary>
+    private void HandleBrokenSprings(int eventCount)
+    {
+        for (int index = 0; index < eventCount; index++)
+        {
+            PhysicsEvent physicsEvent = _eventBuffer[index];
+            if (physicsEvent.Kind != PhysicsEventKind.JointBroken)
+            {
+                continue;
+            }
+
+            int linkIndex = _springJoints.FindIndex(link => link.Joint == physicsEvent.Joint);
+            if (linkIndex < 0)
+            {
+                continue;
+            }
+
+            BreakSpringLink(linkIndex);
+        }
+    }
+
+    /// <summary>Drops the spring seam at <paramref name="index"/> and hands it over to an endpoint
+    /// body. The joint itself is destroyed by the caller (the pull path) or already gone (the
+    /// backend's force break).</summary>
+    private void BreakSpringLink(int index)
+    {
+        SpringJoint link = _springJoints[index];
+        _springJoints.RemoveAt(index);
+        _springs.Remove(link.Spring);
+        _springKeys.Remove(PairKey(link.Spring.Left.Value, link.Spring.Right.Value));
+        _rules.UnlinkPowerCluster(link.Spring.Right);
+        // The links that remain are the component's other edges: re-resolving them in one
+        // deterministic pass hands every member downstream of the broken edge the key that is left,
+        // exactly as BreakWeldsFromAppliedCommands does for the weld graph.
+        for (int remaining = 0; remaining < _springJoints.Count; remaining++)
+        {
+            _rules.LinkPowerCluster(_springJoints[remaining].Spring.Right, _springJoints[remaining].Spring.Left);
+        }
+
+        SpawnSpringEndpoint(link);
+    }
+
+    /// <summary>
+    /// Spawns the runtime sub-entity that continues a broken spring: the original instantiates
+    /// <c>SpringEndpoint.prefab</c> at the spring part's pose and hangs it off the same spring joint
+    /// (<c>Spring.cs:131-176</c>). Its geometry and mass are the prefab's own (a 0.7 x 0.3 x 1 box at
+    /// (0, -0.4, 0), mass 1, the project's 0/0.05 damping), and it is a plain sub-entity per ADR-027:
+    /// an entity id, a body, the host's part type on the wire, and no construction footprint.
+    /// </summary>
+    private void SpawnSpringEndpoint(SpringJoint link)
+    {
+        if (!_bodyPose.TryGetValue(link.HostBody.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) hostPose)
+            || !_parts.TryGet(link.Host, out PartLink hostPart))
+        {
+            return;
+        }
+
+        BodyDefinition definition = new(
+            PhysicsBodyMode.Dynamic,
+            hostPose.Position,
+            hostPose.Rotation,
+            SpringEndpointMass,
+            new ShapeDefinition[]
+            {
+                new CompoundShapeDefinition(new[]
+                {
+                    new CompoundChild(new BoxShapeDefinition(0.35f, 0.15f, 0.5f), new PhysicsVector3(0f, -0.4f, 0f)),
+                }),
+            },
+            material: new PhysicsMaterial(0f, 0.6f, FrictionCombine.Average),
+            constraints: PlanarConstraintMask,
+            linearDamping: 0f,
+            angularDamping: 0.05f,
+            maximumAngularSpeed: _content.MaximumAngularSpeed);
+        AttachSpringEndpoint(CreateSubEntity(link.Host, hostPart.PartTypeId, definition, link.Spring));
+    }
+
+    /// <summary>
+    /// Hangs a sub-entity off its host's body with the same soft distance link the broken spring was
+    /// (the original wires the endpoint with its own spring joint, <c>Spring.cs:139-176</c>). The
+    /// rest length is the separation the pair already has, so the link never yanks the endpoint.
+    /// </summary>
+    private void AttachSpringEndpoint(SubEntity sub)
+    {
+        if (sub.Spring is not CompoundSpring spring
+            || !_bodies.TryGet(sub.Host, out PhysicsBodyLink hostLink)
+            || !_bodyPose.TryGetValue(hostLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) hostPose)
+            || !_bodyPose.TryGetValue(sub.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) endpointPose))
+        {
+            return;
+        }
+
+        PhysicsVector3 hostAnchorLocal = ToBodyLocal(
+            sub.Host.Value,
+            spring.Left == sub.Host ? spring.AnchorInLeft : spring.AnchorInRight);
+        PhysicsVector3 hostAnchor = hostPose.Position + hostPose.Rotation.Rotate(hostAnchorLocal);
+        float restDistance = PhysicsVector3.Distance(hostAnchor, endpointPose.Position);
+        if (!(restDistance > 0f)
+            || !TrySpringResponse(
+                BodyMass(hostLink.Body),
+                SpringEndpointMass,
+                CompoundAssembler.EffectiveStiffness(spring),
+                spring.Damper,
+                out float frequency,
+                out float dampingRatio))
+        {
+            return;
+        }
+
+        JointDefinition definition = new(
+            PhysicsJointKind.Distance,
+            hostLink.Body,
+            sub.Body,
+            PhysicsConstraintMask.None,
+            breakForce: 0f,
+            breakTorque: 0f,
+            localAnchorA: hostAnchorLocal,
+            localAnchorB: PhysicsVector3.Zero,
+            minimumDistance: restDistance,
+            maximumDistance: restDistance,
+            springFrequency: frequency,
+            springDampingRatio: dampingRatio);
+        sub.Joint = _world.CreateJoint(definition);
+        sub.JointHostBody = hostLink.Body;
+    }
+
+    /// <summary>
+    /// Recreates the links a rebuild dropped (a split destroys the host's body and rebinds it, so
+    /// every sub-entity joint has to follow). Each sub-entity gets its own consumer's joint: the
+    /// glove's linear drive at the phase it is in, or the endpoint's soft distance link. A
+    /// sub-entity whose host has no body any more keeps its own body and hangs free, exactly as the
+    /// original's endpoint would once its spring is gone.
+    /// </summary>
+    private void RebindSubEntityJoints()
+    {
+        foreach (List<SubEntity> subEntities in _subEntitiesByHost.Values)
+        {
+            foreach (SubEntity sub in subEntities)
+            {
+                if (sub.Joint.IsValid && _entitiesByBody.ContainsKey(sub.JointHostBody.Value))
+                {
+                    continue;
+                }
+
+                if (sub.Glove is GloveLink glove)
+                {
+                    AttachGlove(sub, glove);
+                }
+                else
+                {
+                    AttachSpringEndpoint(sub);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds the glove's neighbour in the effect direction — the original's
+    /// <c>EffectDirection() = Rotate(Down, gridRotation)</c>, i.e. the part's own -Y, the same
+    /// direction the glove is thrown, which the probe pins down (§1.1). Candidates are the members
+    /// of the glove's own body plus the parts welded to them: PigForge keeps one connected
+    /// component either merged into a single body or joined by weld joints, while the original's
+    /// check is "same ConnectedComponent". The nearest candidate in the half-space is picked, ties
+    /// by entity id.
+    /// </summary>
+    private bool TryFindEffectNeighbour(GloveLink link, int snapshotCount, out uint neighbourValue)
+    {
+        neighbourValue = 0;
+        if (!_bodies.TryGet(link.Sub.Host, out PhysicsBodyLink hostLink))
+        {
+            return false;
+        }
+
+        PhysicsBodyId hostBody = hostLink.Body;
+        _effectCandidates.Clear();
+        if (_entitiesByBody.TryGetValue(hostBody.Value, out List<uint>? members))
+        {
+            _effectCandidates.AddRange(members);
+        }
+
+        // One weld hop reaches the nearest part across a frame pair's seam; further hops are
+        // farther away than the candidate they would add.
+        for (int index = 0; index < _welds.Count; index++)
+        {
+            CompoundWeld weld = _welds[index];
+            if (_effectCandidates.Contains(weld.Left.Value))
+            {
+                AddEffectCandidate(weld.Right.Value);
+            }
+            else if (_effectCandidates.Contains(weld.Right.Value))
+            {
+                AddEffectCandidate(weld.Left.Value);
+            }
+        }
+
+        (PhysicsVector3 hostLocal, PhysicsQuaternion localRotation) = PartLocalInBody(link.Sub.Host.Value);
+        PhysicsVector3 axis = localRotation.Rotate(new PhysicsVector3(0f, -1f, 0f));
+        float bestDistance = float.PositiveInfinity;
+        bool found = false;
+        for (int index = 0; index < _effectCandidates.Count; index++)
+        {
+            uint candidate = _effectCandidates[index];
+            if (candidate == link.Sub.Host.Value
+                || !TryPositionInBody(candidate, hostBody, snapshotCount, out PhysicsVector3 position))
+            {
+                continue;
+            }
+
+            PhysicsVector3 displacement = position - hostLocal;
+            if (PhysicsVector3.Dot(displacement, axis) <= 0f)
+            {
+                continue;
+            }
+
+            float distance = PhysicsVector3.Distance(displacement, PhysicsVector3.Zero);
+            if (distance > 0f
+                && (distance < bestDistance
+                    || (distance == bestDistance && found && candidate < neighbourValue)))
+            {
+                bestDistance = distance;
+                neighbourValue = candidate;
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>Adds a candidate once; the list is one contraption's members, so the linear probe
+    /// is honest and keeps the tick allocation-free.</summary>
+    private void AddEffectCandidate(uint candidate)
+    {
+        for (int index = 0; index < _effectCandidates.Count; index++)
+        {
+            if (_effectCandidates[index] == candidate)
+            {
+                return;
+            }
+        }
+
+        _effectCandidates.Add(candidate);
+    }
+
+    /// <summary>An entity's own frame in another body's local space, from this tick's snapshots.</summary>
+    private bool TryPositionInBody(uint entityValue, PhysicsBodyId hostBody, int snapshotCount, out PhysicsVector3 localPosition)
+    {
+        localPosition = PhysicsVector3.Zero;
+        if (!_bodyByEntity.TryGetValue(entityValue, out PhysicsBodyId body)
+            || !TryFindSnapshot(body, snapshotCount, out PhysicsBodySnapshot bodySnapshot)
+            || !TryFindSnapshot(hostBody, snapshotCount, out PhysicsBodySnapshot hostSnapshot))
+        {
+            return false;
+        }
+
+        (PhysicsVector3 offset, _) = PartLocalInBody(entityValue);
+        PhysicsVector3 world = bodySnapshot.Position + bodySnapshot.Rotation.Rotate(offset);
+        localPosition = hostSnapshot.Rotation.Inverse.Rotate(world - hostSnapshot.Position);
+        return true;
+    }
+
+    /// <summary>The throw's second half: the part behind the glove leaves the contraption
+    /// (<c>SpringBoxingGlove.cs:224-262</c>). A part merged into the glove's body loses every seam
+    /// it has, and a part joined by weld joints loses those.</summary>
+    private void BreakEffectNeighbours(GloveLink link, int snapshotCount)
+    {
+        if (!TryFindEffectNeighbour(link, snapshotCount, out uint neighbourValue)
+            || !_bodyByEntity.TryGetValue(neighbourValue, out PhysicsBodyId neighbourBody))
+        {
+            return;
+        }
+
+        if (_bodies.TryGet(link.Sub.Host, out PhysicsBodyLink hostLink) && neighbourBody == hostLink.Body)
+        {
+            SplitMemberFromBody(new EntityId(neighbourValue), hostLink.Body, snapshotCount);
+            return;
+        }
+
+        BreakWeldsTouching(new EntityId(neighbourValue));
+    }
+
+    /// <summary>
+    /// Severs one member's every seam and rebuilds the pieces — what "destroy all of the target's
+    /// FixedJoints" means for a body PigForge merged several parts into
+    /// (<c>SpringBoxingGlove.cs:224-262</c>).
+    /// </summary>
+    private void SplitMemberFromBody(EntityId member, PhysicsBodyId body, int snapshotCount)
+    {
+        int liveIndex = _liveCompounds.FindIndex(candidate => candidate.Body == body);
+        if (liveIndex < 0 || !TryFindSnapshot(body, snapshotCount, out PhysicsBodySnapshot snapshot))
+        {
+            return;
+        }
+
+        LiveCompound live = _liveCompounds[liveIndex];
+        live.Cluster.WorldPosition = snapshot.Position;
+        live.Cluster.WorldRotation = snapshot.Rotation;
+        CompoundCluster? pruned = PruneDeadMembers(live.Cluster);
+        if (pruned is null)
+        {
+            return;
+        }
+
+        live.Cluster = pruned;
+        _doomedSeams.Clear();
+        foreach (CompoundSeam seam in live.Cluster.Seams)
+        {
+            if (seam.Left == member || seam.Right == member)
+            {
+                _doomedSeams.Add(seam);
+            }
+        }
+
+        if (_doomedSeams.Count == 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<CompoundCluster> pieces = CompoundAssembler.SplitAlongSeams(live.Cluster, _doomedSeams);
+        if (pieces.Count == 1)
+        {
+            live.Cluster = pieces[0];
+            return;
+        }
+
+        RebuildSplitBody(body, snapshot, pieces);
+    }
+
+    /// <summary>
+    /// Destroys every weld joint a part carries and forgets the definitions, so the part leaves the
+    /// contraption and no later rebind puts it back (the original destroys the target's FixedJoints;
+    /// a weld is PigForge's frame-pair joint).
+    /// </summary>
+    private void BreakWeldsTouching(EntityId entity)
+    {
+        bool broke = false;
+        for (int index = _weldJoints.Count - 1; index >= 0; index--)
+        {
+            (PhysicsJointId joint, _, _, CompoundWeld weld) = _weldJoints[index];
+            if (weld.Left != entity && weld.Right != entity)
+            {
+                continue;
+            }
+
+            _world.DestroyJoint(joint);
+            _weldJoints.RemoveAt(index);
+            _rules.UnlinkPowerCluster(weld.Right);
+            broke = true;
+        }
+
+        for (int index = _welds.Count - 1; index >= 0; index--)
+        {
+            CompoundWeld weld = _welds[index];
+            if (weld.Left != entity && weld.Right != entity)
+            {
+                continue;
+            }
+
+            _welds.RemoveAt(index);
+            _weldKeys.Remove(PairKey(weld.Left.Value, weld.Right.Value));
+        }
+
+        if (!broke)
+        {
+            return;
+        }
+
+        // The welds that remain are the component's other edges: re-resolving them hands every
+        // member downstream the key the broken edge left (Contraption.cs:1293).
+        for (int index = 0; index < _weldJoints.Count; index++)
+        {
+            (_, _, _, CompoundWeld remaining) = _weldJoints[index];
+            _rules.LinkPowerCluster(remaining.Right, remaining.Left);
+        }
+    }
+
+    /// <summary>
+    /// Replaces one live compound's body with the bodies a split produced — the ADR-023/024 order
+    /// once: unbind the members, forget the body's joints, destroy it, rebind the pieces and
+    /// re-link the joints that followed them.
+    /// </summary>
+    private void RebuildSplitBody(PhysicsBodyId body, PhysicsBodySnapshot snapshot, IReadOnlyList<CompoundCluster> pieces)
+    {
+        List<uint> members = _entitiesByBody.TryGetValue(body.Value, out List<uint>? bound)
+            ? new List<uint>(bound)
+            : new List<uint>();
+        foreach (uint entityValue in members)
+        {
+            UnbindEntity(new EntityId(entityValue), destroyBodyIfOrphan: false);
+        }
+
+        ForgetJointsForBody(body);
+        _world.DestroyBody(body);
+        DropPendingCommands(body);
+        foreach (CompoundCluster piece in pieces)
+        {
+            BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
+        }
+
+        RebindWeldJoints();
+        RebindSpringJoints();
+        EnsureBuffers();
+    }
+
+    /// <summary>
+    /// One tick of every glove's state machine (docs/specs/boxing-glove.md §4/§5): the trigger
+    /// path reads this tick's contact events, the toggle path reads the switch level and fires on
+    /// its off→on edge, and the timers — plus the glove's own offset — move the phase along. A
+    /// phase change rewrites the drive, the mass and the collider, and a throw also severs the part
+    /// behind it.
+    /// </summary>
+    private void RunGloves(int eventCount, int snapshotCount)
+    {
+        if (_gloveHosts.Count == 0)
+        {
+            return;
+        }
+
+        // A trigger glove punches on its host's contact events: the same shape the rocket's
+        // TryConsumeTrigger has, except the event itself is the trigger, so the rules layer's
+        // one-shot switch is not involved (the content's activation says which path a skin is on).
+        for (int index = 0; index < eventCount; index++)
+        {
+            PhysicsEvent physicsEvent = _eventBuffer[index];
+            if (physicsEvent.Kind == PhysicsEventKind.ContactStarted)
+            {
+                RequestPunchFromContact(physicsEvent.BodyA);
+                RequestPunchFromContact(physicsEvent.BodyB);
+            }
+        }
+
+        for (int index = 0; index < _gloveHosts.Count; index++)
+        {
+            if (!_glovesByHost.TryGetValue(_gloveHosts[index], out GloveLink? link)
+                || !_entities.IsAlive(link.Sub.Entity)
+                || !_bodyPose.ContainsKey(link.Sub.Body.Value))
+            {
+                continue;
+            }
+
+            bool changed = false;
+            if (link.Activation == PartActivation.Toggle)
+            {
+                bool active = _rules.IsPartActive(link.Sub.Host);
+                if (active != link.SwitchWasActive)
+                {
+                    link.SwitchWasActive = active;
+                    changed = active
+                        ? Punch(link, snapshotCount)
+                        : Transition(link, BoxingGloveRules.Abort(link.State));
+                }
+            }
+            else if (link.PunchRequested)
+            {
+                link.PunchRequested = false;
+                changed = Punch(link, snapshotCount);
+            }
+
+            if (changed)
+            {
+                ApplyGloveState(link);
+            }
+
+            if (link.State.Phase != BoxingGlovePhase.WindedUp)
+            {
+                BoxingGloveState state = link.State;
+                bool woundUp = BoxingGloveRules.Tick(ref state, link.Glove, _timeStep.Seconds, GloveOffset(link, snapshotCount));
+                link.State = state;
+                if (woundUp)
+                {
+                    ApplyGloveState(link);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The glove's throw, if the original would allow it: only from rest, and never while the part
+    /// behind it is glued (unless that part is the timebomb the original's own check excepts). A
+    /// refused throw leaves the glove resting with the switch as it is, exactly as the original's
+    /// <c>m_CanBeEnabled</c> guard does.
+    /// </summary>
+    private bool Punch(GloveLink link, int snapshotCount)
+    {
+        if (link.State.Phase != BoxingGlovePhase.WindedUp || !CanPunch(link, snapshotCount))
+        {
+            return false;
+        }
+
+        bool changed = Transition(link, BoxingGloveRules.Trigger(link.State));
+        if (changed)
+        {
+            // The throw severs the part behind the glove (SpringBoxingGlove.cs:224-262).
+            BreakEffectNeighbours(link, snapshotCount);
+        }
+
+        return changed;
+    }
+
+    /// <summary>The original's <c>m_CanBeEnabled</c> over this rig's own layout.</summary>
+    private bool CanPunch(GloveLink link, int snapshotCount)
+    {
+        if (!TryFindEffectNeighbour(link, snapshotCount, out uint neighbourValue))
+        {
+            return true;
+        }
+
+        EntityId neighbour = new(neighbourValue);
+        bool glued = _rules.HasGlue(neighbour);
+        bool tnt = _parts.TryGet(neighbour, out PartLink part)
+            && _content.GetPart(part.PartTypeId).Capabilities?.TntFuseTicks is not null;
+        return BoxingGloveRules.CanBeEnabled(glued, tnt);
+    }
+
+    /// <summary>Moves the machine to <paramref name="next"/>, reporting whether the phase changed.</summary>
+    private static bool Transition(GloveLink link, BoxingGloveState next)
+    {
+        if (next.Phase == link.State.Phase)
+        {
+            return false;
+        }
+
+        link.State = next;
+        return true;
+    }
+
+    /// <summary>
+    /// Writes one phase's drive onto the world: the glove body's mass (the wind-back drops it to
+    /// the skin's limp value), its collider (off while limp) and the joint. The joint is rebuilt
+    /// rather than retargeted because every part of its definition changes with the phase — target
+    /// offset, drive spring and limit spring — and a servo's target is not a mutable property of
+    /// the contract.
+    /// </summary>
+    private void ApplyGloveState(GloveLink link)
+    {
+        BoxingGloveDrive drive = BoxingGloveRules.DriveFor(link.State.Phase, link.Glove);
+        if (_bodyPose.ContainsKey(link.Sub.Body.Value))
+        {
+            _world.SetBodyMass(link.Sub.Body, drive.Mass);
+            _world.SetBodyCollisionEnabled(link.Sub.Body, drive.ColliderEnabled);
+        }
+
+        if (link.Sub.Joint.IsValid)
+        {
+            _world.DestroyJoint(link.Sub.Joint);
+            link.Sub.Joint = default;
+        }
+
+        AttachGlove(link.Sub, link);
+    }
+
+    /// <summary>Flags the trigger gloves a contact event names: a glove part sharing the contacted
+    /// body is being punched into something.</summary>
+    private void RequestPunchFromContact(PhysicsBodyId body)
+    {
+        if (!_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
+        {
+            return;
+        }
+
+        foreach (uint memberValue in members)
+        {
+            if (_glovesByHost.TryGetValue(memberValue, out GloveLink? link)
+                && link.Activation == PartActivation.Trigger)
+            {
+                link.PunchRequested = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers every placed part's boxing glove: the second rigidbody the original instantiates
+    /// (<c>SpringBoxingGlove.cs:160-222</c>), a runtime sub-entity (ADR-027) held to its host by the
+    /// driven joint §3 of docs/specs/boxing-glove.md describes. Hosts are taken in ascending entity
+    /// order, so the sub-entity ids and their joints are created deterministically.
+    /// </summary>
+    private void BindGloves()
+    {
+        // Runtime sub-entities carry their host's part type on the wire, so a glove's own
+        // sub-entity looks like another glove; only parts the construction or the level owns get
+        // one. The dictionary is empty at materialisation, so this is a plain guard.
+        HashSet<uint> runtimeEntities = new();
+        foreach (List<SubEntity> subEntities in _subEntitiesByHost.Values)
+        {
+            foreach (SubEntity sub in subEntities)
+            {
+                runtimeEntities.Add(sub.Entity.Value);
+            }
+        }
+
+        List<uint> hosts = new();
+        var parts = _parts.GetEnumerator();
+        while (parts.MoveNext())
+        {
+            if (!runtimeEntities.Contains(parts.CurrentId.Value))
+            {
+                hosts.Add(parts.CurrentId.Value);
+            }
+        }
+
+        hosts.Sort();
+        foreach (uint hostValue in hosts)
+        {
+            EntityId host = new(hostValue);
+            if (_parts.TryGet(host, out PartLink link)
+                && _content.GetPart(link.PartTypeId).Capabilities?.Glove is PartGlove glove)
+            {
+                SpawnGlove(host, link.PartTypeId, glove);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates the glove body at its host's own pose — the original instantiates the prefab there,
+    /// inside the part, which is exactly why it then calls <c>IgnoreCollision</c> — and hangs it off
+    /// the host with the wound-up drive.
+    /// </summary>
+    private void SpawnGlove(EntityId host, uint partTypeId, PartGlove glove)
+    {
+        if (!_bodies.TryGet(host, out PhysicsBodyLink hostLink)
+            || !_bodyPose.TryGetValue(hostLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) hostPose)
+            || !_transforms.TryGet(host, out EntityTransform hostTransform))
+        {
+            return;
+        }
+
+        (PhysicsVector3 localOffset, PhysicsQuaternion localRotation) = PartLocalInBody(host.Value);
+        PhysicsVector3 position = hostPose.Position + hostPose.Rotation.Rotate(localOffset);
+        PhysicsQuaternion rotation = hostPose.Rotation * localRotation;
+        PartDefinition hostPart = _content.GetPart(partTypeId);
+        // The glove prefab's own colliders (a 0.3 m sphere on every shipped skin) at the part's
+        // scale. The prefab's PhysicMaterial and rigidbody drag are not extracted, so the glove
+        // carries the host's — it belongs to that part.
+        PartContentLibrary.ShapePlacement[] placements = _content.PlaceShapes(partTypeId, hostTransform.Scale, glove.Shapes);
+        ShapeDefinition[] shapes = placements.Length == 1 && placements[0].Offset == PhysicsVector3.Zero
+            ? new[] { placements[0].Shape }
+            : new ShapeDefinition[]
+            {
+                new CompoundShapeDefinition(Array.ConvertAll(
+                    placements,
+                    placement => new CompoundChild(placement.Shape, placement.Offset))),
+            };
+        PartDamping damping = _content.DampingOf(hostPart);
+        BodyDefinition definition = new(
+            PhysicsBodyMode.Dynamic,
+            position,
+            rotation,
+            glove.Mass,
+            shapes,
+            material: new PhysicsMaterial(hostPart.Restitution, hostPart.Friction, hostPart.FrictionCombine),
+            constraints: PlanarConstraintMask,
+            linearDamping: damping.Linear,
+            angularDamping: damping.Angular,
+            maximumAngularSpeed: _content.MaximumAngularSpeed);
+
+        SubEntity sub = CreateSubEntity(host, partTypeId, definition, spring: null);
+        GloveLink link = new()
+        {
+            Sub = sub,
+            Glove = glove,
+            Activation = hostPart.Capabilities?.Activation ?? PartActivation.None,
+            State = new BoxingGloveState { Phase = BoxingGlovePhase.WindedUp, Age = 0f },
+            // The toggle is read as a level and only a fresh off→on edge throws a punch, so a
+            // switch that was already on when the run started does not fire by itself (the
+            // original punches on OnTouch, never from Update).
+            SwitchWasActive = _rules.IsPartActive(host),
+        };
+        sub.Glove = link;
+        _glovesByHost[host.Value] = link;
+        _gloveHosts.Add(host.Value);
+        AttachGlove(sub, link);
+    }
+
+    /// <summary>
+    /// Builds the host↔glove joint the current state asks for: the driven (y) axis with its spring
+    /// and target offset, the lateral (x) axis with the skin's xDrive, a rigidly locked third axis,
+    /// the skin's linear limit and the locked relative rotation — the original's ConfigurableJoint
+    /// (<c>SpringBoxingGlove.cs:170-207</c>) as a <see cref="PhysicsJointKind.Configurable"/>
+    /// definition. The content's N/m become solver frequencies through the shared
+    /// <see cref="TrySpringResponse"/> over the two bodies' masses.
+    /// </summary>
+    private void AttachGlove(SubEntity sub, GloveLink link)
+    {
+        if (!_bodies.TryGet(sub.Host, out PhysicsBodyLink hostLink)
+            || !_bodyPose.ContainsKey(hostLink.Body.Value))
+        {
+            return;
+        }
+
+        BoxingGloveDrive drive = BoxingGloveRules.DriveFor(link.State.Phase, link.Glove);
+        (PhysicsVector3 localOffset, PhysicsQuaternion localRotation) = PartLocalInBody(sub.Host.Value);
+        // The throw runs down the part's own -Y (probe §1.1: the original's targetPosition counts
+        // it the other way round, which is why its glove ends up at a negative local y); the
+        // lateral axis is the part's own X.
+        PhysicsVector3 driveAxis = localRotation.Rotate(new PhysicsVector3(0f, -1f, 0f));
+        PhysicsVector3 lateralAxis = localRotation.Rotate(new PhysicsVector3(1f, 0f, 0f));
+        float hostMass = BodyMass(hostLink.Body);
+        if (!TrySpringResponse(hostMass, drive.Mass, drive.DriveSpring, drive.DriveDamper, out float driveFrequency, out float driveDampingRatio)
+            || !TrySpringResponse(hostMass, drive.Mass, link.Glove.XDrive.Spring, link.Glove.XDrive.Damper, out float lateralFrequency, out float lateralDampingRatio))
+        {
+            return;
+        }
+
+        // The original's linearLimitSpring is 0/0 at rest (a hard limit) and the skin's own, nearly
+        // slack spring while thrown; a zero frequency is the contract's "hard" (the backend uses its
+        // rigid stand-in).
+        float limitFrequency = 0f;
+        float limitDampingRatio = 0f;
+        if (drive.LimitSpring > 0f
+            && TrySpringResponse(hostMass, drive.Mass, drive.LimitSpring, 0f, out float limit, out float limitDamping))
+        {
+            limitFrequency = limit;
+            limitDampingRatio = limitDamping;
+        }
+
+        ConfigurableJointDefinition payload = new(
+            DriveAxisInA: driveAxis,
+            DriveTargetOffset: drive.TargetOffset,
+            DriveFrequency: driveFrequency,
+            DriveDampingRatio: driveDampingRatio,
+            LateralAxisInA: lateralAxis,
+            LateralTargetOffset: drive.LateralOffset,
+            LateralFrequency: lateralFrequency,
+            LateralDampingRatio: lateralDampingRatio,
+            LimitMinimumOffset: -link.Glove.Limit,
+            LimitMaximumOffset: link.Glove.Limit,
+            LimitFrequency: limitFrequency,
+            LimitDampingRatio: limitDampingRatio);
+        JointDefinition definition = new(
+            PhysicsJointKind.Configurable,
+            hostLink.Body,
+            sub.Body,
+            PhysicsConstraintMask.None,
+            breakForce: 0f,
+            breakTorque: 0f,
+            localAnchorA: localOffset,
+            localAnchorB: PhysicsVector3.Zero,
+            restRotation: localRotation,
+            configurable: payload);
+        sub.Joint = _world.CreateJoint(definition);
+        sub.JointHostBody = hostLink.Body;
+    }
+
+    /// <summary>Where a construction entity's own frame sits inside its body: the compound's local
+    /// placement, or the body frame itself for an entity that does not share one.</summary>
+    private (PhysicsVector3 Offset, PhysicsQuaternion Rotation) PartLocalInBody(uint entityValue) =>
+        _compoundLocalByEntity.TryGetValue(entityValue, out (PhysicsVector3 Offset, PhysicsQuaternion Rotation) local)
+            ? local
+            : (PhysicsVector3.Zero, PhysicsQuaternion.Identity);
+
+    /// <summary>
+    /// The glove's own offset along its throw axis in metres, positive away from the part — the
+    /// number the wind-back's "or home within 0.1 m" test reads. Measured from this tick's own
+    /// snapshots, so it is what the solver did rather than a re-derivation.
+    /// </summary>
+    private float GloveOffset(GloveLink link, int snapshotCount)
+    {
+        if (!_bodies.TryGet(link.Sub.Host, out PhysicsBodyLink hostLink)
+            || !TryFindSnapshot(hostLink.Body, snapshotCount, out PhysicsBodySnapshot hostSnapshot)
+            || !TryFindSnapshot(link.Sub.Body, snapshotCount, out PhysicsBodySnapshot gloveSnapshot))
+        {
+            return 0f;
+        }
+
+        (PhysicsVector3 localOffset, PhysicsQuaternion localRotation) = PartLocalInBody(link.Sub.Host.Value);
+        PhysicsVector3 anchor = hostSnapshot.Position + hostSnapshot.Rotation.Rotate(localOffset);
+        PhysicsVector3 axis = hostSnapshot.Rotation.Rotate(localRotation.Rotate(new PhysicsVector3(0f, -1f, 0f)));
+        return PhysicsVector3.Dot(gloveSnapshot.Position - anchor, axis);
+    }
+
+    /// <summary>
     /// Breaks the frame welds an applied impulse exceeded, the same rule the seams follow: the
     /// impulse must clear the threshold and land nearest a weld the body carries
     /// (docs/specs/weld-compliance.md decision 4). Both frames are already independent bodies, so
@@ -1841,7 +2890,7 @@ public sealed class GameRoom : IDisposable
     /// so the N/m an extractor reports is the stiffness the solver actually applies, for the
     /// masses it actually joins. Returns false when no usable spring exists (zero masses).
     /// </summary>
-    private static bool TrySpringResponse(
+    internal static bool TrySpringResponse(
         float massA,
         float massB,
         float spring,
@@ -1865,6 +2914,13 @@ public sealed class GameRoom : IDisposable
     /// <summary>The original anchors the rope half a unit along the attach part's facing edge
     /// (<c>Vector3.up * 0.5f</c> for a sandbag, <c>Vector3.up * -0.5f</c> for a balloon).</summary>
     private const float AttachmentAnchorOffset = 0.5f;
+
+    /// <summary>
+    /// <c>SpringEndpoint.prefab</c> (<c>GameObject/SpringEndpoint.prefab</c>): a BoxCollider
+    /// 0.7 x 0.3 x 1 at (0, -0.4, 0), Rigidbody mass 1, drag 0 / angularDrag 0.05, constraints 56 —
+    /// the body the original instantiates to continue a broken spring (<c>Spring.cs:131-176</c>).
+    /// </summary>
+    private const float SpringEndpointMass = 1f;
 
     /// <summary>
     /// Binds the runtime attachments at start of simulation: every part carrying an attachment
@@ -1968,7 +3024,7 @@ public sealed class GameRoom : IDisposable
             EntityId member = new(memberValue);
             if (_parts.TryGet(member, out PartLink link) && _transforms.TryGet(member, out EntityTransform transform))
             {
-                mass += _content.GetPart(link.PartTypeId).Mass * transform.Scale * transform.Scale * transform.Scale;
+                mass += _content.MassOf(_content.GetPart(link.PartTypeId), transform.Scale);
             }
         }
 
@@ -2047,10 +3103,49 @@ public sealed class GameRoom : IDisposable
             _world.DestroyJoint(joint);
             _weldJoints.RemoveAt(index);
         }
+
+        // The same discipline for the spring seams: their definitions stay in _springs so a rebuild
+        // can bind the pair again (RebindSpringJoints), and a broken-host pair is simply never
+        // bound again.
+        for (int index = _springJoints.Count - 1; index >= 0; index--)
+        {
+            SpringJoint link = _springJoints[index];
+            if (link.HostBody != body && link.OtherBody != body)
+            {
+                continue;
+            }
+
+            _world.DestroyJoint(link.Joint);
+            _springJoints.RemoveAt(index);
+        }
+
+        // And for the endpoint sub-entities' links: a destroyed host body takes the link with it, and
+        // the endpoint is re-attached once the host has a body again (RebindSubEntityJoints).
+        foreach (List<SubEntity> subEntities in _subEntitiesByHost.Values)
+        {
+            foreach (SubEntity sub in subEntities)
+            {
+                if (!sub.Joint.IsValid || (sub.JointHostBody != body && sub.Body != body))
+                {
+                    continue;
+                }
+
+                _world.DestroyJoint(sub.Joint);
+                sub.Joint = default;
+            }
+        }
     }
 
     private void UnbindEntity(EntityId entity, bool destroyBodyIfOrphan)
     {
+        if (destroyBodyIfOrphan)
+        {
+            // ADR-027 decision 3: a runtime sub-entity's life is its host's. A host that truly leaves
+            // the world (a remove, a rule destruction, a RESET, a leave) takes its sub-entities with
+            // it, joints before bodies — a compound split (destroyBodyIfOrphan: false) does not.
+            DestroySubEntitiesOf(entity.Value);
+        }
+
         if (!_bodyByEntity.Remove(entity.Value, out PhysicsBodyId body))
         {
             return;
@@ -2089,6 +3184,117 @@ public sealed class GameRoom : IDisposable
             DropPendingCommands(body);
             _world.DestroyBody(body);
         }
+    }
+
+    /// <summary>
+    /// Registers a runtime sub-entity (ADR-027): an entity id, a part link carrying its host's part
+    /// type (the wire has no other kind), a transform, and its own body. It never enters construction
+    /// rules — no footprint, no cell, no command — and it counts toward
+    /// <see cref="MaxSnapshotEntityCount"/> through both the part store and the body table.
+    /// </summary>
+    private SubEntity CreateSubEntity(EntityId host, uint partTypeId, BodyDefinition definition, CompoundSpring? spring)
+    {
+        EntityId entity = _entities.Create();
+        _parts.Set(entity, new PartLink(partTypeId));
+        _transforms.Set(entity, new EntityTransform(definition.Position, definition.Rotation));
+        PhysicsBodyId body = _world.CreateBody(definition);
+        _bodyPose[body.Value] = (definition.Position, definition.Rotation);
+        _bodies.Set(entity, new PhysicsBodyLink(body));
+        _bodyByEntity.Add(entity.Value, body);
+        _entitiesByBody[body.Value] = new List<uint> { entity.Value };
+        _entityByBody[body.Value] = entity;
+
+        SubEntity sub = new()
+        {
+            Entity = entity,
+            Host = host,
+            PartTypeId = partTypeId,
+            Body = body,
+            Spring = spring,
+        };
+        if (!_subEntitiesByHost.TryGetValue(host.Value, out List<SubEntity>? subEntities))
+        {
+            subEntities = new List<SubEntity>();
+            _subEntitiesByHost.Add(host.Value, subEntities);
+        }
+
+        subEntities.Add(sub);
+        _subEntityCount++;
+        return sub;
+    }
+
+    /// <summary>Destroys every sub-entity one host spawned, in creation order (ADR-027 decision 3).</summary>
+    private void DestroySubEntitiesOf(uint hostValue)
+    {
+        if (!_subEntitiesByHost.Remove(hostValue, out List<SubEntity>? subEntities))
+        {
+            return;
+        }
+
+        foreach (SubEntity sub in subEntities)
+        {
+            DestroySubEntity(sub);
+        }
+    }
+
+    /// <summary>Destroys one sub-entity: its joint first, then its body, then its entity id and the
+    /// part/transform entries it borrowed (the ADR-023 order discipline).</summary>
+    private void DestroySubEntity(SubEntity sub)
+    {
+        if (sub.Joint.IsValid)
+        {
+            _world.DestroyJoint(sub.Joint);
+            sub.Joint = default;
+        }
+
+        // A glove's life is its host's like any other sub-entity's: forget the machine with the
+        // body so a later materialisation starts from a wound-up glove again.
+        if (sub.Glove is not null)
+        {
+            _glovesByHost.Remove(sub.Host.Value);
+            _gloveHosts.Remove(sub.Host.Value);
+        }
+
+        _bodyByEntity.Remove(sub.Entity.Value);
+        _entitiesByBody.Remove(sub.Body.Value);
+        _entityByBody.Remove(sub.Body.Value);
+        _bodyPose.Remove(sub.Body.Value);
+        _world.DestroyBody(sub.Body);
+        if (_entities.IsAlive(sub.Entity))
+        {
+            _entities.Destroy(sub.Entity);
+        }
+
+        _parts.Remove(sub.Entity);
+        _transforms.Remove(sub.Entity);
+        _subEntityCount--;
+    }
+
+    /// <summary>
+    /// Drops every sub-entity record on a path that already destroyed the world's bodies itself (a
+    /// build-mode re-entry or a retry destroys each body once): the borrowed part/transform entries
+    /// go and the entity ids are released, but the world is not touched again.
+    /// </summary>
+    private void ClearSubEntities()
+    {
+        foreach (List<SubEntity> subEntities in _subEntitiesByHost.Values)
+        {
+            foreach (SubEntity sub in subEntities)
+            {
+                if (_entities.IsAlive(sub.Entity))
+                {
+                    _entities.Destroy(sub.Entity);
+                }
+
+                _parts.Remove(sub.Entity);
+                _transforms.Remove(sub.Entity);
+            }
+        }
+
+        _subEntitiesByHost.Clear();
+        _subEntityCount = 0;
+        _glovesByHost.Clear();
+        _gloveHosts.Clear();
     }
 
     /// <summary>
@@ -2150,24 +3356,7 @@ public sealed class GameRoom : IDisposable
                 continue;
             }
 
-            List<uint> members = _entitiesByBody.TryGetValue(live.Body.Value, out List<uint>? bound)
-                ? new List<uint>(bound)
-                : new List<uint>();
-            foreach (uint entityValue in members)
-            {
-                UnbindEntity(new EntityId(entityValue), destroyBodyIfOrphan: false);
-            }
-
-            ForgetJointsForBody(live.Body);
-            _world.DestroyBody(live.Body);
-            DropPendingCommands(live.Body);
-            foreach (CompoundCluster piece in pieces)
-            {
-                BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
-            }
-
-            RebindWeldJoints();
-            EnsureBuffers();
+            RebuildSplitBody(live.Body, snapshot, pieces);
         }
     }
 
@@ -2251,25 +3440,7 @@ public sealed class GameRoom : IDisposable
             return;
         }
 
-        List<uint> members = _entitiesByBody.TryGetValue(link.Body.Value, out List<uint>? bound)
-            ? new List<uint>(bound)
-            : new List<uint>();
-        foreach (uint entityValue in members)
-        {
-            UnbindEntity(new EntityId(entityValue), destroyBodyIfOrphan: false);
-        }
-
-        ForgetJointsForBody(link.Body);
-        _world.DestroyBody(link.Body);
-        DropPendingCommands(link.Body);
-        foreach (CompoundCluster piece in pieces)
-        {
-            BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
-        }
-
-        RebindWeldJoints();
-
-        EnsureBuffers();
+        RebuildSplitBody(link.Body, snapshot, pieces);
     }
     private (PhysicsVector3 Position, PhysicsQuaternion Rotation) WorldPose(uint entityValue, PhysicsBodySnapshot snapshot)
     {
@@ -2360,5 +3531,80 @@ public sealed class GameRoom : IDisposable
         public PhysicsBodyId Body { get; } = body;
 
         public CompoundCluster Cluster { get; set; } = cluster;
+    }
+
+    /// <summary>
+    /// One bound spring seam: the two placed parts and the slackless distance link holding them
+    /// (docs/specs/spring-joint.md §3). The anchors are stored in each body's frame so the pull break
+    /// can measure them from the tick's snapshots without re-resolving the compound offsets.
+    /// </summary>
+    private sealed class SpringJoint
+    {
+        public CompoundSpring Spring { get; init; }
+
+        /// <summary>The end that carries <c>capabilities.spring</c>: the joint belongs to it.</summary>
+        public EntityId Host { get; init; }
+
+        public PhysicsJointId Joint { get; init; }
+
+        public PhysicsBodyId HostBody { get; init; }
+
+        public PhysicsBodyId OtherBody { get; init; }
+
+        public PhysicsVector3 AnchorInHostBody { get; init; }
+
+        public PhysicsVector3 AnchorInOtherBody { get; init; }
+    }
+
+    /// <summary>
+    /// A runtime sub-entity (ADR-027): a body a host part spawned. Its life follows the host's, and it
+    /// carries a part link, a transform and a body but no construction footprint. Its first consumer
+    /// is the spring's endpoint rigid body (<see cref="Spring"/>); the boxing glove's second body
+    /// uses the same record (<see cref="Glove"/>), and the payload says which joint the sub-entity
+    /// needs.
+    /// </summary>
+    private sealed class SubEntity
+    {
+        public EntityId Entity { get; init; }
+
+        public EntityId Host { get; init; }
+
+        public uint PartTypeId { get; init; }
+
+        public PhysicsBodyId Body { get; init; }
+
+        /// <summary>The seam this sub-entity continues (the spring that broke), for its own joint;
+        /// null for a sub-entity another consumer owns (the boxing glove).</summary>
+        public CompoundSpring? Spring { get; init; }
+
+        /// <summary>The glove this sub-entity is, when its host carries <c>capabilities.glove</c>.</summary>
+        public GloveLink? Glove { get; set; }
+
+        public PhysicsJointId Joint { get; set; }
+
+        public PhysicsBodyId JointHostBody { get; set; }
+    }
+
+    /// <summary>
+    /// One host part's boxing glove (docs/specs/boxing-glove.md §3/§4): the sub-entity that is
+    /// the glove rigidbody, the extracted content it runs on, and the machine's own state. The
+    /// room owns the state so a client replay drives the same transitions.
+    /// </summary>
+    private sealed class GloveLink
+    {
+        public required SubEntity Sub { get; init; }
+
+        public required PartGlove Glove { get; init; }
+
+        /// <summary>The content's activation, i.e. which trigger path this glove follows.</summary>
+        public required PartActivation Activation { get; init; }
+
+        public BoxingGloveState State { get; set; }
+
+        /// <summary>The toggle's last seen level, so only an off→on edge throws a punch.</summary>
+        public bool SwitchWasActive { get; set; }
+
+        /// <summary>Set by a host contact event for a <see cref="PartActivation.Trigger"/> glove.</summary>
+        public bool PunchRequested { get; set; }
     }
 }

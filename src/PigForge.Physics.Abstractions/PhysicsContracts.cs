@@ -35,6 +35,17 @@ public enum PhysicsJointKind
 	Fixed,
 	Distance,
 	Revolute,
+
+	/// <summary>
+	/// A Unity-ConfigurableJoint-shaped linear drive: one driven axis (the original's
+	/// <c>yMotion Limited</c> plus its yDrive), a second driven axis (its xDrive), a rigidly
+	/// locked third axis (zMotion Locked), a soft band limit on the driven axis and a locked
+	/// relative rotation (angular XYZ Locked). The payload travels in
+	/// <see cref="JointDefinition.Configurable"/>; the boxing glove is the first consumer
+	/// (docs/specs/boxing-glove.md §3). Like <see cref="Revolute"/>, this kind suppresses
+	/// contacts between its two bodies: the original's glove is <c>IgnoreCollision</c>'d
+	/// against the part it belongs to, exactly as a wheel's tire is against its mounts.
+	/// </summary>
 	Configurable,
 
 	/// <summary>
@@ -478,16 +489,89 @@ public sealed class BodyDefinition
 
 
 /// <summary>
+/// The linear-drive payload of a <see cref="PhysicsJointKind.Configurable"/> joint: Unity's
+/// ConfigurableJoint reduced to what the original's parts actually use. Three orthogonal
+/// directions are anchored in body A's frame:
+/// <list type="bullet">
+/// <item><see cref="DriveAxisInA"/> is driven to <see cref="DriveTargetOffset"/> by a spring
+/// (the original's <c>yMotion Limited</c> plus its yDrive with a targetPosition), and carries
+/// the soft band limit <see cref="LimitMinimumOffset"/>..<see cref="LimitMaximumOffset"/> —
+/// rigid when <see cref="LimitFrequency"/> is zero;</item>
+/// <item><see cref="LateralAxisInA"/> is driven to <see cref="LateralTargetOffset"/> (its
+/// xDrive);</item>
+/// <item>the axis perpendicular to both is held rigidly at zero, the original's
+/// <c>zMotion Locked</c>.</item>
+/// </list>
+/// Body B's rotation relative to A is held at <see cref="JointDefinition.RestRotation"/>
+/// (angular XYZ Locked). Distances are metres along the named axis, spring frequencies are Hz
+/// and damping ratios are the solver's ratio (see <see cref="JointDefinition.SpringFrequency"/>).
+/// </summary>
+public sealed record ConfigurableJointDefinition(
+	PhysicsVector3 DriveAxisInA,
+	float DriveTargetOffset,
+	float DriveFrequency,
+	float DriveDampingRatio,
+	PhysicsVector3 LateralAxisInA,
+	float LateralTargetOffset,
+	float LateralFrequency,
+	float LateralDampingRatio,
+	float LimitMinimumOffset,
+	float LimitMaximumOffset,
+	float LimitFrequency,
+	float LimitDampingRatio)
+{
+	/// <summary>Rejects a payload no backend can build: a zero or parallel axis pair, a
+	/// reversed limit band, or a non-positive drive frequency.</summary>
+	internal void Validate(string parameterName)
+	{
+		if (!DriveAxisInA.IsFinite || !LateralAxisInA.IsFinite
+			|| DriveAxisInA == PhysicsVector3.Zero || LateralAxisInA == PhysicsVector3.Zero)
+		{
+			throw new ArgumentException("A configurable joint needs two non-zero axis directions.", parameterName);
+		}
+
+		if (PhysicsVector3.Cross(DriveAxisInA, LateralAxisInA) == PhysicsVector3.Zero)
+		{
+			throw new ArgumentException("A configurable joint's two driven axes must not be parallel.", parameterName);
+		}
+
+		if (!float.IsFinite(DriveTargetOffset) || !float.IsFinite(LateralTargetOffset)
+			|| !float.IsFinite(LimitMinimumOffset) || !float.IsFinite(LimitMaximumOffset)
+			|| LimitMinimumOffset > LimitMaximumOffset)
+		{
+			throw new ArgumentOutOfRangeException(parameterName, "A configurable joint needs finite targets and 0 <= limitMinimum <= limitMaximum.");
+		}
+
+		if (!float.IsFinite(DriveFrequency) || DriveFrequency <= 0f || !float.IsFinite(DriveDampingRatio) || DriveDampingRatio < 0f
+			|| !float.IsFinite(LateralFrequency) || LateralFrequency <= 0f || !float.IsFinite(LateralDampingRatio) || LateralDampingRatio < 0f
+			|| !float.IsFinite(LimitFrequency) || LimitFrequency < 0f || !float.IsFinite(LimitDampingRatio) || LimitDampingRatio < 0f)
+		{
+			throw new ArgumentOutOfRangeException(parameterName, "A configurable joint needs positive drive frequencies and a non-negative, finite limit frequency.");
+		}
+	}
+}
+
+/// <summary>
 /// A constraint between two dynamic bodies. Anchors and axes are expressed in each
 /// body's local frame; a <see cref="PhysicsJointKind.Revolute"/> joint needs unit axes.
 /// A <see cref="PhysicsJointKind.Distance"/> joint is a rope: the two anchors may be
 /// anywhere between <see cref="MinimumDistance"/> and <see cref="MaximumDistance"/> apart,
-/// with the given spring pulling toward that band.
+/// with the given spring pulling toward that band. Collapsing the band
+/// (<see cref="MinimumDistance"/> == <see cref="MaximumDistance"/>) removes the slack, which is
+/// the spring's model: a load-carrying distance link settled at the assembly spacing, exactly
+/// what the original's <c>SpringJoint</c> builds at its auto-configured rest pose
+/// (docs/specs/spring-joint.md).
+/// <see cref="BreakForce"/> and <see cref="BreakImpulse"/> tear a joint down once its reaction
+/// grows past a threshold; a backend that enforces them reports
+/// <see cref="PhysicsEventKind.JointBroken"/> so the rules layer notices.
 /// A <see cref="PhysicsJointKind.Revolute"/> joint is rigid unless it carries a
 /// <see cref="LocalSuspensionAxis"/>. That axis then adds a second degree of freedom
 /// beside the free spin — a linear one, sprung at <see cref="SuspensionRestOffset"/> —
 /// which is how Unity's ConfigurableJoint expresses an elastic wheel (Locked x/z,
 /// Limited y, linear-limit spring).
+/// A <see cref="PhysicsJointKind.Configurable"/> joint is the same idea generalised: its
+/// axes, targets, springs and limit band travel in <see cref="Configurable"/>, and it holds
+/// body B's rotation at <see cref="RestRotation"/> instead of leaving a spin axis free.
 /// A <see cref="PhysicsJointKind.Weld"/> joint locks all six degrees of freedom at the two
 /// local anchors: it holds <see cref="LocalAnchorA"/> (in body A's frame) and
 /// <see cref="LocalAnchorB"/> (in body B's frame) coincident and body B's local frame at
@@ -518,7 +602,9 @@ public sealed record JointDefinition
 		float springDampingRatio = 1f,
 		PhysicsVector3 localSuspensionAxis = default,
 		float suspensionRestOffset = 0f,
-		PhysicsQuaternion? restRotation = null)
+		PhysicsQuaternion? restRotation = null,
+		float breakImpulse = 0f,
+		ConfigurableJointDefinition? configurable = null)
 	{
 		PhysicsQuaternion relativeRest = restRotation ?? PhysicsQuaternion.Identity;
 		if (!relativeRest.IsFinite)
@@ -544,6 +630,11 @@ public sealed record JointDefinition
 		if (!float.IsFinite(breakTorque) || breakTorque < 0)
 		{
 			throw new ArgumentOutOfRangeException(nameof(breakTorque), breakTorque, "Break torque must be finite and non-negative.");
+		}
+
+		if (!float.IsFinite(breakImpulse) || breakImpulse < 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(breakImpulse), breakImpulse, "Break impulse must be finite and non-negative.");
 		}
 
 		if (!localAnchorA.IsFinite || !localAnchorB.IsFinite || !localAxisA.IsFinite || !localAxisB.IsFinite)
@@ -604,6 +695,20 @@ public sealed record JointDefinition
 			}
 		}
 
+		if (kind == PhysicsJointKind.Configurable)
+		{
+			if (configurable is null)
+			{
+				throw new ArgumentException("A configurable joint needs its linear-drive payload.", nameof(configurable));
+			}
+
+			configurable.Validate(nameof(configurable));
+		}
+		else if (configurable is not null)
+		{
+			throw new ArgumentException("Only a configurable joint carries a linear-drive payload.", nameof(configurable));
+		}
+
 		Kind = kind;
 		BodyA = bodyA;
 		BodyB = bodyB;
@@ -621,6 +726,8 @@ public sealed record JointDefinition
 		LocalSuspensionAxis = localSuspensionAxis;
 		SuspensionRestOffset = suspensionRestOffset;
 		RestRotation = relativeRest;
+		BreakImpulse = breakImpulse;
+		Configurable = configurable;
 	}
 
 	public PhysicsJointKind Kind { get; }
@@ -629,6 +736,16 @@ public sealed record JointDefinition
 	public PhysicsConstraintMask Constraints { get; }
 	public float BreakForce { get; }
 	public float BreakTorque { get; }
+
+	/// <summary>
+	/// Impulse magnitude (newton-seconds) the joint's reaction may reach before a backend tears it
+	/// down; zero never breaks on impulse. The force and impulse thresholds are independent — a
+	/// joint breaks when either is exceeded. The Bepu backend enforces them for
+	/// <see cref="PhysicsJointKind.Distance"/> only (the spring/rope family, whose reaction is a
+	/// single linear constraint impulse); the other kinds keep the rules layer's own impulse break
+	/// (ADR-015/ADR-024), and Jolt enforces neither.
+	/// </summary>
+	public float BreakImpulse { get; }
 	public PhysicsVector3 LocalAnchorA { get; }
 	public PhysicsVector3 LocalAnchorB { get; }
 	public PhysicsVector3 LocalAxisA { get; }
@@ -666,6 +783,14 @@ public sealed record JointDefinition
 	/// frame is the reference, so the value is <c>A.Rotation.Inverse * B.Rotation</c>.
 	/// </summary>
 	public PhysicsQuaternion RestRotation { get; }
+
+	/// <summary>
+	/// The linear-drive payload of a <see cref="PhysicsJointKind.Configurable"/> joint; null for
+	/// every other kind. The anchors come from <see cref="LocalAnchorA"/> /
+	/// <see cref="LocalAnchorB"/> and the held relative orientation from
+	/// <see cref="RestRotation"/> — the same rest-pose contract a weld uses.
+	/// </summary>
+	public ConfigurableJointDefinition? Configurable { get; }
 
 	/// <summary>
 	/// The <see cref="PhysicsJointKind.Weld"/> factory: a six-degree-of-freedom weld holding
@@ -885,6 +1010,24 @@ public interface IPhysicsWorld : IDisposable
 
 	PhysicsBodyId CreateBody(BodyDefinition definition);
 	void DestroyBody(PhysicsBodyId body);
+
+	/// <summary>
+	/// Reshapes a dynamic body's mass without moving it: the local inertia tensor scales with the
+	/// mass (uniform density), so the velocity and pose the body already carries survive. The
+	/// original changes a rigidbody's mass at runtime — the glove goes limp (0.5 kg to 0.01 kg)
+	/// for its wind-back (<c>SpringBoxingGlove.cs:280-330</c>) — and the pose must survive,
+	/// because the body is mid-flight when it happens.
+	/// </summary>
+	void SetBodyMass(PhysicsBodyId body, float mass);
+
+	/// <summary>
+	/// Turns a body's collider on or off for the rest of the run: a disabled body generates no
+	/// contact pair in either direction (the original's <c>Collider.enabled = false</c>, which
+	/// the glove uses to bring the limp glove home through everything). The body keeps its shape
+	/// and its snapshots; only its contacts go.
+	/// </summary>
+	void SetBodyCollisionEnabled(PhysicsBodyId body, bool enabled);
+
 	PhysicsJointId CreateJoint(JointDefinition definition);
 	void DestroyJoint(PhysicsJointId joint);
 	void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands);

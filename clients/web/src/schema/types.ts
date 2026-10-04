@@ -27,6 +27,73 @@ export interface PartShape {
     | { kind: "frame" };
 }
 
+/**
+ * The original Spring's own joint: a breakable bungee rope (`bungee`, the SpringJoint branch for
+ * customPartIndex 0/2 under StableSpringConnection, Spring.cs:104) or a y soft limit (`limit`, the
+ * ConfigurableJoint branch, Spring.cs:120). Every value is extracted per skin by `tools/bple-springs`
+ * from the class constants and the published IN switches; never authored.
+ */
+export interface PartSpring {
+  /** Which joint the original builds; the two paths differ only in how the distance is limited. */
+  joint: "bungee" | "limit";
+  /** SPRING_LIMIT_SPRING, 250 N/m (Spring.cs:7). */
+  stiffness: number;
+  /** SPRING_DAMPING, 20 N*s/m (Spring.cs:9). */
+  damper: number;
+  /** SPRING_LIMIT, 0.1 m; the `limit` path's linear limit (Spring.cs:11). */
+  limit: number;
+  /** SPRING_BOUNCINESS, 1; the `limit` path's linear-limit bounciness (Spring.cs:13). */
+  bounciness: number;
+  /** The published breaking force: 250 doubled to 1200 by IN StrongSpringConnection (Spring.cs:15,38). */
+  breakForce: number;
+  /** The published rigidbody mass: IN StableSpringConnection forces 1 (Spring.cs:69-75). */
+  mass: number;
+}
+
+/** One axis of the glove joint's position drive (spring N/m, damper N*s/m). */
+export interface PartGloveDrive {
+  spring: number;
+  damper: number;
+}
+
+/** The throw: target distance along the part's local -Y, lateral deviation, and how long it stays out. */
+export interface PartGloveShoot {
+  distanceY: number;
+  deviationX: number;
+  time: number;
+  limitSpring: number;
+}
+
+/** The wind-back: the limp glove's mass and the softer drive that pulls it home. */
+export interface PartGloveWind {
+  time: number;
+  mass: number;
+  driveSpring: number;
+  driveDamper: number;
+}
+
+/**
+ * The interactive SpringBoxingGlove (spec docs/specs/boxing-glove.md): a second rigid body "glove"
+ * held to the host by a y-limited, y/x-driven joint, shot out on trigger and wound back. Extracted
+ * by `tools/bple-springs` from the part prefab and its BoxingGlove*.prefab reference; never authored.
+ */
+export interface PartGlove {
+  /** The glove prefab's rigidbody mass (0.5). */
+  mass: number;
+  /** The glove prefab's colliders (a SphereCollider r 0.3). */
+  shapes: PartShape[];
+  /** The host-glove joint's y linear limit (1). */
+  limit: number;
+  yDrive: PartGloveDrive;
+  xDrive: PartGloveDrive;
+  /** ConfigurableJoint.projectionDistance (0.1, SpringBoxingGlove.cs:252). */
+  projectionDistance: number;
+  shoot: PartGloveShoot;
+  wind: PartGloveWind;
+  /** The glove rigidbody's solver iteration factor (1.6, SpringBoxingGlove.cs:262). */
+  solverIterationScale: number;
+}
+
 export interface PartCapabilities {
   pig?: boolean;
   wheel?: boolean;
@@ -37,7 +104,20 @@ export interface PartCapabilities {
    * `maxSpeed` is the top speed along the thrust axis per unit power factor (absent = uncapped,
    * the propeller); `rotor` adds the overspeed brake. See docs/specs/fan-propeller.md. */
   fan?: { thrustPerTick: number; directionX: number; directionY: number; maxSpeed?: number; rotor?: boolean };
-  spring?: number;
+  /**
+   * The original Spring's own joint (Spring.cs:100-134): a breakable bungee rope (SpringJoint)
+   * or a y soft limit (ConfigurableJoint) holding the two neighbours at their assembly distance.
+   * It never applies an impulse -- the old bounce-pad reading is gone. Extracted per skin by
+   * `tools/bple-springs`, never authored.
+   */
+  spring?: PartSpring;
+  /**
+   * The interactive SpringBoxingGlove (spec docs/specs/boxing-glove.md): a second rigid body
+   * "glove" held to the host by a y-limited, y/x-driven joint, shot out on trigger and wound
+   * back. Extracted by `tools/bple-springs` from the part prefab and its BoxingGlove*.prefab
+   * reference, never authored.
+   */
+  glove?: PartGlove;
   rocket?: { thrustPerTick: number; directionX: -1 | 0 | 1; directionY?: -1 | 0 | 1; durationTicks: number; explodeRadius?: number; explodeImpulse?: number };
   egg?: boolean;
   wing?: { liftCoef: number; maxLift?: number };

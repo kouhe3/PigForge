@@ -615,6 +615,14 @@ public sealed class GameRoomTests
             _snapshots.RemoveAll(snapshot => snapshot.Body == body);
         }
 
+        public void SetBodyMass(PhysicsBodyId body, float mass)
+        {
+        }
+
+        public void SetBodyCollisionEnabled(PhysicsBodyId body, bool enabled)
+        {
+        }
+
         public PhysicsJointId CreateJoint(JointDefinition definition) => throw new NotSupportedException();
 
         public void DestroyJoint(PhysicsJointId joint) => throw new NotSupportedException();

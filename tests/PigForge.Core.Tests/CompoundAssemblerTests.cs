@@ -327,6 +327,46 @@ public sealed class CompoundAssemblerTests
     }
 
     [Fact]
+    public void SplitAlongSeamsSeversEverySeamOfOneMember()
+    {
+        // The boxing glove's punch destroys every FixedJoint of the part it hits
+        // (SpringBoxingGlove.cs:224-262). For a body PigForge merged several parts into, that is
+        // every seam the target carries: the middle block of a chain of three is cut out on both
+        // sides, exactly as a weld-joined part loses every weld.
+        (ConstructionRules rules, PartContentLibrary content) = CreateRules();
+        EntityId left = rules.Place(PartBlock, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId middle = rules.Place(PartBlock, 1.1f, 0f, 0f, 1f, 0).Entity;
+        EntityId right = rules.Place(PartBlock, 2.2f, 0f, 0f, 1f, 0).Entity;
+        CompoundCluster merged = Assert.Single(CompoundAssembler.Assemble(new[] { left, middle, right }, rules, content).Clusters);
+        Assert.Equal(2, merged.Seams.Count);
+
+        List<CompoundSeam> both = merged.Seams.Where(seam => seam.Left == middle || seam.Right == middle).ToList();
+        IReadOnlyList<CompoundCluster> pieces = CompoundAssembler.SplitAlongSeams(merged, both);
+
+        Assert.Equal(3, pieces.Count);
+        Assert.All(pieces, piece => Assert.False(piece.IsMerged));
+        Assert.Equal(new[] { left, middle, right }, pieces.Select(piece => piece.Members[0].Entity).ToArray());
+
+        // One end's only seam leaves the other two together, ordered by their first member like
+        // the one-seam split this generalises.
+        List<CompoundSeam> oneSide = merged.Seams.Where(seam => seam.Left == right || seam.Right == right).ToList();
+        IReadOnlyList<CompoundCluster> halves = CompoundAssembler.SplitAlongSeams(merged, oneSide);
+        Assert.Equal(2, halves.Count);
+        Assert.Equal(2, halves[0].Members.Count);
+        Assert.Single(halves[1].Members);
+        Assert.Equal(right, halves[1].Members[0].Entity);
+
+        // One seam of a chain is a bridge, exactly as the one-seam split has always behaved, and a
+        // seam named twice is deduplicated rather than counted twice.
+        Assert.Equal(2, CompoundAssembler.SplitAlongSeams(merged, new[] { merged.Seams[0] }).Count);
+        Assert.Equal(2, CompoundAssembler.SplitAlongSeams(merged, new[] { merged.Seams[0], merged.Seams[0] }).Count);
+
+        // A seam the cluster does not own — or an empty set — is rejected, not silently ignored.
+        Assert.Throws<ArgumentException>(() => CompoundAssembler.SplitAlongSeams(halves[1], new[] { merged.Seams[0] }));
+        Assert.Throws<ArgumentException>(() => CompoundAssembler.SplitAlongSeams(merged, Array.Empty<CompoundSeam>()));
+    }
+
+    [Fact]
     public void AMergedClusterCarriesTheAggregatedMemberMaterial()
     {
         // The original gives every collider its own PhysicMaterial, so a PigForge body with several

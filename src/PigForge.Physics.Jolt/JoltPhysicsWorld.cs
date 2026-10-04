@@ -192,6 +192,21 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         _events.Add(PhysicsEvent.BodyDestroyed(body));
     }
 
+    public void SetBodyMass(PhysicsBodyId body, float mass)
+    {
+        ThrowIfDisposed();
+        // Jolt could rescale the inertia itself, but the only consumer today is the boxing glove,
+        // whose drive joint this backend does not build either; failing loudly keeps a Jolt run
+        // from pretending the glove works (ADR-011/012's convention).
+        throw new NotSupportedException("JoltPhysicsSharp backend does not implement runtime body mass changes.");
+    }
+
+    public void SetBodyCollisionEnabled(PhysicsBodyId body, bool enabled)
+    {
+        ThrowIfDisposed();
+        throw new NotSupportedException("JoltPhysicsSharp backend does not implement runtime collider toggling.");
+    }
+
     public PhysicsJointId CreateJoint(JointDefinition definition)
     {
         ThrowIfDisposed();

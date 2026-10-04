@@ -1,4 +1,16 @@
-import type { ConnectionVisual, GridBox, PartContentDocument, PartDefinition, PartDamping, PartShape } from "./types";
+import type {
+  ConnectionVisual,
+  GridBox,
+  PartContentDocument,
+  PartDefinition,
+  PartDamping,
+  PartGlove,
+  PartGloveDrive,
+  PartGloveShoot,
+  PartGloveWind,
+  PartShape,
+  PartSpring,
+} from "./types";
 
 export function validatePartContent(value: unknown): string[] {
   const errors: string[] = [];
@@ -233,8 +245,17 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
     }
   }
   if (value.spring !== undefined) {
-    if (typeof value.spring !== "number" || !Number.isFinite(value.spring)) {
-      errors.push(`Part ${partTypeId} capabilities.spring must be a finite bounceImpulsePerTick number.`);
+    if (!isSpring(value.spring)) {
+      errors.push(`Part ${partTypeId} capabilities.spring must be { joint: 'bungee' | 'limit', stiffness, damper, limit, bounciness, breakForce, mass }, with a positive stiffness/breakForce/mass and non-negative damper/limit/bounciness.`);
+    }
+  }
+  if (value.glove !== undefined) {
+    if (!isGlove(value.glove)) {
+      errors.push(`Part ${partTypeId} capabilities.glove must be { mass, shapes, limit, yDrive, xDrive, projectionDistance, shoot, wind, solverIterationScale }: a positive glove mass and solver scale, a non-empty shape list, a non-negative limit/projectionDistance, { spring, damper } drives, and shoot/wind move objects.`);
+    } else {
+      for (const shape of (value.glove as PartGlove).shapes) {
+        validateShape(partTypeId, shape, errors);
+      }
     }
   }
   if (value.rocket !== undefined) {
@@ -312,4 +333,91 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
     && !["any", "right", "up", "left", "down", "leftAndRight", "upAndDown", "none"].includes(value.jointConnectionDirection as string)) {
     errors.push(`Part ${partTypeId} capabilities.jointConnectionDirection must be one of any/right/up/left/down/leftAndRight/upAndDown/none.`);
   }
+}
+
+// The server parser rejects unknown properties inside these objects, so the client checks the same
+// exact key sets instead of accepting a typo the server would refuse.
+const SPRING_KEYS = ["joint", "stiffness", "damper", "limit", "bounciness", "breakForce", "mass"];
+const GLOVE_KEYS = ["mass", "shapes", "limit", "yDrive", "xDrive", "projectionDistance", "shoot", "wind", "solverIterationScale"];
+const GLOVE_DRIVE_KEYS = ["spring", "damper"];
+const GLOVE_SHOOT_KEYS = ["distanceY", "deviationX", "time", "limitSpring"];
+const GLOVE_WIND_KEYS = ["time", "mass", "driveSpring", "driveDamper"];
+
+function hasExactKeys(value: Record<string, unknown>, keys: string[]): boolean {
+  const actual = Object.keys(value);
+  return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+function isPositiveNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function isNonNegativeNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+/** The original Spring's own joint: a bungee rope or a y soft limit, all values extracted. */
+function isSpring(value: unknown): value is PartSpring {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const spring = value as Record<string, unknown>;
+  return hasExactKeys(spring, SPRING_KEYS)
+    && (spring.joint === "bungee" || spring.joint === "limit")
+    && isPositiveNumber(spring.stiffness)
+    && isNonNegativeNumber(spring.damper)
+    && isNonNegativeNumber(spring.limit)
+    && isNonNegativeNumber(spring.bounciness)
+    && isPositiveNumber(spring.breakForce)
+    && isPositiveNumber(spring.mass);
+}
+
+function isGloveDrive(value: unknown): value is PartGloveDrive {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const drive = value as Record<string, unknown>;
+  return hasExactKeys(drive, GLOVE_DRIVE_KEYS) && isPositiveNumber(drive.spring) && isNonNegativeNumber(drive.damper);
+}
+
+function isGloveShoot(value: unknown): value is PartGloveShoot {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const shoot = value as Record<string, unknown>;
+  return hasExactKeys(shoot, GLOVE_SHOOT_KEYS)
+    && isNonNegativeNumber(shoot.distanceY)
+    && isNonNegativeNumber(shoot.deviationX)
+    && isPositiveNumber(shoot.time)
+    && isNonNegativeNumber(shoot.limitSpring);
+}
+
+function isGloveWind(value: unknown): value is PartGloveWind {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const wind = value as Record<string, unknown>;
+  return hasExactKeys(wind, GLOVE_WIND_KEYS)
+    && isPositiveNumber(wind.time)
+    && isPositiveNumber(wind.mass)
+    && isPositiveNumber(wind.driveSpring)
+    && isNonNegativeNumber(wind.driveDamper);
+}
+
+/** The interactive SpringBoxingGlove's second body, joint drives and shoot/wind moves. */
+function isGlove(value: unknown): value is PartGlove {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const glove = value as Record<string, unknown>;
+  return hasExactKeys(glove, GLOVE_KEYS)
+    && isPositiveNumber(glove.mass)
+    && Array.isArray(glove.shapes) && glove.shapes.length > 0
+    && isNonNegativeNumber(glove.limit)
+    && isGloveDrive(glove.yDrive)
+    && isGloveDrive(glove.xDrive)
+    && isNonNegativeNumber(glove.projectionDistance)
+    && isGloveShoot(glove.shoot)
+    && isGloveWind(glove.wind)
+    && isPositiveNumber(glove.solverIterationScale);
 }

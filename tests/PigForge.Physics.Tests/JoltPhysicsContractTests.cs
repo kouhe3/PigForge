@@ -120,6 +120,46 @@ public sealed class JoltPhysicsContractTests
             breakTorque: 0f,
             localAxisA: new PhysicsVector3(0f, 0f, 1f),
             localAxisB: new PhysicsVector3(0f, 0f, 1f))));
+        // And so do the runtime body controls the glove's state machine needs: Jolt builds no
+        // linear drive, so it must not pretend a glove phase worked.
+        Assert.Throws<NotSupportedException>(() => world.SetBodyMass(first, 2f));
+        Assert.Throws<NotSupportedException>(() => world.SetBodyCollisionEnabled(first, false));
+    }
+
+    [Fact]
+    public void JoltWorldRejectsTheSlacklessDistanceSpring()
+    {
+        // The spring's contract tier is still a Distance joint, and Jolt never claimed that
+        // kind: the new break fields do not change its stance — it must refuse loudly rather
+        // than pretend to enforce a threshold it has no solver record for.
+        using JoltPhysicsWorld world = new(PhysicsVector3.Zero);
+        Assert.DoesNotContain(PhysicsJointKind.Distance, world.Capabilities.SupportedJointKinds);
+
+        PhysicsBodyId first = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0f, 0f, 0f),
+            PhysicsQuaternion.Identity,
+            1,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.25f, 0.25f, 0.25f) }));
+        PhysicsBodyId second = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0f, 2f, 0f),
+            PhysicsQuaternion.Identity,
+            1,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.25f, 0.25f, 0.25f) }));
+
+        Assert.Throws<NotSupportedException>(() => world.CreateJoint(new JointDefinition(
+            PhysicsJointKind.Distance,
+            first,
+            second,
+            PhysicsConstraintMask.None,
+            breakForce: 250f,
+            breakTorque: 0f,
+            minimumDistance: 2f,
+            maximumDistance: 2f,
+            springFrequency: 5f,
+            springDampingRatio: 0.5f,
+            breakImpulse: 10f)));
     }
 
     [Fact]

@@ -23,11 +23,6 @@ public readonly record struct BalloonState(float LiftPerTick);
 /// See docs/specs/fan-propeller.md.</summary>
 public readonly record struct FanState(float ImpulsePerTick, float DirectionX, float DirectionY, float MaxSpeed, bool IsRotor);
 
-/// <summary>Bounce impulse applied once per ground contact (a springboard launches
-/// the rig upward each time it lands; the state clears when the body leaves the
-/// ground so a later touchdown bounces again).</summary>
-public readonly record struct SpringState(float BounceImpulsePerTick, bool BouncedRecently);
-
 /// <summary>Rocket thrust: auto-ignites on simulation start, applies
 /// <paramref name="ThrustPerTick"/> along the normalized planar
 /// (<paramref name="DirectionX"/>, <paramref name="DirectionY"/>) direction for
@@ -67,8 +62,6 @@ public sealed class MotorStore(EntityStore entities) : ComponentStore<MotorState
 public sealed class BalloonStore(EntityStore entities) : ComponentStore<BalloonState>(entities);
 
 public sealed class FanStore(EntityStore entities) : ComponentStore<FanState>(entities);
-
-public sealed class SpringStore(EntityStore entities) : ComponentStore<SpringState>(entities);
 
 public sealed class RocketStore(EntityStore entities) : ComponentStore<RocketState>(entities);
 

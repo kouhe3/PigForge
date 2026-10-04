@@ -496,7 +496,8 @@ public static class PartContentParser
         float? fanDirectionY = null;
         float? fanMaxSpeed = null;
         bool fanIsRotor = false;
-        float? springBounce = null;
+        PartSpring? spring = null;
+        PartGlove? glove = null;
         float? rocketThrust = null;
         float? rocketDirectionX = null;
         float? rocketDirectionY = null;
@@ -599,19 +600,16 @@ public static class PartContentParser
             }
         }
 
-        if (seenKeys.Contains("spring"))
+        if (seenKeys.Contains("spring")
+            && !TryReadSpring(capabilitiesElement, path, errors, out spring))
         {
-            if (!capabilitiesElement.TryGetProperty("spring", out JsonElement springElement)
-                || springElement.ValueKind != JsonValueKind.Number
-                || !IsFiniteNumber(springElement))
-            {
-                errors.Add($"{path}.capabilities.spring: must be a finite bounceImpulsePerTick number.");
-                hasError = true;
-            }
-            else
-            {
-                springBounce = springElement.GetSingle();
-            }
+            hasError = true;
+        }
+
+        if (seenKeys.Contains("glove")
+            && !TryReadGlove(capabilitiesElement, path, errors, out glove))
+        {
+            hasError = true;
         }
 
         if (seenKeys.Contains("rocket"))
@@ -872,7 +870,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -884,7 +882,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, glove, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -1101,6 +1099,388 @@ public static class PartContentParser
         }
 
         suspension = new PartSuspension(stiffness, damper, restOffset);
+        return true;
+    }
+
+    /// <summary>
+    /// A finite number read from a required property of <paramref name="element"/>. Kept tiny so
+    /// each field below can state its own range in its own message.
+    /// </summary>
+    private static bool TryReadFinite(JsonElement element, string name, out float value)
+    {
+        value = 0f;
+        return element.TryGetProperty(name, out JsonElement property)
+            && property.ValueKind == JsonValueKind.Number
+            && IsFiniteNumber(property)
+            && property.TryGetSingle(out value);
+    }
+
+    /// <summary>
+    /// The original <c>Spring</c>'s own joint (spec docs/specs/spring-joint.md). Every field is
+    /// required: <c>tools/bple-springs</c> extracts the class constants, the per-skin joint path
+    /// (<c>customPartIndex ∈ {0,2}</c> takes the SpringJoint bungee branch, the rest the y-limit
+    /// ConfigurableJoint branch, Spring.cs:100-134) and the published IN switches from the
+    /// original prefabs, so a partial declaration is content drift, not a default to invent.
+    /// The numbers describe the joint, never an impulse: this part no longer launches anything.
+    /// </summary>
+    private static bool TryReadSpring(JsonElement capabilities, string path, List<string> errors, out PartSpring? spring)
+    {
+        spring = null;
+        string field = $"{path}.capabilities.spring";
+        if (!capabilities.TryGetProperty("spring", out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{field}: must be an object.");
+            return false;
+        }
+
+        HashSet<string> keys = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!keys.Add(property.Name))
+            {
+                errors.Add($"{field}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        foreach (string key in keys)
+        {
+            if (key is not ("joint" or "stiffness" or "damper" or "limit" or "bounciness" or "breakForce" or "mass"))
+            {
+                errors.Add($"{field}: unknown property '{key}'.");
+            }
+        }
+
+        bool ok = true;
+        string joint = string.Empty;
+        if (!keys.Contains("joint")
+            || !element.TryGetProperty("joint", out JsonElement jointElement)
+            || jointElement.ValueKind != JsonValueKind.String
+            || (joint = jointElement.GetString() ?? string.Empty) is not ("bungee" or "limit"))
+        {
+            errors.Add($"{field}.joint: must be \"bungee\" (SpringJoint rope) or \"limit\" (y linear limit).");
+            ok = false;
+        }
+
+        float stiffness = 0f;
+        if (!keys.Contains("stiffness") || !TryReadFinite(element, "stiffness", out stiffness) || stiffness <= 0f)
+        {
+            errors.Add($"{field}.stiffness: must be a finite positive number.");
+            ok = false;
+        }
+
+        float damper = 0f;
+        if (!keys.Contains("damper") || !TryReadFinite(element, "damper", out damper) || damper < 0f)
+        {
+            errors.Add($"{field}.damper: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        float limit = 0f;
+        if (!keys.Contains("limit") || !TryReadFinite(element, "limit", out limit) || limit < 0f)
+        {
+            errors.Add($"{field}.limit: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        float bounciness = 0f;
+        if (!keys.Contains("bounciness") || !TryReadFinite(element, "bounciness", out bounciness) || bounciness < 0f)
+        {
+            errors.Add($"{field}.bounciness: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        float breakForce = 0f;
+        if (!keys.Contains("breakForce") || !TryReadFinite(element, "breakForce", out breakForce) || breakForce <= 0f)
+        {
+            errors.Add($"{field}.breakForce: must be a finite positive number.");
+            ok = false;
+        }
+
+        float mass = 0f;
+        if (!keys.Contains("mass") || !TryReadFinite(element, "mass", out mass) || mass <= 0f)
+        {
+            errors.Add($"{field}.mass: must be a finite positive number.");
+            ok = false;
+        }
+
+        if (!ok)
+        {
+            return false;
+        }
+
+        spring = new PartSpring(joint, stiffness, damper, limit, bounciness, breakForce, mass);
+        return true;
+    }
+
+    /// <summary>
+    /// The interactive <c>SpringBoxingGlove</c> (spec docs/specs/boxing-glove.md). Every field is
+    /// required and extracted by <c>tools/bple-springs</c> from the part prefab and its
+    /// <c>BoxingGlove*.prefab</c> reference: the glove rigidbody, the host-glove joint's drives,
+    /// the projection and the shoot/wind moves. The glove's shapes are parsed by the same shape
+    /// rule as the part itself, so a malformed collider is rejected here too.
+    /// </summary>
+    private static bool TryReadGlove(JsonElement capabilities, string path, List<string> errors, out PartGlove? glove)
+    {
+        glove = null;
+        string field = $"{path}.capabilities.glove";
+        if (!capabilities.TryGetProperty("glove", out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{field}: must be an object.");
+            return false;
+        }
+
+        HashSet<string> keys = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!keys.Add(property.Name))
+            {
+                errors.Add($"{field}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        foreach (string key in keys)
+        {
+            if (key is not ("mass" or "shapes" or "limit" or "yDrive" or "xDrive" or "projectionDistance" or "shoot" or "wind" or "solverIterationScale"))
+            {
+                errors.Add($"{field}: unknown property '{key}'.");
+            }
+        }
+
+        bool ok = true;
+        float mass = 0f;
+        if (!keys.Contains("mass") || !TryReadFinite(element, "mass", out mass) || mass <= 0f)
+        {
+            errors.Add($"{field}.mass: must be a finite positive number.");
+            ok = false;
+        }
+
+        List<PartShapeDefinition> shapes = new();
+        if (!keys.Contains("shapes")
+            || !element.TryGetProperty("shapes", out JsonElement shapesElement)
+            || shapesElement.ValueKind != JsonValueKind.Array
+            || shapesElement.GetArrayLength() == 0)
+        {
+            errors.Add($"{field}.shapes: must be a non-empty array of shapes.");
+            ok = false;
+        }
+        else
+        {
+            int shapeIndex = 0;
+            foreach (JsonElement shapeElement in shapesElement.EnumerateArray())
+            {
+                ParseShape(shapeElement, $"{field}.shapes[{shapeIndex}]", shapes, errors);
+                shapeIndex++;
+            }
+        }
+
+        float limit = 0f;
+        if (!keys.Contains("limit") || !TryReadFinite(element, "limit", out limit) || limit < 0f)
+        {
+            errors.Add($"{field}.limit: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        PartGloveDrive? yDrive = null;
+        if (!keys.Contains("yDrive") || !TryReadGloveDrive(element, field, "yDrive", errors, out yDrive))
+        {
+            ok = false;
+        }
+
+        PartGloveDrive? xDrive = null;
+        if (!keys.Contains("xDrive") || !TryReadGloveDrive(element, field, "xDrive", errors, out xDrive))
+        {
+            ok = false;
+        }
+
+        float projectionDistance = 0f;
+        if (!keys.Contains("projectionDistance") || !TryReadFinite(element, "projectionDistance", out projectionDistance) || projectionDistance < 0f)
+        {
+            errors.Add($"{field}.projectionDistance: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        PartGloveShoot? shoot = null;
+        if (!keys.Contains("shoot") || !TryReadGloveShoot(element, field, errors, out shoot))
+        {
+            ok = false;
+        }
+
+        PartGloveWind? wind = null;
+        if (!keys.Contains("wind") || !TryReadGloveWind(element, field, errors, out wind))
+        {
+            ok = false;
+        }
+
+        float solverIterationScale = 0f;
+        if (!keys.Contains("solverIterationScale") || !TryReadFinite(element, "solverIterationScale", out solverIterationScale) || solverIterationScale <= 0f)
+        {
+            errors.Add($"{field}.solverIterationScale: must be a finite positive number.");
+            ok = false;
+        }
+
+        if (!ok)
+        {
+            return false;
+        }
+
+        glove = new PartGlove(mass, shapes, limit, yDrive!, xDrive!, projectionDistance, shoot!, wind!, solverIterationScale);
+        return true;
+    }
+
+    /// <summary>One axis of the glove joint's position drive.</summary>
+    private static bool TryReadGloveDrive(JsonElement glove, string field, string name, List<string> errors, out PartGloveDrive? drive)
+    {
+        drive = null;
+        string driveField = $"{field}.{name}";
+        if (!glove.TryGetProperty(name, out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{driveField}: must be an object.");
+            return false;
+        }
+
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (property.Name is not ("spring" or "damper"))
+            {
+                errors.Add($"{driveField}: unknown property '{property.Name}'.");
+            }
+        }
+
+        bool ok = true;
+        float spring = 0f;
+        if (!TryReadFinite(element, "spring", out spring) || spring <= 0f)
+        {
+            errors.Add($"{driveField}.spring: must be a finite positive number.");
+            ok = false;
+        }
+
+        float damper = 0f;
+        if (!TryReadFinite(element, "damper", out damper) || damper < 0f)
+        {
+            errors.Add($"{driveField}.damper: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        if (!ok)
+        {
+            return false;
+        }
+
+        drive = new PartGloveDrive(spring, damper);
+        return true;
+    }
+
+    /// <summary>The shoot move: where the glove is thrown and how long it stays out.</summary>
+    private static bool TryReadGloveShoot(JsonElement glove, string field, List<string> errors, out PartGloveShoot? shoot)
+    {
+        shoot = null;
+        string shootField = $"{field}.shoot";
+        if (!glove.TryGetProperty("shoot", out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{shootField}: must be an object.");
+            return false;
+        }
+
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (property.Name is not ("distanceY" or "deviationX" or "time" or "limitSpring"))
+            {
+                errors.Add($"{shootField}: unknown property '{property.Name}'.");
+            }
+        }
+
+        bool ok = true;
+        float distanceY = 0f;
+        if (!TryReadFinite(element, "distanceY", out distanceY) || distanceY < 0f)
+        {
+            errors.Add($"{shootField}.distanceY: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        float deviationX = 0f;
+        if (!TryReadFinite(element, "deviationX", out deviationX) || deviationX < 0f)
+        {
+            errors.Add($"{shootField}.deviationX: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        float time = 0f;
+        if (!TryReadFinite(element, "time", out time) || time <= 0f)
+        {
+            errors.Add($"{shootField}.time: must be a finite positive number.");
+            ok = false;
+        }
+
+        float limitSpring = 0f;
+        if (!TryReadFinite(element, "limitSpring", out limitSpring) || limitSpring < 0f)
+        {
+            errors.Add($"{shootField}.limitSpring: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        if (!ok)
+        {
+            return false;
+        }
+
+        shoot = new PartGloveShoot(distanceY, deviationX, time, limitSpring);
+        return true;
+    }
+
+    /// <summary>The wind-back move: the limp glove's mass and the softer drive that pulls it home.</summary>
+    private static bool TryReadGloveWind(JsonElement glove, string field, List<string> errors, out PartGloveWind? wind)
+    {
+        wind = null;
+        string windField = $"{field}.wind";
+        if (!glove.TryGetProperty("wind", out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{windField}: must be an object.");
+            return false;
+        }
+
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (property.Name is not ("time" or "mass" or "driveSpring" or "driveDamper"))
+            {
+                errors.Add($"{windField}: unknown property '{property.Name}'.");
+            }
+        }
+
+        bool ok = true;
+        float time = 0f;
+        if (!TryReadFinite(element, "time", out time) || time <= 0f)
+        {
+            errors.Add($"{windField}.time: must be a finite positive number.");
+            ok = false;
+        }
+
+        float mass = 0f;
+        if (!TryReadFinite(element, "mass", out mass) || mass <= 0f)
+        {
+            errors.Add($"{windField}.mass: must be a finite positive number.");
+            ok = false;
+        }
+
+        float driveSpring = 0f;
+        if (!TryReadFinite(element, "driveSpring", out driveSpring) || driveSpring <= 0f)
+        {
+            errors.Add($"{windField}.driveSpring: must be a finite positive number.");
+            ok = false;
+        }
+
+        float driveDamper = 0f;
+        if (!TryReadFinite(element, "driveDamper", out driveDamper) || driveDamper < 0f)
+        {
+            errors.Add($"{windField}.driveDamper: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        if (!ok)
+        {
+            return false;
+        }
+
+        wind = new PartGloveWind(time, mass, driveSpring, driveDamper);
         return true;
     }
 
