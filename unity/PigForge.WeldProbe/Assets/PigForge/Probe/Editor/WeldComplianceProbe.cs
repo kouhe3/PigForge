@@ -55,10 +55,15 @@ public static class WeldComplianceProbe
         public bool RampToBreak;
         public bool Impulse;
         public bool Projection;
+        public int ChainCount;
+        public float Gap;
         public readonly List<float> DriftX = new List<float>();
         public readonly List<float> DriftY = new List<float>();
         public readonly List<float> ZAngle = new List<float>();
         public float MaxJointForce;
+        public float TipDropY;
+        public float MaxJointAngleDeg;
+        public float SumJointAngleDeg;
         public float BreakAtForce = float.NaN;
         public int BreakAtStep = -1;
     }
@@ -151,19 +156,40 @@ public static class WeldComplianceProbe
             });
         }
 
+        // F: the case the screenshot shows -- a CHAIN of frames. One end is held, the rest hangs,
+        // so the root joint carries the whole chain's bending moment. Per-joint compliance that
+        // is invisible under a 20 N pull can add up to a visible arc here. gap 0 = the frames
+        // touch (contacts exist, as in the original grid), gap 1 = joints only.
+        foreach (bool preprocessing in new[] { true, false })
+        foreach (float gap in new[] { 0f, 1f })
+        {
+            cells.Add(new Cell
+            {
+                Id = string.Format(CultureInfo.InvariantCulture, "chain8_pp{0}_gap{1}", preprocessing ? "on" : "off", gap),
+                Preprocessing = preprocessing,
+                Constraints = Constraints25D,
+                PartMass = 0.5f,
+                AnchorKinematic = true,
+                BreakForce = BreakForceWoodWood,
+                ChainCount = 8,
+                Gap = gap,
+            });
+        }
+
         foreach (Cell cell in cells)
         {
             RunCell(cell);
             Debug.Log(string.Format(
                 CultureInfo.InvariantCulture,
-                "[weld-probe] {0}: maxDriftX={1:0.######} steadyDriftX={2:0.######} maxDriftY={3:0.######} maxZ={4:0.######}deg maxJointForce={5:0.###}{6}",
+                "[weld-probe] {0}: maxDriftX={1:0.######} steadyDriftX={2:0.######} maxDriftY={3:0.######} maxZ={4:0.######}deg maxJointForce={5:0.###}{6}{7}",
                 cell.Id,
                 Max(cell.DriftX),
                 Steady(cell.DriftX),
                 Max(cell.DriftY),
                 Max(cell.ZAngle),
                 cell.MaxJointForce,
-                cell.BreakAtStep >= 0 ? string.Format(CultureInfo.InvariantCulture, " broke@step{0} force={1:0.###}", cell.BreakAtStep, cell.BreakAtForce) : string.Empty));
+                cell.BreakAtStep >= 0 ? string.Format(CultureInfo.InvariantCulture, " broke@step{0} force={1:0.###}", cell.BreakAtStep, cell.BreakAtForce) : string.Empty,
+                cell.ChainCount > 0 ? string.Format(CultureInfo.InvariantCulture, " [chain{0} gap{1}] maxJointAngle={2:0.####}deg sumAngle={3:0.####}deg tipY={4:0.####}", cell.ChainCount, cell.Gap, cell.MaxJointAngleDeg, cell.SumJointAngleDeg, cell.TipDropY) : string.Empty));
         }
 
         string outputPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "replays", "weld-compliance-probe.json"));
@@ -195,6 +221,12 @@ public static class WeldComplianceProbe
 
     private static void RunCell(Cell cell)
     {
+        if (cell.ChainCount > 0)
+        {
+            RunChain(cell);
+            return;
+        }
+
         foreach (GameObject stray in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
         {
             UnityEngine.Object.DestroyImmediate(stray);
@@ -243,6 +275,65 @@ public static class WeldComplianceProbe
 
         UnityEngine.Object.DestroyImmediate(part);
         UnityEngine.Object.DestroyImmediate(anchor);
+    }
+
+    /// <summary>
+    /// A hanging chain of frames: frames[0] is held, every other frame is welded to its neighbour
+    /// with the original joint, so the root joint carries the whole chain's bending moment. This
+    /// is the configuration the play screenshot shows (a frame arch), where per-joint compliance
+    /// that is invisible under a 20 N pull can add up into a visible curve.
+    /// </summary>
+    private static void RunChain(Cell cell)
+    {
+        foreach (GameObject stray in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            UnityEngine.Object.DestroyImmediate(stray);
+        }
+
+        float spacing = 1f + cell.Gap;
+        GameObject[] frames = new GameObject[cell.ChainCount];
+        Rigidbody[] bodies = new Rigidbody[cell.ChainCount];
+        for (int index = 0; index < cell.ChainCount; index++)
+        {
+            GameObject frame = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            frame.name = "Frame" + index;
+            frame.transform.position = new Vector3(index * spacing, 0f, 0f);
+            Rigidbody body = frame.AddComponent<Rigidbody>();
+            ConfigureBody(body, cell.PartMass, cell.Constraints, kinematic: index == 0);
+            frames[index] = frame;
+            bodies[index] = body;
+        }
+
+        for (int index = 1; index < cell.ChainCount; index++)
+        {
+            AttachWeld(frames[index], bodies[index], frames[index - 1], bodies[index - 1], cell.Preprocessing, cell.BreakForce, cell.Projection);
+        }
+
+        for (int step = 0; step < StepCount; step++)
+        {
+            Physics.Simulate(FixedTimeStep);
+
+            float tipY = frames[cell.ChainCount - 1].transform.position.y;
+            cell.TipDropY = Mathf.Min(cell.TipDropY, tipY);
+            cell.DriftY.Add(tipY);
+
+            float sum = 0f;
+            float worstJoint = 0f;
+            for (int index = 1; index < cell.ChainCount; index++)
+            {
+                float relative = Normalize(frames[index].transform.eulerAngles.z - frames[index - 1].transform.eulerAngles.z);
+                sum += relative;
+                worstJoint = Mathf.Max(worstJoint, Mathf.Abs(relative));
+            }
+
+            cell.MaxJointAngleDeg = Mathf.Max(cell.MaxJointAngleDeg, worstJoint);
+            cell.SumJointAngleDeg = Mathf.Max(cell.SumJointAngleDeg, Mathf.Abs(sum));
+        }
+
+        foreach (GameObject frame in frames)
+        {
+            UnityEngine.Object.DestroyImmediate(frame);
+        }
     }
 
     private static void ConfigureBody(Rigidbody body, float mass, int constraints, bool kinematic)
@@ -342,6 +433,11 @@ public static class WeldComplianceProbe
             json.Append("      \"anchorKinematic\": ").Append(cell.AnchorKinematic ? "true" : "false").Append(",\n");
             json.Append("      \"breakForce\": ").Append(Number(cell.BreakForce)).Append(",\n");
             json.Append("      \"maxJointForce\": ").Append(Number(cell.MaxJointForce)).Append(",\n");
+            json.Append("      \"chainCount\": ").Append(cell.ChainCount).Append(",\n");
+            json.Append("      \"chainGap\": ").Append(Number(cell.Gap)).Append(",\n");
+            json.Append("      \"tipDropY\": ").Append(Number(cell.TipDropY)).Append(",\n");
+            json.Append("      \"maxJointAngleDeg\": ").Append(Number(cell.MaxJointAngleDeg)).Append(",\n");
+            json.Append("      \"sumJointAngleDeg\": ").Append(Number(cell.SumJointAngleDeg)).Append(",\n");
             json.Append("      \"maxDriftX\": ").Append(Number(Max(cell.DriftX))).Append(",\n");
             json.Append("      \"steadyDriftX\": ").Append(Number(Steady(cell.DriftX))).Append(",\n");
             json.Append("      \"maxDriftY\": ").Append(Number(Max(cell.DriftY))).Append(",\n");
