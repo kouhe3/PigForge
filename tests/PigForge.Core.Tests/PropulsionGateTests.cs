@@ -110,12 +110,14 @@ public sealed class PropulsionGateTests
     }
 
     [Fact]
-    public void APoweredRotorLiftIsGatedAndScaledButABalloonIsNot()
+    public void ARotorIsAFanPropellerSoItIsGatedScaledAndCappedWhileABalloonIsNot()
     {
         GateHarness harness = new();
         EntityId rotor = harness.Create();
         EntityId balloon = harness.Create();
-        harness.Rules.AddBalloon(rotor, 3.5f);
+        // part 37 as content now carries it (tools/bple-fans: Part_Rotor_01_SET m_force 120 / 60,
+        // m_defaultSpeed 7 x RotorSpeed 2.0, m_isRotor 1).
+        harness.Rules.AddFan(rotor, RotorThrustPerTick, 0f, 1f, maxSpeed: 14f, isRotor: true);
         harness.Rules.AddPower(rotor, 200f, 0f);
         harness.Rules.AddBalloon(balloon, 0.383333f);
         PhysicsBodyId rotorBody = new(1);
@@ -125,8 +127,9 @@ public sealed class PropulsionGateTests
         harness.Ingest(rotorBody, new PhysicsVector3(0f, 1f, 0f));
         harness.Ingest(balloonBody, new PhysicsVector3(4f, 1f, 0f));
 
-        // The rotor is a FanPropeller in the original (BasePropulsion, tasks/original-vs-implemented.md
-        // G50), so a rotor with no chassis neighbour supplies no lift at all.
+        // The rotor is a FanPropeller in the original (BasePropulsion.cs:7-20,
+        // docs/specs/fan-propeller.md), so a rotor with no chassis neighbour supplies no thrust.
+        // A balloon is Balloon.cs: no chassis gate, no power term -- pure unpowered lift.
         harness.Rules.SetChassisAnchored(rotor, anchored: false);
         harness.Tick(1);
 
@@ -146,7 +149,11 @@ public sealed class PropulsionGateTests
 
         PhysicsCommand powered = Assert.Single(
             harness.Output.Commands.Where(command => command.Body == rotorBody));
-        Assert.Equal(3.5f * GameplayRules.ComputePowerFactor(20f, 200f), powered.Impulse.Y, 5);
+        // FanPropeller.cs:83-112: the thrust is m_force x power factor; the ingested 1 m/s is
+        // inside the cap (14 x factor ~ 2.49), so LimitForceForSpeed does not decay it and the
+        // rotor's overspeed brake does not fire.
+        Assert.Equal(0f, powered.Impulse.X);
+        Assert.Equal(RotorThrustPerTick * GameplayRules.ComputePowerFactor(20f, 200f), powered.Impulse.Y, 4);
     }
 
     [Fact]
@@ -174,6 +181,9 @@ public sealed class PropulsionGateTests
 
     private const float ImpulsePerTick = 1.2f;
 
+    /// <summary>Content part 37's thrust (tools/bple-fans: Part_Rotor_01_SET m_force 120 / 60).</summary>
+    private const float RotorThrustPerTick = 2f;
+
     private static (ConstructionRules Rules, EntityStore Entities) CreateRules()
     {
         PartContentLibrary content = new(PartContentParser.Parse("""
@@ -186,7 +196,7 @@ public sealed class PropulsionGateTests
                   "capabilities": { "jointConnectionType": "source", "canEnclose": true },
                   "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
                 { "partTypeId": 2, "name": "fan", "mode": "dynamic", "mass": 0.5,
-                  "capabilities": { "jointConnectionType": "target", "fan": { "thrustPerTick": 1.2, "directionX": 1 } },
+                  "capabilities": { "jointConnectionType": "target", "fan": { "thrustPerTick": 1.2, "directionX": 1 }, "activation": "toggle" },
                   "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.5] } ] },
                 { "partTypeId": 3, "name": "rocket", "mode": "dynamic", "mass": 1,
                   "capabilities": { "jointConnectionType": "target" },

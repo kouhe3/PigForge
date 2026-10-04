@@ -14,9 +14,14 @@ public readonly record struct PigMarker;
 /// <summary>Lift per tick applied straight up (a balloon supplies buoyancy).</summary>
 public readonly record struct BalloonState(float LiftPerTick);
 
-/// <summary>Air thrust per tick along a planar direction (a fan/propeller pushes the
-/// rig through the air).</summary>
-public readonly record struct FanState(float ImpulsePerTick, float DirectionX, float DirectionY);
+/// <summary>Air thrust per tick along a planar direction (a fan, a plane propeller and a rotor all
+/// push the rig through the air — the original drives all three from one `FanPropeller`).
+/// <paramref name="MaxSpeed"/> is the top speed along the thrust axis per unit engine power factor
+/// (`m_defaultSpeed * IN &lt;X&gt;Speed`, FanPropeller.cs:90,100-106); 0 means the original never
+/// caps it (the propeller, whose `PropellerSpeed` is Infinity). <paramref name="IsRotor"/> is
+/// `m_isRotor`, which adds the overspeed brake at FanPropeller.cs:198-207.
+/// See docs/specs/fan-propeller.md.</summary>
+public readonly record struct FanState(float ImpulsePerTick, float DirectionX, float DirectionY, float MaxSpeed, bool IsRotor);
 
 /// <summary>Bounce impulse applied once per ground contact (a springboard launches
 /// the rig upward each time it lands; the state clears when the body leaves the

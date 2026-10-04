@@ -152,6 +152,14 @@ public sealed class GameplayRules
     /// spinning.</summary>
     private const int PowerClusterHopLimit = 8;
 
+    /// <summary>The original states a FanPropeller's thrust and its rotor overspeed brake as
+    /// per-second forces (FanPropeller.cs:198-207,209) and PigForge applies one impulse per tick,
+    /// so both convert through the tick duration -- the same division content uses for the balloon
+    /// family and every FanPropeller value (ADR-013 decision 4, tools/bple-fans and tools/bple-lift).
+    /// The room ticks at 60 Hz (<c>GameRoomOptions.TickRateHz</c>, PlayHost); a room built at
+    /// another rate would need this to follow it.</summary>
+    private const float ForceSecondsPerImpulse = 1f / 60f;
+
     /// <summary>Floor that keeps a massless part from producing an unbounded bounce impulse.</summary>
     private const float MinimumPartMass = 0.001f;
 
@@ -481,8 +489,8 @@ public sealed class GameplayRules
     public void AddBalloon(EntityId entity, float liftPerTick) =>
         _balloons.Set(entity, new BalloonState(liftPerTick));
 
-    public void AddFan(EntityId entity, float impulsePerTick, float directionX, float directionY) =>
-        _fans.Set(entity, new FanState(impulsePerTick, directionX, directionY));
+    public void AddFan(EntityId entity, float impulsePerTick, float directionX, float directionY, float maxSpeed = 0f, bool isRotor = false) =>
+        _fans.Set(entity, new FanState(impulsePerTick, directionX, directionY, maxSpeed, isRotor));
 
     public void AddSpring(EntityId entity, float bounceImpulsePerTick) =>
         _springs.Set(entity, new SpringState(bounceImpulsePerTick, BouncedRecently: false));
@@ -1144,21 +1152,13 @@ public sealed class GameplayRules
             }
 
             BalloonState balloon = balloons.CurrentValue;
-            // A plain balloon is unpowered cargo lift -- Balloon.cs carries no chassis gate and no
-            // power term -- so it is never gated. A lift part that declares power data is the rotor,
-            // whose original is a FanPropeller : BasePropulsion (tasks/original-vs-implemented.md §6,
-            // G50): it needs a chassis neighbour (BasePropulsion.cs:13-20) and its force is scaled
-            // by the engine power factor (FanPropeller.cs:85-92), so an unpowered rotor lifts nothing.
-            float liftFactor = 1f;
-            if (_powers.TryGet(balloons.CurrentId, out _)
-                && (!IsChassisAnchored(balloons.CurrentId) || !TryDriveFactor(balloons.CurrentId, out liftFactor)))
-            {
-                continue;
-            }
-
+            // Balloon.cs carries no chassis gate and no power term, so a balloon is pure unpowered
+            // cargo lift and is never gated. The rotor used to ride this path as a powered balloon;
+            // it is a FanPropeller like the fan and the propeller, and now runs through RunFans with
+            // its thrust capped instead (docs/specs/fan-propeller.md).
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                new PhysicsVector3(0f, balloon.LiftPerTick * liftFactor, 0f),
+                new PhysicsVector3(0f, balloon.LiftPerTick, 0f),
                 _kinematicsByBody[link.Body.Value].Position));
         }
     }
@@ -1196,9 +1196,48 @@ public sealed class GameplayRules
             }
 
             PhysicsVector3 direction = new(fan.DirectionX / magnitude, fan.DirectionY / magnitude, 0f);
+            PhysicsVector3 velocity = _kinematicsByBody[link.Body.Value].Velocity;
+            float thrust = fan.ImpulsePerTick * powerFactor;
+
+            // LimitForceForSpeed (FanPropeller.cs:245-257): the force decays with the part of the
+            // body's velocity that runs along the thrust axis, so a fan stops pushing once the rig
+            // is already at its top speed * powerFactor. `maxSpeed` 0 is the propeller, whose
+            // original never caps it (`PropellerSpeed` is Infinity).
+            float axialSpeed = (direction.X * velocity.X) + (direction.Y * velocity.Y);
+            if (fan.MaxSpeed > 0f)
+            {
+                float maxSpeed = fan.MaxSpeed * powerFactor;
+                if (axialSpeed > maxSpeed)
+                {
+                    thrust /= 1f + axialSpeed - maxSpeed;
+                }
+            }
+
+            PhysicsVector3 impulse = direction * thrust;
+
+            // The rotor's overspeed brake (FanPropeller.cs:198-207): a rotor still moving past its
+            // cap gets a quadratic counter-force along its own velocity, stated in the same
+            // per-second Newtons as the thrust the content already divided by the tick duration.
+            if (fan.IsRotor && fan.MaxSpeed > 0f)
+            {
+                float speed = PhysicsVector3.Distance(velocity, PhysicsVector3.Zero);
+                float maxSpeed = fan.MaxSpeed * powerFactor;
+                if (speed > maxSpeed && ((velocity.X * direction.X) + (velocity.Y * direction.Y)) > 0f)
+                {
+                    float excess = speed - maxSpeed;
+                    float brake = 4f * excess * excess * ForceSecondsPerImpulse / speed;
+                    impulse -= velocity * brake;
+                }
+            }
+
+            if (PhysicsVector3.Distance(impulse, PhysicsVector3.Zero) <= float.Epsilon)
+            {
+                continue;
+            }
+
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                direction * (fan.ImpulsePerTick * powerFactor),
+                impulse,
                 _kinematicsByBody[link.Body.Value].Position));
         }
     }

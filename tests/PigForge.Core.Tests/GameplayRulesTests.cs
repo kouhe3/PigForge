@@ -753,6 +753,88 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
+    public void AFanLosesThrustPastItsTopSpeed()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId fan = entities.Create();
+        harness.Rules.AddFan(fan, 2f, 1f, 0f, maxSpeed: 10f);
+        harness.Link(fan, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(20f, 0f, 0f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        // FanPropeller.cs:245-257: past the cap the force is divided by (1 + v.dir - maximumSpeed).
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(2f / (1f + 20f - 10f), command.Impulse.X, 5);
+        Assert.Equal(0f, command.Impulse.Y);
+    }
+
+    [Fact]
+    public void AnUncappedFanKeepsPushingAtAnySpeed()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId propeller = entities.Create();
+        // The plane propeller's original never caps its speed (`PropellerSpeed` is Infinity), so
+        // its content omits maxSpeed and no velocity ever decays the thrust. 37 N / 60 is the
+        // value tools/bple-fans derives for it (deferred from content; see the spec).
+        harness.Rules.AddFan(propeller, 0.616667f, 1f, 0f);
+        harness.Link(propeller, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(40f, 0f, 0f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(0.616667f, command.Impulse.X, 5);
+    }
+
+    [Fact]
+    public void ARotorBrakesOnceItMovesPastItsTopSpeed()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rotor = entities.Create();
+        harness.Rules.AddFan(rotor, 10f, 0f, 1f, maxSpeed: 10f, isRotor: true);
+        harness.Link(rotor, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0f, 20f, 0f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        // The decayed thrust (FanPropeller.cs:163) plus the rotor's -4 * excess^2 * v-hat brake
+        // (FanPropeller.cs:198-207), both stated per second and converted by the 60 Hz tick.
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        float thrust = 10f / (1f + 20f - 10f);
+        float brake = 4f * 10f * 10f / 60f;
+        Assert.Equal(thrust - brake, command.Impulse.Y, 4);
+    }
+
+    [Fact]
+    public void AFanSwitchStopsTheThrustWithoutDestroyingThePart()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId fan = entities.Create();
+        harness.Rules.AddFan(fan, 2f, 1f, 0f, maxSpeed: 10f);
+        harness.Rules.AddActivation(fan);
+        harness.Link(fan, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        // A switch starts off, and off is only "not thrusting": the original's FanPropeller stops
+        // its motor and never destroys the part (FanPropeller.cs:49-56,265-296). The rotor's old
+        // balloon-style trigger destroyed it on the first press.
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+        Assert.Empty(harness.Output.DestroyedEntities);
+        Assert.True(harness.Rules.HasSwitch(fan));
+
+        harness.Rules.SetActive(fan, active: true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Single(harness.Output.Commands);
+        Assert.Empty(harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
     public void SpringLaunchesOncePerTouchdown()
     {
         EntityStore entities = new();

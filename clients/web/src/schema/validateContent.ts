@@ -192,10 +192,14 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
     }
   }
   if (value.fan !== undefined) {
-    const fan = value.fan as { thrustPerTick?: unknown; directionX?: unknown; directionY?: unknown } | null;
+    const fan = value.fan as
+      | { thrustPerTick?: unknown; directionX?: unknown; directionY?: unknown; maxSpeed?: unknown; rotor?: unknown }
+      | null;
     if (typeof fan !== "object" || fan === null
-      || typeof fan.thrustPerTick !== "number" || !Number.isFinite(fan.thrustPerTick)) {
-      errors.push(`Part ${partTypeId} capabilities.fan needs a finite thrustPerTick.`);
+      || typeof fan.thrustPerTick !== "number" || !Number.isFinite(fan.thrustPerTick)
+      || fan.maxSpeed !== undefined && (typeof fan.maxSpeed !== "number" || !Number.isFinite(fan.maxSpeed) || fan.maxSpeed <= 0)
+      || fan.rotor !== undefined && typeof fan.rotor !== "boolean") {
+      errors.push(`Part ${partTypeId} capabilities.fan needs a finite thrustPerTick, an optional positive maxSpeed and an optional boolean rotor.`);
     }
   }
   if (value.spring !== undefined) {

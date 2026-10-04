@@ -1,7 +1,7 @@
 # Intent: PLAY 零件开关（本机）
 
 > 2026-09-09 已确认（用户口述：原作靠画面中下方按钮或点零件；BPLE MOD 增加了按**类型**的热键，没有 Besiege 式单个零件热键）。
-> 关键决策已拍板：PGFS v3 + `flags`、开关是唯一玩家触发、气球/旋翼 `trigger`（放气/摧毁）。规格：`docs/specs/play-part-switches.md`。
+> 关键决策已拍板：PGFS v3 + `flags`、开关是唯一玩家触发、气球 `trigger`（放气/摧毁）、旋翼 `toggle`（电机启停）。规格：`docs/specs/play-part-switches.md`；旋翼/风扇模型见 `docs/specs/fan-propeller.md`。
 
 - **Outcome:** PLAY 沙盒里零件**默认不工作**；玩家用画面中下方的开关条（每个可开关零件类型一个按钮）、类型热键或直接点自己的零件，把零件**启动/停止**。开关状态由服务器持有并随快照下发，他人可见但不可操作。
 - **User:** 仓库维护者本人 + 本机多开的玩家（多标签/多窗口）。

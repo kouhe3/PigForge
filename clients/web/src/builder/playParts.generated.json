@@ -271,9 +271,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "fan": {
-          "thrustPerTick": 1.2,
-          "directionX": 1,
-          "directionY": 0
+          "thrustPerTick": 0.116667,
+          "directionX": -1,
+          "directionY": 0,
+          "maxSpeed": 18
         },
         "activation": "toggle"
       },
@@ -1528,8 +1529,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -2782,9 +2789,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "fan": {
-          "thrustPerTick": 1.2,
-          "directionX": 1,
-          "directionY": 0
+          "thrustPerTick": 0.116667,
+          "directionX": -1,
+          "directionY": 0,
+          "maxSpeed": 18
         },
         "activation": "toggle"
       },
@@ -2821,9 +2829,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "fan": {
-          "thrustPerTick": 1.2,
-          "directionX": 1,
-          "directionY": 0
+          "thrustPerTick": 0.116667,
+          "directionX": -1,
+          "directionY": 0,
+          "maxSpeed": 18
         },
         "activation": "toggle"
       },
@@ -2860,9 +2869,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "fan": {
-          "thrustPerTick": 1.2,
-          "directionX": 1,
-          "directionY": 0
+          "thrustPerTick": 0.116667,
+          "directionX": -1,
+          "directionY": 0,
+          "maxSpeed": 18
         },
         "activation": "toggle"
       },
@@ -2899,9 +2909,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "fan": {
-          "thrustPerTick": 1.2,
-          "directionX": 1,
-          "directionY": 0
+          "thrustPerTick": 0.116667,
+          "directionX": -1,
+          "directionY": 0,
+          "maxSpeed": 18
         },
         "activation": "toggle"
       },
@@ -2938,9 +2949,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "fan": {
-          "thrustPerTick": 1.2,
-          "directionX": 1,
-          "directionY": 0
+          "thrustPerTick": 1,
+          "directionX": -1,
+          "directionY": 0,
+          "maxSpeed": 18
         },
         "activation": "toggle"
       },
@@ -6924,8 +6936,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -6967,8 +6985,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -7010,8 +7034,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -7053,8 +7083,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -7096,8 +7132,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -7139,8 +7181,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -7182,8 +7230,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -7225,8 +7279,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": -1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {
@@ -7268,8 +7328,14 @@
         "powerConsumption": 200,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "balloon": 3.5,
-        "activation": "trigger"
+        "fan": {
+          "thrustPerTick": 2,
+          "directionX": 0,
+          "directionY": 1,
+          "maxSpeed": 14,
+          "rotor": true
+        },
+        "activation": "toggle"
       },
       "shapes": [
         {

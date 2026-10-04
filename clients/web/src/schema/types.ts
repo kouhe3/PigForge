@@ -33,7 +33,10 @@ export interface PartCapabilities {
   motor?: { thrustPerTick: number; directionX: -1 | 0 | 1 };
   tnt?: { fuseTicks: number; chainDetonate?: boolean; igniteOnImpact?: boolean };
   balloon?: number;
-  fan?: { thrustPerTick: number; directionX: number; directionY: number };
+  /** A FanPropeller: the fan, the plane propeller and the rotor are one class in the original.
+   * `maxSpeed` is the top speed along the thrust axis per unit power factor (absent = uncapped,
+   * the propeller); `rotor` adds the overspeed brake. See docs/specs/fan-propeller.md. */
+  fan?: { thrustPerTick: number; directionX: number; directionY: number; maxSpeed?: number; rotor?: boolean };
   spring?: number;
   rocket?: { thrustPerTick: number; directionX: -1 | 0 | 1; directionY?: -1 | 0 | 1; durationTicks: number; explodeRadius?: number; explodeImpulse?: number };
   egg?: boolean;

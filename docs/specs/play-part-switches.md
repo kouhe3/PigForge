@@ -1,6 +1,6 @@
 # Spec: PLAY 零件开关（本机）
 
-> 状态：已确认（2026-09-09 用户确认：PGFS v3 + flags、开关是唯一玩家触发、气球/旋翼走 `trigger` 放气/摧毁）。消费 `docs/intent/play-part-switches.md`。
+> 状态：已确认（2026-09-09 用户确认：PGFS v3 + flags、开关是唯一玩家触发；气球走 `trigger` 放气/摧毁、旋翼走 `toggle` 电机启停）。消费 `docs/intent/play-part-switches.md`。
 > 权威契约仍是 ADR-001/002 与 `docs/specs/multiplayer-sandbox.md` 的归属/per-player 门控语义；本文件只补「零件开关」缺口。
 > 取代：`multiplayer-sandbox.md` Assumption 5 与 `minimal-playable.md` 中「PGFS 15B 头 + 68B/实体不变」的条目——本切片把 PGFS 升到 **v3**（实体 69B，末尾追加 `flags:u8`）。PGFC 仍是 19B 头、版本 2，只追加 kind 8/9。
 
@@ -19,9 +19,9 @@ Build order: `activation-model` → `activation-wire` → `web-gadgets`。`clien
 1. **开关由内容声明**：`capabilities.activation: "toggle" | "trigger"`；缺省 = 无开关（零件按既有语义一直工作/被动生效）。
 2. **两分语义**：
    - `toggle`：持续效果的开关，`Active` 一直保持到再次切换（电机、风扇、伞、齿轮箱反向）。
-   - `trigger`：一次性动作，只在激活沿触发一次；触发后清 `Active`，不可重复触发（火箭点火后烧完、气球/旋翼放气后零件被摧毁、风箱/抓钩/脱钩/TNT 各触发一次）。
-3. **默认关闭**：沙盒 Start 后所有 `toggle` 零件 `Active = false`、`trigger` 零件未触发（`Active = false`），等玩家操作。**例外：气球/旋翼的升力是被动效果**（原作即如此，Start 后就有升力），开关只负责放气摧毁。旧关卡房间（`PlayHost.CreateSlopeRoom`/`CreateTerrainRoom`）**不种开关条目**（只有沙盒种），因此斜坡/地形与 `--demo-ws` 走本切片前的既有自动路径，行为逐字不变。
-4. **一次性零件不再自动触发**（有意行为变更）：火箭不再 t0 自燃；风箱/抓钩不再触地自动触发；开关是唯一玩家触发。气球/旋翼的升力是被动效果（见 Assumption 3），开关只做放气摧毁。ADR-002 的撞击语义不变：TNT 强撞击仍自燃、脱钩件强撞击仍分离、蛋仍会摔碎。
+   - `trigger`：一次性动作，只在激活沿触发一次；触发后清 `Active`，不可重复触发（火箭点火后烧完、气球放气后零件被摧毁、风箱/抓钩/脱钩/TNT 各触发一次）。
+3. **默认关闭**：沙盒 Start 后所有 `toggle` 零件 `Active = false`、`trigger` 零件未触发（`Active = false`），等玩家操作。**例外：气球的升力是被动效果**（原作即如此，Start 后就有升力），开关只负责放气摧毁；旋翼是 `toggle`（见 Assumption 2），Start 后推力关闭，开关只启停电机、不摧毁零件（`docs/specs/fan-propeller.md`）。旧关卡房间（`PlayHost.CreateSlopeRoom`/`CreateTerrainRoom`）**不种开关条目**（只有沙盒种），因此斜坡/地形与 `--demo-ws` 走本切片前的既有自动路径，行为逐字不变。
+4. **一次性零件不再自动触发**（有意行为变更）：火箭不再 t0 自燃；风箱/抓钩不再触地自动触发；开关是唯一玩家触发。气球的升力是被动效果（见 Assumption 3），开关只做放气摧毁；旋翼改为 `toggle`，原文「点一下放气」的被动升力不再适用（`docs/specs/fan-propeller.md`）。ADR-002 的撞击语义不变：TNT 强撞击仍自燃、脱钩件强撞击仍分离、蛋仍会摔碎。
 5. **齿轮箱修正**：只有 `Active` 的齿轮箱才让同 body 的电机反向（现状是「放了齿轮箱就永远反向」）。
 6. **按钮 = 零件类型**：开关条只列该玩家自己、已 Materialized、可开关的零件类型，按 `partTypeId` 升序；按钮状态 = 该类型存在任一 `Active` 零件。原作「发动机按钮联动所有动力零件」的特例不做。
 7. **热键按 BPLE 风格、按类型**：`1`–`9`、`0`、`A`–`Z` 依按钮顺序；只在运行中（Materialized）生效；输入框焦点保护。建造期工具热键 `1`–`5` 不受影响（两个相位互斥）。
@@ -62,11 +62,11 @@ v1 映射（`content/parts.json` 与 `clients/web/src/builder/slope.ts` 的 `PLA
 
 | activation | 零件（partTypeId） |
 |---|---|
-| `toggle` | engine 8、motor-wheel 17、propeller 38、fan 11、black-umbrella 35、electric-umbrella 36、gearbox-lever 39 |
-| `trigger` | rocket 13、soda-bottle-black 25、soda-bottle-green 26、firework-red 30、bellows 40、grappling-hook 46、detacher 43、tnt 9/42/47/48/49/50、balloon 10/19/20、rotor 37 |
+| `toggle` | engine 8、motor-wheel 17、propeller 38、fan 11、black-umbrella 35、electric-umbrella 36、gearbox-lever 39、rotor 37 |
+| `trigger` | rocket 13、soda-bottle-black 25、soda-bottle-green 26、firework-red 30、bellows 40、grappling-hook 46、detacher 43、tnt 9/42/47/48/49/50、balloon 10/19/20 |
 | 无 | 结构件、轮子、猪/猪王、沙袋、绳、蛋、弹簧 12/28、翼 31/32、尾 33/34、灯 44/45 |
 
-注：气球/旋翼对应原作的「点一下放气」——升力与今天一样**被动生效**；开关触发即 `DestroyEntity`（与火箭自毁同一路径），升力立即停止、实体从快照与施工布局消失。复合体成员的形状重建沿用既有 `UnbindEntity` 语义，见 Open Questions。
+注：气球对应原作的「点一下放气」——升力与今天一样**被动生效**；开关触发即 `DestroyEntity`（与火箭自毁同一路径），升力立即停止、实体从快照与施工布局消失。旋翼改走 `toggle`：原作 `FanPropeller.SetEnabled(false)` 只停电机、不销毁零件（`docs/specs/fan-propeller.md`）。复合体成员的形状重建沿用既有 `UnbindEntity` 语义，见 Open Questions。
 
 ## Core：`ActivationStore` 与 `GameplayRules`
 
@@ -200,7 +200,7 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 
 ### 交互
 
-- 开关条：`activeTab === "live" && playerPhase === "materialized" && groups.length > 0` 时显示在画面中下方；`toggle` 组点击 → kind 9（`active = !group.active`）；`trigger` 组点击 → kind 9（`active = true`，一次性动作，按钮不保持 on 状态；气球/旋翼组即「放气」）。
+- 开关条：`activeTab === "live" && playerPhase === "materialized" && groups.length > 0` 时显示在画面中下方；`toggle` 组点击 → kind 9（`active = !group.active`）；`trigger` 组点击 → kind 9（`active = true`，一次性动作，按钮不保持 on 状态；气球组即「放气」）。
 - 热键：运行中按 `1`–`9`/`0`/`A`–`Z`（大小写均可）触发对应按钮，然后 `return`（不落到工具键）；建造期行为不变。
 - 点零件：`SelectEntity` 消息后，若运行中且该实体是自己可开关的零件 → 额外发 kind 8（`active = !entity.active`）；否则只选中。
 - 零预测：不发本地状态变更；按钮与描边只跟随快照。
@@ -283,7 +283,7 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 
 1. `dotnet test PigForge.slnx`、`pnpm test`、`pnpm build` 全绿。
 2. 两个标签：A Start 后载具静止；A 点「发动机」按钮（或按 `1`，或点发动机零件）→ 载具开动；再点 → 停；B 看到 A 的零件描边亮起，点它被拒且错误可见。
-3. 火箭/礼花/风箱/抓钩/TNT 只在开关触发后动作（不再 t0 自燃/触地自动触发）；气球/旋翼 Start 后即提供升力，开关触发后消失；TNT 强撞击仍自燃。
+3. 火箭/礼花/风箱/抓钩/TNT 只在开关触发后动作（不再 t0 自燃/触地自动触发）；气球 Start 后即提供升力，开关触发后消失；旋翼是 `toggle`，Start 后推力关闭、开关只启停电机；TNT 强撞击仍自燃。
 4. RESET → 重新 Start 后所有开关回到关闭，开关条重建。
 5. 旧房间（斜坡/地形）行为与本切片前逐字一致（不种开关条目，走既有自动路径），`--demo-ws` 只升到 v3 帧。
 6. 抓包：客户端→服务器只有 PGFC（含 24B 的 kind 8/9），无位姿或状态上传。

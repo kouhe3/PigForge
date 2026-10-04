@@ -261,7 +261,16 @@
       "properties": {
         "thrustPerTick": { "type": "number" },
         "directionX": { "type": "number" },
-        "directionY": { "type": "number" }
+        "directionY": { "type": "number" },
+        "maxSpeed": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Top speed along the thrust axis per unit engine power factor: the original's m_defaultSpeed x IN <X>Speed (FanPropeller.cs:90,100-106). Absent = the original never caps it (the plane propeller, whose PropellerSpeed is Infinity). See docs/specs/fan-propeller.md."
+        },
+        "rotor": {
+          "type": "boolean",
+          "description": "The original's m_isRotor: a rotor brakes quadratically once it moves past maxSpeed (FanPropeller.cs:198-207). Defaults to false."
+        }
       }
     },
     "motorCapability": {

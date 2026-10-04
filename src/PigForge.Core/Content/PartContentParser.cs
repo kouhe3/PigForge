@@ -459,6 +459,8 @@ public static class PartContentParser
         float? fanThrust = null;
         float? fanDirectionX = null;
         float? fanDirectionY = null;
+        float? fanMaxSpeed = null;
+        bool fanIsRotor = false;
         float? springBounce = null;
         float? rocketThrust = null;
         float? rocketDirectionX = null;
@@ -555,9 +557,9 @@ public static class PartContentParser
 
         if (seenKeys.Contains("fan"))
         {
-            if (!capabilitiesElement.TryGetProperty("fan", out JsonElement fanElement) || !TryReadFan(fanElement, path, out fanThrust, out fanDirectionX, out fanDirectionY))
+            if (!capabilitiesElement.TryGetProperty("fan", out JsonElement fanElement) || !TryReadFan(fanElement, path, out fanThrust, out fanDirectionX, out fanDirectionY, out fanMaxSpeed, out fanIsRotor))
             {
-                errors.Add($"{path}.capabilities.fan: must be an object with a finite thrustPerTick and finite directionX/directionY (at least one non-zero).");
+                errors.Add($"{path}.capabilities.fan: must be an object with a finite thrustPerTick, finite directionX/directionY (at least one non-zero), an optional positive maxSpeed and an optional boolean rotor.");
                 hasError = true;
             }
         }
@@ -823,6 +825,16 @@ public static class PartContentParser
             hasError = true;
         }
 
+        // FanPropeller is the one class behind the fan, the plane propeller and the rotor, and it
+        // always has a toggle: `HasOnOffToggle() => true` and `SetEnabled(false)` only stops the
+        // thrust (FanPropeller.cs:49-56,265-296). "trigger" is what made the rotor deflate and
+        // vanish, so a fan that declares it is a content error, not a style choice.
+        if (fanThrust is not null && activation != PartActivation.Toggle)
+        {
+            errors.Add($"{path}.capabilities.fan: requires activation \"toggle\" (the original's FanPropeller switches off, it never destroys the part).");
+            hasError = true;
+        }
+
         foreach (string key in seenKeys)
         {
             if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
@@ -837,7 +849,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, springBounce, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -1197,11 +1209,13 @@ public static class PartContentParser
         return true;
     }
 
-    private static bool TryReadFan(JsonElement element, string path, out float? thrust, out float? directionX, out float? directionY)
+    private static bool TryReadFan(JsonElement element, string path, out float? thrust, out float? directionX, out float? directionY, out float? maxSpeed, out bool rotor)
     {
         thrust = null;
         directionX = null;
         directionY = null;
+        maxSpeed = null;
+        rotor = false;
         if (element.ValueKind != JsonValueKind.Object)
         {
             return false;
@@ -1218,6 +1232,32 @@ public static class PartContentParser
         if (!TryReadFanDirection(element, out float directionXValue, out float directionYValue))
         {
             return false;
+        }
+
+        // The FanPropeller's top speed along its thrust axis, per unit engine power factor
+        // (FanPropeller.cs:90,245-257). Absent = the original never caps it (`PropellerSpeed`
+        // is Infinity), so only a present field is validated.
+        if (element.TryGetProperty("maxSpeed", out JsonElement maxSpeedElement))
+        {
+            if (maxSpeedElement.ValueKind != JsonValueKind.Number
+                || !IsFiniteNumber(maxSpeedElement)
+                || !maxSpeedElement.TryGetSingle(out float maxSpeedValue)
+                || !(maxSpeedValue > 0f))
+            {
+                return false;
+            }
+
+            maxSpeed = maxSpeedValue;
+        }
+
+        if (element.TryGetProperty("rotor", out JsonElement rotorElement))
+        {
+            if (rotorElement.ValueKind != JsonValueKind.True && rotorElement.ValueKind != JsonValueKind.False)
+            {
+                return false;
+            }
+
+            rotor = rotorElement.GetBoolean();
         }
 
         thrust = thrustValue;

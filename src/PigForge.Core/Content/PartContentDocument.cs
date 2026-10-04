@@ -201,6 +201,13 @@ public sealed record PartCapabilities(
     float? FanThrustPerTick = null,
     float? FanDirectionX = null,
     float? FanDirectionY = null,
+    // The original's FanPropeller (spec docs/specs/fan-propeller.md). `FanMaxSpeed` is
+    // `m_defaultSpeed * IN <X>Speed` (FanPropeller.cs:90,100-106) -- the top speed along the
+    // thrust axis per unit of engine power factor, which the rules layer multiplies by its
+    // cluster's factor. 0 means the original never caps it (`PropellerSpeed = Infinity`).
+    // `FanIsRotor` is `m_isRotor`, which adds the overspeed brake (FanPropeller.cs:198-207).
+    float? FanMaxSpeed = null,
+    bool FanIsRotor = false,
     float? SpringBounceImpulsePerTick = null,
     float? RocketThrustPerTick = null,
     float? RocketDirectionX = null,

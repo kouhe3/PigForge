@@ -424,7 +424,13 @@ public sealed class GameRoom : IDisposable
 
         if (capabilities.HasFan)
         {
-            _rules.AddFan(entity, capabilities.FanThrustPerTick!.Value, capabilities.FanDirectionX ?? 1f, capabilities.FanDirectionY ?? 0f);
+            _rules.AddFan(
+                entity,
+                capabilities.FanThrustPerTick!.Value,
+                capabilities.FanDirectionX ?? 1f,
+                capabilities.FanDirectionY ?? 0f,
+                capabilities.FanMaxSpeed ?? 0f,
+                capabilities.FanIsRotor);
         }
 
         if (capabilities.HasSpring)
@@ -1717,7 +1723,27 @@ public sealed class GameRoom : IDisposable
             _entityByBody.Remove(body.Value);
             ForgetJointsForBody(body);
             _bodyPose.Remove(body.Value);
+            DropPendingCommands(body);
             _world.DestroyBody(body);
+        }
+    }
+
+    /// <summary>
+    /// A compound split destroys the body the rules aimed this tick's commands at, and the next
+    /// tick is what applies those commands -- so they have to go with the body. The pieces are
+    /// re-bound (BindCluster) and emit their own commands on the next rules pass, so the only
+    /// thing dropped is a tick of thrust aimed at a body that no longer exists. Without this the
+    /// room wedges: `BepuPhysicsWorld.ApplyCommands` throws "Impulse target body N does not exist
+    /// or is not dynamic" and stops ticking (measured with a rotor whose thrust breaks its seam).
+    /// </summary>
+    private void DropPendingCommands(PhysicsBodyId body)
+    {
+        for (int index = _output.Commands.Count - 1; index >= 0; index--)
+        {
+            if (_output.Commands[index].Body.Value == body.Value)
+            {
+                _output.Commands.RemoveAt(index);
+            }
         }
     }
 
@@ -1770,6 +1796,7 @@ public sealed class GameRoom : IDisposable
             }
 
             _world.DestroyBody(live.Body);
+            DropPendingCommands(live.Body);
             foreach (CompoundCluster piece in pieces)
             {
                 BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
@@ -1868,6 +1895,7 @@ public sealed class GameRoom : IDisposable
         }
 
         _world.DestroyBody(link.Body);
+        DropPendingCommands(link.Body);
         foreach (CompoundCluster piece in pieces)
         {
             BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));

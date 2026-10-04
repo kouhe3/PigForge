@@ -63,5 +63,5 @@
 - 电气回路（`ElectricalPart`/`Wire`/`Electrode` 的逻辑电平系统）与 `FuelTube`：那是开关/逻辑子系统，与机械动力无关。
 - 旧分支（`DynamicPowerSystem = false`）。
 - **原作马达限速**：`m_maximumSpeed = 15 × factor` 与 `LimitForceForSpeed`（`MotorWheel.cs:103,292-296`）。本模型没有速度上限量（现状 4），本切片只把 `factor` 乘到每 tick 冲量上。
-- ~~**推进件的因子**~~（已实现，2026-10-03）：原作对 `FanPropeller`/`PoweredUmbrella`/`StickyWheel` 同样乘因子（`FanPropeller.cs:85-92`、`PoweredUmbrella.cs:70-89`、`StickyWheel.cs:119`）。粘轮归入 `motor` 驱动路径（决议 4 的补丁）；`fan`/`umbrella` 与「带 `powerConsumption` 的升力件」（旋翼）现在统一走 `GameplayRules.TryDriveFactor` 按 `ClusterPowerFactor` 缩放，簇内无引擎即为 0。同一批还落地了 §2 真值 9 的底盘门控（G25）。唯一未建模的是 `PoweredUmbrella.cs:70-89` 里「有功率但该分量没有引擎」时再乘 0.5 的分支——本模型的「分量」就是功率簇，不区分这两档。
+- ~~**推进件的因子**~~（已实现，2026-10-03）：原作对 `FanPropeller`/`PoweredUmbrella`/`StickyWheel` 同样乘因子（`FanPropeller.cs:85-92`、`PoweredUmbrella.cs:70-89`、`StickyWheel.cs:119`）。粘轮归入 `motor` 驱动路径（决议 4 的补丁）；`fan`/`umbrella` 与 `rotor`（旋翼，现与风扇同为 `FanPropeller` 的 `fan` 推力件，走 `RunFans` 且受 `maxSpeed` 上限约束，见 `docs/specs/fan-propeller.md`）现在统一走 `GameplayRules.TryDriveFactor` 按 `ClusterPowerFactor` 缩放，簇内无引擎即为 0。同一批还落地了 §2 真值 9 的底盘门控（G25）。唯一未建模的是 `PoweredUmbrella.cs:70-89` 里「有功率但该分量没有引擎」时再乘 0.5 的分支——本模型的「分量」就是功率簇，不区分这两档。
 - **引擎按钮联动**：原作点引擎会开关同分量内全部耗能件（`Engine.cs:29`、`Contraption.cs:1013-1090 ActivateAllPoweredParts`）。本切片只做供能与门控，引擎的 `activation: toggle` 保留但不联动（各耗能件仍用自己的开关）。

@@ -126,6 +126,55 @@ public sealed class PartContentTests
     }
 
     [Fact]
+    public void FanPropellerCapabilityParsesTheSpeedCapAndTheRotorFlag()
+    {
+        PartContentDocument document = PartContentParser.Parse("""
+        {
+            "format": "pigforge.part-content",
+            "schemaVersion": 1,
+            "contentVersion": "test-content-v1",
+            "parts": [
+                { "partTypeId": 11, "name": "fan", "mode": "dynamic", "mass": 0.8, "capabilities": { "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 18 }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [0.225, 0.5, 0.5] } ] },
+                { "partTypeId": 37, "name": "rotor", "mode": "dynamic", "mass": 0.7, "capabilities": { "fan": { "thrustPerTick": 2, "directionX": 0, "directionY": 1, "maxSpeed": 14, "rotor": true }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [0.3, 0.44, 0.5] } ] },
+                { "partTypeId": 38, "name": "propeller", "mode": "dynamic", "mass": 0.9, "capabilities": { "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [0.14, 0.5, 0.5] } ] }
+            ]
+        }
+        """);
+
+        PartCapabilities fan = document.Parts[0].Capabilities!;
+        Assert.Equal(0.116667f, fan.FanThrustPerTick);
+        Assert.Equal(-1f, fan.FanDirectionX);
+        Assert.Equal(18f, fan.FanMaxSpeed);
+        Assert.False(fan.FanIsRotor);
+
+        PartCapabilities rotor = document.Parts[1].Capabilities!;
+        Assert.Equal(14f, rotor.FanMaxSpeed);
+        Assert.True(rotor.FanIsRotor);
+
+        // The plane propeller's original never caps its speed (`PropellerSpeed` is Infinity), so
+        // the field is absent -- and absence is not the same as a zero cap.
+        PartCapabilities propeller = document.Parts[2].Capabilities!;
+        Assert.Null(propeller.FanMaxSpeed);
+        Assert.False(propeller.FanIsRotor);
+    }
+
+    [Fact]
+    public void AFanWithoutAToggleIsRejected()
+    {
+        AssertRejected(
+            """{ "partTypeId": 37, "name": "rotor", "mode": "dynamic", "mass": 0.7, "capabilities": { "fan": { "thrustPerTick": 20.571429, "directionX": 0, "directionY": 1 }, "activation": "trigger" }, "shapes": [ { "kind": "box", "halfExtents": [0.3, 0.44, 0.5] } ] }""",
+            "activation");
+    }
+
+    [Fact]
+    public void AFanWithANonPositiveSpeedCapIsRejected()
+    {
+        AssertRejected(
+            """{ "partTypeId": 11, "name": "fan", "mode": "dynamic", "mass": 0.8, "capabilities": { "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 0 }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [0.225, 0.5, 0.5] } ] }""",
+            "capabilities.fan");
+    }
+
+    [Fact]
     public void JointEnclosureAndAttachmentCapabilitiesParse()
     {
         PartContentDocument document = PartContentParser.Parse("""
