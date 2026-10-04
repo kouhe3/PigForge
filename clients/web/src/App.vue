@@ -5,7 +5,6 @@ import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
 import { MOVE_SNAP, TOOLS, type ToolId, placePose, toolByHotkey } from "./editor/tools";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
 import { gadgetGroups, type GadgetGroup } from "./live/gadgets";
-import { createSessionId, withSessionParam } from "./live/playSession";
 import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
 import { createPlayerSession, type CommandKind } from "./live/playerSession";
@@ -45,11 +44,6 @@ let clock: PlaybackClock | null = null;
 let detachGestures: (() => void) | null = null;
 let disconnectLive: (() => void) | null = null;
 let sendCommand: ((command: ClientCommand) => void) | null = null;
-// This page load's play-host session. The server resumes the same player id for a reconnect that
-// carries it, so 连接房间 no longer orphans the parts this client already placed.
-const liveSessionId = createSessionId();
-// The target the current/last connection was opened against; a different one is a different room.
-let liveTarget: string | null = null;
 // Original-art sprite manifest: optional, absent in a clean checkout.
 const partTextures = shallowRef<PartTextureSet | null>(null);
 // Animation state and its wall clock; both stay outside Vue reactivity like the view state.
@@ -322,18 +316,14 @@ function step(delta: number): void {
 
 function connectLive(): void {
   const snapshotOnly = session.liveUrl.includes("/snapshots");
-  const url = snapshotOnly ? session.liveUrl : withSessionParam(session.liveUrl, liveSessionId);
+  const url = session.liveUrl;
   disconnectLive?.();
   sendCommand = null;
   session.setErrors([]);
   session.loadContent(PLAY_PARTS);
-  if (liveTarget !== null && liveTarget !== url) {
-    player.reset();
-  } else {
-    player.reconnect();
-  }
-
-  liveTarget = url;
+  // A player's life is its socket: the server drops a departed player's parts, so every
+  // connection starts from an empty building plane and the local identity goes with it.
+  player.reset();
   syncPlayer();
   if (snapshotOnly) {
     disconnectLive = connectSnapshotSocket(
@@ -361,8 +351,9 @@ function connectLive(): void {
     },
     (message) => session.setErrors([message]),
     () => {
-      // The socket went away, the session did not: keep the ownership so 连接房间 can resume it.
-      player.reconnect();
+      // The socket went away and so did the player: the server cleared its parts, so the
+      // ownership list is stale -- drop it and 连接房间 starts a fresh player.
+      player.reset();
       syncPlayer();
     },
   );

@@ -103,8 +103,23 @@ public sealed class GameRoom : IDisposable
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
     private readonly List<uint> _entityOrder = new();
     private LevelContentDocument? _level;
-    private readonly List<(uint EntityValue, uint PartTypeId, float PositionX, float PositionY, float Angle, float Scale)> _retryLayout = new();
+    private readonly List<CapturedPart> _retryLayout = new();
+    private readonly Dictionary<uint, List<CapturedPart>> _startLayoutByPlayer = new();
     private bool _disposed;
+
+    /// <summary>
+    /// One part of a layout captured at materialisation: the entity it was, and what it takes
+    /// to build it again (part type, build pose, scale). Entity value first so a captured
+    /// layout sorts deterministically and a rebuild places its parts in the same order they
+    /// were built.
+    /// </summary>
+    private readonly record struct CapturedPart(
+        uint EntityValue,
+        uint PartTypeId,
+        float PositionX,
+        float PositionY,
+        float Angle,
+        float Scale);
 
     /// <summary>
     /// The 2.5D lock every authoritative body carries: freeze the Z translation and the X/Y
@@ -547,18 +562,7 @@ public sealed class GameRoom : IDisposable
 
         List<EntityId> entities = CollectPartEntities();
         _retryLayout.Clear();
-        foreach (uint entityValue in _construction.PlacedEntities)
-        {
-            EntityId entity = new(entityValue);
-            if (!_parts.TryGet(entity, out PartLink partLink) || !_transforms.TryGet(entity, out EntityTransform transform))
-            {
-                continue;
-            }
-
-            _retryLayout.Add((entityValue, partLink.PartTypeId, transform.Position.X, transform.Position.Y, PlanarAngle(transform.Rotation), transform.Scale));
-        }
-
-        _retryLayout.Sort((left, right) => left.Item1.CompareTo(right.Item1));
+        _retryLayout.AddRange(CaptureLayout(_construction.PlacedEntities));
 
         SyncEngineEnclosure();
         SyncChassisAnchors();
@@ -717,12 +721,12 @@ public sealed class GameRoom : IDisposable
             SetupFromLevel(_level);
         }
 
-        foreach ((uint _, uint partTypeId, float positionX, float positionY, float angle, float scale) in _retryLayout)
+        foreach (CapturedPart part in _retryLayout)
         {
-            ConstructionResult placed = _construction.Place(partTypeId, positionX, positionY, angle, scale, 0);
+            ConstructionResult placed = _construction.Place(part.PartTypeId, part.PositionX, part.PositionY, part.Angle, part.Scale, 0);
             if (placed.IsSuccess)
             {
-                RegisterPlacedRole(placed.Entity, partTypeId);
+                RegisterPlacedRole(placed.Entity, part.PartTypeId);
             }
         }
     }
@@ -893,6 +897,10 @@ public sealed class GameRoom : IDisposable
             return false;
         }
 
+        // Remember what this run was built from: RESET rebuilds exactly this layout (the parts
+        // the player is editing again, at the poses they were built at), not a re-placed one.
+        _startLayoutByPlayer[playerId] = CaptureLayout(owned);
+
         SyncEngineEnclosure();
         SyncChassisAnchors();
         List<EntityId> entities = new(owned.Count);
@@ -916,12 +924,87 @@ public sealed class GameRoom : IDisposable
         return true;
     }
 
-    /// <summary>Per-player RESET: destroys only this player's entities and layout in
-    /// ascending entity order, then returns the player to editing. Idempotent, and
-    /// never touches the room-wide rules state.</summary>
+    /// <summary>
+    /// Per-player RESET: the player's materialised bodies leave the world and the layout the
+    /// run was started from comes back as previews, so RESET is a rebuild loop rather than a
+    /// re-place -- Start can run the same contraption again without rebuilding it. Parts the
+    /// run destroyed (a blast, a seam detach) are re-created from the captured layout; a part
+    /// the player removed while editing stays removed. Every other player is untouched, and
+    /// the room-wide rules state is never reset.
+    /// </summary>
     private void ResetPlayer(uint playerId)
     {
-        foreach (uint entityValue in _construction.PlacedEntitiesOf(playerId))
+        // Only a materialised player can have lost parts to the run; an editing player's
+        // missing parts are ones it removed on purpose.
+        bool materialized = _sandboxPlayers.IsMaterialized(playerId);
+        List<uint> owned = SortedPlacedEntitiesOf(playerId);
+
+        // Drop the bodies and the runtime rule state of the parts that are still there. The
+        // construction entities stay: they keep their cells and become previews again at
+        // their build poses (a running room never wrote the transform store).
+        foreach (uint entityValue in owned)
+        {
+            EntityId entity = new(entityValue);
+            _rules.CleanupEntityStores(entity);
+            UnbindEntity(entity, destroyBodyIfOrphan: true);
+        }
+
+        // The frames survive the reset, so their weld definitions have to go with the joints the
+        // destroyed bodies took with them (see ForgetWeldsForEntities).
+        ForgetWeldsForEntities(owned);
+
+        if (materialized && _startLayoutByPlayer.TryGetValue(playerId, out List<CapturedPart>? layout))
+        {
+            foreach (CapturedPart part in layout)
+            {
+                if (_entities.IsAlive(new EntityId(part.EntityValue)))
+                {
+                    continue;
+                }
+
+                // A cell another player has taken since the part was destroyed keeps its owner:
+                // the rebuilt part is left out rather than stealing the cell.
+                ConstructionResult placed = _construction.Place(part.PartTypeId, part.PositionX, part.PositionY, part.Angle, part.Scale, playerId);
+                if (placed.IsSuccess)
+                {
+                    RegisterPlacedRole(placed.Entity, part.PartTypeId);
+                }
+            }
+        }
+
+        // Roles come back from content, exactly as a fresh placement registers them: the
+        // switch starts off again, charges re-arm, and the enclosure/chassis gates the rules
+        // layer reads are re-published over the restored layout.
+        foreach (uint entityValue in owned)
+        {
+            if (_parts.TryGet(new EntityId(entityValue), out PartLink part))
+            {
+                RegisterPlacedRole(new EntityId(entityValue), part.PartTypeId);
+            }
+        }
+
+        SyncEngineEnclosure();
+        SyncChassisAnchors();
+        _sandboxPlayers.MarkEditing(playerId);
+        DropOrphanedCommands();
+    }
+
+    /// <summary>
+    /// A socket closed: the player leaves the room and its parts leave the world with it. The
+    /// captured layout goes too, so a later connection is a new player with an empty build
+    /// plane -- nothing of the departed player survives, and no ghost part can linger in a
+    /// cell nobody owns.
+    /// </summary>
+    public void LeavePlayer(uint playerId)
+    {
+        ThrowIfDisposed();
+        if (!_sandboxMode)
+        {
+            return;
+        }
+
+        List<uint> owned = SortedPlacedEntitiesOf(playerId);
+        foreach (uint entityValue in owned)
         {
             EntityId entity = new(entityValue);
             _construction.Remove(entity, playerId);
@@ -929,7 +1012,10 @@ public sealed class GameRoom : IDisposable
             UnbindEntity(entity, destroyBodyIfOrphan: true);
         }
 
-        _sandboxPlayers.MarkEditing(playerId);
+        ForgetWeldsForEntities(owned);
+        _startLayoutByPlayer.Remove(playerId);
+        _sandboxPlayers.Forget(playerId);
+        _validator.Forget(playerId);
         DropOrphanedCommands();
     }
 
@@ -967,8 +1053,43 @@ public sealed class GameRoom : IDisposable
         return entities;
     }
 
+    /// <summary>
+    /// Captures what it takes to rebuild the given parts: part type, build pose and scale,
+    /// ascending by entity so a rebuild places them in the order they were built.
+    /// </summary>
+    private List<CapturedPart> CaptureLayout(IEnumerable<uint> entityValues)
+    {
+        List<CapturedPart> layout = new();
+        foreach (uint entityValue in entityValues)
+        {
+            EntityId entity = new(entityValue);
+            if (_parts.TryGet(entity, out PartLink part) && _transforms.TryGet(entity, out EntityTransform transform))
+            {
+                layout.Add(new CapturedPart(
+                    entityValue,
+                    part.PartTypeId,
+                    transform.Position.X,
+                    transform.Position.Y,
+                    PlanarAngle(transform.Rotation),
+                    transform.Scale));
+            }
+        }
+
+        layout.Sort((left, right) => left.EntityValue.CompareTo(right.EntityValue));
+        return layout;
+    }
+
+    /// <summary>One owner's construction entities, ascending: the order every reset walks them in.</summary>
+    private List<uint> SortedPlacedEntitiesOf(uint playerId)
+    {
+        List<uint> entities = new(_construction.PlacedEntitiesOf(playerId));
+        entities.Sort();
+        return entities;
+    }
+
     /// <summary>Per-player out-of-bounds cleanup: a materialised player whose every
-    /// entity is outside the map bounds is reset. Preview entities never participate
+    /// entity is outside the map bounds is reset (the same reset the RESET command
+    /// runs, so the layout comes back as previews). Preview entities never participate
     /// and other players are unaffected.</summary>
     private void ResetPlayersOutOfBounds()
     {
@@ -1530,6 +1651,33 @@ public sealed class GameRoom : IDisposable
     private void PruneDeadWelds()
     {
         if (_welds.RemoveAll(weld => !_entities.IsAlive(weld.Left) || !_entities.IsAlive(weld.Right)) == 0)
+        {
+            return;
+        }
+
+        _weldKeys.Clear();
+        foreach (CompoundWeld weld in _welds)
+        {
+            _weldKeys.Add(PairKey(weld.Left.Value, weld.Right.Value));
+        }
+    }
+
+    /// <summary>
+    /// Drops the weld definitions a player's reset invalidates. The reset destroys the bodies the
+    /// joints were bound to but keeps the frames -- and their entity ids -- so the definitions
+    /// survive <see cref="PruneDeadWelds"/> while they no longer have a joint. The next Start
+    /// re-registers the frame pair from the assembler, and without this the idempotence key would
+    /// swallow those fresh definitions and rebuild the chain unwelded.
+    /// </summary>
+    private void ForgetWeldsForEntities(IReadOnlyCollection<uint> entityValues)
+    {
+        if (_welds.Count == 0 || entityValues.Count == 0)
+        {
+            return;
+        }
+
+        HashSet<uint> owned = new(entityValues);
+        if (_welds.RemoveAll(weld => owned.Contains(weld.Left.Value) || owned.Contains(weld.Right.Value)) == 0)
         {
             return;
         }

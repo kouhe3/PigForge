@@ -4,7 +4,10 @@
  * that maps an ack sequence back to the command it answers.
  *
  * The server stays authoritative: ownership is granted by the entityId on an accepted Place
- * ack, never guessed from snapshot frames (owner is not on the wire). This module is pure
+ * ack, never guessed from snapshot frames (owner is not on the wire), and a RESET keeps the
+ * layout (the server rebuilds it as previews), so an accepted RESET does not drop the ids.
+ * The session dies with its socket: the server clears a departed player's parts, so a
+ * reconnect starts from an empty plane and this state is reset. This module is pure
  * TypeScript with no Vue imports so it can be tested without a component harness.
  */
 
@@ -41,12 +44,6 @@ export interface PlayerSession {
   noteSent(kind: CommandKind, entityId?: number): number;
   /** Applies a PGFA ack; returns the rejection message, or null when accepted/unknown. */
   applyAck(ack: PlayerAck): string | null;
-  /**
-   * Drops the in-flight command bookkeeping of a socket that went away. Ownership and phase
-   * survive: the host resumes this client's player id for a reconnect that carries its session
-   * id, so the parts stay this player's and the local phase still matches the server's.
-   */
-  reconnect(): void;
   /** Clears every state on a fresh identity (first connect, or a different room);
    * sequences stay monotonic. */
   reset(): void;
@@ -94,13 +91,11 @@ export function createPlayerSession(): PlayerSession {
       } else if (entry.kind === 3) {
         phase = "materialized";
       } else if (entry.kind === 5) {
+        // RESET returns the player to editing with the layout it started from, so the owned
+        // ids stay: the server rebuilds the same previews and this client keeps selecting them.
         phase = "editing";
-        ownEntityIds.clear();
       }
       return null;
-    },
-    reconnect(): void {
-      pending = new Map<number, PendingCommand>();
     },
     reset(): void {
       phase = "editing";

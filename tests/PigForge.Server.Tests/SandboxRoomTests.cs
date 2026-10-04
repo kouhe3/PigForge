@@ -39,6 +39,12 @@ public sealed class SandboxRoomTests
 
         Assert.False(players.IsMaterialized(5));
         Assert.Equal(new uint[] { 2, 5, 7 }, players.KnownPlayers);
+
+        players.Forget(5);
+        players.Forget(5);
+
+        Assert.Equal(new uint[] { 2, 7 }, players.KnownPlayers);
+        Assert.False(players.IsMaterialized(5));
     }
 
     [Fact]
@@ -123,7 +129,7 @@ public sealed class SandboxRoomTests
     }
 
     [Fact]
-    public void ResetDestroysOnlyThatPlayersEntities()
+    public void ResetReturnsTheLayoutAsPreviewsAndLeavesOtherPlayersAlone()
     {
         ScriptedWorld world = new();
         using GameRoom room = CreateSandboxRoom(world);
@@ -138,19 +144,124 @@ public sealed class SandboxRoomTests
 
         List<SnapshotEntity> entities = PublishEntities(room, out _);
 
-        SnapshotEntity survivor = Assert.Single(entities);
-        Assert.Equal(second, survivor.EntityId);
+        // The reset player's part is a preview again, at the pose it was built at -- no re-placing.
+        Assert.Equal(2, entities.Count);
+        SnapshotEntity restored = entities.Single(entity => entity.EntityId == first);
+        Assert.Equal(0u, restored.PhysicsBodyId);
+        Assert.Equal(0.5f, restored.Position.X);
+        Assert.Equal(0.5f, restored.Position.Y);
+        Assert.Equal(0f, restored.LinearVelocity.X);
+
+        // The other player keeps its body and its id.
+        SnapshotEntity survivor = entities.Single(entity => entity.EntityId == second);
         Assert.NotEqual(0u, survivor.PhysicsBodyId);
         Assert.DoesNotContain(world.DestroyedBodies, body => body.Value == survivor.PhysicsBodyId);
         Assert.Equal(1, room.BodyCount);
 
-        // The reset player is back to editing and can place again.
-        Assert.True(room.Submit(PlacePart(4, PlayerOne, PartBlock, 1.5f, 0.5f)).IsAccepted);
-        Assert.DoesNotContain(PublishEntities(room, out _), entity => entity.EntityId == first);
+        // The reset player is back to editing; its layout survived, so it can start it again.
+        Assert.True(room.Submit(Start(4, PlayerOne)).IsAccepted);
+        entities = PublishEntities(room, out _);
+        Assert.NotEqual(0u, entities.Single(entity => entity.EntityId == first).PhysicsBodyId);
+        Assert.Equal(2, room.BodyCount);
+
+        // ... and it can still add a part to that layout, like any editing player.
+        Assert.True(room.Submit(Reset(5, PlayerOne)).IsAccepted);
+        Assert.True(room.Submit(PlacePart(6, PlayerOne, PartBlock, 1.5f, 0.5f)).IsAccepted);
+        Assert.Equal(3, PublishEntities(room, out _).Count);
     }
 
     [Fact]
-    public void ResetLeavesOtherPlayersEntitiesUntouchedAcrossIdenticalRuns()
+    public void ResetRebuildsThePartTheRunDestroyed()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level(new LevelSpawnDefinition(PartGround, new PhysicsVector3(0f, -0.5f, 0f))));
+        uint egg = room.Submit(PlacePart(1, PlayerOne, PartEgg, 0.5f, 0.5f)).EntityId;
+        uint block = room.Submit(PlacePart(2, PlayerOne, PartBlock, 5.5f, 0.5f)).EntityId;
+        Assert.True(room.Submit(Start(3, PlayerOne)).IsAccepted);
+        Dictionary<uint, uint> bodies = PublishEntities(room, out _)
+            .ToDictionary(entity => entity.EntityId, entity => entity.PhysicsBodyId);
+        uint groundBody = PublishEntities(room, out _)
+            .Single(entity => entity.PartTypeId == PartGround)
+            .PhysicsBodyId;
+
+        // A hard landing destroys the egg, exactly as the destroy path above does.
+        world.QueueSnapshot(Snapshot(bodies[egg], new PhysicsVector3(0.5f, 0.5f, 0f), PhysicsVector3.Zero));
+        room.Tick();
+        world.QueueSnapshot(Snapshot(bodies[egg], new PhysicsVector3(0.5f, 0.5f, 0f), new PhysicsVector3(10f, 0f, 0f)));
+        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(bodies[egg]), new PhysicsBodyId(groundBody)));
+        room.Tick();
+        Assert.DoesNotContain(PublishEntities(room, out _), entity => entity.EntityId == egg);
+
+        Assert.True(room.Submit(Reset(4, PlayerOne)).IsAccepted);
+
+        // RESET is a rebuild loop: the destroyed part comes back as a preview at its build pose.
+        // It is a new entity (a destroyed handle is never resurrected), so the room owns it even
+        // though this client cannot have learned its id -- the wire has no owner field.
+        List<SnapshotEntity> entities = PublishEntities(room, out _);
+        SnapshotEntity restoredEgg = entities.Single(entity => entity.PartTypeId == PartEgg);
+        Assert.NotEqual(egg, restoredEgg.EntityId);
+        Assert.Equal(0u, restoredEgg.PhysicsBodyId);
+        Assert.Equal(0.5f, restoredEgg.Position.X);
+        Assert.Equal(0.5f, restoredEgg.Position.Y);
+        Assert.Equal(0u, entities.Single(entity => entity.EntityId == block).PhysicsBodyId);
+
+        // The rebuilt egg is materialised again, so the restored layout is a real contraption.
+        Assert.True(room.Submit(Start(5, PlayerOne)).IsAccepted);
+        Assert.NotEqual(
+            0u,
+            PublishEntities(room, out _).Single(entity => entity.PartTypeId == PartEgg).PhysicsBodyId);
+    }
+
+    [Fact]
+    public void ResetWhileEditingDoesNotBringBackARemovedPart()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint kept = room.Submit(PlacePart(1, PlayerOne, PartBlock, 0.5f, 0.5f)).EntityId;
+        uint dropped = room.Submit(PlacePart(2, PlayerOne, PartBlock, 5.5f, 0.5f)).EntityId;
+        Assert.True(room.Submit(Start(3, PlayerOne)).IsAccepted);
+        Assert.True(room.Submit(Reset(4, PlayerOne)).IsAccepted);
+        Assert.True(room.Submit(Remove(5, PlayerOne, dropped)).IsAccepted);
+
+        Assert.True(room.Submit(Reset(6, PlayerOne)).IsAccepted);
+
+        // A part the player deleted on purpose stays deleted: only the run's damage is undone.
+        SnapshotEntity only = Assert.Single(PublishEntities(room, out _));
+        Assert.Equal(kept, only.EntityId);
+        Assert.Equal(0u, only.PhysicsBodyId);
+    }
+
+    [Fact]
+    public void LeavingPlayerClearsItsPartsAndFreesItsCells()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint mine = room.Submit(PlacePart(1, PlayerOne, PartBlock, 0.5f, 0.5f)).EntityId;
+        uint theirs = room.Submit(PlacePart(1, PlayerTwo, PartBlock, 6.5f, 0.5f)).EntityId;
+        Assert.True(room.Submit(Start(2, PlayerOne)).IsAccepted);
+        uint myBody = PublishEntities(room, out _).Single(entity => entity.EntityId == mine).PhysicsBodyId;
+
+        room.LeavePlayer(PlayerOne);
+        room.LeavePlayer(PlayerOne);
+
+        // The departed player's part left the world with its body; the other player is untouched.
+        SnapshotEntity survivor = Assert.Single(PublishEntities(room, out _));
+        Assert.Equal(theirs, survivor.EntityId);
+        Assert.Equal(0u, survivor.PhysicsBodyId);
+        Assert.Contains(world.DestroyedBodies, body => body.Value == myBody);
+
+        // The vacated cell is free and the room keeps running.
+        Assert.True(room.Submit(PlacePart(2, PlayerTwo, PartBlock, 0.5f, 0.5f)).IsAccepted);
+        room.RunTicks(1);
+        Assert.Equal(RoomMode.Running, room.Mode);
+        Assert.Equal(2, PublishEntities(room, out _).Count);
+    }
+
+    [Fact]
+    public void ResetRestoresTheSameLayoutAcrossIdenticalRuns()
     {
         ResetScriptOutcome first = RunResetScript();
         ResetScriptOutcome second = RunResetScript();
@@ -162,6 +273,10 @@ public sealed class SandboxRoomTests
         Assert.Equal(first.PlayerTwoBeforeReset, second.PlayerTwoBeforeReset);
         Assert.Equal(first.PlayerTwoAfterReset, second.PlayerTwoAfterReset);
         Assert.Equal(first.PlayerTwoBeforeReset, first.PlayerTwoAfterReset);
+        // The reset player keeps its own entity ids and gets them back as previews.
+        Assert.Equal(first.EntityIdsBeforeReset, first.EntityIdsAfterReset);
+        Assert.Equal(0u, first.PlayerOneAfterReset.PhysicsBodyId);
+        Assert.NotEqual(0u, first.PlayerOneBeforeReset.PhysicsBodyId);
     }
 
     [Fact]
@@ -342,9 +457,13 @@ public sealed class SandboxRoomTests
 
         List<SnapshotEntity> entities = PublishEntities(room, out _);
 
-        Assert.DoesNotContain(entities, entity => entity.EntityId == first);
-        SnapshotEntity survivor = Assert.Single(entities);
-        Assert.Equal(second, survivor.EntityId);
+        // The player that left the bounds is reset: its part is a preview again at its build pose,
+        // still under the same entity id, ready to be started again.
+        Assert.Equal(2, entities.Count);
+        SnapshotEntity restored = entities.Single(entity => entity.EntityId == first);
+        Assert.Equal(0u, restored.PhysicsBodyId);
+        Assert.Equal(0.5f, restored.Position.X);
+        SnapshotEntity survivor = entities.Single(entity => entity.EntityId == second);
         Assert.NotEqual(0u, survivor.PhysicsBodyId);
 
         // The reset player is editing again; the other player is still materialised.
@@ -416,8 +535,17 @@ public sealed class SandboxRoomTests
 
         Assert.DoesNotContain(PublishEntities(room, out _), entity => entity.EntityId == egg);
 
-        // The destroyed part's cell was released, so the same spot is placeable again.
-        Assert.True(room.Submit(PlacePart(3, PlayerOne, PartEgg, 0.5f, 0.5f)).IsAccepted);
+        // The destroyed part's footprint was released: the out-of-bounds sweep turns "every part
+        // is gone" into a reset, and that reset can only put the egg back at its build cell if the
+        // stale footprint is gone (a stale one would answer CellsOccupied).
+        SnapshotEntity restored = PublishEntities(room, out _).Single(entity => entity.PartTypeId == PartEgg);
+        Assert.Equal(PartEgg, restored.PartTypeId);
+        Assert.Equal(0u, restored.PhysicsBodyId);
+        Assert.Equal(0.5f, restored.Position.X);
+
+        // The cell is genuinely reusable: clear the restored preview and build there again.
+        Assert.True(room.Submit(Remove(3, PlayerOne, restored.EntityId)).IsAccepted);
+        Assert.True(room.Submit(PlacePart(4, PlayerOne, PartEgg, 0.5f, 0.5f)).IsAccepted);
     }
 
     [Fact]
@@ -726,7 +854,7 @@ public sealed class SandboxRoomTests
         ScriptedWorld world = new();
         using GameRoom room = CreateSandboxRoom(world);
         room.SetupFromLevel(Level(new LevelSpawnDefinition(PartGround, new PhysicsVector3(0f, -0.5f, 0f))));
-        Assert.True(room.Submit(PlacePart(1, PlayerOne, PartBlock, 0.5f, 0.5f)).IsAccepted);
+        uint playerOneFirst = room.Submit(PlacePart(1, PlayerOne, PartBlock, 0.5f, 0.5f)).EntityId;
         Assert.True(room.Submit(PlacePart(2, PlayerOne, PartBlock, 3.5f, 0.5f)).IsAccepted);
         uint playerTwoFirst = room.Submit(PlacePart(1, PlayerTwo, PartBlock, 6.5f, 0.5f)).EntityId;
         uint playerTwoSecond = room.Submit(PlacePart(2, PlayerTwo, PartBlock, 9.5f, 0.5f)).EntityId;
@@ -735,12 +863,14 @@ public sealed class SandboxRoomTests
 
         List<SnapshotEntity> before = PublishEntities(room, out _);
         long hashBefore = room.ComputeStateHash();
+        SnapshotEntity playerOneBefore = before.Single(entity => entity.EntityId == playerOneFirst);
         SnapshotEntity playerTwoBefore = before.Single(entity => entity.EntityId == playerTwoFirst);
 
         Assert.True(room.Submit(Reset(4, PlayerOne)).IsAccepted);
 
         List<SnapshotEntity> after = PublishEntities(room, out _);
         long hashAfter = room.ComputeStateHash();
+        SnapshotEntity playerOneAfter = after.Single(entity => entity.EntityId == playerOneFirst);
         SnapshotEntity playerTwoAfter = after.Single(entity => entity.EntityId == playerTwoFirst);
 
         return new ResetScriptOutcome(
@@ -748,6 +878,8 @@ public sealed class SandboxRoomTests
             after.Select(entity => entity.EntityId).ToArray(),
             hashBefore,
             hashAfter,
+            playerOneBefore,
+            playerOneAfter,
             playerTwoBefore,
             playerTwoAfter);
     }
@@ -757,6 +889,8 @@ public sealed class SandboxRoomTests
         uint[] EntityIdsAfterReset,
         long StateHashBeforeReset,
         long StateHashAfterReset,
+        SnapshotEntity PlayerOneBeforeReset,
+        SnapshotEntity PlayerOneAfterReset,
         SnapshotEntity PlayerTwoBeforeReset,
         SnapshotEntity PlayerTwoAfterReset);
 

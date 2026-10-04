@@ -34,6 +34,11 @@ public sealed class CommandValidator
     public CommandStatus Validate(ReplayCommand command, RoomMode mode, uint currentTick) =>
         Validate(command, mode, currentTick, sandboxMode: false, materialized: false);
 
+    /// <summary>Drops a departed player's sequence bookkeeping so a long-lived host does not
+    /// remember one entry per closed socket. Player ids are never reused, so a later connection
+    /// can never be mistaken for the one that left.</summary>
+    public void Forget(uint playerId) => _lastSequenceByPlayer.Remove(playerId);
+
     public CommandStatus Validate(ReplayCommand command, RoomMode mode, uint currentTick, bool sandboxMode, bool materialized)
     {
         ArgumentNullException.ThrowIfNull(command);

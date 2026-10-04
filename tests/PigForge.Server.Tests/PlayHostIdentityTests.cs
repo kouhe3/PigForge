@@ -115,97 +115,74 @@ public sealed class PlayHostIdentityTests
     }
 
     [Fact]
-    public void APlaySessionResumesItsPlayerIdAndANewSessionDoesNot()
+    public void AResetKeepsTheLayoutOwnedAndRemovableByItsPlayer()
     {
-        uint next = 0;
-        PlaySessions sessions = new(() => ++next);
-        const string Client = "8f14e45fceea167a9b3c5d7e1f2a4b6c";
-        const string Other = "0d9c7b5a3f1e2d4c6b8a0f2e4d6c8b0a";
-
-        uint firstConnect = sessions.Resolve(Client, out bool firstResumed);
-        uint reconnect = sessions.Resolve(Client, out bool reconnectResumed);
-        uint otherClient = sessions.Resolve(Other, out bool otherResumed);
-
-        Assert.False(firstResumed);
-        Assert.True(reconnectResumed);
-        Assert.Equal(firstConnect, reconnect);
-        Assert.False(otherResumed);
-        Assert.NotEqual(firstConnect, otherClient);
-        Assert.Equal(2, sessions.SessionCount);
-    }
-
-    [Fact]
-    public void AnAbsentOrMalformedSessionIsAlwaysANewPlayer()
-    {
-        uint next = 0;
-        PlaySessions sessions = new(() => ++next);
-
-        uint absent = sessions.Resolve(null, out bool absentResumed);
-        uint empty = sessions.Resolve(string.Empty, out _);
-        // A bare player id is not a session id: the map is never indexed by a number the caller
-        // picked, so a client cannot claim another connection's identity.
-        uint bareId = sessions.Resolve("7", out _);
-        uint malformed = sessions.Resolve("not a valid session id!", out _);
-
-        Assert.False(absentResumed);
-        Assert.Equal(new uint[] { 1, 2, 3, 4 }, new[] { absent, empty, bareId, malformed });
-        Assert.Equal(0, sessions.SessionCount);
-    }
-
-    [Fact]
-    public void AResumedSessionKeepsItsOwnPartsRemovable()
-    {
-        uint next = 0;
-        PlaySessions sessions = new(() => ++next);
         using GameRoom room = PlayHost.CreateSandboxRoom();
-        const string Client = "8f14e45fceea167a9b3c5d7e1f2a4b6c";
-
-        uint owner = sessions.Resolve(Client, out _);
+        uint owner = PlayHost.NextPlayerId();
         CommandOutcome placed = room.Submit(PlayHost.BindPlayer(
             new PlacePartCommand(0, 1, 0, PartTypeId: 1, PositionX: -8f, PositionY: 6f, Angle: 0f, Scale: 1f),
             owner));
         Assert.True(placed.IsAccepted, $"place: {placed.Status}/{placed.Error}");
+        Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, 2, 0), owner)).IsAccepted);
 
-        // The user clicks 连接房间: the new socket carries the same session id, so the host hands
-        // back the same player id instead of orphaning the layout under a fresh one.
-        uint reconnected = sessions.Resolve(Client, out bool resumed);
-        Assert.True(resumed);
-        Assert.Equal(owner, reconnected);
+        Assert.True(room.Submit(PlayHost.BindPlayer(new RetryCommand(0, 3, 0), owner)).IsAccepted);
 
-        CommandOutcome removed = room.Submit(PlayHost.BindPlayer(
-            new RemovePartCommand(0, 2, 0, placed.EntityId),
-            reconnected));
-        Assert.True(removed.IsAccepted, $"remove after reconnect: {removed.Status}/{removed.Error}");
-    }
-
-    [Fact]
-    public void AnotherSessionCannotRemoveThosePartsAndTheyStayInTheWorld()
-    {
-        uint next = 0;
-        PlaySessions sessions = new(() => ++next);
-        using GameRoom room = PlayHost.CreateSandboxRoom();
-        const string Owner = "8f14e45fceea167a9b3c5d7e1f2a4b6c";
-
-        uint owner = sessions.Resolve(Owner, out _);
-        CommandOutcome placed = room.Submit(PlayHost.BindPlayer(
-            new PlacePartCommand(0, 1, 0, PartTypeId: 1, PositionX: -8f, PositionY: 6f, Angle: 0f, Scale: 1f),
-            owner));
-        Assert.True(placed.IsAccepted, $"place: {placed.Status}/{placed.Error}");
-
-        // A genuinely new player (no session, or another one) is refused, not handed the parts.
-        uint stranger = sessions.Resolve("0d9c7b5a3f1e2d4c6b8a0f2e4d6c8b0a", out bool strangerResumed);
-        CommandOutcome refused = room.Submit(PlayHost.BindPlayer(
-            new RemovePartCommand(0, 1, 0, placed.EntityId),
-            stranger));
-        Assert.False(strangerResumed);
-        Assert.Equal(CommandStatus.RuleRejected, refused.Status);
-        // NotOwnedByPlayer rather than EntityNotFound is what proves the part is still alive and
-        // still owned by the absent player: a disconnected player's parts stay in the world.
-        Assert.Equal(ConstructionError.NotOwnedByPlayer, refused.Error);
-
+        // RESET puts the layout back as previews instead of clearing it, and the parts stay this
+        // player's: the same entity id is still removable by its owner...
         CommandOutcome ownerRemoval = room.Submit(PlayHost.BindPlayer(
-            new RemovePartCommand(0, 2, 0, placed.EntityId),
+            new RemovePartCommand(0, 4, 0, placed.EntityId),
             owner));
         Assert.True(ownerRemoval.IsAccepted, $"owner remove: {ownerRemoval.Status}/{ownerRemoval.Error}");
+    }
+
+    [Fact]
+    public void AResetOnlyTouchesThePlayerThatAskedForIt()
+    {
+        using GameRoom room = PlayHost.CreateSandboxRoom();
+        uint owner = PlayHost.NextPlayerId();
+        uint other = PlayHost.NextPlayerId();
+        CommandOutcome mine = room.Submit(PlayHost.BindPlayer(
+            new PlacePartCommand(0, 1, 0, PartTypeId: 1, PositionX: -8f, PositionY: 6f, Angle: 0f, Scale: 1f),
+            owner));
+        CommandOutcome theirs = room.Submit(PlayHost.BindPlayer(
+            new PlacePartCommand(0, 1, 0, PartTypeId: 1, PositionX: 12f, PositionY: 6f, Angle: 0f, Scale: 1f),
+            other));
+        Assert.True(mine.IsAccepted && theirs.IsAccepted, $"place: {mine.Status}/{theirs.Status}");
+        Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, 2, 0), other)).IsAccepted);
+
+        Assert.True(room.Submit(PlayHost.BindPlayer(new RetryCommand(0, 3, 0), owner)).IsAccepted);
+
+        // The other player's part is still alive and still not this player's to delete.
+        CommandOutcome refused = room.Submit(PlayHost.BindPlayer(
+            new RemovePartCommand(0, 4, 0, theirs.EntityId),
+            owner));
+        Assert.Equal(CommandStatus.RuleRejected, refused.Status);
+        Assert.Equal(ConstructionError.NotOwnedByPlayer, refused.Error);
+    }
+
+    [Fact]
+    public void APlayerThatLeavesTakesItsPartsAndLeavesItsCells()
+    {
+        using GameRoom room = PlayHost.CreateSandboxRoom();
+        uint owner = PlayHost.NextPlayerId();
+        CommandOutcome placed = room.Submit(PlayHost.BindPlayer(
+            new PlacePartCommand(0, 1, 0, PartTypeId: 1, PositionX: -8f, PositionY: 6f, Angle: 0f, Scale: 1f),
+            owner));
+        Assert.True(placed.IsAccepted, $"place: {placed.Status}/{placed.Error}");
+        Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, 2, 0), owner)).IsAccepted);
+
+        // The socket closed: the player left the room and its part left the world with it.
+        room.LeavePlayer(owner);
+
+        CommandOutcome gone = room.Submit(PlayHost.BindPlayer(
+            new RemovePartCommand(0, 3, 0, placed.EntityId),
+            owner));
+        Assert.Equal(ConstructionError.EntityNotFound, gone.Error);
+
+        // The vacated build cell is free again for whoever connects next.
+        CommandOutcome replanted = room.Submit(PlayHost.BindPlayer(
+            new PlacePartCommand(0, 1, 0, PartTypeId: 1, PositionX: -8f, PositionY: 6f, Angle: 0f, Scale: 1f),
+            PlayHost.NextPlayerId()));
+        Assert.True(replanted.IsAccepted, $"replant: {replanted.Status}/{replanted.Error}");
     }
 }

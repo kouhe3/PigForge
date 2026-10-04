@@ -43,4 +43,20 @@ internal sealed class SandboxPlayers
         Register(playerId);
         _materializedByPlayer[playerId] = false;
     }
+
+    /// <summary>Drops a player that left the room, so a long-lived host does not accumulate
+    /// one entry per closed socket. Player ids are never reused, so nothing can look it up.</summary>
+    public void Forget(uint playerId)
+    {
+        if (!_materializedByPlayer.Remove(playerId))
+        {
+            return;
+        }
+
+        int index = _knownPlayers.BinarySearch(playerId);
+        if (index >= 0)
+        {
+            _knownPlayers.RemoveAt(index);
+        }
+    }
 }

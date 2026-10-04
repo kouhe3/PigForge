@@ -56,7 +56,7 @@ Every body also carries the original's two never-overridden rigidbody defaults (
 - PGFC commands (`ClientCommandKind` 0–9: PlacePart, RemovePart, RotatePart, StartSimulation, EnterBuildMode, Retry, MovePart, ScalePart, SetPartActive, SetPartTypeActive), PGFA acks
 - Replay JSON per `schemas/physics-replay-v2.schema.json`
 
-**Client flow**: `PlayHost` (`ws://127.0.0.1:5088/play`, optionally `?session=<opaque id>`) → `CommandFrame.TryDecode` → `GameRoom.Submit` → PGFA ack → PGFS broadcast each tick. A connection's player id is per-connection, except that `PlayHost`'s `PlaySessions` resumes the same id for a socket carrying a session id it has already issued (the client's per-page-load id; the query string is transport only — frames are untouched). `DemoSnapshotHost` (`/snapshots`) is broadcast-only. No client hosts simulation.
+**Client flow**: `PlayHost` (`ws://127.0.0.1:5088/play`; the query string carries no identity) → `CommandFrame.TryDecode` → `GameRoom.Submit` → PGFA ack → PGFS broadcast each tick. A player's id is its connection: closing the socket runs `GameRoom.LeavePlayer`, which takes that player's parts out of the world, and a reconnect is a new player with an empty build plane; per-player RESET instead keeps the layout and puts it back to its pre-Start state (`ADR-026`). `DemoSnapshotHost` (`/snapshots`) is broadcast-only. No client hosts simulation.
 
 ## Key Directories
 
@@ -93,8 +93,9 @@ dotnet restore PigForge.slnx
 dotnet test PigForge.slnx
 dotnet build PigForge.slnx -c Release
 dotnet run --project src/PigForge.Server/PigForge.Server.csproj -c Release -- --play
-#   -> ws://127.0.0.1:5088/play[?session=<id>] (multiplayer sandbox: previews + per-player
-#      Start/RESET; the browser client appends its own session id so a reconnect keeps its parts)
+#   -> ws://127.0.0.1:5088/play (multiplayer sandbox: previews + per-player Start/RESET; a
+#      player's life is its socket -- closing it drops that player's parts, and RESET puts the
+#      layout back to its pre-Start state; see ADR-026)
 dotnet run --project src/PigForge.Server/PigForge.Server.csproj -c Release -- --demo-ws
 #   -> ws://127.0.0.1:5088/snapshots (broadcast demo)
 dotnet run --project src/PigForge.Benchmarks/PigForge.Benchmarks.csproj -c Release

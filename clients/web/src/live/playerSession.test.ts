@@ -63,7 +63,7 @@ describe("playerSession", () => {
     expect(session.ownEntityIds.has(5)).toBe(true);
   });
 
-  it("returns to editing and clears owned entities on an accepted retry", () => {
+  it("returns to editing and keeps the layout on an accepted retry", () => {
     const session = createPlayerSession();
     const place = session.noteSent(0);
     session.applyAck({ sequence: place, status: 0, error: 0, entityId: 5 });
@@ -71,8 +71,10 @@ describe("playerSession", () => {
     session.applyAck({ sequence: start, status: 0, error: 0, entityId: 0 });
     const retry = session.noteSent(5);
     session.applyAck({ sequence: retry, status: 0, error: 0, entityId: 0 });
+    // The server rebuilds the pre-Start layout as previews under the same entity ids, so the
+    // owned set survives: the player keeps selecting the parts it is about to start again.
     expect(session.phase).toBe("editing");
-    expect(session.ownEntityIds.size).toBe(0);
+    expect(session.ownEntityIds.has(5)).toBe(true);
   });
 
   it("surfaces a rejection and changes no state", () => {
@@ -93,7 +95,7 @@ describe("playerSession", () => {
     expect(session.ownEntityIds.size).toBe(0);
   });
 
-  it("keeps ownership and phase through a reconnect, dropping only the pending commands", () => {
+  it("drops ownership and phase when the socket's player is gone", () => {
     const session = createPlayerSession();
     const place = session.noteSent(0);
     session.applyAck({ sequence: place, status: 0, error: 0, entityId: 42 });
@@ -101,14 +103,14 @@ describe("playerSession", () => {
     session.applyAck({ sequence: start, status: 0, error: 0, entityId: 0 });
     session.noteSent(0);
 
-    session.reconnect();
+    // The host clears a departed player's parts, so a reconnect is a new player: neither the
+    // owned ids nor the materialised phase describe the server any more.
+    session.reset();
 
-    // The host resumes this client's player id for a reconnect that carries its session id, so
-    // the parts stay this client's and the phase still matches the server's.
-    expect(session.ownEntityIds.has(42)).toBe(true);
-    expect(session.phase).toBe("materialized");
+    expect(session.ownEntityIds.size).toBe(0);
+    expect(session.phase).toBe("editing");
     expect(session.pending.size).toBe(0);
-    // Sequences stay monotonic, so the resumed connection never trips the server's stale gate.
+    // Sequences stay monotonic, so the new connection never trips the server's stale gate.
     expect(session.noteSent(0)).toBe(4);
   });
 

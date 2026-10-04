@@ -167,9 +167,10 @@ public sealed class FrameWeldRoomTests
     }
 
     /// <summary>
-    /// A sandbox RESET removes the player's parts — and with them the bodies the welds were bound
-    /// to — before the layout is rebuilt from scratch under new entity ids. The stale definitions
-    /// must not shadow the new ones, or the rebuilt chain would fall apart.
+    /// A sandbox RESET destroys the bodies the welds were bound to and keeps the layout, so the
+    /// same frame pair is materialised again under the same entity ids. The stale definition must
+    /// not shadow the fresh one the assembler registers, or the rebuilt chain would fall apart
+    /// unwelded.
     /// </summary>
     [Fact]
     public void APlayerResetAndRebuildGetsItsWeldsAgain()
@@ -186,8 +187,7 @@ public sealed class FrameWeldRoomTests
         Assert.True(room.Submit(PlayHost.BindPlayer(new RetryCommand(0, ++sequence, player), player)).IsAccepted);
         Assert.Equal(0, room.WeldJointCount);
 
-        Place(room, ref sequence, player, PartFrame, 0f, 4f);
-        Place(room, ref sequence, player, PartFrame, 1f, 4f);
+        // RESET kept the layout: Start alone rebuilds the chain, no re-placing.
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
         Assert.Equal(1, room.WeldJointCount);
     }
