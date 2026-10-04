@@ -30,6 +30,27 @@ public readonly record struct CompoundSeam(
 public readonly record struct CompoundHinge(EntityId Wheel, EntityId Parent, PhysicsVector3 LocalAxle);
 
 /// <summary>
+/// A compliant weld between two frames (the content's <c>canEnclose</c> parts). The original does
+/// not merge a frame pair into one rigid body: it keeps two bodies and adds a real
+/// <c>ConfigurableJoint</c> with all six degrees of freedom locked
+/// (<c>Contraption.cs:1507-1546</c>), so a chain of frames bends under its own weight
+/// (docs/specs/weld-compliance.md §0). PigForge reproduces that with a
+/// <see cref="JointDefinition.Weld"/> between the two frame bodies instead of an ADR-011 union.
+/// <para>
+/// The anchors are the original's: half the vector to the other part's origin, expressed in each
+/// part's own frame, so both name the same world point when the pair is built. They are stored in
+/// the parts' frames because that is what the original's joint holds rigid; a room re-resolves them
+/// into body frames at bind time (a frame may share its body with the parts it encloses).
+/// </para>
+/// </summary>
+public readonly record struct CompoundWeld(
+    EntityId Left,
+    EntityId Right,
+    PhysicsVector3 AnchorInLeft,
+    PhysicsVector3 AnchorInRight,
+    float BreakImpulse);
+
+/// <summary>
 /// Shapes this body hosts that belong to no member: a hinged wheel's non-rotating colliders
 /// (its support box) ride the parent body, which does not spin. The original keeps them off
 /// the wheel pivot for the same reason — a rotating mount sweeps into the chassis.
@@ -43,7 +64,8 @@ public readonly record struct CompoundAttachment(
 /// <summary>Everything <see cref="CompoundAssembler.Assemble"/> derives from one build layout.</summary>
 public sealed record CompoundAssembly(
     IReadOnlyList<CompoundCluster> Clusters,
-    IReadOnlyList<CompoundHinge> Hinges);
+    IReadOnlyList<CompoundHinge> Hinges,
+    IReadOnlyList<CompoundWeld> Welds);
 
 /// <summary>
 /// A connected group of dynamic parts welded into one rigid body. Singletons
@@ -308,6 +330,30 @@ public static class CompoundAssembler
     public const float DefaultSeamBreakImpulse = 10f;
 
     /// <summary>
+    /// The compliance of one frame-to-frame <see cref="CompoundWeld"/>, in Hz, at
+    /// <see cref="FrameWeldSpringDampingRatio"/>. The original has no authored spring at all: its
+    /// frames bend because a locked <c>ConfigurableJoint</c> is solved iteratively and a chain's
+    /// root joint cannot converge under the whole chain's bending moment
+    /// (docs/specs/weld-compliance.md §0.2). A compliant weld is PigForge's stand-in for that
+    /// residual, fitted to the original's own measurement — the eight-frame chain of
+    /// <c>tasks/weld-compliance-probe.json</c> (<c>chain8_ppon_gap0</c>: 1.84 m of tip drop,
+    /// 10.18 deg at the worst joint, 22.66 deg of total curvature).
+    /// <para>
+    /// These two numbers are PigForge calibration like <see cref="DefaultSeamBreakImpulse"/> — the
+    /// original defines no value to copy — and they are only as good as that one measurement: a
+    /// chain's compliance in the original grows with the bending moment it carries (a longer chain
+    /// sags disproportionately), while a spring's stays linear. The acceptance that pins them, and
+    /// its ±25% band, live in <c>tests/PigForge.Physics.Tests/WeldComplianceTests.cs</c>.
+    /// </para>
+    /// </summary>
+    public const float FrameWeldSpringFrequency = 20.5f;
+
+    /// <summary>Critical damping (1.0): the original's joint has no damper either, and the fitted
+    /// chain sits in the middle of its band for the whole 0.4…1.0 range, so the choice buys
+    /// stability (no weld ringing in a stacked structure) at no fit cost.</summary>
+    public const float FrameWeldSpringDampingRatio = 1f;
+
+    /// <summary>
     /// The strength the original's <c>Normal</c> enum resolves to under the shipped
     /// <c>INFeature.ConnectionStrength</c> of 2 (INSettingsBExp.json:208-210): the
     /// <c>Contraption.GetJointConnectionStrength</c> table (Contraption.cs:1494-1506) reads
@@ -319,8 +365,9 @@ public static class CompoundAssembler
     private const float NormalJointStrength = 250f;
 
     /// <summary>
-    /// Welds the connected dynamic parts into clusters, splits them along preset seams, and
-    /// resolves the wheel hinges that keep wheels spinning on their own bodies.
+    /// Welds the connected dynamic parts into clusters, splits them along preset seams, resolves the
+    /// wheel hinges that keep wheels spinning on their own bodies, and lists the frame pairs that
+    /// stay two bodies joined by a compliant weld instead of merging (docs/specs/weld-compliance.md).
     /// </summary>
     public static CompoundAssembly Assemble(
         IReadOnlyList<EntityId> entities,
@@ -338,6 +385,7 @@ public static class CompoundAssembler
 
         Dictionary<uint, uint> parent = new(entities.Count);
         Dictionary<uint, EntityId> byValue = new(entities.Count);
+        Dictionary<long, CompoundWeld> welds = new();
         foreach (EntityId entity in entities)
         {
             parent[entity.Value] = entity.Value;
@@ -394,6 +442,16 @@ public static class CompoundAssembler
                 if (!byValue.TryGetValue(neighbour, out EntityId neighbourEntity)
                     || !CanMergePair(entity, neighbourEntity, construction, content))
                 {
+                    continue;
+                }
+
+                // The original keeps two frames as two bodies joined by a real joint, not one
+                // merged compound: that joint is what lets a frame chain bend
+                // (docs/specs/weld-compliance.md). Every such seam becomes a CompoundWeld the
+                // room binds as a compliant weld, so it stays breakable on its own.
+                if (IsFramePair(entity, neighbourEntity, construction))
+                {
+                    RegisterWeld(welds, entity, neighbourEntity, construction, content, seamBreakImpulse);
                     continue;
                 }
 
@@ -465,7 +523,14 @@ public static class CompoundAssembler
             clusters.Add(BuildCluster(group, construction, content, seamBreakImpulse, hostedByWheel, wheelsByParent));
         }
 
-        return new CompoundAssembly(clusters, hinges);
+        List<CompoundWeld> weldList = new(welds.Values);
+        weldList.Sort((left, right) =>
+        {
+            int compare = left.Left.Value.CompareTo(right.Left.Value);
+            return compare != 0 ? compare : left.Right.Value.CompareTo(right.Right.Value);
+        });
+
+        return new CompoundAssembly(clusters, hinges, weldList);
     }
 
     public static CompoundSeam? NearestSeam(CompoundCluster cluster, PhysicsVector3 worldPoint)
@@ -747,6 +812,51 @@ public static class CompoundAssembler
         construction.TryGetPartTypeId(entity, out uint partTypeId)
             ? content.GetPart(partTypeId).Capabilities?.JointConnectionType ?? JointConnectionType.None
             : JointConnectionType.None;
+
+    /// <summary>
+    /// Whether a weldable pair is two frames — the parts whose content sets <c>canEnclose</c>, the
+    /// original's <c>Frame</c> family. Those are exactly the pairs the original joint-and-collide
+    /// instead of merging, which is the seam a frame chain bends at
+    /// (docs/specs/weld-compliance.md §0.2, §4.2 item 1).
+    /// </summary>
+    private static bool IsFramePair(EntityId left, EntityId right, ConstructionRules construction) =>
+        construction.IsChassis(left) && construction.IsChassis(right);
+
+    /// <summary>
+    /// Registers the weld of one frame pair, once per pair, in ascending entity order. The anchors
+    /// are the original's (<c>Contraption.AddFixedJoint</c>: half the vector to the other part's
+    /// origin, in each part's own frame) and the break threshold reuses the seam's strength maths —
+    /// a welded pair has no seam to break along, so the weld carries one itself.
+    /// </summary>
+    private static void RegisterWeld(
+        Dictionary<long, CompoundWeld> welds,
+        EntityId first,
+        EntityId second,
+        ConstructionRules construction,
+        PartContentLibrary content,
+        float seamBreakImpulse)
+    {
+        EntityId left = first.Value <= second.Value ? first : second;
+        EntityId right = first.Value <= second.Value ? second : first;
+        long key = ((long)left.Value << 32) | right.Value;
+        if (welds.ContainsKey(key))
+        {
+            return;
+        }
+
+        construction.TryGetTransform(left, out EntityTransform leftTransform);
+        construction.TryGetTransform(right, out EntityTransform rightTransform);
+        PhysicsVector3 midpoint = (leftTransform.Position + rightTransform.Position) * 0.5f;
+        float pairStrength =
+            JointConnectionStrengthOf(left, construction, content)
+            + JointConnectionStrengthOf(right, construction, content);
+        welds.Add(key, new CompoundWeld(
+            left,
+            right,
+            leftTransform.Rotation.Inverse.Rotate(midpoint - leftTransform.Position),
+            rightTransform.Rotation.Inverse.Rotate(midpoint - rightTransform.Position),
+            seamBreakImpulse * pairStrength / (2f * NormalJointStrength)));
+    }
 
     /// <summary>
     /// The original's joint-connection strength for one part, in its own units: the enum

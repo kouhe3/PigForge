@@ -401,6 +401,50 @@ public sealed class PowerSystemTests
         Assert.Equal(20f, library.GetPart(4).Capabilities!.EnginePower);
     }
 
+    [Fact]
+    public void AFrameWeldCarriesThePowerClusterUntilTheEdgeIsDropped()
+    {
+        // The original's power component IS the joint graph: Contraption.cs:1293 unions an entry
+        // for every joint, so a frame weld is a power edge like any other. The engine sits in the
+        // far frame's body (the frame and the part it encloses are one body), the driven wheel
+        // hinges to the near frame, and only the weld's edge can carry the engine to it.
+        EntityStore entities = new();
+        PowerHarness harness = new(entities);
+        EntityId engine = entities.Create();
+        EntityId farFrame = entities.Create();
+        EntityId nearFrame = entities.Create();
+        EntityId wheel = entities.Create();
+
+        harness.Rules.AddPower(engine, 0f, EnginePower);
+        harness.Rules.SetEngineEnclosed(engine, enclosed: true);
+        harness.Rules.AddPower(wheel, WheelConsumption, 0f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddWheel(wheel);
+        harness.Link(nearFrame, new PhysicsBodyId(1));
+        harness.Link(farFrame, new PhysicsBodyId(2));
+        harness.Link(engine, new PhysicsBodyId(2));
+        harness.Link(wheel, new PhysicsBodyId(3));
+        harness.IngestBody(new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(3));
+
+        // The wheel hinges to the near frame; the near frame is welded to the far one. The engine's
+        // own body is the far one, so the edge has to reach through both hops.
+        harness.Rules.LinkPowerCluster(wheel, nearFrame);
+        harness.Rules.LinkPowerCluster(farFrame, nearFrame);
+
+        float welded = GameplayRules.ComputePowerFactor(EnginePower, WheelConsumption);
+        Assert.Equal(welded, harness.Rules.ClusterPowerFactor(wheel), 5);
+        Assert.Equal(welded, harness.Rules.ClusterPowerFactor(engine), 5);
+
+        // The weld breaks: the near frame's cluster is left without an engine, and the far frame
+        // keeps its own (an engine with nothing to drive is 1).
+        harness.Rules.UnlinkPowerCluster(farFrame);
+
+        Assert.Equal(0f, harness.Rules.ClusterPowerFactor(wheel));
+        Assert.Equal(1f, harness.Rules.ClusterPowerFactor(engine));
+    }
+
     private sealed class PowerHarness
     {
         private readonly PhysicsBodyStore _bodies;

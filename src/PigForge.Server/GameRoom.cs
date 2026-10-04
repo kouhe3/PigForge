@@ -87,6 +87,9 @@ public sealed class GameRoom : IDisposable
     private readonly Dictionary<uint, (PhysicsVector3 Offset, PhysicsQuaternion Rotation)> _compoundLocalByEntity = new();
     private readonly Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> _bodyPose = new();
     private readonly List<(PhysicsJointId Joint, PhysicsBodyId Wheel, PhysicsBodyId Parent)> _wheelJoints = new();
+    private readonly List<(PhysicsJointId Joint, PhysicsBodyId Left, PhysicsBodyId Right, CompoundWeld Weld)> _weldJoints = new();
+    private readonly List<CompoundWeld> _welds = new();
+    private readonly HashSet<long> _weldKeys = new();
     private readonly List<(PhysicsJointId Joint, PhysicsBodyId Attach, PhysicsBodyId Anchor)> _attachmentJoints = new();
     private readonly Dictionary<uint, (PhysicsBodyId Body, PhysicsQuaternion LocalRotation)> _attachByEntity = new();
     private readonly List<LiveCompound> _liveCompounds = new();
@@ -168,6 +171,10 @@ public sealed class GameRoom : IDisposable
     public bool RestartRequested => _rules.RestartRequested;
 
     public int BodyCount => _bodyByEntity.Count;
+
+    /// <summary>Live frame-to-frame welds. Diagnostic like <see cref="BodyCount"/>: a weld is a
+    /// joint between two bodies and appears in no snapshot (docs/specs/weld-compliance.md).</summary>
+    public int WeldJointCount => _weldJoints.Count;
 
     /// <summary>Upper bound on the entity count of the next published frame. Sandbox
     /// frames also carry previews that have no physics body, so transports must size
@@ -562,6 +569,7 @@ public sealed class GameRoom : IDisposable
         }
 
         BindWheelHinges(assembly.Hinges);
+        BindWeldJoints(assembly.Welds);
         BindAttachments();
 
         EnsureBuffers();
@@ -600,6 +608,9 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _weldJoints.Clear();
+        _welds.Clear();
+        _weldKeys.Clear();
         _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
@@ -677,6 +688,9 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _weldJoints.Clear();
+        _welds.Clear();
+        _weldKeys.Clear();
         _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
@@ -894,6 +908,7 @@ public sealed class GameRoom : IDisposable
         }
 
         BindWheelHinges(assembly.Hinges);
+        BindWeldJoints(assembly.Welds);
         BindAttachments();
 
         _sandboxPlayers.MarkMaterialized(playerId);
@@ -932,6 +947,7 @@ public sealed class GameRoom : IDisposable
         }
 
         BindWheelHinges(assembly.Hinges);
+        BindWeldJoints(assembly.Welds);
         BindAttachments();
 
         EnsureBuffers();
@@ -1105,6 +1121,7 @@ public sealed class GameRoom : IDisposable
         }
 
         SplitFromAppliedCommands(snapshotCount);
+        BreakWeldsFromAppliedCommands(snapshotCount);
 
         if (_sandboxMode)
         {
@@ -1347,6 +1364,9 @@ public sealed class GameRoom : IDisposable
         _compoundLocalByEntity.Clear();
         _bodyPose.Clear();
         _wheelJoints.Clear();
+        _weldJoints.Clear();
+        _welds.Clear();
+        _weldKeys.Clear();
         _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
@@ -1475,6 +1495,182 @@ public sealed class GameRoom : IDisposable
             // local rotation — published as `AttachYaw` so the client draws the axle (and any
             // other non-spinning sprite) rigid to the chassis instead of freezing it.
             _attachByEntity[hinge.Wheel.Value] = (parentLink.Body, parentPose.Rotation.Inverse * transform.Rotation);
+        }
+    }
+
+    /// <summary>
+    /// Creates the compliant welds the assembler registered between frame pairs. The original keeps
+    /// two frames as two bodies joined by a real six-degree-of-freedom joint
+    /// (<c>Contraption.cs:1507-1546</c>) instead of merging them, which is why a frame chain bends
+    /// under its own weight (docs/specs/weld-compliance.md); the pair keeps colliding exactly like
+    /// the original's adjacent 1x1x1 frames. Binding is idempotent per pair, so a sandbox room can
+    /// materialise several players' rigs through it.
+    /// </summary>
+    private void BindWeldJoints(IReadOnlyList<CompoundWeld> welds)
+    {
+        PruneDeadWelds();
+        foreach (CompoundWeld weld in welds)
+        {
+            if (!_weldKeys.Add(PairKey(weld.Left.Value, weld.Right.Value)))
+            {
+                continue;
+            }
+
+            _welds.Add(weld);
+            CreateWeldJoint(weld);
+        }
+    }
+
+    /// <summary>
+    /// Drops the weld definitions whose parts are gone. A player's reset removes its parts (bodies
+    /// and joints with them) and re-places them under new ids, so keeping a stale definition would
+    /// only leave an entry that no bind can ever use — and one the break path would keep re-linking
+    /// onto a dead entity.
+    /// </summary>
+    private void PruneDeadWelds()
+    {
+        if (_welds.RemoveAll(weld => !_entities.IsAlive(weld.Left) || !_entities.IsAlive(weld.Right)) == 0)
+        {
+            return;
+        }
+
+        _weldKeys.Clear();
+        foreach (CompoundWeld weld in _welds)
+        {
+            _weldKeys.Add(PairKey(weld.Left.Value, weld.Right.Value));
+        }
+    }
+
+    /// <summary>
+    /// Binds one weld to the two bodies its frames sit in (a frame can share its body with the
+    /// parts it encloses, and a rebuild can move it to a new one). The anchors are the original's,
+    /// resolved into each body's frame, and the rest pose is the pair's <em>current</em> relative
+    /// pose: at spawn that is the build pose, after a split it is wherever the pair got to, so a
+    /// rebound weld never snaps a frame back to a pose it has left.
+    /// </summary>
+    private void CreateWeldJoint(CompoundWeld weld)
+    {
+        if (!_bodies.TryGet(weld.Left, out PhysicsBodyLink leftLink)
+            || !_bodies.TryGet(weld.Right, out PhysicsBodyLink rightLink)
+            || leftLink.Body == rightLink.Body
+            || !_bodyPose.TryGetValue(leftLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) leftPose)
+            || !_bodyPose.TryGetValue(rightLink.Body.Value, out (PhysicsVector3 Position, PhysicsQuaternion Rotation) rightPose))
+        {
+            return;
+        }
+
+        JointDefinition definition = JointDefinition.Weld(
+            leftLink.Body,
+            rightLink.Body,
+            localAnchorA: ToBodyLocal(weld.Left.Value, weld.AnchorInLeft),
+            localAnchorB: ToBodyLocal(weld.Right.Value, weld.AnchorInRight),
+            springFrequency: CompoundAssembler.FrameWeldSpringFrequency,
+            springDampingRatio: CompoundAssembler.FrameWeldSpringDampingRatio,
+            restRotation: leftPose.Rotation.Inverse * rightPose.Rotation);
+        _weldJoints.Add((_world.CreateJoint(definition), leftLink.Body, rightLink.Body, weld));
+        // The original's power component is the whole joint graph (Contraption.cs:1293 unions every
+        // m_jointMap entry), so a weld is a power edge like any other: without it an engine enclosed
+        // in one frame would not reach a consumer welded onto the next.
+        _rules.LinkPowerCluster(weld.Right, weld.Left);
+    }
+
+    /// <summary>
+    /// Recreates the welds a rebuild left unbound. A split destroys the compound's body and binds
+    /// new ones; the backend drops every joint of a destroyed body, so the surviving pairs take
+    /// their current relative pose as the new rest pose. Pairs with a destroyed end are left out
+    /// (the assembler's entity may be long gone after a blast).
+    /// </summary>
+    private void RebindWeldJoints()
+    {
+        if (_welds.Count == 0)
+        {
+            return;
+        }
+
+        PruneDeadWelds();
+        HashSet<long> bound = new();
+        for (int index = _weldJoints.Count - 1; index >= 0; index--)
+        {
+            (_, PhysicsBodyId left, PhysicsBodyId right, CompoundWeld weld) = _weldJoints[index];
+            if (!_entitiesByBody.ContainsKey(left.Value) || !_entitiesByBody.ContainsKey(right.Value))
+            {
+                _weldJoints.RemoveAt(index);
+                continue;
+            }
+
+            bound.Add(PairKey(weld.Left.Value, weld.Right.Value));
+        }
+
+        foreach (CompoundWeld weld in _welds)
+        {
+            if (!bound.Contains(PairKey(weld.Left.Value, weld.Right.Value)))
+            {
+                CreateWeldJoint(weld);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Breaks the frame welds an applied impulse exceeded, the same rule the seams follow: the
+    /// impulse must clear the threshold and land nearest a weld the body carries
+    /// (docs/specs/weld-compliance.md decision 4). Both frames are already independent bodies, so
+    /// the break only drops the joint — and with it the power edge the joint graph carried, exactly
+    /// as the original re-unions the component when a joint goes away (Contraption.cs:1293).
+    /// </summary>
+    private void BreakWeldsFromAppliedCommands(int snapshotCount)
+    {
+        for (int index = 0; index < _appliedCommands.Count && _weldJoints.Count > 0; index++)
+        {
+            PhysicsCommand command = _appliedCommands[index];
+            float magnitude = PhysicsVector3.Distance(command.Impulse, PhysicsVector3.Zero);
+            if (magnitude <= _seamBreakImpulse)
+            {
+                continue;
+            }
+
+            int nearest = -1;
+            float nearestDistance = float.PositiveInfinity;
+            for (int weldIndex = 0; weldIndex < _weldJoints.Count; weldIndex++)
+            {
+                (_, PhysicsBodyId left, PhysicsBodyId right, CompoundWeld weld) = _weldJoints[weldIndex];
+                if ((left != command.Body && right != command.Body)
+                    || magnitude <= weld.BreakImpulse
+                    || !TryFindSnapshot(left, snapshotCount, out PhysicsBodySnapshot leftSnapshot)
+                    || !TryFindSnapshot(right, snapshotCount, out PhysicsBodySnapshot rightSnapshot))
+                {
+                    continue;
+                }
+
+                float distance = PhysicsVector3.Distance(
+                    (leftSnapshot.Position + rightSnapshot.Position) * 0.5f,
+                    command.WorldPoint);
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearest = weldIndex;
+                }
+            }
+
+            if (nearest < 0)
+            {
+                continue;
+            }
+
+            (PhysicsJointId joint, _, _, CompoundWeld broken) = _weldJoints[nearest];
+            _world.DestroyJoint(joint);
+            _weldJoints.RemoveAt(nearest);
+            _welds.Remove(broken);
+            _weldKeys.Remove(PairKey(broken.Left.Value, broken.Right.Value));
+            _rules.UnlinkPowerCluster(broken.Right);
+            // The welds that remain are the component's other edges: re-resolving them in one
+            // deterministic pass hands every member downstream of the broken edge the key that is
+            // left, instead of the one the broken edge gave it (Contraption.cs:1293 re-unions the
+            // joint graph on every change).
+            for (int weldIndex = 0; weldIndex < _weldJoints.Count; weldIndex++)
+            {
+                (_, _, _, CompoundWeld remaining) = _weldJoints[weldIndex];
+                _rules.LinkPowerCluster(remaining.Right, remaining.Left);
+            }
         }
     }
 
@@ -1636,6 +1832,10 @@ public sealed class GameRoom : IDisposable
     /// renderer draws is oriented in the plane, so the attach frame travels as this scalar even
     /// though the physics state is a quaternion.
     /// </summary>
+    /// <summary>Order-independent key for a pair of entities: the weld table's index.</summary>
+    private static long PairKey(uint left, uint right) =>
+        left <= right ? ((long)left << 32) | right : ((long)right << 32) | left;
+
     private static float YawOf(PhysicsQuaternion rotation) =>
         MathF.Atan2(
             2f * ((rotation.W * rotation.Z) + (rotation.X * rotation.Y)),
@@ -1683,6 +1883,21 @@ public sealed class GameRoom : IDisposable
 
             _world.DestroyJoint(joint);
             _attachmentJoints.RemoveAt(index);
+        }
+
+        // A destroyed body takes its welds with it (the backend drops every joint of a removed
+        // body). The definitions stay in _welds: a rebuild can give the pair bodies again
+        // (see RebindWeldJoints), while a pair whose part is gone is simply never bound again.
+        for (int index = _weldJoints.Count - 1; index >= 0; index--)
+        {
+            (PhysicsJointId joint, PhysicsBodyId left, PhysicsBodyId right, _) = _weldJoints[index];
+            if (left != body && right != body)
+            {
+                continue;
+            }
+
+            _world.DestroyJoint(joint);
+            _weldJoints.RemoveAt(index);
         }
     }
 
@@ -1795,6 +2010,7 @@ public sealed class GameRoom : IDisposable
                 UnbindEntity(new EntityId(entityValue), destroyBodyIfOrphan: false);
             }
 
+            ForgetJointsForBody(live.Body);
             _world.DestroyBody(live.Body);
             DropPendingCommands(live.Body);
             foreach (CompoundCluster piece in pieces)
@@ -1802,6 +2018,7 @@ public sealed class GameRoom : IDisposable
                 BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
             }
 
+            RebindWeldJoints();
             EnsureBuffers();
         }
     }
@@ -1894,12 +2111,15 @@ public sealed class GameRoom : IDisposable
             UnbindEntity(new EntityId(entityValue), destroyBodyIfOrphan: false);
         }
 
+        ForgetJointsForBody(link.Body);
         _world.DestroyBody(link.Body);
         DropPendingCommands(link.Body);
         foreach (CompoundCluster piece in pieces)
         {
             BindCluster(piece, piece.CreateBodyDefinition(_content, _construction, snapshot.LinearVelocity, snapshot.AngularVelocity, PlanarConstraintMask));
         }
+
+        RebindWeldJoints();
 
         EnsureBuffers();
     }

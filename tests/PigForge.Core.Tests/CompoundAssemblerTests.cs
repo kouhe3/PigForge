@@ -40,20 +40,157 @@ public sealed class CompoundAssemblerTests
 
         // Wood-wood (Normal 250 each) keeps the fallback; metal-metal (High 600 each) is 2.4x.
         // This is the wooden-vs-metal difference the extraction exists to reproduce.
-        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse, CatalogSeamBreak(content, WoodenBlock, WoodenBlock), precision: 4);
-        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 2.4f, CatalogSeamBreak(content, MetalBox, MetalBox), precision: 4);
+        // Both parts are frames, so the pair is two bodies held by a weld rather than one compound
+        // with a seam (docs/specs/weld-compliance.md) — the strength maths is the same.
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse, CatalogFrameBreak(content, WoodenBlock, WoodenBlock), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 2.4f, CatalogFrameBreak(content, MetalBox, MetalBox), precision: 4);
     }
 
-    private static float CatalogSeamBreak(PartContentLibrary content, uint leftPart, uint rightPart)
+    private static float CatalogFrameBreak(PartContentLibrary content, uint leftPart, uint rightPart)
     {
         EntityStore entities = new();
         ConstructionRules rules = new(entities, new PartStore(entities), new TransformStore(entities), content);
         EntityId left = rules.Place(leftPart, 0f, 0f, 0f, 1f, 0).Entity;
         EntityId right = rules.Place(rightPart, 1.1f, 0f, 0f, 1f, 0).Entity;
 
-        CompoundCluster cluster = Assert.Single(CompoundAssembler.Assemble(new[] { left, right }, rules, content).Clusters);
+        CompoundAssembly assembly = CompoundAssembler.Assemble(new[] { left, right }, rules, content);
+        Assert.Equal(2, assembly.Clusters.Count);
+        Assert.All(assembly.Clusters, cluster => Assert.False(cluster.IsMerged));
 
-        return Assert.Single(cluster.Seams).BreakImpulse;
+        return Assert.Single(assembly.Welds).BreakImpulse;
+    }
+
+    [Fact]
+    public void TwoAdjacentFramesAreTwoBodiesHeldByOneWeld()
+    {
+        // The original never merges a frame pair: each frame keeps its own body and the two are
+        // joined by a real joint with all six degrees of freedom locked (Contraption.cs:1507-1546),
+        // which is what lets a frame chain bend (docs/specs/weld-compliance.md §4.2).
+        const uint WoodenBlock = 1;
+        PartContentLibrary content = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+        (ConstructionRules rules, EntityId left, EntityId right) = PlaceCatalogPair(content, WoodenBlock, WoodenBlock, 1.1f);
+
+        CompoundAssembly assembly = CompoundAssembler.Assemble(new[] { left, right }, rules, content);
+
+        Assert.Equal(2, assembly.Clusters.Count);
+        Assert.All(assembly.Clusters, cluster => Assert.False(cluster.IsMerged));
+        CompoundWeld weld = Assert.Single(assembly.Welds);
+        Assert.Equal(left, weld.Left);
+        Assert.Equal(right, weld.Right);
+        // The original's anchors: half the vector to the other part's origin, in each part's own
+        // frame (Contraption.AddFixedJoint), i.e. the same world midpoint seen from both ends.
+        Assert.Equal(0.55f, weld.AnchorInLeft.X, precision: 4);
+        Assert.Equal(0f, weld.AnchorInLeft.Y, precision: 4);
+        Assert.Equal(-0.55f, weld.AnchorInRight.X, precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse, weld.BreakImpulse, precision: 4);
+    }
+
+    [Fact]
+    public void AFrameChainIsOneBodyPerFrameAndOneWeldPerJoint()
+    {
+        const uint WoodenBlock = 1;
+        PartContentLibrary content = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+        EntityStore entities = new();
+        ConstructionRules rules = new(entities, new PartStore(entities), new TransformStore(entities), content);
+        List<EntityId> chain = new();
+        for (int index = 0; index < 8; index++)
+        {
+            chain.Add(rules.Place(WoodenBlock, index * 1f, 0f, 0f, 1f, 0).Entity);
+        }
+
+        CompoundAssembly assembly = CompoundAssembler.Assemble(chain, rules, content);
+
+        Assert.Equal(8, assembly.Clusters.Count);
+        Assert.All(assembly.Clusters, cluster => Assert.False(cluster.IsMerged));
+        Assert.Equal(7, assembly.Welds.Count);
+        for (int index = 0; index < assembly.Welds.Count; index++)
+        {
+            Assert.Equal(chain[index], assembly.Welds[index].Left);
+            Assert.Equal(chain[index + 1], assembly.Welds[index].Right);
+        }
+    }
+
+    [Fact]
+    public void AFrameStillMergesWithThePartItEncloses()
+    {
+        // Enclosure welds a part to its frame whatever the joint capability says (Frame.cs:44-49),
+        // and that pair is not two frames: it stays one compound body with one seam, exactly as
+        // before the frame weld split.
+        const uint WoodenBlock = 1;
+        const uint Engine = 8;
+        PartContentLibrary content = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+        EntityStore entities = new();
+        ConstructionRules rules = new(entities, new PartStore(entities), new TransformStore(entities), content);
+        EntityId frame = rules.Place(WoodenBlock, 0f, 4f, 0f, 1f, 0).Entity;
+        EntityId engine = rules.Place(Engine, 0f, 4f, 0f, 1f, 0).Entity;
+        Assert.Equal(frame, rules.EnclosedBy(engine));
+
+        CompoundAssembly assembly = CompoundAssembler.Assemble(new[] { frame, engine }, rules, content);
+
+        CompoundCluster cluster = Assert.Single(assembly.Clusters);
+        Assert.True(cluster.IsMerged);
+        Assert.Empty(assembly.Welds);
+        Assert.Equal(2, cluster.Members.Count);
+    }
+
+    [Fact]
+    public void TheFrameWeldComplianceIsTheFittedPair()
+    {
+        // The calibration the original's own chain measurement produced (docs/specs/weld-compliance.md
+        // §4.4). tests/PigForge.Physics.Tests/WeldComplianceTests.cs runs the eight-frame chain with
+        // the same pair: changing either value invalidates that acceptance, so this pins them.
+        Assert.Equal(20.5f, CompoundAssembler.FrameWeldSpringFrequency);
+        Assert.Equal(1f, CompoundAssembler.FrameWeldSpringDampingRatio);
+    }
+
+    [Fact]
+    public void FrameWeldsAreDeterministicAcrossRuns()
+    {
+        Assert.Equal(RunFrameChain(), RunFrameChain());
+    }
+
+    private static long RunFrameChain()
+    {
+        const uint WoodenBlock = 1;
+        PartContentLibrary content = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+        EntityStore entities = new();
+        ConstructionRules rules = new(entities, new PartStore(entities), new TransformStore(entities), content);
+        List<EntityId> chain = new();
+        for (int index = 0; index < 6; index++)
+        {
+            chain.Add(rules.Place(WoodenBlock, index * 1f, 0f, 0f, 1f, 0).Entity);
+        }
+
+        long hash = rules.ComputeLayoutHash();
+        CompoundAssembly assembly = CompoundAssembler.Assemble(chain, rules, content);
+        foreach (CompoundCluster cluster in assembly.Clusters)
+        {
+            hash = unchecked((hash * 31) + cluster.ComputeHash());
+        }
+
+        foreach (CompoundWeld weld in assembly.Welds)
+        {
+            hash = unchecked((hash * 31) + (int)weld.Left.Value);
+            hash = unchecked((hash * 31) + (int)weld.Right.Value);
+            hash = unchecked((hash * 31) + weld.BreakImpulse.GetHashCode());
+            hash = unchecked((hash * 31) + weld.AnchorInLeft.GetHashCode());
+            hash = unchecked((hash * 31) + weld.AnchorInRight.GetHashCode());
+        }
+
+        return hash;
+    }
+
+    private static (ConstructionRules Rules, EntityId Left, EntityId Right) PlaceCatalogPair(
+        PartContentLibrary content,
+        uint leftPart,
+        uint rightPart,
+        float spacing)
+    {
+        EntityStore entities = new();
+        ConstructionRules rules = new(entities, new PartStore(entities), new TransformStore(entities), content);
+        EntityId left = rules.Place(leftPart, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId right = rules.Place(rightPart, spacing, 0f, 0f, 1f, 0).Entity;
+        return (rules, left, right);
     }
 
     private static float SeamBreak(string? leftStrength, string? rightStrength)

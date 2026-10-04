@@ -433,19 +433,70 @@ public sealed class GameplayRules
     public void LinkPowerCluster(EntityId member, EntityId host)
     {
         uint hostKey = PowerClusterKey(host);
-        if (hostKey == member.Value || _powerHostByEntity.TryGetValue(member.Value, out uint existing) && existing == hostKey)
+        uint previousKey = PowerClusterKey(member);
+        if (previousKey == hostKey)
         {
             return;
         }
 
+        // Every member of the member's body joins the host's cluster, not just the part that
+        // declares the edge: LinkBody keeps the LAST member a body was bound with as its
+        // representative, so a lone entry could be shadowed by that representative and the link
+        // would silently never apply — a frame whose body also holds an enclosed engine is exactly
+        // that case, and an engine in the next frame of a weld chain would then power nothing.
+        if (_bodies.TryGet(member, out PhysicsBodyLink link)
+            && _membersByBody.TryGetValue(link.Body.Value, out List<uint>? members))
+        {
+            for (int index = 0; index < members.Count; index++)
+            {
+                _powerHostByEntity[members[index]] = hostKey;
+            }
+        }
+        else
+        {
+            _powerHostByEntity[member.Value] = hostKey;
+        }
+
+        RecomputePowerCluster(new EntityId(previousKey));
+        RecomputePowerCluster(new EntityId(hostKey));
+    }
+
+    /// <summary>
+    /// Drops an extra power-cluster edge after the joint that carried it went away — a hinged wheel
+    /// that came off, or a frame weld that broke — and refreshes the cluster the member leaves.
+    /// The original re-unions the whole joint graph on every change (Contraption.cs:1293); an edge
+    /// stored downstream of this one keeps the key this edge gave it, so the caller re-links the
+    /// edges that remain (see GameRoom.BreakWeld).
+    /// </summary>
+    public void UnlinkPowerCluster(EntityId member)
+    {
         uint previousKey = PowerClusterKey(member);
-        _powerHostByEntity[member.Value] = hostKey;
-        if (previousKey != hostKey)
+        bool removed = false;
+        if (_bodies.TryGet(member, out PhysicsBodyLink link)
+            && _membersByBody.TryGetValue(link.Body.Value, out List<uint>? members))
+        {
+            for (int index = 0; index < members.Count; index++)
+            {
+                removed |= _powerHostByEntity.Remove(members[index]);
+            }
+        }
+        else
+        {
+            removed = _powerHostByEntity.Remove(member.Value);
+        }
+
+        if (!removed)
+        {
+            return;
+        }
+
+        uint currentKey = PowerClusterKey(member);
+        if (previousKey != currentKey)
         {
             RecomputePowerCluster(new EntityId(previousKey));
         }
 
-        RecomputePowerCluster(new EntityId(hostKey));
+        RecomputePowerCluster(new EntityId(currentKey));
     }
 
     /// <summary>
