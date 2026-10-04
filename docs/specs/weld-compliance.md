@@ -1,6 +1,6 @@
 # 规格：焊点刚度与断裂（weld stiffness &amp; breakage）—— 原版是「每对一关节」，会弯
 
-状态：**期 0（原版基准探针）已交付，结论按实测两轮修正**；下一步是「按实测曲线拟合 Bepu `Weld`」。
+状态：**期 0–4 全部交付（2026-10-04）**：原版基准探针 → 验收表 → 契约 `Weld` → 框↔框拆体与房间接线 → 用同一条 8 框链对照验收（见 §4.4）。
 来源与证据：
 
 - **实测**：`unity/PigForge.WeldProbe`（Unity **2021.3.45f2**，即 `BPLE 2022.1.9/ProjectSettings/ProjectVersion.txt` 钉的原版编辑器）headless 跑出的
@@ -55,8 +55,8 @@
 
 ## 2. PigForge 现状（要改的就是这里）
 
-- `ADR-011` 决策 2/3：相邻可合并件**焊进同一复合刚体** → 关节数 0、成员之间**不产生接触**。
-  ⇒ 原版的两种让步来源（关节的迭代残差 + 相邻接触）**都被消掉**：我们的框链是刚的，长结构不下垂也不弯；用户截图里的「会弯的框墙」在我们这里做不出来。
+- ~~`ADR-011` 决策 2/3：相邻可合并件**焊进同一复合刚体** → 关节数 0、成员之间**不产生接触**。~~
+  **已改（2026-10-04，期 3）**：**框↔框例外** —— 两端都是 `canEnclose` 的缝不再 union，而是两个 body + 一条软 `Weld`（且**保留相邻碰撞**）。其余件仍按 `ADR-011` 焊进同一刚体。见 §4.4。
 - `ADR-015` 已实现每对断裂阈值按强度比例缩放（木 1.0 / 铁 2.4 = 原版比例）✓，但阈值是**冲量幅值**而原版是**牛顿**（G15 单位偏差）。
 - 契约已有 `PhysicsJointKind.{Distance, Revolute}`（Revolute 带 spring，ADR-012 轮子悬挂）；后端可用：Bepu 2.4 `Weld`（六自由度同解）、Jolt `SixDOFConstraint`。
 - 内容里没有 `jointPreprocessing` 键；提取器已在报告里统计它。
@@ -78,8 +78,8 @@
 | 0 | 原版基准探针（2021.3.45f2 + 原版关节/物理；28 格，含 8 框链） | **已交付**：`unity/PigForge.WeldProbe`、`tasks/weld-compliance-probe.json` |
 | 1 | 拟合目标固化：把 `chain8_ppon_gap0/gap1` 的「尖端下沉 + 每关节角」写成本规格的验收表（含容差） | 表格 + 容差进本规格；探针可复跑 |
 | 2 | 契约 `PhysicsJointKind.Weld`（六自由度 + spring）→ Bepu `Weld` / Jolt `SixDOFConstraint` | **已交付（2026-10-04）**：见 §4.3 |
-| 3 | 装配：按缝拆体 + 保留相邻接触 + 房间接线 + 断裂路径 | `CompoundAssemblerTests`（框链拆成 N 体 + N-1 Weld）、`GameRoom` 房间级用例、双跑哈希一致 |
-| 4 | 对照验收：Bepu 侧跑同一 8 框链，比 `chain8_ppon_gap0` 的下沉/角 | 数字落在期 1 的容差内；基准（body 数 vs 帧预算）与实机探针写回 |
+| 3 | 装配：按缝拆体 + 保留相邻接触 + 房间接线 + 断裂路径 | **已交付**：见 §4.4 —— `CompoundAssemblerTests`（框链拆成 N 体 + N-1 Weld）、`FrameWeldRoomTests`（房间级 6 条用例）、双跑哈希一致 |
+| 4 | 对照验收：Bepu 侧跑同一 8 框链，比 `chain8_ppon_gap0` 的下沉/角 | **已交付**：见 §4.4 —— `WeldComplianceTests` 三条落在 §4.1 容差内；基准与实机探针写回 |
 
 ### 4.1 拟合目标与容差（期 1 固化）
 
@@ -117,14 +117,56 @@
 - **测试**：非 Jolt **41**（+9）、Jolt **11**（+5）；含契约（缺省 Identity、非有限值拒绝）、两后端各一条「quarter-turn 摆放保持 90° 且间距 1」——**非空验证**：把 `LocalOrientation`/`LocalOffset`/Jolt 轴改回朴素写法即红。
 - 验收命令：`dotnet test … --filter "FullyQualifiedName!~Jolt"` 与 `--filter "FullyQualifiedName~Jolt"` 分开跑；`dotnet build PigForge.slnx -c Release` 与（Jolt 不在 slnx 里）单独 `-c Release` 编译 Jolt 工程。
 
+### 4.4 期 3/4 交付记录（2026-10-04）
+
+**装配（期 3）**
+
+- `CompoundAssembler` 的邻居 union 循环里多一条判据：**两端都是框（`ConstructionRules.IsChassis`，即内容 `canEnclose`）就不 union**，改成登记一条 `CompoundWeld`。`CanMergePair`（`Contraption.cs:690` 逐字）不动，所以「两端都 target 就不连」等原版判据照旧。被包裹件与框的合并路径不变（框不可能被包裹，`ConstructionRules.TryResolveEnclosure` 直接拒绝）。
+- `CompoundWeld`（Left/Right + 两侧 anchor + `BreakImpulse`）自带断裂信息：拆体后这一对**没有 seam**（`NearestSeam`/`SplitAlongSeam` 只认 seam），阈值沿用接缝那套强度数学（木↔木 = `SeamBreakImpulse`，铁↔铁 2.4×）。
+- **anchor 照原版**：`AnchorInLeft/Right` = 中点在各自零件局部系里的坐标（`Contraption.AddFixedJoint` 的 `InverseTransformPoint(other.position) * 0.5f`），存零件系而不是 body 系——框可能与它包裹的件共用一个 body，绑定时才折算到 body 系（`GameRoom.ToBodyLocal`）。
+- 排序与去重按 `(Left, Right)` 升序，`CompoundAssembly.Welds` 是新增的第三条输出。
+
+**房间（期 3）**
+
+- `GameRoom.BindWeldJoints(assembly.Welds)` 镜像 `BindWheelHinges`，在三处 materialize 点调用；每条 weld 都调 `_rules.LinkPowerCluster(weld.Right, weld.Left)`——原版的功率分量就是关节图（`Contraption.cs:1293` unions 每个 `m_jointMap` 条目），少了这条边，「引擎在 A 框、耗能件焊在 B 框」就会断电。`RestRotation` 取**绑定时刻**的相对朝向（摆放时＝摆放相对姿态；拆簇重建后＝当时的实际姿态，不会把框拧回旧姿态）。
+- **断裂**：`GameRoom.BreakWeldsFromAppliedCommands`（跟 `SplitFromAppliedCommands` 同一 tick 相位）用「本 tick 已施加的冲量 > 该 weld 的 `BreakImpulse` 且落点最近」判定，命中就 `DestroyJoint` + 丢掉该 weld 定义 + `UnlinkPowerCluster`，再按升序重连剩余 weld 的功率边（下游成员不能留着断路给的旧 key）。两端本来就是各自独立的 body，所以断裂只是关节消失。
+- **生命周期**：`_weldJoints`/`_welds`/`_weldKeys` 三张表，`ForgetJointsForBody` 一并清理；`SplitFromAppliedCommands`/`DetachFromCompound` 现在**先 `ForgetJointsForBody` 再 `DestroyBody`**（原版这步只清了规则层），拆完调 `RebindWeldJoints()` 把仍存活的对按新 body 重建（`RestRotation` 用当时的相对姿态）。少了这两步，任何一次拆簇都会把框从邻居上撕下来。
+- **顺带修掉的功率记账 bug**：`GameplayRules.LinkPowerCluster` 以前只写一条 `member → hostKey`，而 `LinkBody` 记录的代表实体是**最后一个**绑定的成员——于是「引擎与框共 body」时，引擎自己解析到的 key 是它自己，weld 写的边被代表实体遮蔽，边「连上了但不起作用」。现在同一条边写到 member **所在 body 的全部成员**上；`UnlinkPowerCluster` 同样按成员撤销。诊断口径 `GameRoom.WeldJointCount`（活体 weld 数）。
+
+**拟合与对照验收（期 4）**
+
+选定的机制是 spec 推荐的**连续弹簧**：`CompoundAssembler.FrameWeldSpringFrequency = 20.5 Hz`、`FrameWeldSpringDampingRatio = 1.0`（临界阻尼）。这是 **PigForge 标定值**（原版没有可抄的弹簧：343 个 prefab 零 spring 字段），用 §4.1 那条链扫频扫出来的：
+
+| 指标 | 原版 `chain8_ppon_gap0` | Bepu @20.5 Hz | 偏差 | 容差 |
+|---|---|---|---|---|
+| 尖端下沉 | 1.8415 m | **2.1285 m** | +15.6% | ±25% |
+| 单关节最大相对角 | 10.175° | **8.647°** | −15.0% | ±25% |
+| 整链曲率 | 22.661° | **26.026°** | +14.9% | ±25% |
+
+（`tests/PigForge.Physics.Tests/WeldComplianceTests.cs`，360 tick = 6 s，取整个区间最大值；扫频 14–26 Hz 显示指标随频率单调，20.5 Hz 是三条指标里最差偏差最小的点 ≈16%。）
+
+**已记录的偏差**（都用注释写进了测试/实现）：
+
+1. **引擎不同**：Bepu 2.4 vs PhysX 4.1；**tick 不同**：60 Hz vs 原版 50 Hz（容差为这两条留白）。
+2. **夹具的「固定端」**：原版挂在 kinematic 刚体上；物理契约没有 static↔dynamic 关节（Bepu 直接拒），所以夹具改用「六轴全锁的 dynamic body（1000 kg）」——同样不可动。
+3. **没有逐件阻尼（G86）**：原版每个零件刚体 `linearDamping 0.2 / angularDamping 0.05`，PigForge 没有。静态下垂与它无关，但长时振荡会不同。
+4. **弹簧 vs 迭代残差**：弹簧刚度与载荷无关，原版的残差随弯矩增长。8 框链拟合得住；更长的链（16/32 框实测）Bepu 会折下去 13.8/31 m，原版在这种工况下会怎样**未测**（§5.2 的备选机制「有限迭代 + 每 tick 修正」仍未实现，属于已知的模型差异）。
+5. **功率边的撤销是「断开 + 重连剩余」**：轮子的边（`BindWheelHinges`）只在绑定时解析一次，若它经由被断开的 weld 解析过，断裂后不会自动回落到自己的框 —— 既有行为，本轮未动。
+
+**基准与实机**
+
+- `dotnet run --project src/PigForge.Benchmarks -c Release`：typical/stress/concurrent-8 三景数字与改动前一致（stress p95 1.010 → 1.031 ms，属运行间噪声）。注意基准夹具用的是**合成内容（无 `canEnclose`）**，所以它根本不产生 weld —— 框链的成本不在这个基准里。
+- 实机探针（真服务器 + 真内容 + 浏览器里用客户端自己的编解码器走 WS）：两框 + 包裹引擎 + 马达轮的焊上车架，四个 `PlacePart`、`StartSimulation`、`SetPartTypeActive` 全部 ack `status 0 / error 0`；快照里两框是**两个不同 body**、引擎与远框同 body；拨动开关后车架峰值 **|vx| = 17.775 m/s**（与 `FrameWeldRoomTests` 的进程内读数 17.87 m/s 一致）。
+
 ## 5. 开放问题（需甲方拍板）
 
 1. ~~**拆体范围**~~ —— **已定（2026-10-04，用户）**：**先只拆框↔框的缝**（body 数只在框链上增长），用期 4 的实测对照兜底。
    - **其余零件（非框缝）本轮不做**（用户同日明确：「一口气做所有零件步子跨太大了」）。评估何时扩大，看期 4 的三组数字：①Bepu 侧 8 框链是否落在 §4.1 容差内；②`PigForge.Benchmarks` 的 body 数 / 帧预算；③实机试玩手感（框链下沉是否像截图那样）。扩大前必须先写出**非框零件上的对应验收口径**——框链的弯矩目标不能直接套到轮轴/引擎/气球这些本来就另有模型的件上。
-2. **软度用 Bepu 的什么机制拟合**：`Weld` 的 spring 频率/阻尼比（连续弹簧）还是「有限迭代 + 每 tick 一次的约束修正」（更接近原版的迭代残差）？
-   - 推荐：先试 `Weld` + spring（契约里已有 spring 字段），拟合不上再考虑迭代方案。置信度：中。
+   - **期 4 的数字（2026-10-04 收口）**：①8 框链三条指标都在 ±25% 内（最差偏差 ≈16%，§4.4 表）；②基准夹具是合成内容、不含 weld，框链成本不在 `PigForge.Benchmarks` 里（要量得新加一个夹具）；③实机探针证明链路通（两框两 body、焊上的引擎能驱动对侧马达轮）。**仍未扩大**：非框缝（轮轴/引擎/气球）不拆，扩大前必须先写它们自己的验收口径。
+2. ~~**软度用 Bepu 的什么机制拟合**~~ —— **已定（2026-10-04）**：采纳 spec 推荐的连续弹簧，拟合结果 `20.5 Hz / ζ=1.0`（§4.4）。备选「有限迭代 + 每 tick 一次修正」**未实现**，它更接近原版的机制（残差随弯矩增长，而不是线性弹簧）——长链工况（16/32 框）是当前模型与它差异最大的地方。
 3. **断裂阈值换算**：用 1020/2420 N 与「规则层事件产生的冲量」定一个可复算常数（替换 `10f`）？
-   - 推荐：做（G15 真还原）。置信度：中高。
+   - **仍未做**（G15）。本轮 weld 沿用接缝的单位（`SeamBreakImpulse` 与强度比例），所以「框对能断、木比铁脆」是对的，但阈值仍是锚定冲量而不是从 1020/2420 N 推出来的。
+4. **非框零件的软度**要不要同样处理（用户 2026-10-04：步子太大，先不做）。
 
 ## 6. 复现
 
@@ -135,3 +177,11 @@ unity run unity/PigForge.WeldProbe --editor-version 2021.3.45f2 --timeout 1200 \
 ```
 
 格子：A `load_pp{on,off}_c{56,0}_m{0.5,1,4,20}`、B `rig_pp{on,off}`、C `break_{1000,2400}`、D `impulse_pp{on,off}`、E `proj_pp{on,off}`、**F `chain8_pp{on,off}_gap{0,1}`**。
+
+期 3/4 的验收（不需要 Unity，全是 .NET 测试）：
+
+```bash
+dotnet test tests/PigForge.Core.Tests/PigForge.Core.Tests.csproj --filter "FullyQualifiedName~CompoundAssembler"
+dotnet test tests/PigForge.Server.Tests/PigForge.Server.Tests.csproj --filter "FullyQualifiedName~FrameWeld"
+dotnet test tests/PigForge.Physics.Tests/PigForge.Physics.Tests.csproj --filter "FullyQualifiedName~WeldCompliance"
+```
