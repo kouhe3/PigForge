@@ -819,8 +819,8 @@ public sealed class GameplayRulesTests
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId propeller = entities.Create();
         // The plane propeller's original never caps its speed (`PropellerSpeed` is Infinity), so
-        // its content omits maxSpeed and no velocity ever decays the thrust. 37 N / 60 is the
-        // value tools/bple-fans derives for it (deferred from content; see the spec).
+        // its content omits maxSpeed and no velocity ever decays the thrust. 0.616667 is the value
+        // tools/bple-fans derives for it (37 N / 60) and content parts 38/135-143 carry.
         harness.Rules.AddFan(propeller, 0.616667f, 1f, 0f);
         harness.Link(propeller, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(40f, 0f, 0f));

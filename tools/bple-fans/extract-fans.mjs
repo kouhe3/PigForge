@@ -8,10 +8,17 @@
 // `FanPropeller` (FanPropeller.cs:6, `m_partType` picks the IN multipliers at :93-107). PigForge
 // had drifted into three different approximations (G50): the fan carried a thrust with no speed
 // cap, the rotor was a balloon with unbounded lift and a "deflate and destroy" switch, and the
-// propeller was misclassified as a driven wheel by tools/bple-power (FanPropeller does override
-// InitializeEngine -- it is not a wheel), so its impulse pushed its own hinged body and it never
-// propelled anything. This tool converts the fan and the rotor; the 10 plane propellers are
-// reported but deferred, because their original carries no speed cap at all (see below).
+// propeller was content-authored as `wheel` + `motor` (FanPropeller is a BasePropulsion, not a
+// wheel: tools/bple-power's wheel-drive classification is name-scoped to `*Wheel` classes), so the
+// rules layer hinged its body, gated its thrust on ground contact and it never propelled a rig.
+// This tool converts all three families.
+//
+// The propeller is the one family whose original carries no speed cap at all: `PropellerSpeed` is
+// Infinity, so `LimitForceForSpeed` never bites and the original relies on the plane's own drag
+// and weight to settle. It therefore becomes a `fan` without `maxSpeed` -- the terminal speed that
+// was missing while PigForge had no drag at all is the original's own rigidbody damping, which the
+// container models since ADR-025 (docs/specs/body-defaults.md). Nothing here invents a cap: a
+// hand-picked one would be a gameplay decision this extraction has no business making.
 //
 // The numbers, straight from the class:
 //
@@ -36,8 +43,9 @@
 // Measured on BPLE_Unity6 (343 Part_*.prefab): 26 carry a FanPropeller component -- the 6 fans,
 // the 10 plane propellers and the 10 rotors -- `m_isRotor` is 1 on exactly the 10 rotors, and the
 // force directions are Left (fan), Right (propeller, one Left variant) and Up (rotor, one Down
-// variant). Those are hard invariants: drift fails this tool instead of silently writing a
-// different world into content/parts.json.
+// variant), and the 10 propellers are the only ones whose `IN <X>Speed` is Infinity. Those are
+// hard invariants: drift fails this tool instead of silently writing a different world into
+// content/parts.json.
 //
 // Usage: node tools/bple-fans/extract-fans.mjs [--bple <path>] [--json <path>] [--md <path>]
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -263,18 +271,8 @@ const balloonPart = content.parts.find((part) => part.partTypeId === BALLOON_PAR
 const balloonLift = balloonPart?.capabilities?.balloon;
 
 // ---------------------------------------------------------------- per content part
-//
-// This slice converts the fan and the rotor. The 10 plane propellers are reported but NOT applied:
-// their original carries `PropellerSpeed = Infinity` (INSettingsBExp.json:299-301), i.e. no speed
-// cap at all, so `LimitForceForSpeed` never bounds them and the original relies on the plane's own
-// drag and weight. Converting them today would turn a part that currently does nothing (they are
-// misclassified as driven wheels, so their impulse pushes their own hinged body) into an uncapped
-// thruster, and picking a cap is a gameplay decision, not an extraction. See
-// docs/specs/fan-propeller.md.
-const DEFERRED_PART_TYPES = new Set(["Propeller"]);
 
 const parts = {};
-const deferred = {};
 const unmapped = [];
 let fanPropellerContentParts = 0;
 for (const part of content.parts) {
@@ -300,7 +298,8 @@ for (const part of content.parts) {
   const speedMultiplier = inSettings.get(info.speed);
   // `maximumSpeed = powerFactor * m_defaultSpeed * IN <X>Speed` (FanPropeller.cs:90,100-106): the
   // content value is the per-unit-power-factor speed, so the rules layer multiplies it by the
-  // cluster's power factor. Infinity means the original never caps it (the propeller).
+  // cluster's power factor. Infinity -- the propeller family -- means the original never caps it,
+  // so the field is absent rather than made up.
   const maxSpeed = Number.isFinite(speedMultiplier) ? fan.defaultSpeed * speedMultiplier : null;
   const thrust = thrustPerTick(fan.force, forceMultiplier);
   fanPropellerContentParts++;
@@ -322,11 +321,7 @@ for (const part of content.parts) {
     powerConsumption: fan.powerConsumption,
   };
 
-  if (DEFERRED_PART_TYPES.has(entry.partType)) {
-    deferred[part.partTypeId] = entry;
-  } else {
-    parts[part.partTypeId] = entry;
-  }
+  parts[part.partTypeId] = entry;
 }
 
 // ---------------------------------------------------------------- hard invariants
@@ -350,21 +345,25 @@ expect("Right directions", scan.byDirection.Right, 9);
 expect("Up directions", scan.byDirection.Up, 9);
 expect("Down directions", scan.byDirection.Down, 1);
 expect("content parts on a FanPropeller prefab", fanPropellerContentParts, 26);
-expect("fan + rotor parts converted", Object.keys(parts).length, 16);
-expect("propeller parts deferred", Object.keys(deferred).length, 10);
+expect("fan/propeller/rotor parts converted", Object.keys(parts).length, 26);
+expect(
+  "parts with no speed cap (the propeller family)",
+  Object.values(parts).filter((part) => part.maxSpeed === null).length,
+  10,
+);
 
 const rotorsOffFamily = scan.rotors.filter((name) => !/^Part_Rotor_/.test(name));
 if (rotorsOffFamily.length > 0) {
   invariants.push(`m_isRotor outside the Rotor family: ${rotorsOffFamily.join(", ")}`);
 }
 
-const deferredOffFamily = Object.values(deferred).filter((part) => part.partType !== "Propeller");
-if (deferredOffFamily.length > 0) {
-  invariants.push(`deferred parts outside the Propeller family: ${deferredOffFamily.map((part) => part.prefab).join(", ")}`);
+const uncappedOffFamily = Object.values(parts).filter((part) => part.maxSpeed === null && part.partType !== "Propeller");
+if (uncappedOffFamily.length > 0) {
+  invariants.push(`parts without a speed cap outside the Propeller family: ${uncappedOffFamily.map((part) => part.prefab).join(", ")}`);
 }
 
 const missingCoverage = Object.keys(scan.prefabs).filter(
-  (name) => ![...Object.values(parts), ...Object.values(deferred)].some((part) => part.prefab === name),
+  (name) => !Object.values(parts).some((part) => part.prefab === name),
 );
 if (missingCoverage.length > 0) {
   invariants.push(`FanPropeller prefabs with no content part: ${missingCoverage.join(", ")}`);
@@ -377,6 +376,11 @@ for (const [partTypeId, part] of Object.entries(parts)) {
 
   if (part.maxSpeed !== null && !(part.maxSpeed > 0)) {
     invariants.push(`part ${partTypeId}: maxSpeed must be positive when present, got ${part.maxSpeed}`);
+  }
+
+  // An absent cap is exactly the Infinity multiplier -- never a rounded or dropped number.
+  if ((part.maxSpeed === null) !== (part.speedMultiplier === "Infinity")) {
+    invariants.push(`part ${partTypeId}: maxSpeed ${part.maxSpeed} does not match IN multiplier ${part.speedMultiplier}`);
   }
 }
 
@@ -398,7 +402,7 @@ if (typeof balloonLift !== "number" || balloonForce === null) {
 
 // Every FanPropeller must convert at exactly the same rate; a per-part calibration would make the
 // rules layer's own `4 * excess^2 / 60` brake (FanPropeller.cs:198-207) measure something else.
-for (const [partTypeId, part] of [...Object.entries(parts), ...Object.entries(deferred)]) {
+for (const [partTypeId, part] of Object.entries(parts)) {
   const expected = thrustPerTick(part.force, part.forceMultiplier);
   if (Math.abs(part.thrustPerTick - expected) > 1e-6) {
     invariants.push(`part ${partTypeId}: thrustPerTick ${part.thrustPerTick} is not m_force / ${TICK_RATE_HZ} = ${expected}`);
@@ -410,7 +414,7 @@ if (invariants.length > 0) {
 }
 
 // ---------------------------------------------------------------- report
-const report = { bple: BPLE, tickRateHz: TICK_RATE_HZ, inSettings: Object.fromEntries(fanSettingNames.map((name) => [name, inSettings.get(name)])), scan, warnings, unmapped, parts, deferred };
+const report = { bple: BPLE, tickRateHz: TICK_RATE_HZ, inSettings: Object.fromEntries(fanSettingNames.map((name) => [name, inSettings.get(name)])), scan, warnings, unmapped, parts };
 mkdirSync(dirname(OUT_JSON), { recursive: true });
 writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
 
@@ -433,23 +437,10 @@ md.push(`- 类型：${Object.entries(scan.byPartType).map(([key, value]) => `${k
 md.push(`- 方向：${Object.entries(scan.byDirection).map(([key, value]) => `${key} ${value}`).join("、")}`);
 md.push(`- \`m_isRotor\`：${scan.rotors.length}（${scan.rotors.join(", ")}）`, "");
 md.push("## PigForge 内容映射（26 件）", "");
-md.push("`范围` = `写入` 表示 `apply-fans.mjs` 会写进 `content/parts.json`；`缓办` 见下一节。", "");
-md.push("| 内容 id | 名称 | prefab | 类型 | 方向 | m_force | thrustPerTick | maxSpeed | rotor | 范围 |", "|---|---|---|---|---|---|---|---|---|---|");
-for (const [partTypeId, part] of [...Object.entries(parts), ...Object.entries(deferred)].sort((left, right) => Number(left[0]) - Number(right[0]))) {
-  const scope = Object.hasOwn(parts, partTypeId) ? "写入" : "缓办";
-  md.push(`| \`${partTypeId}\` | ${part.name} | \`${part.prefab}\` | ${part.partType} | ${part.direction} | ${part.force} | ${f(part.thrustPerTick)} | ${part.maxSpeed === null ? "∞" : f(part.maxSpeed)} | ${part.rotor} | ${scope} |`);
-}
-
-md.push("", "## 缓办的螺旋桨族（10 件）", "");
-md.push("原版给螺旋桨的 `PropellerSpeed` 是 **`Infinity`**（`INSettingsBExp.json:299-301`），");
-md.push("于是 `maximumSpeed = powerFactor × m_defaultSpeed × Infinity = ∞`，`LimitForceForSpeed` **永不生效**——");
-md.push("原版靠飞机自身的阻力与重量收住它。PigForge 现在把这 10 件建模成 `wheel` + `motor`（`tools/bple-power`");
-md.push("的「有 `InitializeEngine` 覆盖即驱动轮」判据误判：`FanPropeller` 确实覆盖了它），装配时它们被铰接成独立刚体，");
-md.push("冲量只推自己，**不产生推进**。直接转成 FanPropeller 会把它变成**没有上限的推进器**，");
-md.push("给它定上限是玩法决定而非提取，故本切片缓办（`docs/specs/fan-propeller.md` §7）。", "");
-md.push("| 内容 id | 名称 | prefab | 方向 | m_force | 若转换的 thrustPerTick |", "|---|---|---|---|---|---|");
-for (const [partTypeId, part] of Object.entries(deferred).sort((left, right) => Number(left[0]) - Number(right[0]))) {
-  md.push(`| \`${partTypeId}\` | ${part.name} | \`${part.prefab}\` | ${part.direction} | ${part.force} | ${f(part.thrustPerTick)}（**未写入**） |`);
+md.push("全部 26 件都由 `apply-fans.mjs` 写进 `content/parts.json`；`∞` = 原版 `PropellerSpeed` 没有上限，内容不写 `maxSpeed`。", "");
+md.push("| 内容 id | 名称 | prefab | 类型 | 方向 | m_force | thrustPerTick | maxSpeed | rotor |", "|---|---|---|---|---|---|---|---|---|");
+for (const [partTypeId, part] of Object.entries(parts).sort((left, right) => Number(left[0]) - Number(right[0]))) {
+  md.push(`| \`${partTypeId}\` | ${part.name} | \`${part.prefab}\` | ${part.partType} | ${part.direction} | ${part.force} | ${f(part.thrustPerTick)} | ${part.maxSpeed === null ? "∞" : f(part.maxSpeed)} | ${part.rotor} |`);
 }
 
 md.push("", "## IN 全局倍率（`INSettingsBExp.json`）", "");
@@ -472,7 +463,7 @@ writeFileSync(OUT_MD, `${md.join("\n")}\n`);
 
 console.log(`FanPropeller prefabs: ${scan.count} (${JSON.stringify(scan.byPartType)}; ${JSON.stringify(scan.byDirection)})`);
 console.log(`rotor flags: ${scan.rotors.length}; content parts: ${fanPropellerContentParts}`);
-console.log(`applied: ${Object.keys(parts).length} (fan + rotor); deferred: ${Object.keys(deferred).length} (plane propeller, no speed cap in the original)`);
+console.log(`applied: ${Object.keys(parts).length} (fan + propeller + rotor; the 10 propellers carry no speed cap, as the original does)`);
 console.log(`conversion: m_force x IN <X>Force / ${TICK_RATE_HZ} (witnessed against the balloon family)`);
 if (warnings.length > 0) {
   console.log(`warnings: ${warnings.length}`);

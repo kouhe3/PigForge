@@ -148,6 +148,9 @@ const derivesFromBasePart = (name) => {
 
 // Derived, not listed: a driven wheel is a BasePart subclass whose name ends in `Wheel` and
 // which overrides InitializeEngine (MotorWheel, OffRoadWheel, StickyWheel on 2.4.0 BPLE).
+// Name-scoping is what keeps `FanPropeller` out: it is a BasePropulsion that overrides the same
+// hook (`InitializeEngine`, FanPropeller.cs:83) and is a thruster, not a wheel -- tools/bple-fans
+// owns its numbers. A part carrying both capabilities is a hard error below.
 const drivenWheelClasses = new Set(
   [...classBases.keys()]
     .filter((name) => name.endsWith("Wheel") && derivesFromBasePart(name) && overridesInitializeEngine(name)),
@@ -270,6 +273,18 @@ for (const part of content.parts) {
   }
 
   parts[part.partTypeId] = entry;
+}
+
+// Content-level cross-check: no part carries both the wheel drive and the fan thrust. The
+// FanPropeller family overrides InitializeEngine exactly like a driven wheel does, which is how
+// the plane propellers once ended up modelled as `wheel` + `motor` (G50): this tool owns the
+// wheels, tools/bple-fans owns the fans, and a part in both models is a mistake either side can
+// introduce.
+const bothModels = content.parts
+  .filter((part) => part.capabilities?.motor !== undefined && part.capabilities?.fan !== undefined)
+  .map((part) => part.partTypeId);
+if (bothModels.length > 0) {
+  fail(`parts carry both a motor and a fan capability: ${bothModels.join(", ")}`);
 }
 
 // Whole-project tally, so the report can state the distribution even for prefabs that never made

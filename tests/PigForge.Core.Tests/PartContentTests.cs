@@ -392,6 +392,42 @@ public sealed class PartContentTests
         Assert.Null(library.GetPart(2).Capabilities);
     }
 
+    [Fact]
+    public void TheRealContentModelsThePlanePropellerAsAnUncappedFan()
+    {
+        // G50: the original's fan, plane propeller and rotor are one class (`FanPropeller`), so the
+        // ten propeller parts are `fan` thrusters -- no longer the `wheel` + `motor` pair the
+        // content used to carry, which hinged their own body and gated the drive on ground contact
+        // and so never propelled a rig. Its original declares `PropellerSpeed = Infinity`
+        // (INSettingsBExp.json:299-301), so `LimitForceForSpeed` never bites and no part of the
+        // family carries a cap. Extracted by tools/bple-fans.
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        uint[] propellers = [38, 135, 136, 137, 138, 139, 140, 141, 142, 143];
+        foreach (uint partTypeId in propellers)
+        {
+            PartCapabilities capabilities = library.GetPart(partTypeId).Capabilities!;
+            Assert.True(capabilities.HasFan, $"part {partTypeId} must be a fan thruster");
+            Assert.Equal(0.616667f, capabilities.FanThrustPerTick);
+            Assert.Null(capabilities.FanMaxSpeed);
+            Assert.False(capabilities.FanIsRotor);
+            Assert.Equal(PartActivation.Toggle, capabilities.Activation);
+            Assert.False(capabilities.IsWheel);
+            Assert.False(capabilities.HasMotor);
+        }
+
+        // The original's own thrust direction (`m_forceDirection`, Part_PlanePropeller_01_SET):
+        // Right on the family, Left on its tenth skin alone.
+        Assert.Equal(1f, library.GetPart(38).Capabilities!.FanDirectionX);
+        Assert.Equal(-1f, library.GetPart(143).Capabilities!.FanDirectionX);
+
+        // The two capped members of the same class keep the caps the original declares, so this
+        // assertion cannot pass by way of a parser that dropped the field everywhere.
+        Assert.Equal(18f, library.GetPart(11).Capabilities!.FanMaxSpeed);
+        Assert.Equal(14f, library.GetPart(37).Capabilities!.FanMaxSpeed);
+        Assert.True(library.GetPart(37).Capabilities!.FanIsRotor);
+    }
+
     [Theory]
     [InlineData("engineAssetGuid", "unknown property")]
     [InlineData("schemaVersion", "only version 1")]

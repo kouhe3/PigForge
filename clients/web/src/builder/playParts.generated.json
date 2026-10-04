@@ -1696,10 +1696,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5124,10 +5124,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5163,10 +5163,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5202,10 +5202,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5241,10 +5241,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5280,10 +5280,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5319,10 +5319,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5358,10 +5358,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5397,10 +5397,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": 1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -5436,10 +5436,10 @@
         "powerConsumption": 100,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "wheel": true,
-        "motor": {
-          "thrustPerTick": 2.5,
-          "directionX": 1
+        "fan": {
+          "thrustPerTick": 0.616667,
+          "directionX": -1,
+          "directionY": 0
         },
         "activation": "toggle"
       },
@@ -10898,7 +10898,7 @@
           },
           "projectionDistance": 0.1,
           "shoot": {
-            "distanceY": 2.5,
+            "distanceY": 5,
             "deviationX": 0,
             "time": 0.4,
             "limitSpring": 0.1
@@ -10906,7 +10906,7 @@
           "wind": {
             "time": 1,
             "mass": 0.01,
-            "driveSpring": 25,
+            "driveSpring": 50,
             "driveDamper": 2.5
           },
           "solverIterationScale": 1.6

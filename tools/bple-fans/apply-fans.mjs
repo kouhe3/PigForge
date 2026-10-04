@@ -7,8 +7,11 @@
 //   capabilities.fan = { thrustPerTick, directionX, directionY, maxSpeed?, rotor? }
 // and the three approximations it replaces are removed:
 //   capabilities.balloon  (the rotor's unbounded lift)
-//   capabilities.wheel    (the propeller misclassified as a driven wheel, tools/bple-power)
+//   capabilities.wheel    (the plane propellers hand-authored as driven wheels)
 //   capabilities.motor    (the same)
+// The propeller family is the one whose original has no speed cap, so its `fan` carries no
+// `maxSpeed` at all -- `renderFan` omits the field and the rules layer then never limits it, the
+// way `FanPropeller` never does when its multiplier is Infinity.
 // `activation` becomes "toggle" on every one of them: the original's FanPropeller is
 // `HasOnOffToggle() = true` and turning it off only stops the thrust (FanPropeller.cs:49-56,
 // 265-296) -- never destroys the part, which is what the rotor's old "trigger" did.
