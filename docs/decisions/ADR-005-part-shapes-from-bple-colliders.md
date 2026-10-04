@@ -33,7 +33,9 @@ Accepted；**决策 2（单形状、无偏移）已由 [ADR-007](ADR-007-part-mu
 
 - 改尺寸或换映射后要重跑两个脚本：`node tools/bple-shapes/extract-shapes.mjs`（报告）与 `node tools/bple-textures/extract.mjs`（贴图清单 v2 + 图集）。
 - 贴图不再被限制在物理形状内——猪的贴图会盖住旁边的方块，和原作一样。
-- 已知偏差：车轮轮胎、弹簧顶板、翅膀、螺旋桨等碰撞体的局部偏移被折中为居中；猪王与蛋的 capsule 以 X/Y 包围盒近似。
+- 已知偏差：车轮轮胎、弹簧顶板、翅膀、螺旋桨等碰撞体的局部偏移被折中为居中。
+- **2026-10-04 修正**：capsule **不再**用 X/Y 包围盒近似（那让猪王的碰撞变成方的，用户实测指出「预期是圆的」），改成**沿胶囊自身轴的球链**：半径取 capsule 的 `m_Radius`，球心从 `-reach` 到 `+reach`（`reach = max(height/2 - radius, 0)`）按 `m_Direction`（0=X/1=Y/2=Z）排布、并施加节点的 Z 旋转（蛋的 collider 节点是 -45°），球距 ≤ `radius/3`、球数 ≤ 12；相邻球之间表面最多凹 `radius - sqrt(radius^2 - (radius/6)^2)` = 半径的 1.4%。球链会像球一样滚（`tests/PigForge.Physics.Tests/SphereChainRollTests` 断言 `|v|/|ω| ≈ radius`，而同一个包络盒只会滑），内容断言见 `tests/PigForge.Core.Tests/PartContentTests.TheOriginalCapsulesBecomeSphereChainsInsteadOfEnvelopeBoxes`。
+  目录里只有两族真用到 capsule：猪王本体（r0.9/h2.1/X 轴，`Part_KingPig_01_SET` 的 CapsuleCollider）与蛋（r0.3/h0.85/-45°，`Part_Egg_01_SET`）；猪王 `MouthPos` 上那个 r0.3/h1.2 是 `m_IsTrigger: 1`，不是碰撞体。
 - Z 半宽取原作 `m_Size.z / 2`（多数为 0.5），原作 Z 为 0 的 2D 碰撞体（TimeBomb）沿用原内容的 Z。
 
 ## 参考
