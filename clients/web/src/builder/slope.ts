@@ -37,10 +37,13 @@ export const PALETTE = [
   { partTypeId: 39, label: "齿轮杆" },
   { partTypeId: 40, label: "风箱" },
   { partTypeId: 41, label: "绳索" },
+  { partTypeId: 42, label: "炸药" },
   { partTypeId: 43, label: "拆卸器" },
   { partTypeId: 44, label: "手电筒" },
   { partTypeId: 45, label: "探照灯" },
   { partTypeId: 46, label: "抓钩" },
+  { partTypeId: 270, label: "小发动机" },
+  { partTypeId: 271, label: "大发动机" },
 ] as const;
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };
 export const MAP_BOUNDS = { minX: -30, minY: -12, maxX: 30, maxY: 30 };
