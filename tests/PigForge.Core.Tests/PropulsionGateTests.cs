@@ -191,6 +191,7 @@ public sealed class PropulsionGateTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "propulsion-gate-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1,
                   "capabilities": { "jointConnectionType": "source", "canEnclose": true },

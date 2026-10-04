@@ -182,6 +182,7 @@ public sealed class TntBlastTests
         "format": "pigforge.part-content",
         "schemaVersion": 1,
         "contentVersion": "tnt-blast-test-v1",
+        "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
         "parts": [
             { "partTypeId": 1, "name": "wooden-block", "mode": "dynamic", "mass": 1.0, "material": { "restitution": 0, "friction": 0.7 }, "capabilities": { "jointConnectionType": "source", "jointConnectionStrength": "normal" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
             { "partTypeId": 9, "name": "tnt", "mode": "dynamic", "mass": 1.0, "material": { "restitution": 0, "friction": 0.7 }, "capabilities": { "jointConnectionType": "target", "jointConnectionStrength": "weak", "tnt": { "fuseTicks": 5 }, "activation": "trigger" }, "shapes": [ { "kind": "box", "halfExtents": [0.475, 0.475, 0.475] } ] },

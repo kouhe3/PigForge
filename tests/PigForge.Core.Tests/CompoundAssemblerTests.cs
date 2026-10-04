@@ -215,6 +215,7 @@ public sealed class CompoundAssemblerTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "compound-strength-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 11, "name": "left", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "source"{{left}} } },
                 { "partTypeId": 12, "name": "right", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "target"{{right}} } }
@@ -337,6 +338,7 @@ public sealed class CompoundAssemblerTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "compound-material-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1,
                   "material": { "restitution": 0.2, "friction": 0.7 },
@@ -505,6 +507,7 @@ public sealed class CompoundAssemblerTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "compound-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "source" } },
                 { "partTypeId": 2, "name": "ground", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [4, 0.5, 4] } ] },

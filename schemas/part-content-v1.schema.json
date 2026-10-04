@@ -5,7 +5,7 @@
   "description": "Engine-agnostic part and collision content. Files authored against this schema contain no engine asset references (no Unity Asset GUIDs, no GameObject or scene paths); engines bind their own assets to parts via partTypeId.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "schemaVersion", "contentVersion", "parts"],
+  "required": ["format", "schemaVersion", "contentVersion", "physics", "parts"],
   "properties": {
     "format": { "const": "pigforge.part-content" },
     "schemaVersion": { "const": 1 },
@@ -15,6 +15,7 @@
       "maxLength": 128,
       "pattern": "^\\S+$"
     },
+    "physics": { "$ref": "#/$defs/physics" },
     "parts": {
       "type": "array",
       "minItems": 1,
@@ -26,6 +27,30 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 4294967295
+    },
+    "damping": {
+      "description": "Unity's per-rigidbody `Rigidbody.drag` / `angularDrag` (renamed `linearDamping` / `angularDamping` in Unity 6), extracted by tools/bple-damping and never authored. Both values are required and neither may be negative, because a negative damping would accelerate a body instead of slowing it. The original applies them as PhysX does -- `v *= max(0, 1 - damping * dt)` after gravity and before the solver (`DyBodyCoreIntegrator.h::bodyCoreComputeUnconstrainedVelocity`) -- which the original's own editor confirmed to the last bit (unity/PigForge.WeldProbe body-defaults probe: 0.996 per 0.02 s step for 0.2 drag, max abs error 0 over 51 samples).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linear", "angular"],
+      "properties": {
+        "linear": { "description": "`Rigidbody.drag` -- 0.2 on every part (BasePart.cs:1200), 1 on a wing/tail, 2 on a balloon, 1 on a sandbag, 0.5 on the king pig.", "type": "number", "minimum": 0 },
+        "angular": { "description": "`Rigidbody.angularDrag` -- 0.05 on every part (BasePart.cs:1201), 0.2 on a wing/tail, 0.5 on a balloon, 10 on a sandbag, 1 on the king pig.", "type": "number", "minimum": 0 }
+      }
+    },
+    "physics": {
+      "description": "The original's project-wide rigidbody defaults every part inherits, declared once instead of per part (tools/bple-damping). A dynamic part overrides `damping` only where its original class overrides `BasePart.EnsureRigidbody` (wing, tail, balloon, sandbag, king pig); a static part must not declare one at all.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximumAngularSpeed", "damping"],
+      "properties": {
+        "maximumAngularSpeed": {
+          "description": "Unity's `Physics.defaultMaxAngularSpeed` in radians per second, which every original rigidbody inherits as `Rigidbody.maxAngularVelocity`: the original's `ProjectSettings/DynamicsManager.asset` declares `m_DefaultMaxAngularSpeed: 7`, no script assigns `maxAngularVelocity` and none of the 343 `Part_*.prefab` serialize `m_MaxAngularVelocity`. PhysX clamps the magnitude after damping (`if (angVelSq > maxAngularVelocitySq) angularVelocity *= sqrt(maxSq / angVelSq)`); the same editor probe measured a body seeded at 100 rad/s reading exactly 7 after one step, and 100 with the cap raised to 1000.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "damping": { "$ref": "#/$defs/damping" }
+      }
     },
     "finiteNumber": { "type": "number" },
     "vector3": {
@@ -79,6 +104,7 @@
         },
         "gridBox": { "$ref": "#/$defs/gridBox" },
         "connectionVisual": { "$ref": "#/$defs/connectionVisual" },
+        "damping": { "$ref": "#/$defs/damping" },
         "shapes": {
           "type": "array",
           "minItems": 1,

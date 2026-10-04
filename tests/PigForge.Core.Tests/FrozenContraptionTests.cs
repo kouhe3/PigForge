@@ -192,6 +192,7 @@ public sealed class FrozenContraptionTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "construction-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
                 { "partTypeId": 2, "name": "plank", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "box", "halfExtents": [1.0, 0.5, 0.5] } ] }

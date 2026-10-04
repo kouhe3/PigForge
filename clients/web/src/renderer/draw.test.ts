@@ -82,6 +82,8 @@ const content: PartContentDocument = {
   format: "pigforge.part-content",
   schemaVersion: 1,
   contentVersion: "t",
+  physics: { maximumAngularSpeed: 7, damping: { linear: 0.2, angular: 0.05 } },
+
   parts: [
     { partTypeId: 44, name: "flashlight", mode: "dynamic", mass: 0.4, capabilities: { light: 3 }, shapes: [{ kind: "box", halfExtents: [0.2, 0.2, 0.2] }] },
     { partTypeId: 1, name: "block", mode: "dynamic", mass: 1, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
@@ -537,6 +539,8 @@ describe("drawFrame conditional connection sprites", () => {
     format: "pigforge.part-content",
     schemaVersion: 1,
     contentVersion: "t",
+    physics: { maximumAngularSpeed: 7, damping: { linear: 0.2, angular: 0.05 } },
+
     parts: [
       { partTypeId: 31, name: "wing", mode: "dynamic", mass: 0.6, capabilities: { jointConnectionType: "target" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
       { partTypeId: 1, name: "block", mode: "dynamic", mass: 1, capabilities: { jointConnectionType: "source" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },

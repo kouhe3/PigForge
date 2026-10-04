@@ -147,6 +147,7 @@ public sealed class WheelSuspensionRoomTests
         "format": "pigforge.part-content",
         "schemaVersion": 1,
         "contentVersion": "wheel-suspension-test-v1",
+        "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
         "parts": [
             { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
             { "partTypeId": 2, "name": "wheel", "mode": "dynamic", "mass": 0.5, "capabilities": { "wheel": true, "jointConnectionType": "target" }, "shapes": [ { "kind": "sphere", "radius": 0.33 } ] },

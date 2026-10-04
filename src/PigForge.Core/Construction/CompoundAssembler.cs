@@ -10,7 +10,8 @@ public readonly record struct CompoundMember(
     PhysicsVector3 LocalOffset,
     PhysicsQuaternion LocalRotation,
     float Scale,
-    float Mass);
+    float Mass,
+    PartDamping Damping = default);
 
 /// <summary>
 /// Preset weld between two members. Splitting is instantaneous per ADR-002:
@@ -79,7 +80,8 @@ public sealed class CompoundCluster
         IReadOnlyList<CompoundMember> members,
         IReadOnlyList<CompoundSeam> seams,
         PhysicsVector3? hingeAxle = null,
-        IReadOnlyList<CompoundAttachment>? attachments = null)
+        IReadOnlyList<CompoundAttachment>? attachments = null,
+        PartDamping damping = default)
     {
         ArgumentNullException.ThrowIfNull(members);
         ArgumentNullException.ThrowIfNull(seams);
@@ -100,6 +102,7 @@ public sealed class CompoundCluster
         Seams = seams;
         HingeAxle = hingeAxle;
         Attachments = attachments ?? Array.Empty<CompoundAttachment>();
+        Damping = damping;
     }
 
     public PhysicsVector3 WorldPosition { get; set; }
@@ -107,6 +110,18 @@ public sealed class CompoundCluster
     public PhysicsQuaternion WorldRotation { get; set; }
 
     public float Mass { get; }
+
+    /// <summary>
+    /// The damping the merged body carries: the members' own values folded by mass
+    /// (<c>sum(m * d) / sum(m)</c>), the same way the body's mass is the sum of its members'.
+    /// The original gives every part its own rigidbody and therefore its own <c>Rigidbody.drag</c>
+    /// (<c>tools/bple-damping</c>), which one rigid body per cluster cannot reproduce exactly; a
+    /// mass-weighted mean keeps the strongest member from being averaged away by a light one. A
+    /// lone member keeps its own value bit-for-bit, which is what a single-part cluster — a wheel,
+    /// a balloon, a sandbag — always is. Hosted attachments contribute nothing: they are not
+    /// members of this body (see <see cref="Attachments"/>), exactly as they contribute no mass.
+    /// </summary>
+    public PartDamping Damping { get; }
 
     public IReadOnlyList<CompoundMember> Members { get; }
 
@@ -176,7 +191,10 @@ public sealed class CompoundCluster
                 linearVelocity,
                 angularVelocity,
                 CreateBodyMaterial(content),
-                constraints);
+                constraints,
+                Damping.Linear,
+                Damping.Angular,
+                content.MaximumAngularSpeed);
         }
 
         if (Members.Count == 1 && Attachments.Count == 0)
@@ -249,7 +267,10 @@ public sealed class CompoundCluster
             linearVelocity,
             angularVelocity,
             CreateBodyMaterial(content),
-            constraints);
+            constraints,
+            Damping.Linear,
+            Damping.Angular,
+            content.MaximumAngularSpeed);
     }
 
     /// <summary>
@@ -722,7 +743,28 @@ public static class CompoundAssembler
             relocatedSeams[index] = seam with { LocalMidpoint = midpoint - com };
         }
 
-        return new CompoundCluster(com, PhysicsQuaternion.Identity, mass, relocated, relocatedSeams);
+        return new CompoundCluster(com, PhysicsQuaternion.Identity, mass, relocated, relocatedSeams, damping: FoldDamping(relocated));
+    }
+
+    /// <summary>
+    /// The damping one merged body carries: the members' own values folded by mass, so a heavy
+    /// member's drag is not averaged away by a light one. A lone member keeps its own value
+    /// exactly. See <see cref="CompoundCluster.Damping"/>.
+    /// </summary>
+    private static PartDamping FoldDamping(IReadOnlyList<CompoundMember> members)
+    {
+        float totalMass = 0f;
+        float linear = 0f;
+        float angular = 0f;
+        for (int index = 0; index < members.Count; index++)
+        {
+            CompoundMember member = members[index];
+            totalMass += member.Mass;
+            linear += member.Mass * member.Damping.Linear;
+            angular += member.Mass * member.Damping.Angular;
+        }
+
+        return totalMass > 0f ? new PartDamping(linear / totalMass, angular / totalMass) : default;
     }
 
     private static HashSet<uint> Walk(uint start, Dictionary<uint, List<uint>> adjacency)
@@ -1041,7 +1083,8 @@ public static class CompoundAssembler
                 PhysicsVector3.Zero,
                 transform.Rotation,
                 transform.Scale,
-                memberMass);
+                memberMass,
+                content.DampingOf(part));
         }
 
         PhysicsVector3? hingeAxle = null;
@@ -1127,6 +1170,6 @@ public static class CompoundAssembler
             });
         }
 
-        return new CompoundCluster(com, bodyRotation, mass, members, seams, hingeAxle, attachments);
+        return new CompoundCluster(com, bodyRotation, mass, members, seams, hingeAxle, attachments, FoldDamping(members));
     }
 }

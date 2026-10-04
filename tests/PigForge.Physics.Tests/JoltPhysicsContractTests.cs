@@ -4,6 +4,12 @@ using PigForge.Physics.Jolt;
 
 namespace PigForge.Physics.Tests;
 
+/// <summary>
+/// Jolt owns a process-wide native runtime, and two Jolt test classes running concurrently have
+/// crashed the test host inside the native solver (the flakiness the repository already knows
+/// about). One collection keeps every Jolt world serial, so the suites stay reliable.
+/// </summary>
+[Collection("Jolt")]
 public sealed class JoltPhysicsContractTests
 {
     [Fact]

@@ -5,11 +5,41 @@ namespace PigForge.Core.Content;
 /// <summary>Engine-agnostic part and collision content, authored as JSON against part-content-v1.</summary>
 public sealed record PartContentDocument(
     string ContentVersion,
+    PartContentPhysics Physics,
     IReadOnlyList<PartDefinition> Parts)
 {
     public const string Format = "pigforge.part-content";
     public const ushort SchemaVersion = 1;
 }
+
+/// <summary>
+/// The original's project-wide physics defaults that every rigidbody inherits, rather than a
+/// per-part choice: extracted from its own <c>ProjectSettings</c> and from
+/// <c>BasePart.EnsureRigidbody</c> by <c>tools/bple-damping</c>.
+/// <see cref="MaximumAngularSpeed"/> is Unity's <c>Physics.defaultMaxAngularSpeed</c> — the
+/// original's project declares 7 rad/s (<c>ProjectSettings/DynamicsManager.asset</c>, field
+/// <c>m_DefaultMaxAngularSpeed</c>), no script overrides it per body and none of the 343
+/// <c>Part_*.prefab</c> serialize <c>m_MaxAngularVelocity</c>, so every original part is clamped
+/// to that magnitude (<c>DyBodyCoreIntegrator.h::bodyCoreComputeUnconstrainedVelocity</c>).
+/// <see cref="Damping"/> is the pair <c>BasePart.EnsureRigidbody</c> gives every part unless its
+/// class overrides it (<c>BasePart.cs:1200-1201</c>), so content writes a per-part
+/// <see cref="PartDefinition.Damping"/> only where a class does (wing, tail, balloon, sandbag,
+/// king pig).
+/// </summary>
+public sealed record PartContentPhysics(float MaximumAngularSpeed, PartDamping Damping);
+
+/// <summary>
+/// Unity's per-rigidbody <c>Rigidbody.drag</c> / <c>angularDrag</c> (renamed
+/// <c>linearDamping</c> / <c>angularDamping</c> in Unity 6), extracted per part class by
+/// <c>tools/bple-damping</c>: 0.2 / 0.05 from <c>BasePart.EnsureRigidbody</c>
+/// (<c>BasePart.cs:1192-1205</c>), 1 / 0.2 on a wing (<c>Wings.cs:91-102</c>) and a tail
+/// (<c>Tail.cs:44-55</c>), 2 / 0.5 on a balloon (<c>Balloon.cs:83,129-132</c>), 1 / 10 on a
+/// sandbag (<c>Sandbag.cs:61,132-135</c>) and 0.5 / 1 on the king pig (<c>KingPig.cs:79-82</c>).
+/// A dynamic part gets <see cref="PartContentPhysics.Damping"/> unless it declares its own; a
+/// static part must not declare one, because the original's static level pieces are not
+/// rigidbodies at all.
+/// </summary>
+public readonly record struct PartDamping(float Linear, float Angular);
 
 public sealed record PartDefinition(
     uint PartTypeId,
@@ -24,7 +54,8 @@ public sealed record PartDefinition(
     uint? VariantOf = null,
     string? VariantName = null,
     GridCellBox? GridBox = null,
-    ConnectionVisualKind? ConnectionVisual = null);
+    ConnectionVisualKind? ConnectionVisual = null,
+    PartDamping? Damping = null);
 
 /// <summary>
 /// The script the original prefab mounts to decide which of a part's conditional colliders are

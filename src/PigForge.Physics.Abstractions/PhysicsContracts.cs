@@ -343,7 +343,10 @@ public sealed class BodyDefinition
 		PhysicsVector3 linearVelocity = default,
 		PhysicsVector3 angularVelocity = default,
 		PhysicsMaterial? material = null,
-		PhysicsConstraintMask constraints = PhysicsConstraintMask.None)
+		PhysicsConstraintMask constraints = PhysicsConstraintMask.None,
+		float linearDamping = 0f,
+		float angularDamping = 0f,
+		float maximumAngularSpeed = 0f)
 	{
 		if (!Enum.IsDefined(mode))
 		{
@@ -403,6 +406,16 @@ public sealed class BodyDefinition
 			throw new ArgumentOutOfRangeException(nameof(material), "A physics material must have restitution in [0, 1] and non-negative finite friction.");
 		}
 
+		if (!float.IsFinite(linearDamping) || linearDamping < 0f || !float.IsFinite(angularDamping) || angularDamping < 0f)
+		{
+			throw new ArgumentOutOfRangeException(nameof(linearDamping), linearDamping, "Damping must be finite and non-negative.");
+		}
+
+		if (!float.IsFinite(maximumAngularSpeed) || maximumAngularSpeed < 0f)
+		{
+			throw new ArgumentOutOfRangeException(nameof(maximumAngularSpeed), maximumAngularSpeed, "A maximum angular speed must be finite and non-negative (zero means unlimited).");
+		}
+
 		Mode = mode;
 		Position = position;
 		Rotation = rotation;
@@ -412,6 +425,9 @@ public sealed class BodyDefinition
 		Material = material ?? PhysicsMaterial.Default;
 		Shapes = shapes;
 		Constraints = constraints;
+		LinearDamping = linearDamping;
+		AngularDamping = angularDamping;
+		MaximumAngularSpeed = maximumAngularSpeed;
 	}
 
 	public PhysicsBodyMode Mode { get; }
@@ -431,6 +447,33 @@ public sealed class BodyDefinition
 	/// leaves the body unconstrained, which is what the physics tests and the replay path use.
 	/// </summary>
 	public PhysicsConstraintMask Constraints { get; }
+
+	/// <summary>
+	/// Unity's <c>Rigidbody.drag</c> (renamed <c>linearDamping</c> in Unity 6): the original's
+	/// every part carries one, defaulting to <c>BasePart.EnsureRigidbody</c>'s 0.2 and rising to
+	/// 1 on a wing or tail, 2 on a balloon, 10 on a sandbag and 0.5 on the king pig
+	/// (<c>tools/bple-damping</c>). The backend applies it as the original's PhysX does,
+	/// <c>v *= max(0, 1 - linearDamping * dt)</c>, after gravity and before the solver
+	/// (<c>DyBodyCoreIntegrator.h::bodyCoreComputeUnconstrainedVelocity</c>). Zero is frictionless.
+	/// </summary>
+	public float LinearDamping { get; }
+
+	/// <summary>Unity's <c>Rigidbody.angularDrag</c> (<c>angularDamping</c> in Unity 6), the same
+	/// value family as <see cref="LinearDamping"/> — 0.05 by default, 0.2 on a wing or tail, 0.5 on
+	/// a balloon, 10 on a sandbag, 1 on the king pig.</summary>
+	public float AngularDamping { get; }
+
+	/// <summary>
+	/// Unity's <c>Rigidbody.maxAngularVelocity</c>, in radians per second; zero means unlimited.
+	/// The original never sets it, so every one of its rigidbodies inherits the project default
+	/// <c>m_DefaultMaxAngularSpeed: 7</c> (<c>ProjectSettings/DynamicsManager.asset</c>) — PhysX
+	/// clamps the <b>magnitude</b> of the angular velocity, after damping and before the solver
+	/// (<c>DyBodyCoreIntegrator.h</c>: <c>if (angVelSq &gt; maxAngularVelocitySq)
+	/// angularVelocity *= PxSqrt(maxAngularVelocitySq / angVelSq)</c>). Content carries it once, at
+	/// the document level, because it is a project-wide default rather than a per-part choice
+	/// (<c>tools/bple-damping</c>).
+	/// </summary>
+	public float MaximumAngularSpeed { get; }
 }
 
 

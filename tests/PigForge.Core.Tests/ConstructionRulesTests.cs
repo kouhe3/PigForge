@@ -40,6 +40,7 @@ public sealed class ConstructionRulesTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "bracket-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
                 { "partTypeId": 2, "name": "rocket", "mode": "dynamic", "mass": 1, "connectionVisual": "attachmentFallback", "capabilities": { "jointConnectionType": "target" }, "shapes": [
@@ -562,6 +563,7 @@ public sealed class ConstructionRulesTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "construction-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
                 { "partTypeId": 2, "name": "plank", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "box", "halfExtents": [1.0, 0.5, 0.5] } ] },

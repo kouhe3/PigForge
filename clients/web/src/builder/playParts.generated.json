@@ -2,6 +2,13 @@
   "format": "pigforge.part-content",
   "schemaVersion": 1,
   "contentVersion": "pigforge-base-content-v1",
+  "physics": {
+    "maximumAngularSpeed": 7,
+    "damping": {
+      "linear": 0.2,
+      "angular": 0.05
+    }
+  },
   "parts": [
     {
       "partTypeId": 1,
@@ -227,6 +234,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -653,6 +664,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -689,6 +704,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -724,6 +743,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 10
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -762,6 +785,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 1,
+        "angular": 10
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -799,6 +826,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 1,
+        "angular": 10
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -835,6 +866,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 0.5,
+        "angular": 1
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -1263,6 +1298,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -1316,6 +1355,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
@@ -1368,6 +1411,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "right",
         "jointConnectionStrength": "normal",
@@ -1400,6 +1447,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.7
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
       },
       "capabilities": {
         "jointConnectionDirection": "right",
@@ -2005,6 +2056,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2041,6 +2096,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2079,6 +2138,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2115,6 +2178,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2153,6 +2220,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2189,6 +2260,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2227,6 +2302,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2263,6 +2342,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2301,6 +2384,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2337,6 +2424,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2375,6 +2466,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2411,6 +2506,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2449,6 +2548,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2485,6 +2588,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2523,6 +2630,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2559,6 +2670,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2597,6 +2712,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2633,6 +2752,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -2671,6 +2794,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2708,6 +2835,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -2744,6 +2875,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 2,
+        "angular": 0.5
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -3893,6 +4028,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 1,
+        "angular": 10
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -3930,6 +4069,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 10
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -3969,6 +4112,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 1,
+        "angular": 10
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -4007,6 +4154,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 1,
+        "angular": 10
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -4044,6 +4195,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 10
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -4643,6 +4798,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 1,
+        "angular": 10
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -4680,6 +4839,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 10
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -4719,6 +4882,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 1,
+        "angular": 10
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -4756,6 +4923,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 10
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -4795,6 +4966,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 1,
+        "angular": 10
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -4832,6 +5007,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 10
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -5223,6 +5402,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -5276,6 +5459,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.7
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -5331,6 +5518,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -5385,6 +5576,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
@@ -5438,6 +5633,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "right",
         "jointConnectionStrength": "normal",
@@ -5472,6 +5671,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "right",
         "jointConnectionStrength": "normal",
@@ -5505,6 +5708,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.7
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
       },
       "capabilities": {
         "jointConnectionDirection": "right",
@@ -6682,6 +6889,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
@@ -6735,6 +6946,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.7
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -6790,6 +7005,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
@@ -6843,6 +7062,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "right",
         "jointConnectionStrength": "high",
@@ -6872,6 +7095,10 @@
         "restitution": 0,
         "friction": 0.7
       },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
+      },
       "capabilities": {
         "jointConnectionDirection": "right",
         "jointConnectionStrength": "high",
@@ -6900,6 +7127,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.7
+      },
+      "damping": {
+        "linear": 1,
+        "angular": 0.2
       },
       "capabilities": {
         "jointConnectionDirection": "right",
@@ -8873,6 +9104,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 0.5,
+        "angular": 1
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -8912,6 +9147,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 0.5,
+        "angular": 1
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -8953,6 +9192,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 0.5,
+        "angular": 1
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -8992,6 +9235,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 0.5,
+        "angular": 1
       },
       "capabilities": {
         "jointConnectionDirection": "any",
@@ -9033,6 +9280,10 @@
         "restitution": 0,
         "friction": 0.6
       },
+      "damping": {
+        "linear": 0.5,
+        "angular": 1
+      },
       "capabilities": {
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
@@ -9072,6 +9323,10 @@
       "material": {
         "restitution": 0,
         "friction": 0.6
+      },
+      "damping": {
+        "linear": 0.5,
+        "angular": 1
       },
       "capabilities": {
         "jointConnectionDirection": "any",

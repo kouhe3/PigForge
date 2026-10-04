@@ -337,6 +337,7 @@ public sealed class JointAndEnclosureTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "joint-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "source", "canEnclose": true } },
                 { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "sphere", "radius": 0.42 } ], "capabilities": { "jointConnectionType": "none", "pig": true } },

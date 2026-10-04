@@ -24,6 +24,7 @@ describe("validateReplay", () => {
       format: "pigforge.part-content",
       schemaVersion: 1,
       contentVersion: "x",
+      physics: { maximumAngularSpeed: 7, damping: { linear: 0.2, angular: 0.05 } },
       parts: [{ partTypeId: 1, name: "a", mode: "dynamic", mass: 1, guid: "abc", shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] }],
     }).some((error) => error.includes("GUID"))).toBe(true);
   });
@@ -42,7 +43,10 @@ describe("validatePartContent variants", () => {
     mass: 1,
     shapes: [{ kind: "box", halfExtents: [0.35, 0.35, 0.35] }],
   };
-  const document = (parts: unknown[]) => ({ format: "pigforge.part-content", schemaVersion: 1, contentVersion: "x", parts });
+  // The original's project-wide rigidbody defaults (tools/bple-damping): the parser and the client
+  // validator both refuse a document without them, so every fixture carries them.
+  const physics = { maximumAngularSpeed: 7, damping: { linear: 0.2, angular: 0.05 } };
+  const document = (parts: unknown[]) => ({ format: "pigforge.part-content", schemaVersion: 1, contentVersion: "x", physics, parts });
 
   it("accepts a variant that references a declared base part", () => {
     const variant = { ...base, partTypeId: 47, name: "tnt-nitro", variantOf: 9, variantName: "Nitro TNT" };

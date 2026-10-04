@@ -71,6 +71,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 {
                     "partTypeId": 1,
@@ -105,6 +106,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 8, "name": "engine", "mode": "dynamic", "mass": 1, "capabilities": { "motor": { "thrustPerTick": 2, "directionX": 1 }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] },
                 { "partTypeId": 13, "name": "rocket", "mode": "dynamic", "mass": 1, "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "durationTicks": 30 }, "activation": "trigger" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }
@@ -133,6 +135,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 11, "name": "fan", "mode": "dynamic", "mass": 0.8, "capabilities": { "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 18 }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [0.225, 0.5, 0.5] } ] },
                 { "partTypeId": 37, "name": "rotor", "mode": "dynamic", "mass": 0.7, "capabilities": { "fan": { "thrustPerTick": 2, "directionX": 0, "directionY": 1, "maxSpeed": 14, "rotor": true }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [0.3, 0.44, 0.5] } ] },
@@ -182,6 +185,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source", "canEnclose": true }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
                 { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "none", "pig": true }, "shapes": [ { "kind": "sphere", "radius": 0.42 } ] },
@@ -291,6 +295,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }
             ]
@@ -316,6 +321,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 9, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] },
                 { "partTypeId": 47, "name": "tnt-nitro", "variantOf": 9, "variantName": "Nitro TNT", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] }
@@ -338,6 +344,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 9, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] },
                 { "partTypeId": 47, "name": "tnt-nitro", "variantOf": {{basePartTypeId}}, "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] }
@@ -357,6 +364,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 9, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] },
                 { "partTypeId": 47, "name": "tnt-nitro", "variantOf": 9, "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.35, 0.35, 0.35] } ] },
@@ -377,6 +385,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 {
                     "partTypeId": 1,
@@ -432,6 +441,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "a", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] },
                 { "partTypeId": 1, "name": "b", "mode": "dynamic", "mass": 2, "shapes": [ { "kind": "box", "halfExtents": [2, 2, 2] } ] }
@@ -452,6 +462,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 9,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "a", "mode": "dynamic", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }
             ]
@@ -489,6 +500,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 2, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
                 { "partTypeId": 2, "name": "slab", "mode": "static", "mass": 0, "shapes": [ { "kind": "box", "halfExtents": [10, 0.5, 10] } ] },
@@ -516,6 +528,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source", "jointConnectionStrength": "high" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
             ]
@@ -533,6 +546,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "tyre", "mode": "dynamic", "mass": 1, "material": { "restitution": 0, "friction": 0.025, "frictionCombine": "multiply" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
             ]
@@ -604,6 +618,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
             ]
@@ -651,6 +666,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "king-pig", "mode": "dynamic", "mass": 1, "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 }, "shapes": [ { "kind": "box", "halfExtents": [1.05, 0.9, 0.5] } ] }
             ]
@@ -692,6 +708,7 @@ public sealed class PartContentTests
         "format": "pigforge.part-content",
         "schemaVersion": 1,
         "contentVersion": "test-content-v1",
+        "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
         "parts": [
             { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 2, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
         ]
@@ -705,6 +722,7 @@ public sealed class PartContentTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "test-content-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [ {{partJson}} ]
         }
         """;

@@ -29,7 +29,10 @@ public sealed class FanThrustTests
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
 
         // Let the rig settle on the terrain; the fan's own switch is off (FanPropeller.cs:49-56).
-        room.RunTicks(120);
+        // The original's own damping (0.2 drag / 0.05 angularDrag on every part, tools/bple-damping)
+        // makes a dropped rig take longer to come to rest, so this is the 240 ticks it needs (120
+        // was enough before damping existed).
+        room.RunTicks(240);
         float resting = AngularVelocity(room, frame).Z;
         Assert.InRange(MathF.Abs(resting), 0f, 0.01f);
 
@@ -37,11 +40,12 @@ public sealed class FanThrustTests
         room.RunTicks(30);
 
         // The fan's content axis is Left (-x) and its mount sits above the centre of mass, so the
-        // torque r x F (r.y > 0, F.x < 0) is counter-clockwise about z. Measured 4.63 rad/s in 30
-        // ticks; the body-centre application the rules layer used before cannot produce any
-        // (measured 1.2e-7 rad/s).
+        // torque r x F (r.y > 0, F.x < 0) is counter-clockwise about z. Measured 3.84 rad/s in 30
+        // ticks -- 4.63 before the original's 0.05 angularDrag was modelled, which bleeds a few
+        // percent off every tick. The body-centre application the rules layer used before cannot
+        // produce a torque at all (measured 1.2e-7 rad/s).
         float turning = AngularVelocity(room, frame).Z;
-        Assert.True(turning > 0.5f, $"an off-centre fan must turn the rig: {resting} -> {turning} rad/s");
+        Assert.InRange(turning, 0.5f, 6f);
     }
 
     private static ReplayVector3 AngularVelocity(GameRoom room, uint entityId) =>

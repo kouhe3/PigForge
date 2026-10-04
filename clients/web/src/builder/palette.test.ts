@@ -12,6 +12,8 @@ const content: PartContentDocument = {
   format: "pigforge.part-content",
   schemaVersion: 1,
   contentVersion: "t",
+  physics: { maximumAngularSpeed: 7, damping: { linear: 0.2, angular: 0.05 } },
+
   parts: [
     { partTypeId: 9, name: "tnt", mode: "dynamic", mass: 1, shapes },
     bomb,

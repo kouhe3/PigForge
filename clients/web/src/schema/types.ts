@@ -84,6 +84,18 @@ export interface PartDefinition {
   variantOf?: number;
   /** Display label for the variant (falls back to `name`). */
   variantName?: string;
+  /**
+   * Unity's `Rigidbody.drag` / `angularDrag` where the original's part class overrides
+   * `BasePart.EnsureRigidbody`'s pair; absent means the document's `physics.damping`. Extracted by
+   * `tools/bple-damping`; the client only reads it as part data.
+   */
+  damping?: PartDamping;
+}
+
+/** Unity's per-rigidbody `Rigidbody.drag` / `angularDrag` (linearDamping / angularDamping in Unity 6). */
+export interface PartDamping {
+  linear: number;
+  angular: number;
 }
 
 export type ConnectionVisual = "attachmentFallback" | "attachmentPlain" | "attachmentEight" | "frame";
@@ -107,7 +119,20 @@ export interface PartContentDocument {
   format: "pigforge.part-content";
   schemaVersion: 1;
   contentVersion: string;
+  /**
+   * The original's project-wide defaults every rigidbody inherits (`tools/bple-damping`): Unity's
+   * `Physics.defaultMaxAngularSpeed` (its `ProjectSettings/DynamicsManager.asset` declares 7 rad/s,
+   * a magnitude clamp no script or prefab overrides) and the `BasePart.EnsureRigidbody` damping
+   * pair (0.2 / 0.05).
+   */
+  physics: PartContentPhysics;
   parts: PartDefinition[];
+}
+
+/** The original's project-wide rigidbody defaults (see {@link PartContentDocument.physics}). */
+export interface PartContentPhysics {
+  maximumAngularSpeed: number;
+  damping: PartDamping;
 }
 
 export interface ReplayEntityState {

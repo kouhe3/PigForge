@@ -98,6 +98,15 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         // rules layer must not synthesize a second bounce on top of it.
         AppliesRestitutionNatively: true);
 
+    /// <summary>
+    /// <see cref="BodyDefinition.MaximumAngularSpeed"/> uses zero for "unlimited", but Jolt's
+    /// <c>ClampAngularVelocity</c> scales by <c>max / |w|</c>, so zero there would freeze every
+    /// rotation. A finite sentinel keeps "no clamp" expressible: its square stays finite
+    /// (<c>1e36</c>) and far above any real spin (a body at 1000 rad/s has <c>len_sq</c> = 1e6), so
+    /// Jolt's <c>len_sq &gt; max_sq</c> test can never fire.
+    /// </summary>
+    private const float UnlimitedAngularSpeed = 1e18f;
+
     public PhysicsBodyId CreateBody(BodyDefinition definition)
     {
         ThrowIfDisposed();
@@ -126,8 +135,14 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         {
             LinearVelocity = ToVector3(definition.LinearVelocity),
             AngularVelocity = ToVector3(definition.AngularVelocity),
-            LinearDamping = 0f,
-            AngularDamping = 0f,
+            // Unity's (drag, angularDrag) map straight onto Jolt's own damping, which applies the
+            // same first-order factor PhysX does (`MotionProperties.inl::
+            // ApplyForceTorqueAndDragInternal`: `v *= max(0, 1 - damping * dt)`, then a magnitude
+            // clamp). Jolt's defaults are not PigForge's -- 0.05 damping and a 0.25*pi*60 rad/s
+            // angular clamp (BodyCreationSettings.h) -- so both are always written explicitly.
+            LinearDamping = definition.LinearDamping,
+            AngularDamping = definition.AngularDamping,
+            MaxAngularVelocity = definition.MaximumAngularSpeed > 0f ? definition.MaximumAngularSpeed : UnlimitedAngularSpeed,
             Friction = definition.Material.Friction,
             Restitution = definition.Material.Restitution,
             AllowSleeping = false

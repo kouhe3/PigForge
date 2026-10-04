@@ -524,6 +524,7 @@ public sealed class GameRoomTests
         "format": "pigforge.part-content",
         "schemaVersion": 1,
         "contentVersion": "server-glue-test-v1",
+        "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
         "parts": [
             { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
             { "partTypeId": 2, "name": "motor", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target", "motor": { "thrustPerTick": 30, "directionX": 1 } }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
@@ -539,6 +540,7 @@ public sealed class GameRoomTests
         "format": "pigforge.part-content",
         "schemaVersion": 1,
         "contentVersion": "server-strength-test-v1",
+        "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
         "parts": [
             { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source", "jointConnectionStrength": "highlyExtreme" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
             { "partTypeId": 2, "name": "motor", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "target", "jointConnectionStrength": "highlyExtreme", "motor": { "thrustPerTick": 30, "directionX": 1 } }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] }
@@ -551,6 +553,7 @@ public sealed class GameRoomTests
         "format": "pigforge.part-content",
         "schemaVersion": 1,
         "contentVersion": "server-test-v1",
+        "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
         "parts": [
             { "partTypeId": 1, "name": "block", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source" }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
             { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "material": { "restitution": 0.2, "friction": 0.4 }, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ] },

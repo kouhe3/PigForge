@@ -51,7 +51,7 @@ public static class PartContentParser
             }
         }
 
-        RequireExactly(seen, new[] { "format", "schemaVersion", "contentVersion", "parts" }, "root", errors);
+        RequireExactly(seen, new[] { "format", "schemaVersion", "contentVersion", "physics", "parts" }, "root", errors);
         RejectEngineAssetReferences(seen, "root", errors);
 
         if (seen.Contains("format") && (root.TryGetProperty("format", out JsonElement format) is false || format.ValueKind != JsonValueKind.String || format.GetString() != PartContentDocument.Format))
@@ -68,6 +68,17 @@ public static class PartContentParser
         if (seen.Contains("contentVersion") && root.TryGetProperty("contentVersion", out JsonElement contentVersionElement))
         {
             contentVersion = ReadVersion(contentVersionElement, "root.contentVersion", errors);
+        }
+
+        float maximumAngularSpeed = 0f;
+        PartDamping defaultDamping = default;
+        if (seen.Contains("physics") && root.TryGetProperty("physics", out JsonElement physicsElement))
+        {
+            if (physicsElement.ValueKind != JsonValueKind.Object
+                || !TryReadPhysics(physicsElement, "root.physics", out maximumAngularSpeed, out defaultDamping))
+            {
+                errors.Add("root.physics: must be an object with a positive finite maximumAngularSpeed and a damping object of non-negative finite linear and angular values.");
+            }
         }
 
         List<PartDefinition> parts = new();
@@ -95,7 +106,7 @@ public static class PartContentParser
             throw new PartContentException(errors);
         }
 
-        return new PartContentDocument(contentVersion!, parts);
+        return new PartContentDocument(contentVersion!, new PartContentPhysics(maximumAngularSpeed, defaultDamping), parts);
     }
 
     private static void ParsePart(JsonElement element, string path, List<PartDefinition> parts, List<string> errors)
@@ -125,7 +136,8 @@ public static class PartContentParser
             "variantOf",
             "variantName",
             "gridBox",
-            "connectionVisual");
+            "connectionVisual",
+            "damping");
         RejectEngineAssetReferences(seen, path, errors);
         uint partTypeId = 0;
         if (seen.Contains("partTypeId") && element.TryGetProperty("partTypeId", out JsonElement idElement))
@@ -196,6 +208,28 @@ public static class PartContentParser
                 friction = 0.8f;
                 frictionCombine = FrictionCombine.Average;
             }
+        }
+
+        PartDamping? damping = null;
+        if (seen.Contains("damping") && element.TryGetProperty("damping", out JsonElement dampingElement))
+        {
+            if (dampingElement.ValueKind != JsonValueKind.Object
+                || !TryReadDamping(dampingElement, $"{path}.damping", out PartDamping parsedDamping))
+            {
+                errors.Add($"{path}.damping: must be an object with non-negative finite linear and angular values.");
+            }
+            else
+            {
+                damping = parsedDamping;
+            }
+        }
+
+        // A dynamic part inherits the document's damping unless it overrides it (the original's
+        // part classes do). The original grows a rigidbody for every dynamic part and none for its
+        // static level pieces, so only a static part declaring one is an error.
+        if (damping is not null && mode == PhysicsBodyMode.Static)
+        {
+            errors.Add($"{path}.damping: a static part has no rigidbody and must not declare damping.");
         }
 
         PartCapabilities? capabilities = ParseCapabilities(element, seen, path, errors);
@@ -311,7 +345,8 @@ public static class PartContentParser
             variantOf,
             variantName,
             gridBox,
-            connectionVisual));
+            connectionVisual,
+            damping));
     }
 
     /// <summary>
@@ -1741,6 +1776,82 @@ public static class PartContentParser
         restitution = restitutionElement.GetSingle();
         friction = frictionElement.GetSingle();
         return restitution is >= 0f and <= 1f && friction is >= 0f and <= 4f;
+    }
+
+    /// <summary>
+    /// The original's per-rigidbody damping (<c>tools/bple-damping</c>): both values are required,
+    /// unknown keys are refused, and neither may be negative because a negative damping would
+    /// accelerate a body instead of slowing it.
+    /// </summary>
+    private static bool TryReadDamping(JsonElement element, string path, out PartDamping damping)
+    {
+        damping = default;
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                return false;
+            }
+        }
+
+        if (!seen.Contains("linear")
+            || !seen.Contains("angular")
+            || !seen.All(name => name is "linear" or "angular")
+            || !element.TryGetProperty("linear", out JsonElement linearElement)
+            || !element.TryGetProperty("angular", out JsonElement angularElement)
+            || linearElement.ValueKind != JsonValueKind.Number
+            || angularElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(linearElement)
+            || !IsFiniteNumber(angularElement))
+        {
+            return false;
+        }
+
+        float linear = linearElement.GetSingle();
+        float angular = angularElement.GetSingle();
+        if (linear < 0f || angular < 0f)
+        {
+            return false;
+        }
+
+        damping = new PartDamping(linear, angular);
+        return true;
+    }
+
+    /// <summary>
+    /// The document-level physics defaults (<c>tools/bple-damping</c>). Only the angular clamp is
+    /// carried today: it is the one original ProjectSettings value a body definition needs
+    /// (gravity is still passed to the world by the hosts).
+    /// </summary>
+    private static bool TryReadPhysics(JsonElement element, string path, out float maximumAngularSpeed, out PartDamping damping)
+    {
+        maximumAngularSpeed = 0f;
+        damping = default;
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                return false;
+            }
+        }
+
+        if (!seen.Contains("maximumAngularSpeed")
+            || !seen.Contains("damping")
+            || !seen.All(name => name is "maximumAngularSpeed" or "damping")
+            || !element.TryGetProperty("maximumAngularSpeed", out JsonElement speedElement)
+            || !element.TryGetProperty("damping", out JsonElement dampingElement)
+            || speedElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(speedElement)
+            || dampingElement.ValueKind != JsonValueKind.Object
+            || !TryReadDamping(dampingElement, "root.physics.damping", out damping))
+        {
+            return false;
+        }
+
+        maximumAngularSpeed = speedElement.GetSingle();
+        return maximumAngularSpeed > 0f;
     }
 
     private static bool TryReadFrictionCombine(string? value, out FrictionCombine frictionCombine)

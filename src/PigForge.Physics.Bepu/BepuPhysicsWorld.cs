@@ -40,6 +40,10 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     // The Z a frozen body was created at: the original's freeze pins the degree of freedom at
     // the value it had when the constraint was applied, and a body is born in the build plane.
     private float[] _frozenPositionZByHandle = new float[64];
+    // Per-body damping and angular clamp, indexed by BodyHandle.Value like the constraints above.
+    // Bepu 2.4.0's BodyDescription carries neither, so the pose integrator applies them from this
+    // table with the original's own formulas (see BodyDefinition.LinearDamping).
+    private BodyMotionSettings[] _motionByHandle = new BodyMotionSettings[64];
     private readonly List<PhysicsBodyId> _bodyOrder = new();
     private readonly List<PhysicsEvent> _events = new();
     private readonly HashSet<ContactPair> _activeContacts = new();
@@ -141,7 +145,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             _dynamicBodies.Add(id, handle);
             _dynamicIdsByHandle.Add(handle.Value, id);
             _materialByDynamicHandle.Add(handle.Value, definition.Material);
-            SetConstraints(handle.Value, definition.Constraints, definition.Position.Z);
+            SetMotion(handle.Value, definition);
             // Sleeping bodies would ignore impulses, and waking via the BodyReference
             // setter corrupts solver state; keep dynamics always awake.
             _simulation.Bodies[handle].Activity.SleepThreshold = -1f;
@@ -445,16 +449,47 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
 
             Array.Resize(ref _constraintsByHandle, capacity);
             Array.Resize(ref _frozenPositionZByHandle, capacity);
+            Array.Resize(ref _motionByHandle, capacity);
         }
 
         _constraintsByHandle[handle] = constraints;
         _frozenPositionZByHandle[handle] = positionZ;
     }
 
+    /// <summary>Records a dynamic body's damping and angular clamp for the pose integrator.</summary>
+    private void SetMotion(int handle, BodyDefinition definition)
+    {
+        SetConstraints(handle, definition.Constraints, definition.Position.Z);
+        _motionByHandle[handle] = new BodyMotionSettings
+        {
+            LinearDamping = definition.LinearDamping,
+            AngularDamping = definition.AngularDamping,
+            MaximumAngularSpeed = definition.MaximumAngularSpeed,
+        };
+    }
+
     /// <summary>The mask the pose integrator applies to one body handle; none when the handle
     /// was never seen (a static body, or a freed dynamic slot).</summary>
     private PhysicsConstraintMask ConstraintsOf(int handle) =>
         (uint)handle < (uint)_constraintsByHandle.Length ? _constraintsByHandle[handle] : PhysicsConstraintMask.None;
+
+    /// <summary>One body's damping and angular clamp; all zeros when the handle was never seen
+    /// (a static body, or a freed dynamic slot), which the integrator reads as "no damping and no
+    /// clamp" — the same out-of-range tolerance <see cref="ConstraintsOf"/> gives.</summary>
+    private BodyMotionSettings MotionOf(int handle) =>
+        (uint)handle < (uint)_motionByHandle.Length ? _motionByHandle[handle] : default;
+
+    /// <summary>
+    /// The per-body dynamics Bepu 2.4.0's <c>BodyDescription</c> cannot carry: Unity's
+    /// <c>Rigidbody.drag</c> / <c>angularDrag</c> and its <c>maxAngularVelocity</c>
+    /// (<see cref="BodyDefinition.LinearDamping"/>).
+    /// </summary>
+    private struct BodyMotionSettings
+    {
+        public float LinearDamping;
+        public float AngularDamping;
+        public float MaximumAngularSpeed;
+    }
 
     /// <summary>
     /// The last word on a frozen degree of freedom. The pose integrator already drops the locked
@@ -1035,6 +1070,9 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             ref BodyVelocityWide velocity)
         {
             velocity.Linear += _gravityWideDt;
+            // The original's per-rigidbody damping and angular clamp, in PhysX's own order
+            // (DyBodyCoreIntegrator.h::bodyCoreComputeUnconstrainedVelocity): gravity, then
+            // `v *= max(0, 1 - damping * dt)`, then the magnitude clamp, all before the solver.
             // Frozen degrees of freedom (the original's `RigidbodyConstraints`): a body that must
             // stay in the build plane never integrates the locked component, whatever the solver
             // wrote into it. Velocity is written back, so the freeze survives to the next substep.
@@ -1043,6 +1081,39 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             int laneCount = Vector<float>.Count;
             for (int lane = 0; lane < laneCount; lane++)
             {
+                BodyMotionSettings motion = _world.MotionOf(bodyIndices[lane]);
+                if (motion.LinearDamping > 0f)
+                {
+                    float factor = MathF.Max(0f, 1f - motion.LinearDamping * dt[lane]);
+                    velocity.Linear.X = Vector.WithElement(velocity.Linear.X, lane, velocity.Linear.X[lane] * factor);
+                    velocity.Linear.Y = Vector.WithElement(velocity.Linear.Y, lane, velocity.Linear.Y[lane] * factor);
+                    velocity.Linear.Z = Vector.WithElement(velocity.Linear.Z, lane, velocity.Linear.Z[lane] * factor);
+                }
+
+                if (motion.AngularDamping > 0f)
+                {
+                    float factor = MathF.Max(0f, 1f - motion.AngularDamping * dt[lane]);
+                    velocity.Angular.X = Vector.WithElement(velocity.Angular.X, lane, velocity.Angular.X[lane] * factor);
+                    velocity.Angular.Y = Vector.WithElement(velocity.Angular.Y, lane, velocity.Angular.Y[lane] * factor);
+                    velocity.Angular.Z = Vector.WithElement(velocity.Angular.Z, lane, velocity.Angular.Z[lane] * factor);
+                }
+
+                if (motion.MaximumAngularSpeed > 0f)
+                {
+                    float angularX = velocity.Angular.X[lane];
+                    float angularY = velocity.Angular.Y[lane];
+                    float angularZ = velocity.Angular.Z[lane];
+                    float lengthSquared = (angularX * angularX) + (angularY * angularY) + (angularZ * angularZ);
+                    float maximum = motion.MaximumAngularSpeed;
+                    if (lengthSquared > maximum * maximum)
+                    {
+                        float scale = maximum / MathF.Sqrt(lengthSquared);
+                        velocity.Angular.X = Vector.WithElement(velocity.Angular.X, lane, angularX * scale);
+                        velocity.Angular.Y = Vector.WithElement(velocity.Angular.Y, lane, angularY * scale);
+                        velocity.Angular.Z = Vector.WithElement(velocity.Angular.Z, lane, angularZ * scale);
+                    }
+                }
+
                 PhysicsConstraintMask constraints = _world.ConstraintsOf(bodyIndices[lane]);
                 if ((constraints & PhysicsConstraintMask.LockPositionX) != 0)
                 {

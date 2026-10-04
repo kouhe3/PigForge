@@ -26,6 +26,25 @@ public sealed class PartContentLibrary
 
     public PartContentDocument Document { get; }
 
+    /// <summary>
+    /// The original's project-wide angular clamp every rigidbody inherits
+    /// (<c>ProjectSettings/DynamicsManager.asset</c>, 7 rad/s; see
+    /// <see cref="PartContentPhysics"/>). Content carries it once because it is a project default,
+    /// not a per-part choice.
+    /// </summary>
+    public float MaximumAngularSpeed => Document.Physics.MaximumAngularSpeed;
+
+    /// <summary>
+    /// The damping the original gives this part's rigidbody: the class's own value where it
+    /// overrides <c>BasePart.EnsureRigidbody</c> (<c>tools/bple-damping</c>), the document's
+    /// default everywhere else, and none at all for a static part, which has no rigidbody.
+    /// </summary>
+    public PartDamping DampingOf(PartDefinition part)
+    {
+        ArgumentNullException.ThrowIfNull(part);
+        return part.Mode == PhysicsBodyMode.Dynamic ? part.Damping ?? Document.Physics.Damping : default;
+    }
+
     public PartDefinition GetPart(uint partTypeId)
     {
         if (!_partsByTypeId.TryGetValue(partTypeId, out PartDefinition? part))
@@ -237,6 +256,7 @@ public sealed class PartContentLibrary
             shapes = new ShapeDefinition[] { new CompoundShapeDefinition(children) };
         }
 
+        PartDamping damping = DampingOf(part);
         return new BodyDefinition(
             part.Mode,
             position,
@@ -246,7 +266,10 @@ public sealed class PartContentLibrary
             linearVelocity,
             angularVelocity,
             new PhysicsMaterial(part.Restitution, part.Friction, part.FrictionCombine),
-            constraints);
+            constraints,
+            damping.Linear,
+            damping.Angular,
+            MaximumAngularSpeed);
     }
 
     private static void ValidateScale(uint partTypeId, float scale)

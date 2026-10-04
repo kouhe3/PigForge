@@ -71,6 +71,7 @@ public sealed class ConditionalShapeTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "conditional-plain-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1,
                   "capabilities": { "jointConnectionType": "source" },
@@ -147,6 +148,7 @@ public sealed class ConditionalShapeTests
             "format": "pigforge.part-content",
             "schemaVersion": 1,
             "contentVersion": "conditional-no-rule-test-v1",
+            "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "orphan", "mode": "dynamic", "mass": 1,
                   "shapes": [

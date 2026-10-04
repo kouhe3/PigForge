@@ -27,6 +27,11 @@ public sealed class BalloonLiftTests
     private const float OriginalForcePerBalloon = 23f;
     private const float OriginalBalloonMass = 0.1f;
 
+    /// <summary>Unity's <c>Rigidbody.drag</c> the original writes on a balloon's body
+    /// (Balloon.cs:130; extracted by tools/bple-damping, asserted by
+    /// PigForge.Core.Tests.BodyDampingTests against content/parts.json).</summary>
+    private const float BalloonDrag = 2f;
+
     [Fact]
     public void FreeBalloonAcceleratesAtTheOriginalsForceOverMass()
     {
@@ -41,27 +46,38 @@ public sealed class BalloonLiftTests
         // The first tick still runs with an empty command list (rules emit after the step), so
         // measure the steady rise once the lift is being applied every tick.
         room.RunTicks(4);
-        float expectedAcceleration = (OriginalForcePerBalloon / OriginalBalloonMass) - Gravity;
+        float liftAcceleration = (OriginalForcePerBalloon / OriginalBalloonMass) - Gravity;
+
+        // The rise is not a constant acceleration: the original gives the balloon's rigidbody
+        // `drag = 2` (Balloon.cs:130, extracted by tools/bple-damping), so its velocity follows
+        // `v <- (v + a*dt) * (1 - drag*dt)` -- the exact law the original's own editor produced
+        // (unity/PigForge.WeldProbe body-defaults probe: v *= (1 - c*dt), max abs error 0 over 51
+        // samples; gravity added before damping). The terminal rise is (F/m - g)/drag = 110.1 m/s.
         float previousY = BalloonY(room, balloon);
-        float previousDelta = 0f;
-        for (int tick = 0; tick < 6; tick++)
+        float velocity = 0f;
+        bool seeded = false;
+        for (int tick = 0; tick < 12; tick++)
         {
             room.Tick();
             float y = BalloonY(room, balloon);
             float delta = y - previousY;
             previousY = y;
-            if (tick == 0)
+            if (!seeded)
             {
-                previousDelta = delta;
+                // The balloon has already been falling for the pre-roll, so the recursion starts
+                // from the measured velocity rather than from rest.
+                velocity = delta * TickRate;
+                seeded = true;
                 continue;
             }
 
-            // The published position advances one tick at a time, so the second difference of
-            // the position is the acceleration in m/s^2.
-            float acceleration = (delta - previousDelta) * TickRate * TickRate;
-            previousDelta = delta;
-            Assert.InRange(acceleration, expectedAcceleration - 0.5f, expectedAcceleration + 0.5f);
+            velocity = (velocity + (liftAcceleration / TickRate)) * (1f - (BalloonDrag / TickRate));
+            // The published position advances one tick at a time, so delta * tickRate is this
+            // tick's velocity.
+            Assert.InRange(delta * TickRate, velocity - 0.05f, velocity + 0.05f);
         }
+
+        Assert.True(velocity > 4f, $"the balloon must climb on the original's damped lift: {velocity} m/s");
     }
 
     private static float BalloonY(GameRoom room, uint entityId) =>

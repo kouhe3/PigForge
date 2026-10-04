@@ -1,4 +1,4 @@
-import type { ConnectionVisual, GridBox, PartContentDocument, PartDefinition, PartShape } from "./types";
+import type { ConnectionVisual, GridBox, PartContentDocument, PartDefinition, PartDamping, PartShape } from "./types";
 
 export function validatePartContent(value: unknown): string[] {
   const errors: string[] = [];
@@ -15,6 +15,13 @@ export function validatePartContent(value: unknown): string[] {
   }
   if (typeof document.contentVersion !== "string" || document.contentVersion.trim().length === 0) {
     errors.push("contentVersion is required.");
+  }
+  if (document.physics === null || typeof document.physics !== "object") {
+    errors.push("physics is required (the original's project-wide rigidbody defaults).");
+  } else if (typeof document.physics.maximumAngularSpeed !== "number" || !Number.isFinite(document.physics.maximumAngularSpeed) || document.physics.maximumAngularSpeed <= 0) {
+    errors.push("physics.maximumAngularSpeed must be finite and positive (7 rad/s in the original).");
+  } else if (!isDamping(document.physics.damping)) {
+    errors.push("physics.damping must be { linear, angular } with non-negative finite numbers.");
   }
   if (!Array.isArray(document.parts) || document.parts.length === 0) {
     errors.push("parts must contain at least one definition.");
@@ -67,6 +74,9 @@ function validatePart(part: PartDefinition, seen: Set<number>, errors: string[])
   if (part.connectionVisual !== undefined && !CONNECTION_VISUALS.includes(part.connectionVisual)) {
     errors.push(`Part ${part.partTypeId} connectionVisual must be one of attachmentFallback, attachmentPlain, attachmentEight or frame.`);
   }
+  if (part.damping !== undefined && !isDamping(part.damping)) {
+    errors.push(`Part ${part.partTypeId} damping must be { linear, angular } with non-negative finite numbers.`);
+  }
   if (!Array.isArray(part.shapes) || part.shapes.length === 0) {
     errors.push(`Part ${part.partTypeId} needs at least one shape.`);
     return;
@@ -74,6 +84,26 @@ function validatePart(part: PartDefinition, seen: Set<number>, errors: string[])
   for (const shape of part.shapes) {
     validateShape(part.partTypeId, shape, errors);
   }
+}
+
+/**
+ * Unity's `Rigidbody.drag` / `angularDrag` pair (`tools/bple-damping`): both values are required and
+ * neither may be negative, because a negative damping would accelerate a body instead of slowing it.
+ */
+function isDamping(value: unknown): value is PartDamping {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const damping = value as { linear?: unknown; angular?: unknown };
+  return (
+    Object.keys(value).every((key) => key === "linear" || key === "angular")
+    && typeof damping.linear === "number"
+    && Number.isFinite(damping.linear)
+    && damping.linear >= 0
+    && typeof damping.angular === "number"
+    && Number.isFinite(damping.angular)
+    && damping.angular >= 0
+  );
 }
 
 /** The original prefab scripts that gate conditional colliders (see `tools/bple-connections`). */
