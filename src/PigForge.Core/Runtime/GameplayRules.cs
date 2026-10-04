@@ -107,6 +107,17 @@ public sealed class GameplayRules
     // part's own world position: a blast's origin is the charge part, not the body's centre of
     // mass it shares with the rest of the contraption (original TNT.transform.position).
     private readonly Dictionary<uint, PhysicsVector3> _localOffsetByEntity = new();
+    // The same member's rotation inside its body. The original reads a part's thrust (and its
+    // other directional effects) off the part's own transform -- `transform.TransformDirection`
+    // in FanPropeller.cs:155 -- so a rule that only knows the compound's rotation would aim a
+    // fan the way it was never built.
+    private readonly Dictionary<uint, PhysicsQuaternion> _localRotationByEntity = new();
+    // A rotor's own axis at the moment it spawned (the original's `m_originalDirection` /
+    // `m_rotorTargetDirection`, FanPropeller.cs:73-79, read once in `Initialize()`), keyed by
+    // entity. Its thrust is blended back toward it while the live axis still points the same way
+    // (FanPropeller.cs:156-161), which is what keeps a rotor pushing where it was built instead of
+    // following every tilt of the rig.
+    private readonly Dictionary<uint, PhysicsVector3> _fanSpawnDirectionByEntity = new();
     private readonly HashSet<uint> _touchedBodies = new();
     private readonly HashSet<uint> _brokenJoints = new();
     private readonly HashSet<uint> _dynamicBodies = new();
@@ -247,7 +258,12 @@ public sealed class GameplayRules
 
     public IReadOnlyCollection<uint> BrokenJoints => _brokenJoints;
 
-    public void LinkBody(EntityId entity, PhysicsBodyId body, bool isDynamic = true, PhysicsVector3 localOffset = default)
+    public void LinkBody(
+        EntityId entity,
+        PhysicsBodyId body,
+        bool isDynamic = true,
+        PhysicsVector3 localOffset = default,
+        PhysicsQuaternion? localRotation = null)
     {
         if (!_bodies.TryGet(entity, out PhysicsBodyLink link) || link.Body != body)
         {
@@ -267,6 +283,15 @@ public sealed class GameplayRules
         else
         {
             _localOffsetByEntity.Remove(entity.Value);
+        }
+
+        if (localRotation is PhysicsQuaternion rotation && rotation != PhysicsQuaternion.Identity)
+        {
+            _localRotationByEntity[entity.Value] = rotation;
+        }
+        else
+        {
+            _localRotationByEntity.Remove(entity.Value);
         }
 
         if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members))
@@ -297,6 +322,7 @@ public sealed class GameplayRules
         }
 
         _localOffsetByEntity.Remove(entity.Value);
+        _localRotationByEntity.Remove(entity.Value);
     }
 
     /// <summary>Elasticity of a part. <paramref name="mass"/> is the part's own mass, used to
@@ -1071,6 +1097,8 @@ public sealed class GameplayRules
     private void UnlinkBodyMember(EntityId entity, PhysicsBodyId body)
     {
         _localOffsetByEntity.Remove(entity.Value);
+        _localRotationByEntity.Remove(entity.Value);
+        _fanSpawnDirectionByEntity.Remove(entity.Value);
         if (_membersByBody.TryGetValue(body.Value, out List<uint>? members))
         {
             members.Remove(entity.Value);
@@ -1238,6 +1266,54 @@ public sealed class GameplayRules
                 continue;
             }
 
+            FanState fan = fans.CurrentValue;
+            PhysicsVector3 contentAxis = new(fan.DirectionX, fan.DirectionY, 0f);
+            float magnitude = PhysicsVector3.Distance(contentAxis, PhysicsVector3.Zero);
+            if (magnitude <= float.Epsilon)
+            {
+                continue;
+            }
+
+            // The thrust axis is the part's own: FanPropeller.cs:155 reads
+            // `transform.TransformDirection(GetDirectionVector(m_forceDirection))`, so the build
+            // rotation (`Contraption.SetRotation`, a z rotation -- a fan built the other way round
+            // pushes the other way) and the rig's live rotation both aim it. The content value is
+            // part-local; the member's pose inside the body is what the room declares, so
+            // `bodyRotation * localRotation` is the transform the original reads.
+            PhysicsQuaternion bodyRotation = _rotationByBody.TryGetValue(link.Body.Value, out PhysicsQuaternion bodyPose)
+                ? bodyPose
+                : PhysicsQuaternion.Identity;
+            PhysicsVector3 partPosition = _kinematicsByBody[link.Body.Value].Position;
+            if (_localOffsetByEntity.TryGetValue(fans.CurrentId.Value, out PhysicsVector3 partOffset))
+            {
+                partPosition += bodyRotation.Rotate(partOffset);
+            }
+
+            PhysicsQuaternion partRotation = bodyRotation;
+            if (_localRotationByEntity.TryGetValue(fans.CurrentId.Value, out PhysicsQuaternion localRotation))
+            {
+                partRotation = bodyRotation * localRotation;
+            }
+
+            PhysicsVector3 axis = partRotation.Rotate(contentAxis * (1f / magnitude));
+            PhysicsVector3 direction = axis;
+
+            // FanPropeller.cs:73-79 keeps the axis the part had when it was created
+            // (`m_originalDirection` / `m_rotorTargetDirection`, with a downward one clamped to
+            // +y) and :156-161 blends it back in at half weight while the live axis still points
+            // the same way, so a rotor keeps pushing where it was built instead of following every
+            // tilt. Recorded on the part's first simulated tick -- before the switch is read, so a
+            // rotor that starts switched off still captures the build pose `Initialize()` saw
+            // rather than whatever tilt it settled into.
+            if (fan.IsRotor)
+            {
+                if (!_fanSpawnDirectionByEntity.TryGetValue(fans.CurrentId.Value, out PhysicsVector3 target))
+                {
+                    target = axis.Y < 0f ? new PhysicsVector3(axis.X, 1f, axis.Z) : axis;
+                    _fanSpawnDirectionByEntity[fans.CurrentId.Value] = target;
+                }
+            }
+
             if (!IsDriven(fans.CurrentId))
             {
                 continue;
@@ -1251,30 +1327,14 @@ public sealed class GameplayRules
                 continue;
             }
 
-            FanState fan = fans.CurrentValue;
-            float magnitude = PhysicsVector3.Distance(
-                new PhysicsVector3(fan.DirectionX, fan.DirectionY, 0f), PhysicsVector3.Zero);
-            if (magnitude <= float.Epsilon)
+            if (fan.IsRotor && _fanSpawnDirectionByEntity.TryGetValue(fans.CurrentId.Value, out PhysicsVector3 spawnAxis))
             {
-                continue;
+                if (PhysicsVector3.Dot(axis, spawnAxis) > 0f)
+                {
+                    direction = (axis + spawnAxis) * 0.5f;
+                }
             }
 
-            // FanPropeller.cs:152 applies the force at transform.position + dir * 0.5, so an
-            // off-centre fan turns the rig around its own mount instead of pushing on the
-            // compound's centre of mass. The thrust axis itself stays the content direction:
-            // the original reads it from the part's live rotation, but that needs the rotor's
-            // `m_rotorTargetDirection` mix and angular damping to stay upright
-            // (docs/specs/fan-propeller.md section 7).
-            PhysicsQuaternion bodyRotation = _rotationByBody.TryGetValue(link.Body.Value, out PhysicsQuaternion bodyPose)
-                ? bodyPose
-                : PhysicsQuaternion.Identity;
-            PhysicsVector3 partPosition = _kinematicsByBody[link.Body.Value].Position;
-            if (_localOffsetByEntity.TryGetValue(fans.CurrentId.Value, out PhysicsVector3 partOffset))
-            {
-                partPosition += bodyRotation.Rotate(partOffset);
-            }
-
-            PhysicsVector3 direction = new(fan.DirectionX / magnitude, fan.DirectionY / magnitude, 0f);
             PhysicsVector3 velocity = _kinematicsByBody[link.Body.Value].Velocity;
             float thrust = fan.ImpulsePerTick * powerFactor;
 
@@ -1317,7 +1377,9 @@ public sealed class GameplayRules
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
                 impulse,
-                partPosition + (direction * 0.5f)));
+                // FanPropeller.cs:152 puts the force at `transform.position + vector * 0.5` with
+                // the live axis, not the blended one the force itself follows (`vector2`).
+                partPosition + (axis * 0.5f)));
         }
     }
 
@@ -2090,6 +2152,8 @@ public sealed class GameplayRules
     {
         _membersByBody.Clear();
         _localOffsetByEntity.Clear();
+        _localRotationByEntity.Clear();
+        _fanSpawnDirectionByEntity.Clear();
         _rotationByBody.Clear();
         _restitutionByBody.Clear();
         _massByBody.Clear();

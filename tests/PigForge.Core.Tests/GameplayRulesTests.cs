@@ -430,14 +430,22 @@ public sealed class GameplayRulesTests
         }
 
 
-        public void Link(EntityId entity, PhysicsBodyId body, PhysicsVector3 localOffset = default)
+        public void Link(
+            EntityId entity,
+            PhysicsBodyId body,
+            PhysicsVector3 localOffset = default,
+            PhysicsQuaternion? localRotation = null)
         {
             _bodies.Set(entity, new PhysicsBodyLink(body));
-            Rules.LinkBody(entity, body, localOffset: localOffset);
+            Rules.LinkBody(entity, body, localOffset: localOffset, localRotation: localRotation);
         }
 
-        public void IngestBody(PhysicsBodyId body, PhysicsVector3 position, PhysicsVector3 velocity) =>
-            _snapshots.Add(new PhysicsBodySnapshot(body, position, PhysicsQuaternion.Identity, velocity, PhysicsVector3.Zero));
+        public void IngestBody(
+            PhysicsBodyId body,
+            PhysicsVector3 position,
+            PhysicsVector3 velocity,
+            PhysicsQuaternion? rotation = null) =>
+            _snapshots.Add(new PhysicsBodySnapshot(body, position, rotation ?? PhysicsQuaternion.Identity, velocity, PhysicsVector3.Zero));
 
         public void Tick(uint tick, IReadOnlyList<PhysicsEvent> events) =>
             Rules.Tick(tick, events.ToArray(), CollectionsMarshal.AsSpan(_snapshots), Output);
@@ -810,6 +818,51 @@ public sealed class GameplayRulesTests
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(2f / (1f + 20f - 10f), command.Impulse.X, 5);
         Assert.Equal(0f, command.Impulse.Y);
+    }
+
+    [Fact]
+    public void AFanPushesAlongTheRotationItWasBuiltWith()
+    {
+        // FanPropeller.cs:155 reads the axis off the part's own transform,
+        // `transform.TransformDirection(GetDirectionVector(m_forceDirection))`, and the build
+        // rotation is a z rotation (`Contraption.SetRotation` -> `BasePart.Rotate`): a fan built a
+        // quarter turn round turns its `Left` content axis into `Down` ((Left + Deg_90) % 4 ==
+        // Down). Applying the content direction in world space ignores how the player aimed it.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId fan = entities.Create();
+        harness.Rules.AddFan(fan, 2f, -1f, 0f);
+        harness.Link(fan, new PhysicsBodyId(1), localRotation: PhysicsQuaternion.FromZAngle(MathF.PI / 2f));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(0f, command.Impulse.X, 5);
+        Assert.Equal(-2f, command.Impulse.Y, 5);
+    }
+
+    [Fact]
+    public void AFanFollowsTheTiltOfTheBodyItIsWeldedTo()
+    {
+        // The same `TransformDirection`: a part welded into a rig that has rolled carries the
+        // roll, so its thrust rolls with it. An axis stated in world space cannot.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId fan = entities.Create();
+        harness.Rules.AddFan(fan, 2f, -1f, 0f);
+        harness.Link(fan, new PhysicsBodyId(1));
+        harness.IngestBody(
+            new PhysicsBodyId(1),
+            new PhysicsVector3(0, 1, 0),
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.FromZAngle(MathF.PI / 2f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(0f, command.Impulse.X, 5);
+        Assert.Equal(-2f, command.Impulse.Y, 5);
     }
 
     [Fact]

@@ -1562,7 +1562,8 @@ public sealed class GameRoom : IDisposable
                 member.Entity,
                 body,
                 isDynamic: definition.Mode == PhysicsBodyMode.Dynamic,
-                localOffset: member.LocalOffset);
+                localOffset: member.LocalOffset,
+                localRotation: member.LocalRotation);
             _bodyByEntity.Add(member.Entity.Value, body);
             if (!_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
             {

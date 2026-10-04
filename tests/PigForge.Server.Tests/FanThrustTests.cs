@@ -48,15 +48,54 @@ public sealed class FanThrustTests
         Assert.InRange(turning, 0.5f, 6f);
     }
 
+    [Fact]
+    public void AFanTurnedAroundPushesTheOtherWay()
+    {
+        // The original reads the thrust axis off the part's own transform --
+        // `transform.TransformDirection(GetDirectionVector(m_forceDirection))`, FanPropeller.cs:154-155
+        // -- and a build rotation of 180 degrees (`Contraption.SetRotation`, a z rotation) turns a
+        // `Left` fan into a `Right` one (`BasePart.Rotate`: (Left + Deg_180) % 4 == Right). Aiming
+        // the fan is the whole point of the part, and the content value is the part-local axis, not
+        // a world one: applying it in world space makes the thrust ignore how the player built it.
+        //
+        // Both mounts face the frame -- a fan's connector and its thrust are on the same side
+        // (`m_jointConnectionDirection` 3 = Left, `m_forceDirection` 2 = Left), which is also what
+        // the original's placement auto-align produces (`Contraption.cs:1889`).
+        float upright = FanDrivenVelocity(0f, -11f);
+        float turned = FanDrivenVelocity(MathF.PI, -13f);
+
+        Assert.True(upright < -2f, $"the unrotated Left fan must push the rig left: {upright} m/s");
+        Assert.True(turned > 2f, $"a fan built the other way round must push the rig right: {turned} m/s");
+    }
+
+    /// <summary>Builds frame + enclosed engine + fan at <paramref name="fanAngle"/>, switches the
+    /// fan on in the air and reports the rig's velocity along x after half a second.</summary>
+    private static float FanDrivenVelocity(float fanAngle, float fanX)
+    {
+        using GameRoom room = PlayHost.CreateSandboxRoom();
+        uint player = PlayHost.NextPlayerId();
+        uint sequence = 0;
+
+        uint frame = Place(room, ref sequence, player, PartFrame, -12f, 14f);
+        Place(room, ref sequence, player, PartEngine, -12f, 14f);
+        uint fan = Place(room, ref sequence, player, PartFan, fanX, 14f, fanAngle);
+        Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
+
+        // FanPropeller.cs:64-68 leaves the switch off in Awake, so nothing moves until it is set.
+        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, fan, true), player)).IsAccepted);
+        room.RunTicks(30);
+        return PublishEntities(room).Single(entity => entity.EntityId == frame).LinearVelocity.X;
+    }
+
     private static ReplayVector3 AngularVelocity(GameRoom room, uint entityId) =>
         PublishEntities(room).Single(entity => entity.EntityId == entityId).AngularVelocity;
 
-    private static uint Place(GameRoom room, ref uint sequence, uint player, uint partTypeId, float x, float y)
+    private static uint Place(GameRoom room, ref uint sequence, uint player, uint partTypeId, float x, float y, float angle = 0f)
     {
         CommandOutcome outcome = room.Submit(PlayHost.BindPlayer(
-            new PlacePartCommand(0, ++sequence, player, partTypeId, x, y, 0f, 1f),
+            new PlacePartCommand(0, ++sequence, player, partTypeId, x, y, angle, 1f),
             player));
-        Assert.True(outcome.IsAccepted, $"place {partTypeId} at ({x},{y}): {outcome.Status}/{outcome.Error}");
+        Assert.True(outcome.IsAccepted, $"place {partTypeId} at ({x},{y}) angle {angle}: {outcome.Status}/{outcome.Error}");
         return outcome.EntityId;
     }
 
