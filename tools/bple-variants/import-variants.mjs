@@ -92,6 +92,9 @@ function readPrefab(name) {
     partType: number(/^\s*m_partType:\s*(\d+)/m),
     customPartIndex: number(/^\s*customPartIndex:\s*(\d+)/m),
     mass: number(/^\s*m_mass:\s*(-?[\d.eE+-]+)/m),
+    // Only the `Engine` family declares this; it is what an `extras` entry may override, and the
+    // assertion below keeps that override equal to the prefab instead of to a hand-written guess.
+    enginePower: number(/^\s*m_enginePower:\s*(-?[\d.eE+-]+)/m),
   };
 }
 
@@ -211,7 +214,17 @@ function buildEntry(baseEntry, id, prefab, override, suffix, usedNames) {
 
 for (const [partType, members] of [...groups.entries()].sort((left, right) => left[0] - right[0])) {
   const base = basePrefabByPartType.get(partType);
-  if (!base) continue;
+  if (!base) {
+    // No PigForge base carries this partType, so the group cannot be imported as variants. That is
+    // how the two missing engine families (PartTypes 25/26) went unnoticed: the group was skipped
+    // silently. Every member must therefore be declared in `extras`; anything else is a family the
+    // original has and content does not, and it says so here.
+    const uncovered = members.filter((member) => !extras.some((extra) => extra.prefab === member.name));
+    if (uncovered.length > 0) {
+      warnings.push(`partType ${partType} has no PigForge base and ${uncovered.length}/${members.length} member(s) are not in variant-overrides.json extras: ${uncovered.map((member) => member.name).join(", ")}`);
+    }
+    continue;
+  }
   const baseEntry = baseById.get(base.id);
   if (!baseEntry) {
     warnings.push(`base part ${base.id} (${base.prefab.name}) missing from content`);
@@ -224,6 +237,12 @@ for (const [partType, members] of [...groups.entries()].sort((left, right) => le
     ordinal++;
     if (member.name === base.prefab.name) continue;
     const override = overrides[member.name] ?? {};
+    // A skin may override `enginePower` (Part_EngineSmall_05_SET is the only one that does), and the
+    // number must be the prefab's own `m_enginePower` -- 5000 there, 100x its nine siblings.
+    const declaredPower = override.capabilities?.enginePower;
+    if (declaredPower !== undefined && member.enginePower !== null && declaredPower !== member.enginePower) {
+      throw new Error(`${member.name}: override declares enginePower ${declaredPower} but the prefab says ${member.enginePower}`);
+    }
     const id = existingVariantPrefabs.get(member.name) ?? nextId++;
     if (existingVariantPrefabs.has(member.name) && baseById.has(id)) {
       usedNames.add(baseById.get(id).name);
@@ -251,6 +270,27 @@ for (const extra of extras) {
   }
   if (!existsSync(join(GAMEOBJECT, `${extra.prefab}.prefab`))) {
     throw new Error(`extra ${extra.prefab}: prefab not found under ${GAMEOBJECT}`);
+  }
+
+  // An extra may override `enginePower` and scale the base mass, and both are asserted against the
+  // prefab: `m_enginePower` is the original's own field (Part_EngineSmall_05_SET really does say
+  // 5000) and the mass factor must be the prefab's mass over the base prefab's mass. A curated
+  // number that drifts from the prefab fails here instead of silently re-writing the world.
+  const extraPrefab = readPrefab(extra.prefab);
+  const declaredPower = extra.capabilities?.enginePower;
+  if (declaredPower !== undefined && extraPrefab.enginePower !== null && declaredPower !== extraPrefab.enginePower) {
+    throw new Error(`extra ${extra.prefab}: declares enginePower ${declaredPower} but the prefab says ${extraPrefab.enginePower}`);
+  }
+  if (extra.massFactor !== undefined) {
+    const basePrefabName = map.parts[String(extra.base)];
+    const basePrefab = basePrefabName ? readPrefab(basePrefabName) : null;
+    if (!basePrefab?.mass) {
+      throw new Error(`extra ${extra.prefab}: cannot resolve the base prefab mass of base part ${extra.base}`);
+    }
+    const expectedFactor = round4(extraPrefab.mass / basePrefab.mass);
+    if (Math.abs(expectedFactor - extra.massFactor) > 1e-4) {
+      throw new Error(`extra ${extra.prefab}: massFactor ${extra.massFactor} does not match the prefab ratio ${expectedFactor} (${extraPrefab.mass} / ${basePrefab.mass})`);
+    }
   }
 
   variants[String(extra.partTypeId)] = extra.prefab;

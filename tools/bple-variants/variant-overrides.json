@@ -38,6 +38,10 @@
       "variantName": "Alien Egg",
       "capabilities": { "egg": true, "glue": true },
       "note": "AlienEgg: alien super glue (AlienEgg.cs:12-19,49-66) makes the frames in its connected component unbreakable; PigForge models that as glue (the compound never seam-splits)."
+    },
+    "Part_EngineSmall_05_SET": {
+      "capabilities": { "enginePower": 5000 },
+      "note": "The one engine whose m_enginePower is not its family's: 5000 instead of 50 (100x), its mass unchanged at 0.25. Kept verbatim -- the prefab is the truth. import-variants.mjs asserts this number against the prefab, and docs/specs/part-variant-catalog.md records it as an original quirk rather than a PigForge balance choice."
     }
   },
   "extras": [

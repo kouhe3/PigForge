@@ -46,7 +46,9 @@
     "43": "Part_Kicker",
     "44": "Part_PointLight_01_SET",
     "45": "Part_SpotLight_01_SET",
-    "46": "Part_GrapplingHook_01_SET"
+    "46": "Part_GrapplingHook_01_SET",
+    "270": "Part_EngineSmall_01_SET",
+    "271": "Part_EngineBig_01_SET"
   },
   "variants": {
     "47": "Part_TNT_02_SET",
@@ -271,6 +273,21 @@
     "266": "Part_PointLight_05_SET",
     "267": "Part_SpotLight_02_SET",
     "268": "Part_SpotLight_03_SET",
-    "269": "Part_SpotLight_04_SET"
+    "269": "Part_SpotLight_04_SET",
+    "272": "Part_EngineSmall_02_SET",
+    "273": "Part_EngineSmall_03_SET",
+    "274": "Part_EngineSmall_04_SET",
+    "275": "Part_EngineSmall_05_SET",
+    "276": "Part_EngineSmall_06_SET",
+    "277": "Part_EngineSmall_07_SET",
+    "278": "Part_EngineSmall_08_SET",
+    "279": "Part_EngineSmall_09_SET",
+    "280": "Part_EngineSmall_10_SET",
+    "281": "Part_EngineBig_02_SET",
+    "282": "Part_EngineBig_03_SET",
+    "283": "Part_EngineBig_04_SET",
+    "284": "Part_EngineBig_05_SET",
+    "285": "Part_EngineBig_06_SET",
+    "286": "Part_EngineBig_07_SET"
   }
 }

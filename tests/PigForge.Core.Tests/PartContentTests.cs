@@ -14,8 +14,58 @@ public sealed class PartContentTests
         PartContentLibrary library = PartContentLibrary.Load(path);
 
         Assert.Equal("pigforge-base-content-v1", library.Document.ContentVersion);
-        Assert.Equal(267, library.Document.Parts.Count);
+        Assert.Equal(284, library.Document.Parts.Count);
         Assert.NotNull(library.GetPart(1));
+    }
+
+    /// <summary>
+    /// The original has three engine PartTypes, not one: 16 `Engine` (150), 25 `EngineSmall` (50)
+    /// and 26 `EngineBig` (250). tools/bple-variants could not import the last two because no
+    /// PigForge base carried their partType, so they were added as two bases and their skins now
+    /// import from the same registry as everything else (docs/specs/part-variant-catalog.md).
+    /// </summary>
+    [Fact]
+    public void TheThreeEngineFamiliesAreCatalogued()
+    {
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        // EngineSmall: Part_EngineSmall_01..10_SET, m_enginePower 50, m_mass 0.25 (the 150 engine's
+        // 1.0), collider 0.7 x 0.6 x 1 at (0.06, -0.06).
+        PartDefinition small = library.GetPart(270);
+        Assert.Equal("engine-small", small.Name);
+        Assert.Equal(50f, small.Capabilities!.EnginePower);
+        Assert.Equal(0.3f, small.Mass, precision: 4); // 0.25 x the engine base's calibrated 1.2
+        Assert.Null(small.VariantOf);
+        Assert.Equal(new[] { 0.35f, 0.3f, 0.5f }, small.Shapes[0].BoxHalfExtents);
+        Assert.Equal(new[] { 0.06f, -0.06f, 0f }, small.Shapes[0].Offset);
+
+        // EngineBig: Part_EngineBig_01..07_SET, 250, m_mass 1.5, collider 1 x 0.8 x 1 at (0, -0.03).
+        PartDefinition big = library.GetPart(271);
+        Assert.Equal("engine-big", big.Name);
+        Assert.Equal(250f, big.Capabilities!.EnginePower);
+        Assert.Equal(1.8f, big.Mass, precision: 4); // 1.5 x 1.2
+        Assert.Equal(new[] { 0.5f, 0.4f, 0.5f }, big.Shapes[0].BoxHalfExtents);
+        Assert.Equal(new[] { 0f, -0.03f, 0f }, big.Shapes[0].Offset);
+
+        // Their 15 skins ride the two bases; nine of the ten small engines are 50 and exactly one --
+        // Part_EngineSmall_05_SET -- declares 5000 in its own prefab, kept verbatim (100x).
+        Assert.Equal(9, library.Document.Parts.Count(part => part.VariantOf == 270));
+        Assert.Equal(6, library.Document.Parts.Count(part => part.VariantOf == 271));
+        Assert.Equal(new[] { 5000f }, library.Document.Parts
+            .Where(part => part.Capabilities?.EnginePower == 5000f)
+            .Select(part => part.Capabilities!.EnginePower));
+        Assert.Equal("engine-small-v05", library.Document.Parts.Single(part => part.Capabilities?.EnginePower == 5000f).Name);
+
+        // The three families share everything else: the same `Engine` class in the original means
+        // the same joint capability, grid cell and default damping.
+        foreach (PartDefinition part in library.Document.Parts.Where(part => part.Name.StartsWith("engine-", StringComparison.Ordinal) || part.Name == "engine"))
+        {
+            Assert.Equal(0f, part.Capabilities!.PowerConsumption);
+            Assert.Equal(JointConnectionType.None, part.Capabilities.JointConnectionType);
+            Assert.Equal(PartActivation.Toggle, part.Capabilities.Activation);
+            Assert.Null(part.GridBox);
+            Assert.Null(part.Damping); // the document default (0.2 / 0.05) is the `Engine` class's
+        }
     }
 
     [Fact]
@@ -600,8 +650,8 @@ public sealed class PartContentTests
             part => part.Capabilities?.JointConnectionStrength ?? JointConnectionStrength.None);
 
         // Extracted coverage: every part that maps to a prefab carries one; only the three
-        // hand-authored static level parts have no prefab to extract from.
-        Assert.Equal(264, strength.Count(entry => entry.Value != JointConnectionStrength.None));
+        // hand-authored static level parts have no prefab to extract from (284 - 3).
+        Assert.Equal(281, strength.Count(entry => entry.Value != JointConnectionStrength.None));
         Assert.All(new uint[] { 2, 5, 6 }, id => Assert.Equal(JointConnectionStrength.None, strength[id]));
 
         // The user-visible ordering this exists for: wooden (Normal) is weaker than metal

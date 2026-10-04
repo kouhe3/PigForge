@@ -5035,6 +5035,276 @@
           "halfExtents": [0.475, 0.475, 0.475]
         }
       ]
+    },
+    {
+      "partTypeId": 270,
+      "name": "engine-small",
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 271,
+      "name": "engine-big",
+      "mode": "dynamic",
+      "mass": 1.8,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.4, 0.5],
+          "offset": [0.0, -0.03, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 272,
+      "name": "engine-small-v02",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 273,
+      "name": "engine-small-v03",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 274,
+      "name": "engine-small-v04",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 275,
+      "name": "engine-small-v05",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 5000, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 276,
+      "name": "engine-small-v06",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 277,
+      "name": "engine-small-v07",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 278,
+      "name": "engine-small-v08",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 279,
+      "name": "engine-small-v09",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 280,
+      "name": "engine-small-v10",
+      "variantOf": 270,
+      "mode": "dynamic",
+      "mass": 0.3,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.35, 0.3, 0.5],
+          "offset": [0.06, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 281,
+      "name": "engine-big-v02",
+      "variantOf": 271,
+      "mode": "dynamic",
+      "mass": 1.8,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.4, 0.5],
+          "offset": [0.0, -0.03, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 282,
+      "name": "engine-big-v03",
+      "variantOf": 271,
+      "mode": "dynamic",
+      "mass": 1.8,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.4, 0.5],
+          "offset": [0.0, -0.03, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 283,
+      "name": "engine-big-v04",
+      "variantOf": 271,
+      "mode": "dynamic",
+      "mass": 1.8,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.4, 0.5],
+          "offset": [0.0, -0.03, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 284,
+      "name": "engine-big-v05",
+      "variantOf": 271,
+      "mode": "dynamic",
+      "mass": 1.8,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.4, 0.5],
+          "offset": [0.0, -0.03, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 285,
+      "name": "engine-big-v06",
+      "variantOf": 271,
+      "mode": "dynamic",
+      "mass": 1.8,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.4, 0.5],
+          "offset": [0.0, -0.03, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 286,
+      "name": "engine-big-v07",
+      "variantOf": 271,
+      "mode": "dynamic",
+      "mass": 1.8,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "shapes": [
+        {
+          "kind": "box",
+          "halfExtents": [0.5, 0.4, 0.5],
+          "offset": [0.0, -0.03, 0.0]
+        }
+      ]
     }
   ]
 }

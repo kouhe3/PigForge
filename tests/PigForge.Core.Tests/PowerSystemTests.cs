@@ -372,6 +372,17 @@ public sealed class PowerSystemTests
         Assert.False(engine.IsPowered);
         Assert.Null(engine.MotorThrustPerTick);
 
+        // The original ships three engine PartTypes, not one (16 Engine 150, 25 EngineSmall 50,
+        // 26 EngineBig 250); the last two were missing until tools/bple-variants could see their
+        // partTypes (docs/specs/part-variant-catalog.md).
+        Assert.Equal(50f, library.GetPart(270).Capabilities!.EnginePower);
+        Assert.Equal(250f, library.GetPart(271).Capabilities!.EnginePower);
+        // And exactly one skin of the ten small engines declares 5000 in its own prefab
+        // (Part_EngineSmall_05_SET, 100x its siblings). It is kept verbatim: the original's own
+        // raw-ratio cap (10 * EnginePowerLimit = 40, Contraption.cs:545) bounds what it can do, so
+        // the outlier needs no PigForge balance decision -- the formula test above covers 5000.
+        Assert.Equal(5000f, library.Document.Parts.Single(part => part.Name == "engine-small-v05").Capabilities!.EnginePower);
+
         // The motor wheel is the consumer: it consumes and has no engine power of its own.
         PartCapabilities wheel = library.GetPart(17).Capabilities!;
         Assert.Equal(100f, wheel.PowerConsumption);
