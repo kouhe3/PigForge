@@ -1,6 +1,6 @@
 # 规格：风扇 / 螺旋桨 / 旋翼（原版 `FanPropeller`）
 
-状态：已实施（真值已核实并按 §4 落地）。
+状态：已实施（真值已核实并按 §4 落地；**§5.2 的螺旋桨转换于 2026-10-04 补做，见 §4 决议 4**）。
 来源：原版反编译脚本 `BPLE_Unity6/Assets/Scripts/Assembly-CSharp/FanPropeller.cs`、`BasePropulsion.cs`、
 `Assets/GameObject/Part_{Fan,PlanePropeller,Rotor}_01_SET.prefab`、`Assets/TextAsset/INSettingsBExp.json`。
 决策记录：`docs/decisions/ADR-022-fan-propeller-thrust.md`（模型）与 `ADR-023-split-drops-pending-commands.md`（顺带修掉的房间停帧）。
@@ -14,7 +14,7 @@
 |---|---|---|
 | `11` fan | `fan{thrustPerTick 1.2, directionX 1}`，`toggle` | 缺最高速上限（原版 `LimitForceForSpeed`）；方向与 prefab 相反（`m_forceDirection: 2` = Left） |
 | `37` rotor | `balloon{3.5}`，`trigger` | **升力无上限**（实测一个簇升到 20 km）；开关 = 气球式「放气**摧毁**」；不是原版的推力 |
-| `38` propeller | `wheel + motor{2.5}`，`toggle` | 被 `tools/bple-power` 的「有 `InitializeEngine` 覆盖即驱动轮」判据误判成**轮子**（`FanPropeller` 确实覆盖了它），装配时被铰接成独立刚体，冲量只推自己 → 只自转、**不推进** |
+| `38` propeller | `wheel + motor{2.5}`，`toggle` | 手写成**轮子**：`FanPropeller` 确实和驱动轮一样覆盖 `InitializeEngine`（`:83`），但它是推进器（`tools/bple-power` 的驱动轮判据按类名 `*Wheel` 收口，从未算进这一族；`2.5` 也不是它对 `m_force` 37 的换算值 1.628）。装配时被铰接成独立刚体，`RunMotors` 又把带 `wheel` 的马达门控在地面接触上 → **既不推进也不出力** |
 
 ## 2. 原版真值（逐条出处）
 
@@ -41,7 +41,7 @@
 ```
 
 - **`thrustPerTick = m_force × IN <X>Force / 60`**：原版在 `FixedUpdate` 施加的是每秒的力，容器每 60 Hz tick 施加一次冲量；这条换算与 ADR-013 决策 4 给气球的（`tools/bple-lift`：23 N → 0.383333）同源，也与容器接缝阈值 `GameplayConfig.SeamBreakImpulse = 10` 同单位。
-- **`maxSpeed`** = `m_defaultSpeed × IN <X>Speed`，即**单位功率因子**下的轴向最高速；规则层再乘 `powerFactor`（真值 2/3）。`PropellerSpeed = Infinity` 的原版没有上限 → **不写**该字段。
+- **`maxSpeed`** = `m_defaultSpeed × IN <X>Speed`，即**单位功率因子**下的轴向最高速；规则层再乘 `powerFactor`（真值 2/3）。`PropellerSpeed = Infinity` 的原版没有上限 → **不写**该字段，规则层（`RunFans`：`fan.MaxSpeed > 0` 才限速）与旋翼刹车（同样要求 `maxSpeed > 0`）都会跳过它。缺省**不等于** 0 上限。
 - **`rotor`** = 原版 `m_isRotor`；缺省 false。
 - **`activation` 必须是 `toggle`**：解析器把 `fan` + 非 `toggle` 当内容错误拒绝（`FanPropeller` 永远是开关件，`trigger` 正是「放气摧毁」的来源）。
 
@@ -52,7 +52,8 @@
 1. 沿用 `fan` **一个键**承载三个族的语义（三者在原版是同一个类，没有理由拆键）；新增 `maxSpeed`/`rotor`。
 2. 换算取 **`m_force / 60`**（ADR-022 决策 3 记录了被否掉的「以手写 1.2 做族内锚」方案：它把旋翼冲量放大到 16.6 > 接缝阈值 10，旋翼会扯断自己的焊缝）。
 3. 规则层逐字实现真值 5/6（`RunFans`），旋翼不再走 `RunBalloons`，`RunBalloons` 的「带功率数据的升力件」死分支删除。
-4. **本切片只转风扇 + 旋翼**（16 件）；**螺旋桨 10 件缓办**：其 `PropellerSpeed = Infinity` → 转成 `fan` 就是一个**没有上限**的推进器（原版靠飞机阻力与重量收住），定上限属玩法决定。`tools/bple-fans` 照常给出它们的换算值并标注「缓办」，内容保持 `wheel + motor` 不动。
+4. **~~本切片只转风扇 + 旋翼（16 件）~~ → 2026-10-04 补做：26 件全部转换**。螺旋桨当时被缓办，理由是「`PropellerSpeed = Infinity` → 转成 `fan` 就是一个没有上限的推进器，给不给上限是玩法决定」——那是因为当时 PigForge **完全没有阻尼**。ADR-025 把原版每件刚体的 `linearDamping 0.2` 落地后，终端速度就有了原版自己的机制（`v_eq = m_force × IN PropellerForce / (m × drag)`，即每 tick 冲量与每 tick 衰减的平衡），不需要任何人拍一个上限；于是 10 件照原版真值转成 `fan{ thrustPerTick 0.616667, directionX ±1 }`（**不写 `maxSpeed`**）并去掉 `wheel`/`motor`。
+   `tools/bple-fans` 的 `deferred` 分类整个删除（26 件全部写入），新增两条硬断言：没有 `maxSpeed` 的件**恰好 10 件且全在 `Propeller` 族**、`maxSpeed` 缺省 ⇔ `IN <X>Speed` 是 `Infinity`。`tools/bple-power` 另加一条**内容级交叉断言**：不许有件同时带 `motor` 与 `fan`（这一族覆盖同一个钩子，正是 G50 的成因）。
 5. 不动协议：`maxSpeed`/`rotor` 只存在于内容与服务端规则态，PGFS/PGFC 不变。
 6. 顺带修掉房间停帧（ADR-023）：拆簇会销毁「本 tick 指令所指」的 body，那些指令必须同步丢弃。
 
@@ -63,7 +64,7 @@
 | `11`（+ `74`–`77`） | Part_Fan_01…05 | Fan | Left | 7 | 0.116667 | 18 | – |
 | `78` fan-v06 | Part_Fan_06 | Fan | Left | **60** | **1.0** | 18 | – |
 | `37`（+ `184`–`192`） | Part_Rotor_01…10 | Rotor | **Up**（`191` = **Down**） | 120 | 2.0 | 14 | true |
-| `38`（+ `135`–`143`） | Part_PlanePropeller_01…10 | Propeller | Right（`143` = Left） | 37 | 0.616667（**缓办，未写入**） | ∞ | – |
+| `38`（+ `135`–`143`） | Part_PlanePropeller_01…10 | Propeller | Right（`143` = Left） | 37 | 0.616667 | **不写**（原版 ∞） | – |
 
 ## 6. 验收（已跑）
 
@@ -73,11 +74,23 @@
 | 实机探针（真服务器 + 真内容 + 真 Bepu，`ws://…/play`） | 木框 + 包裹引擎（enginePower 150 / 旋翼消耗 200 → 因子 0.806）+ 旋翼：开关打开后竖直速度**稳定在 12.8 m/s**（上限 `14 × 0.806 ≈ 11.3` + 刹车平衡点），不再无限加速；关开关后速度按重力精确衰减（12.80 → 7.90 用 0.5 s）且**旋翼实体仍在**（`rotorPresent: true, active: false`） |
 | 门控 | `ARotorWithoutAnEnclosedEngineInItsClusterDoesNotLift`（真内容）：簇内无引擎 → 一动不动 |
 
+### 6.1 螺旋桨转换（2026-10-04 补做）的验收
+
+| 项 | 结果 |
+|---|---|
+| 快照/幂等 | `extract-fans.mjs` → 26 件（断言「无 `maxSpeed` 的件恰好 10 件且全在 `Propeller` 族」）；`apply-fans.mjs` 第一次改 10 行、第二次 **0 改动**；`extract-power.mjs` / `web-parts --check`（`parts: 284`）均通过 |
+| 内容断言 | `PartContentTests.TheRealContentModelsThePlanePropellerAsAnUncappedFan`：`38`/`135`–`143` 全是 `fan`、`thrustPerTick 0.616667`、`FanMaxSpeed == null`、非 rotor、`toggle`、**不是** `wheel`、**没有** `motor`；`143` 是 Left；同时断言 `11` 的 18 与 `37` 的 14 仍在（防止「解析器把所有 maxSpeed 都丢了」也能通过） |
+| 房间行为 | `PropellerThrustTests.APropellerPushesTheClusterItIsWeldedTo`（真内容 + 真 Bepu）：螺旋桨与木框**同一个 body**（`wheel` 建模时是各自一个，实测 body 11 ≠ 10）；开关关闭时 30 tick 内水平位移 ≤ 0.05 m，打开后 30 tick 位移 **1.7667 m**（旧内容同 fixture 实测 **0 m** —— 它自己的铰接刚体从不碰地，`RunMotors` 把驱动整个门控掉了） |
+| 实机（真服务器 + 真内容 + 真 Bepu + 真 PGFS，空中） | 木框 + 包裹引擎（150 / 螺旋桨消耗 100 → 因子 `1.5^0.585 = 1.2678`）+ 螺旋桨：开关打开后 `vx` **2.961 → 18.441 m/s**（1.6 s 内每 0.2 s 约 +2.85 m/s，与 `0.616667 × 1.2678 / 2.9 kg × 60 ≈ 17 m/s²` 一致；没有平台期，之后只被阻尼压着逼近 `v_eq`），螺旋桨与框 body 相同、`active: true`、12 个实体、5 条 ack 全 `status 0 / error 0`、零停帧 |
+| 实机（同一 fixture 落在 terrain-v1 地面上） | 静止后开开关：`vx` **0.389 → 2.932 m/s**（1.6 s，约 1.6 m/s²）——地面摩擦与螺旋桨薄板的接触把净推力吃掉大半，但不是零：推进确实发生在簇上 |
+| 客户端 | 真客户端（vite，`localhost:5173`）走 UI 放「木块 + 发动机 + 螺旋桨」、连接房间、Start、开开关：画布渲染正常、零控制台错误；螺旋桨的旋转来自贴图清单的 `sprite.spin`（`FanPropeller.m_fanVisualization` 节点，`maxDegreesPerSecond 1700`，`axis x`），与内容里的 `wheel` 无关，故去掉 `wheel` 不影响它 |
+| 计数 | Core **263** / Server **126** / Protocol 39 / Replay 11 / Physics **82**（16 Jolt + 66 非 Jolt，分开跑）/ web **221**；Release **0 警告 0 错误** |
+
 ## 7. 不做
 
-- **螺旋桨转换**（§4 决议 4）：先要一个上限决定。
+- ~~**螺旋桨转换**（§4 决议 4）~~ —— **2026-10-04 已补做**（10 件转成 `fan`，**不写** `maxSpeed`）。
 - **推力轴不跟零件的实时姿态**：原版 `vector = transform.TransformDirection(GetDirectionVector(m_forceDirection))`（真值 4）读的是零件**当前**的旋转，PigForge 用内容方向（世界轴）。2026-10-04 试过接上（`GameplayRules` 记录成员局部旋转、`bodyRotation * localRotation` 再 `Rotate` 内容方向），**实测否决**：`RotorThrustTests` 的「木框 + 包裹引擎 + 旋翼」在落地微倾后，推力跟着倾角走，60 tick 内竖直位移从 +（有界爬升）变成 **−1.45 m**（下沉）——原版这条轴能成立，是因为还有旋翼的 `m_rotorTargetDirection` 混合（`:156-161`）与 `rigidbody.angularDamping`（`:138-148`）在托着，两者都在下面的「不做」里。要接就必须整条链一起接。
-- 旋翼角阻尼（真值 7）：物理契约没有角阻尼项。
+- 旋翼的运行期角阻尼（真值 7，`:138-148`）：契约现在有角阻尼字段（ADR-025 的 `BodyDefinition.AngularDamping`），但这是一条**运行期覆盖**、不是 prefab 值，`tools/bple-damping` 把它报在 `runtimeOverrides` 里；落地排在 G90（与 `Pig.FixedUpdate` 的慢速增阻、绳逐节阻尼、`NoDrag` 一起）。
 - 左向风扇的贴地/悬浮射线增益（`:166-197`）。
 - 旋翼的 `m_rotorTargetDirection` 方向混合（`:156-161`）。
 - 风扇关闭后的转速衰减曲线：**客户端已实现**（`clients/web/src/renderer/animation/spin.ts`），纯表现层不上线。
