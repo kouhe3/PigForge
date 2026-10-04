@@ -431,10 +431,10 @@ public sealed class GameplayRulesTests
         }
 
 
-        public void Link(EntityId entity, PhysicsBodyId body)
+        public void Link(EntityId entity, PhysicsBodyId body, PhysicsVector3 localOffset = default)
         {
             _bodies.Set(entity, new PhysicsBodyLink(body));
-            Rules.LinkBody(entity, body);
+            Rules.LinkBody(entity, body, localOffset: localOffset);
         }
 
         public void IngestBody(PhysicsBodyId body, PhysicsVector3 position, PhysicsVector3 velocity) =>
@@ -736,6 +736,27 @@ public sealed class GameplayRulesTests
         Assert.Equal(2f / normalization, command.Impulse.X, 5);
         Assert.Equal(2f / normalization, command.Impulse.Y, 5);
         Assert.Equal(0f, command.Impulse.Z);
+    }
+
+    [Fact]
+    public void AFanPushesAtItsOwnMountNotTheCompoundCentre()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId fan = entities.Create();
+        harness.Rules.AddFan(fan, 2f, 1f, 0f);
+        PhysicsBodyId body = new(1);
+        // The member sits one cell to the right of the compound's centre of mass.
+        harness.Link(fan, body, localOffset: new PhysicsVector3(1f, 0f, 0f));
+        harness.IngestBody(body, new PhysicsVector3(0f, 1f, 0f), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        // FanPropeller.cs:152 applies the force at transform.position + dir * 0.5 -- the part's
+        // own transform (1, 1, 0), not the body centre (0, 1, 0) the body-centre path used.
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(1.5f, command.WorldPoint.X, 5);
+        Assert.Equal(1f, command.WorldPoint.Y, 5);
     }
 
     [Fact]

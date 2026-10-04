@@ -43,7 +43,7 @@ Accepted
 
 ## 已知偏差
 
-1. **不引入施力点**：原版加在 `transform.position + dir × 0.5`（`FanPropeller.cs:151-152`），PigForge 仍按刚体中心施加（`PhysicsCommand` 带位置参数，但本切片不动这片共享的体心施力管线），因此没有原版那点力矩。
+1. **施力点已对齐，但只到簇质心这一层**：`RunFans` 现在把冲量打到原版的 `transform.position + dir × 0.5`（`FanPropeller.cs:151-152`，`:209`），单件刚体时逐位一致，多成员簇则相对簇质心而不是零件自己的刚体（近似；实测见 `docs/specs/fan-propeller.md` §7.1、`FanThrustTests`）。**推力轴仍不跟零件的实时姿态**（原版 `TransformDirection(GetDirectionVector(m_forceDirection))`）：2026-10-04 接上后 `RotorThrustTests` 的转子簇实测下沉 −1.45 m，因为原版还有 `m_rotorTargetDirection` 混合与 `angularDamping` 在托着——两者都是本 ADR 的未做项，故整条链留待一个独立切片。
 2. **无角阻尼**：原版旋翼开/关会把 `rigidbody.angularDamping` 设为 `1000`/`1`（`:138-148`），物理契约没有角阻尼项。
 3. **不做**左向风扇的贴地/悬浮射线增益（`:166-197`）与 `m_rotorTargetDirection` 方向混合（`:156-161`）。
 4. **风扇推力方向 1 → -1 是可见行为变化**：`m_forceDirection: 2` = Left 是 prefab 真值，PigForge 的 x 轴未镜像（同 prefab 的螺旋桨碰撞体 `m_Center.x -0.3124` 被逐位抄进内容，可作证）。旧值 `1` 是 `25455eb` 手写的。

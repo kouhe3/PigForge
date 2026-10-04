@@ -76,9 +76,18 @@
 ## 7. 不做
 
 - **螺旋桨转换**（§4 决议 4）：先要一个上限决定。
-- 施力点：原版加在 `transform.position + dir × 0.5`（真值 4），PigForge 仍按刚体中心施加，忽略那点力矩。
+- **推力轴不跟零件的实时姿态**：原版 `vector = transform.TransformDirection(GetDirectionVector(m_forceDirection))`（真值 4）读的是零件**当前**的旋转，PigForge 用内容方向（世界轴）。2026-10-04 试过接上（`GameplayRules` 记录成员局部旋转、`bodyRotation * localRotation` 再 `Rotate` 内容方向），**实测否决**：`RotorThrustTests` 的「木框 + 包裹引擎 + 旋翼」在落地微倾后，推力跟着倾角走，60 tick 内竖直位移从 +（有界爬升）变成 **−1.45 m**（下沉）——原版这条轴能成立，是因为还有旋翼的 `m_rotorTargetDirection` 混合（`:156-161`）与 `rigidbody.angularDamping`（`:138-148`）在托着，两者都在下面的「不做」里。要接就必须整条链一起接。
 - 旋翼角阻尼（真值 7）：物理契约没有角阻尼项。
-- 左向风扇的贴地/悬浮射线增益（`:166-197`，`StableLevitationFan`/`ReactionFan`）。
+- 左向风扇的贴地/悬浮射线增益（`:166-197`）。
 - 旋翼的 `m_rotorTargetDirection` 方向混合（`:156-161`）。
 - 风扇关闭后的转速衰减曲线：**客户端已实现**（`clients/web/src/renderer/animation/spin.ts`），纯表现层不上线。
 - 引擎按钮联动全部耗能件（`Engine.cs:29`），仍见 `docs/specs/power-system.md` §7。
+
+### 7.1 施力点（2026-10-04 补做）
+
+原版把力加在 `transform.position + dir × 0.5`（真值 4，`:151-152`，`:209` 用 `AddForceAtPosition`），
+`RunFans` 现在把冲量打到同一个点：零件世界位置（`body.Position + body.Rotation.Rotate(成员局部偏移)`）
+`+ 方向 × 0.5`。单件刚体时这与原版**逐位一致**（原版刚体的质心就是自身形状中心，Unity 自动质心，
+杠杆臂相同）；多成员簇则相对簇质心而不是零件自己的刚体——近似，见 `ADR-022` 偏差 1。
+实测（`FanThrustTests`，真房间 + 真 Bepu）：木框 + 包裹引擎 + 风扇放在质心上方一格，开开关后 30 tick
+角速度 **4.63 rad/s**（改前 1.2e-7，即零力矩）。

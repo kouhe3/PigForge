@@ -1195,6 +1195,21 @@ public sealed class GameplayRules
                 continue;
             }
 
+            // FanPropeller.cs:152 applies the force at transform.position + dir * 0.5, so an
+            // off-centre fan turns the rig around its own mount instead of pushing on the
+            // compound's centre of mass. The thrust axis itself stays the content direction:
+            // the original reads it from the part's live rotation, but that needs the rotor's
+            // `m_rotorTargetDirection` mix and angular damping to stay upright
+            // (docs/specs/fan-propeller.md section 7).
+            PhysicsQuaternion bodyRotation = _rotationByBody.TryGetValue(link.Body.Value, out PhysicsQuaternion bodyPose)
+                ? bodyPose
+                : PhysicsQuaternion.Identity;
+            PhysicsVector3 partPosition = _kinematicsByBody[link.Body.Value].Position;
+            if (_localOffsetByEntity.TryGetValue(fans.CurrentId.Value, out PhysicsVector3 partOffset))
+            {
+                partPosition += bodyRotation.Rotate(partOffset);
+            }
+
             PhysicsVector3 direction = new(fan.DirectionX / magnitude, fan.DirectionY / magnitude, 0f);
             PhysicsVector3 velocity = _kinematicsByBody[link.Body.Value].Velocity;
             float thrust = fan.ImpulsePerTick * powerFactor;
@@ -1238,7 +1253,7 @@ public sealed class GameplayRules
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
                 impulse,
-                _kinematicsByBody[link.Body.Value].Position));
+                partPosition + (direction * 0.5f)));
         }
     }
 
