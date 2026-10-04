@@ -6,7 +6,7 @@
 - **实测**：`unity/PigForge.WeldProbe`（Unity **2021.3.45f2**，即 `BPLE 2022.1.9/ProjectSettings/ProjectVersion.txt` 钉的原版编辑器）headless 跑出的
   `tasks/weld-compliance-probe.json`（28 格）。复现：`unity run unity/PigForge.WeldProbe --editor-version 2021.3.45f2 -- -executeMethod PigForge.WeldProbe.Probe.WeldComplianceProbe.Run -logFile -`（需 `unity license activate --personal --accept-eula`）。
 - 原版源码：`Contraption.cs:1507-1555`（`AddFixedJoint`）、`:1540`、`:2238-2247,2599`、`FrameJointManager.cs:60-193`、`Frame.cs:44-52`、`BasePart.cs:148,249,1184-1196`；`Part_*.prefab`；`INSettingsBExp.json`。
-- 上游核对：公开反编译仓 `github.com/anstropleuton/BPLE` 与本地 `BPLE 2022.1.9` / `BPLE_Unity6` 同源。
+- **原版基准（上游）**：`https://github.com/anstropleuton/BPLE`（`main`）——BPLE 的反编译工程，作者**只修错误、不加新功能**，故作原版基准；本地 `BPLE 2022.1.9`（原版编辑器 2021.3.45f2）与 `BPLE_Unity6`（迁到 Unity 6 + PigForge 侧改动）是它的拷贝。
 
 ## 0. 结论（2026-10-04，第三版；前两版都被实测推翻）
 

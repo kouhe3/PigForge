@@ -6,6 +6,24 @@ PigForge is a Unity-free, deterministic, server-authoritative multiplayer game c
 
 Current state: the "multiplayer persistent sandbox" slice, **PLAY part switches** (`docs/specs/play-part-switches.md`), **marquee selection** (`docs/specs/multi-select.md`) and the **original variant catalog** (`docs/specs/part-variant-catalog.md`, ADR-004/006) are implemented and verified end-to-end: per-connection player ids, per-player part ownership, preview/ghost layouts that materialize on Start, per-player RESET, a continuously ticking world, per-part switches (bottom-centre bar, `1`–`9`/`0`/`A`… hotkeys, tap-to-toggle) whose state is server-authoritative and rides the snapshot, and 267 content parts = 44 bases + 223 variants imported from the original's `GameData.m_customParts` (plus IN extension parts it ships outside that registry, e.g. the BlasterTNT) (skins + the AlienTNT/BlasterTNT/AlienEgg effects: chain detonation, one-shot shockwave, super glue). `--play` hosts that sandbox room; its level (`content/levels/terrain-v1.json`) is a 60 m floor, a three-step hill and a 34 m three-plank long slope (geometry table in `docs/specs/multiplayer-sandbox.md`). The goal-based slope/terrain rooms remain as `PlayHost.CreateSlopeRoom`/`CreateTerrainRoom` (tests + future racing) and keep their pre-switch automatic behaviour. `tasks/plan.md` + `tasks/todo.md` are gitignored working state.
 
+## Original-Game Baseline (content truth)
+
+- **Upstream baseline: https://github.com/anstropleuton/BPLE (branch `main`)** — a decompilation of
+  BPLE whose author only **fixes errors and adds no new features**, so it is the reference for "what
+  the original does". Read it with the `github` tool (`file_read` / `search_code`), never `curl`.
+- **Local copies** (read-only for us): `C:/tmp/BAD_PIGGIES/BPLE 2022.1.9` (pristine; pins Unity
+  **2021.3.45f2**, which is the original's own editor — use this editor, not the installed Unity 6,
+  whenever a measurement must match the original's PhysX), and `C:/tmp/BAD_PIGGIES/BPLE_Unity6`
+  (the same project migrated to Unity 6000.5.6f1, plus commits made from the PigForge side).
+- **When a local file disagrees with upstream, check upstream first**: the difference is either a
+  local drift (the PigForge-side commits — e.g. `BasePart.EnsureRigidbody`'s 2.5D constraints were
+  changed from the original `(RigidbodyConstraints)56` to `0`, and `KingPig.EnsureRigidbody` is an
+  added override) or genuinely original. Never treat the migrated copy's text as untouched.
+- **Never hand-write a value the original defines**: extract it with a `tools/bple-*` pipeline
+  (`extract-*.mjs` reports, `apply-*.mjs` writes, histogram assertions on drift), and record the
+  `file:line` alongside. Numbers measured from the original (e.g. the weld probe in
+  `unity/PigForge.WeldProbe`) are the only admissible substitute for an authored value.
+
 ## Architecture & Data Flow
 
 Dependency direction (no cycles; Core never sees Protocol, a physics backend, or Unity):
