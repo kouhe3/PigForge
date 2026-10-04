@@ -739,6 +739,28 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
+    public void AMotorWheelTapersToItsTopSpeedAndStopsThere()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId motor = entities.Create();
+        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Link(motor, new PhysicsBodyId(1));
+
+        // MotorWheel.cs:101-103 caps the drive at 15 * enginePowerFactor and :292-299 tapers the
+        // force as sqrt(1 - |v| / max). Half the cap (no power data -> factor 1) still drives at
+        // sqrt(0.5); the cap is symmetric, so the same holds driving backwards.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(-7.5f, 0f, 0f));
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(2f * MathF.Sqrt(0.5f), command.Impulse.X, 5);
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(15f, 0f, 0f));
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+    }
+
+    [Fact]
     public void AFanPushesAtItsOwnMountNotTheCompoundCentre()
     {
         EntityStore entities = new();

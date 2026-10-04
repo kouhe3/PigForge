@@ -81,6 +81,47 @@ public sealed class PowerSystemRoomTests
         Assert.Equal(first.StateHash, second.StateHash);
     }
 
+    [Fact]
+    public void AMotorCartNeverExceedsItsTopSpeed()
+    {
+        using GameRoom room = PlayHost.CreateSandboxRoom();
+        uint player = PlayHost.NextPlayerId();
+        uint sequence = 0;
+
+        uint Place(uint partTypeId, float x, float y)
+        {
+            CommandOutcome outcome = room.Submit(PlayHost.BindPlayer(PlacePart(++sequence, partTypeId, x, y), player));
+            Assert.True(outcome.IsAccepted, $"place {partTypeId} at ({x},{y}): {outcome.Status}/{outcome.Error}");
+            return outcome.EntityId;
+        }
+
+        Place(PartMotorWheel, -8.5f, -2.5f);
+        Place(PartMotorWheel, -7.5f, -2.5f);
+        uint frame = Place(PartFrame, -8.0f, -1.5f);
+        Place(PartPig, -8.0f, -0.5f);
+        Place(PartEngine, -8.0f, -1.5f); // enclosed in the frame
+
+        Assert.True(room.Submit(PlayHost.BindPlayer(Start(++sequence, player), player)).IsAccepted);
+        room.RunTicks(180);
+        Assert.True(room.Submit(PlayHost.BindPlayer(SetTypeActive(++sequence, PartMotorWheel, active: true), player)).IsAccepted);
+
+        // Two motor wheels draw 200 against the engine's 150, so the cluster factor is
+        // 0.75^0.75 = 0.80593 and MotorWheel.cs:101-103 caps the cart at 15 * factor = 12.09 m/s.
+        // Measured: the cart levels off at 11.35 m/s (the sqrt taper approaches the cap without
+        // touching it); with the cap removed the same fixture passes 14.59 m/s and keeps climbing.
+        float cap = 15f * 0.80593f;
+        float fastest = 0f;
+        for (int tick = 0; tick < 150; tick++)
+        {
+            room.Tick();
+            SnapshotEntity body = PublishEntities(room, out _).Single(entity => entity.EntityId == frame);
+            fastest = MathF.Max(fastest, MathF.Abs(body.LinearVelocity.X));
+        }
+
+        Assert.True(fastest > 5f, $"the powered cart must actually drive: {fastest} m/s");
+        Assert.True(fastest <= cap + 0.5f, $"the cart must stay at or below its cap {cap}: {fastest} m/s");
+    }
+
     private enum EnginePlacement
     {
         None,

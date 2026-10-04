@@ -142,6 +142,37 @@ public sealed class PowerSystemTests
     }
 
     [Fact]
+    public void ADrivenWheelTopsOutAtFifteenTimesThePowerFactor()
+    {
+        EntityStore entities = new();
+        PowerHarness harness = new(entities);
+        EntityId engine = entities.Create();
+        EntityId wheel = entities.Create();
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddWheel(wheel);
+        harness.Rules.AddPower(engine, 0f, EnginePower);
+        harness.Rules.AddPower(wheel, WheelConsumption, 0f);
+        harness.Rules.SetEngineEnclosed(engine, enclosed: true);
+        harness.Link(engine, new PhysicsBodyId(1));
+        harness.Link(wheel, new PhysicsBodyId(1));
+
+        // MotorWheel.cs:101-103: m_maximumSpeed = 15 * enginePowerFactor -- 19.01 for this 1.2676
+        // factor -- and :292-299 tapers the force as sqrt(1 - |v| / max) until it stops dead.
+        float factor = harness.Rules.ClusterPowerFactor(wheel);
+        Assert.Equal(1.2676f, factor, 3);
+        float maximumSpeed = 15f * factor;
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(maximumSpeed * 0.5f, 0f, 0f));
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        PhysicsCommand tapered = Assert.Single(harness.Output.Commands);
+        Assert.Equal(WheelImpulse * factor * MathF.Sqrt(0.5f), tapered.Impulse.X, 3);
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(maximumSpeed, 0f, 0f));
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Empty(harness.Output.Commands);
+    }
+
+    [Fact]
     public void UnenclosedEngineSuppliesNothing()
     {
         EntityStore entities = new();

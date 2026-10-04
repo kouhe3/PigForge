@@ -163,6 +163,13 @@ public sealed class GameplayRules
     /// <summary>Floor that keeps a massless part from producing an unbounded bounce impulse.</summary>
     private const float MinimumPartMass = 0.001f;
 
+    /// <summary>A driven wheel's top speed in world units per second per unit of engine power
+    /// factor: <c>m_maximumSpeed = 15 * enginePowerFactor</c> (MotorWheel.cs:103, StickyWheel.cs
+    /// through the same override chain). At the cap the wheel emits nothing at all; below it the
+    /// force tapers as <c>sqrt(1 - |v| / max)</c> (MotorWheel.cs:292-299), so a driven rig tops
+    /// out instead of accelerating forever (gap list G24).</summary>
+    private const float MotorWheelMaximumSpeed = 15f;
+
     /// <summary>A landing slower than this is not an impact worth bouncing (matches the order of
     /// the level's own impact thresholds).</summary>
     private const float MinimumBounceApproachSpeed = 0.5f;
@@ -1081,9 +1088,23 @@ public sealed class GameplayRules
                 directionX = -directionX;
             }
 
+            // MotorWheel.cs:292-299 gates the drive on the speed along the wheel's own axis --
+            // `num2 < m_maximumSpeed && num2 > -m_maximumSpeed` -- and tapers it as
+            // sqrt(1 - |num2| / m_maximumSpeed), so the rig approaches the cap asymptotically and
+            // never passes it. The cap itself is 15 * powerFactor (MotorWheel.cs:101-103).
+            float maximumSpeed = MotorWheelMaximumSpeed * powerFactor;
+            float axialSpeed = _kinematicsByBody[link.Body.Value].Velocity.X;
+            if (MathF.Abs(axialSpeed) >= maximumSpeed)
+            {
+                continue;
+            }
+
+            float thrust = motor.ImpulsePerTick * directionX * powerFactor
+                * MathF.Sqrt(1f - (MathF.Abs(axialSpeed) / maximumSpeed));
+
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                new PhysicsVector3(motor.ImpulsePerTick * directionX * powerFactor, 0f, 0f),
+                new PhysicsVector3(thrust, 0f, 0f),
                 _kinematicsByBody[link.Body.Value].Position));
         }
     }
