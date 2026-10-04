@@ -96,6 +96,18 @@
 - 两处**必然**的偏差要一起报：①引擎不同（Bepu vs PhysX 4.1）；②**tick 不同**（PigForge 60 Hz vs 原版 50 Hz）。容差为它们留白；超出容差时先核对口径（自由度锁定、质量、步长）再调参数，不许直接改目标。
 - 期 4 的物理验收放在 `PigForge.Physics.Tests`（Bepu 直连同一条链）；房间级用例只负责装配正确性与确定性，不背这两个数字。
 
+### 4.2 期 3 接入点（侦察结果，2026-10-04）
+
+「框」在内容里就是 **`capabilities.canEnclose == true`**（22 件：`wooden-block` 1、`metal-box` 18、各变体…；`PartContentParser` 的 `canEnclose` 分支 → `PartCapabilities.CanEnclose`；模型侧孪生＝`ConstructionRules.IsChassis`）。要改的点，按依赖序：
+
+1. **合并判据**：`CompoundAssembler.CanMergePair`（`:730-744`，逐字照 `Contraption.cs:690`）保持不动，**另加**一条「两端 `CanEnclose` 则不 union」的判据，接在邻居 union 循环 `Assemble`（`:392-402`）之前——这样框↔框永远分成两个 cluster。
+2. **每对 weld 的登记**：在 `CompoundAssembly`（`:44-46`）增加一条按 `(Left, Right)` 排序的 weld 列表（照 `CollectHinges` 的确定性做法 `:778-836`、seams 的 `Sort` `:1013`），位姿取两 member 的 transform（同 `CollectHinges` 模式）。
+3. **房间接线**：`GameRoom` 新增 `BindWeldJoints(assembly.Welds)`，镜像 `BindWheelHinges`（`:1406-1478`），在三处 materialize 点紧跟其调用（`:564`、`:896`、`:934`）；**每条 weld 必须调 `LinkPowerCluster(frameA, frameB)`**（先例 `:1472`）——否则 `PowerClusterKey`（`GameplayRules.cs:917-941`）会让另一个框上的引擎不再给这个框的耗能件供能。
+4. **关节生命周期**：`_weldJoints` 新表，并扩 `ForgetJointsForBody`（`:1657-1674`），否则拆簇/销毁会泄漏仍约束着已销毁 body 的关节。
+5. **断裂**：拆体后该对**没有 seam**（`NearestSeam`/`SplitAlongSeam` 都按 seam 工作）→ weld 条目自己要带中点与 `BreakImpulse`（沿用现有强度数学 `:1000-1009`），否则框对变成不可断。
+6. **随之变化的量**：`BodyCount`/`_entitiesByBody.Count`（缓冲尺寸 `:1957`）、`GameplayRules` 的每 body 代表实体/材质聚合（`:253-303`）——都是「一个 body 一个代表」的假设，拆体后每个框各自代表自己。
+7. **最大风险（要在期 3 实测）**：**Bepu `Weld` 没有 anchor 参数**（它约束 B 在 A 坐标系里的相对位姿）→ 契约要带这个相对位姿；并且 §3.3 要求**保留相邻接触**，焊接的两面会互相推（原版如此），其在本仓库求解器下的稳定性**未经验证**。
+
 ## 5. 开放问题（需甲方拍板）
 
 1. ~~**拆体范围**~~ —— **已定（2026-10-04，用户）**：**先只拆框↔框的缝**（body 数只在框链上增长），用期 4 的实测对照兜底。
