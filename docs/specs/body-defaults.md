@@ -34,13 +34,13 @@ PigForge 此前两条都没有（`IPhysicsWorld` 契约里连字段都没有）�
 （`EnsureRigidbody` 链 → `Initialize` 链，`INContraption.cs:813-816` 的生成顺序）。任何在别的**生成期**方法里
 写阻尼的类都会让提取器**报错**；已知的**运行期**覆盖被显式列在报告的 `runtimeOverrides` 里：
 
-| 运行期覆盖（本轮**不做**，见 §6） | 出处 |
-|---|---|
-| `FanPropeller.FixedUpdate`：旋翼开时 `angularDrag = 1000`、关时 `1` | `FanPropeller.cs:145-154` |
-| `Rope.FixedUpdate`：每节按拉伸重算 `drag` | `Rope.cs:365-366` |
-| `Pig.FixedUpdate`：`\|v\| < 1` 时 `drag = angularDrag = 0.2 + 2.5(1-\|v\|)` | `Pig.cs:249-262` |
-| `INContraption.FixedUpdateSelf`：`NoDrag` 开关把全场阻尼清零 | `INContraption.cs:329-341` |
-| `HingePlate.EnsurePlateRigidbody`：IN 扩展件的两块板体 | `HingePlate.cs:243-262` |
+| 运行期覆盖 | 处置 | 出处 |
+|---|---|---|
+| `Pig.FixedUpdate`：`\|v\| < 1` 时 `drag = angularDrag = 0.2 + 2.5(1-\|v\|)`，否则写回零件自己的那一对 | **已落地**（内容 `capabilities.dampingRamp` + 每 tick 折叠，§4.5） | `Pig.cs:249-262` |
+| `FanPropeller.FixedUpdate`：旋翼开时 `angularDrag = 1000`、关时 `1` | **不适用**（PigForge 把旋翼并进簇体，见 §6.4） | `FanPropeller.cs:145-154` |
+| `Rope.FixedUpdate`：每节按拉伸重算 `drag = 0.5 + 6/(1+4v²)` | **待绳实现**（G63 未做；公式已记在 §6.4） | `Rope.cs:365-366` |
+| `INContraption.FixedUpdateSelf`：`NoDrag` 开关把全场阻尼清零 | **vanilla 不开**（`INDeclarationSettingsExp.json` `NoDrag = false`） | `INContraption.cs:329-341` |
+| `HingePlate.EnsurePlateRigidbody`：IN 扩展件的两块板体 | **vanilla 不开**（`HingePlate = false`） | `HingePlate.cs:243-262` |
 
 **角速度上限**：`m_DefaultMaxAngularSpeed: 7`（`ProjectSettings/DynamicsManager.asset` 末行）。
 Unity 2021.3 文档 `<Rigidbody.maxAngularVelocity>`：*"The maximum angular velocity of the rigidbody measured in
@@ -125,6 +125,23 @@ PigForge 60 Hz（dt = 1/60）：`49.05 × 0.996667 = 48.8865 m/s`。
 只吃父零件自己的阻尼。`Rigidbody` 级「原版每件一个 body」在 PigForge 的复合体里无法逐件表达，这是最诚实的折叠，
 和弹性（取最强）、摩擦（取最高优先级合成模式）是同一种处理。
 
+### 4.5 运行期斜坡（原版 `Pig.FixedUpdate`，G90）
+
+原版的阻尼不只在生成期写一次：`Pig.FixedUpdate`（`Pig.cs:249-262`）在 contraption 运行期间**每个固定步**重写
+自己刚体的两个阻尼项——`|v| < 1` 时 `drag = angularDrag = 0.2 + 2.5 * (1 - |v|)`（静止时 2.7，是基准
+0.2 的 13.5 倍），否则两个都写回该零件自己的那一对（`0.2 / 0.05`）。这条是**类事实**、且只属于 `Pig` 类：
+`KingPig`/`GoldenPig` 继承 `BasePart`，没有这个方法。
+
+| 环节 | 落地 |
+|---|---|
+| 内容 | `tools/bple-damping` 解析 `Pig.FixedUpdate` 的函数体（`IsRunning` 门控 + `magnitude` 读数 + 两条一致斜坡赋值 + 与类自己的生成对一致的还原赋值），写成件级 `capabilities.dampingRamp { speedThreshold, base, slope }`——20 件猪（4 个值族内 1.0 / 0.2 / 2.5），7 件猪王没有。工具把类集合与数值做成硬断言，第二次运行 0 改动 |
+| 规则层 | `GameplayRules.RunSlowSpeedDamping` 每 tick 读**该零件自己 body** 的速度，`|v| < speedThreshold` 时输出 `PartDampingOverride(entity, 0.2 + 2.5(1-\|v\|), 同一个值)`，否则输出零件自己的那一对；阈值是**严格小于**（原版 `magnitude < 1f`，等于阈值就走 else 支） |
+| 契约 | `IPhysicsWorld.SetBodyDamping(body, linear, angular)`：只改两个阻尼项，角速度上限与冻结自由度**不动**。Bepu 写 `_motionByHandle` 那张表（下一 step 生效）；Jolt 走自己的 body lock 写 `MotionProperties`（`MotionProperties.inl::ApplyForceTorqueAndDragInternal` 每步读它） |
+| 房间层 | `GameRoom.ApplyDampingOverrides`：把每个 override 落到它所在 body 上——单成员 body 直接用该值（折叠的质量权重相消），多成员 body 用 `CompoundAssembler.FoldDamping(members, overrides)` 按质量重新折叠（跳过已经死掉的成员）。**不需要“还原”巡访**：活着的 body 的成员表只会经重建（`RebuildSplitBody` 按新簇各自的折叠重新生成）或销毁而变化，所以斜坡值不会比提出它的零件活得更久 |
+
+**已知偏差**（与 §4.4 同源）：原版把斜坡写在**猪自己那个刚体**上，PigForge 一个簇只有一个 body，所以猪被框包裹时
+斜坡值按质量折算进整车——和生成期阻尼同一种近似，方向不变、幅度被质量摊薄。
+
 ## 5. 验收
 
 - **物理层（Bepu）** `tests/PigForge.Physics.Tests/BodyDampingTests.cs`：每步系数 `1 - c·dt` 逐步相等（60 步）；
@@ -139,9 +156,30 @@ PigForge 60 Hz（dt = 1/60）：`49.05 × 0.996667 = 48.8865 m/s`。
 - **房间层**：`BalloonLiftTests` 改成**阻尼上升的递推**（`v ← (v + a·dt)(1 - c·dt)`，每 tick 与实测速度
   差 < 0.05 m/s）；`FanThrustTests` 安定窗口 120 → 240 tick（阻尼让落地安静下来更慢），30 tick 转角速度
   **3.84 rad/s**（无阻尼 4.63）；`PigBounceTests` 回弹 **1.415 m**（无阻尼 1.766，系数 0.484 → 0.387）。
-- **实机（真服务器 + 真内容 + 真 Bepu + 真 PGFS）**：见 §5.1。
 
-### 5.1 实机探针
+### 5.1 运行期斜坡（G90）
+
+- **规则层** `tests/PigForge.Core.Tests/GameplayRulesTests.ASlowPigAsksForTheRampedDampingOnBothAxes`（三个速度：
+  0 → 2.7、0.4 → 1.7、0.5 → 1.45，两个轴同值）、`APigAtOrAboveTheThresholdAsksForItsOwnPairBack`（1.0 与 2.0 都
+  回到 (0.2, 0.05)）、`APigWhoseClassDeclaresNoRampAsksForNothing`（无斜坡的猪一条都不发）、
+  `EachRampingPigReadsTheSpeedOfItsOwnBody`。
+- **折叠** `BodyDampingTests.MergedMembersFoldTheirDampingByMass`：同一个簇用 override 重折——1 kg @2.7 顶替猪自己的
+  值，3 kg 帧保持 0.2 → `(2.7 + 0.6)/4 = 0.825`；单成员 body 的值不被折叠改变。
+- **内容** `PartContentTests.TheRealContentCarriesTheExtractedPigDampingRamp`：20 件猪（name `pig`/`pig-v*`）都带
+  `(1.0, 0.2, 2.5)`，7 件猪王一件不带，全目录只有这 20 件带；`InvalidJointEnclosureAndAttachmentCapabilitiesAreRejected`
+  新增 6 条（非对象 / 缺键 / 阈值 0 / base 负 / 未知键）。
+- **物理层** `BodyDampingTests.ARuntimeDampingChangeTakesEffectOnTheVeryNextStep`（Bepu）与
+  `JoltBodyDampingTests.JoltTakesARuntimeDampingChangeOnTheVeryNextStep`（Jolt）：先按 0.2 走一步（10 → 9.9667），
+  再 `SetBodyDamping(2.7, 2.7)`，其后两步逐步等于 `1 - 2.7/60`；角速度按新角阻尼衰减、**角速度上限不变**；
+  负值抛 `ArgumentOutOfRangeException`，未知 body 抛 `KeyNotFoundException`。
+- **房间层** `tests/PigForge.Server.Tests/PigDampingRoomTests`（真 Bepu + 出厂内容）：同一只猪从 12 m / 0.25 rad
+  的斜坡上滚下，跑到 60 m 地板上；**唯一差别**是控制组把猪的 `capabilities.dampingRamp` 删掉。实测（确定性）：
+  tick 540 两边都还在阈值之上（1.48 m/s）；带斜坡的那只在阈值下**熄火**——t780 `|v| 0.20`、t900 `0.001`、t960 起
+  完全静止（停在 x = 2.914），控制组 t900 仍以 0.574 m/s 滚动、t1200 还有 0.262 m/s，多滚了 3.6 m。
+
+- **实机（真服务器 + 真内容 + 真 Bepu + 真 PGFS）**：见 §5.2。
+
+### 5.2 实机探针
 
 真服务器（`--play`，Release）+ 真内容 + 真 Bepu + 真 PGFS（浏览器里用客户端自己的编解码器），同一 fixture 三轮逐位一致。
 
@@ -164,10 +202,14 @@ PigForge 60 Hz（dt = 1/60）：`49.05 × 0.996667 = 48.8865 m/s`。
    以 `DynamicsManager.asset` 为准。
 3. **`0` 上限的语义差异**：PigForge 契约里 `0` = 不限；Unity/Jolt 的 `0` = 角速度清零。内容永远写正值（7），
    所以差异只在测试夹具可达。
-4. **运行期覆盖未做**（§1 表）：`Pig.FixedUpdate` 的慢速增阻（`|v| < 1` 时最高 2.7）、旋翼的
-   `angularDrag 1000/1`、绳的逐节阻尼、`NoDrag` 设置开关、IN 铰链板的板体。旋翼那条属于
-   `docs/specs/fan-propeller.md` §7 的四条链（推力轴 + 角阻尼 + `m_rotorTargetDirection` + 左向射线增益），
-   要一起做。
+4. **运行期覆盖**（§1 表）：`Pig.FixedUpdate` 的慢速增阻**已落地**（§4.5，G90）；剩下三条在本基准下不构成要做的事：
+   - 旋翼的 `angularDrag 1000/1`（`FanPropeller.cs:145-154`）**不适用**：原版给的是**旋翼自己那个刚体**，
+     目的是让它不因自身偏心推力自转；PigForge 把扇/螺旋桨/旋翼并进簇体（ADR-022、§4.N），把 1000 写在簇体上
+     会让整个载具的角速度每步被清零（系数 `max(0, 1 - 1000/60) = 0`），而它要防的那种自转本来就不存在。
+   - 绳的逐节阻尼（`Rope.cs:365-366`，`drag = 0.5 + 6/(1 + 4v²)`，`v` 是该节两端速度的最大值）**待绳实现**
+     （G63）；公式记在这里，实现绳时按原样取。
+   - `NoDrag`（`INContraption.cs:329-341`）与 IN 铰链板的板体（`HingePlate.cs:243-262`）在**声明默认档下不开**
+     （`NoDrag = false`、`HingePlate = false`），所以不是缺口。
 5. **`m_BounceThreshold: 2`（原版）vs 我们的 `MinimumBounceApproachSpeed = 0.5`**（`GameplayRules.cs:175`）：
    原版在相对速度 < 2 m/s 时**忽略弹性**，我们的合成弹性阈值更低 → 低速接触我们会弹、原版不弹。G89。
 6. **`m_DefaultSolverIterations = 6` / 速度迭代 1 / `m_EnableAdaptiveForce: 0` / `m_ContactPairsMode: 0` /
