@@ -110,6 +110,25 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 
 **排除（原版基准件 PigForge 没有）**：Basket、JetEngine、Pumpkin、GoldenPig（后两族见 G91：需要各自的新基座）、ColoredFrame、CustomPart、电路/机械 IN 扩展件、`Part_GrapplingHook_06`（异形枪：发射弹体，需要投射物子系统）、特殊蛋 `Egg_02..05`（引力/反重力/幽灵：需要逐刚体重力与碰撞过滤，`IPhysicsWorld` 无此能力）。
 
+### IN 扩展件（目录口径，G109，2026-10-06 用户拍板）
+
+IN（Innovation）mod 框架里有些零件在**声明默认档就是关掉的**（`INPartFactoryManager.cs:57-110` 的
+`RegisterPart` 键为 `false` → `RemoveCustomPart` 掉对应条目），即它们**不是零售版零件**：`BlasterTNT`（`TNT#6`）、
+`OffRoadWheel`（`MotorWheel#7`）、`HingePlate`（`Rope#4-7`）、`MetalBox`/`WoodenBox`/`ColoredFrame`/`BracketFrame`
+（`MetalFrame`/`WoodenFrame` 的自定义索引）、`AutoGun`/`MultipartGenerator`（`GrapplingHook#6/#8-10`）、
+`DecelerationLight`/`AutoControlLight`（`PointLight#5/#6`）与 `FuelSystem`/`ElectricalSystem`/`MechanicalSystem` 整族。
+
+**目录现状**：284 件里**只有 `52 tnt-blaster`（`Part_TNT_07_SET`）是这种件**，其余 283 件都有 vanilla 路径。
+它的 curation 记录在 `tools/bple-variants/variant-overrides.json` 的 `extras` 条目（`note` 写着
+「BlasterTNT is an IN extension part (not in GameData.m_customParts)」，`capabilities.blaster` 与
+`activation: trigger` 由该条目给出）。
+
+**拍板（用户 2026-10-06，G109）**：**保留并标注为「IN 扩展件」**，不从目录移除、建造栏照旧。理由是它与
+ADR-004/006 的「不同东西 = 新零件」同源：它有自己的 part id、自己的 `blaster` 能力，删掉只会损失内容，
+而它的行为值本来就来自 `BlasterTNT.cs`（不是被 mod 改写的原版零件）。**不新增内容键**：今天没有任何消费者
+需要机器可读的「是不是 IN 件」，给一件加一个没人读的位就是死重量；将来若要让客户端区分展示（例如建造栏
+打标或过滤），再按「内容键必须同步五处」的流程补一个 `origin: "inExtension"`。
+
 > ~~EngineSmall、EngineBig~~ **已补**（G87，2026-10-04，见上：两个新基座 + 15 个皮肤）。
 
 ## 能力扩展（part-content-v1，全部可选、向后兼容）

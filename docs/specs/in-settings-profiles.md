@@ -95,10 +95,14 @@ B 档（`INSettingsB*.json`）是 mod 的「全功能」档，**不作为任何�
 - 所以本次「回到 vanilla」是**把原版零件的数字恢复成原版的**，B 档的数字不保留在原版零件上；
   若将来要 B 档体验，做法是（a）新增零件，或（b）像原作那样做成可选的档位，而不是覆盖原版值。
 
-**同一个道理的另一面（待办）**：IN 零件本身也是档位门控的——`BlasterTNT`、`OffRoadWheel`、`HingePlate`、
-`SpecialEggs`、`MetalBox`、`NewAlienEgg` 等在**声明默认档里不存在**（`false`）。我们目录里已经把它们收作
-**独立 part id**（与「不同东西 = 新零件」一致），但要注意它们不是零售版零件；要不要继续收、要不要另开
-「IN 扩展件」分类标注，见 §5 待办。
+**同一个道理的另一面（已拍板 2026-10-06，G109）**：IN 零件本身也是档位门控的——`BlasterTNT`、`OffRoadWheel`、
+`HingePlate`、`SpecialEggs`、`MetalBox`、`NewAlienEgg` 等在**声明默认档里不存在**（`false`）。用户拍板：
+**保留并标注为「IN 扩展件」**（不把它们从目录里删掉）。现状核对：目录 284 件里**只有 `52 tnt-blaster`
+（`Part_TNT_07_SET`）属于这一类**（其余 283 件都有 vanilla 路径）；它的 curation 记录在
+`tools/bple-variants/variant-overrides.json` 的 `extras` 条目（`note` 已写明「BlasterTNT is an IN extension
+part (not in GameData.m_customParts)」），目录口径与理由记在 `docs/specs/part-variant-catalog.md`
+§「IN 扩展件」。**不新增内容键**：今天没有消费者（建造栏与运行时都照旧用它），加一个没人读的位属死重量；
+将来若要让客户端区分展示，再按「内容键必须五处同步」的流程补。
 
 ### 4.2 执行分期（每片一次验收）
 
