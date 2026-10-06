@@ -1312,7 +1312,7 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
-    public void BellowsFiresOnItsSwitchInsteadOfTouchdown()
+    public void BellowsPuffsOnItsButtonAndAgainAfterItsOwnCycle()
     {
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
@@ -1322,19 +1322,65 @@ public sealed class GameplayRulesTests
         harness.Link(bellows, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        // Grounded but unswitched: nothing fires.
+        // Grounded but unpressed: nothing fires.
         harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         Assert.Empty(harness.Output.Commands);
 
+        // The button is momentary: one puff per press, and the press is spent with it.
         harness.Rules.SetActive(bellows, true);
         harness.Tick(2, Array.Empty<PhysicsEvent>());
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(8f, command.Impulse.X, 5);
+        Assert.False(harness.Rules.IsPartActive(bellows));
 
-        // Spent: a later switch or touchdown cannot re-fire it.
+        // A press during the original's own cycle (0.8 s + the 0.3 s inflate, Bellows.cs:23-27,64-67)
+        // is spent without puffing, so the button never sits latched on the bar.
         harness.Rules.SetActive(bellows, true);
-        harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands);
+        Assert.False(harness.Rules.IsPartActive(bellows));
+
+        for (uint tick = 4; tick < 68; tick++)
+        {
+            harness.Tick(tick, Array.Empty<PhysicsEvent>());
+        }
+
+        Assert.Empty(harness.Output.Commands);
+        // The cycle is up at 2 + 66 ticks: the same button puffs again.
+        harness.Rules.SetActive(bellows, true);
+        harness.Tick(68, Array.Empty<PhysicsEvent>());
+        Assert.Equal(8f, Assert.Single(harness.Output.Commands).Impulse.X, 5);
+    }
+
+    [Fact]
+    public void AButtonPressAPartsOwnGateRefusesIsStillSpent()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        // Both of these are BasePropulsion parts: without a chassis neighbour they never fire
+        // (BasePropulsion.cs:13-20). The press must be spent all the same -- otherwise the bar
+        // shows a switch stuck on its "on" position, which is not a button any more.
+        EntityId bellows = entities.Create();
+        harness.Rules.AddBellows(bellows, boostImpulse: 8f);
+        harness.Rules.AddActivation(bellows);
+        harness.Rules.SetChassisAnchored(bellows, anchored: false);
+        harness.Link(bellows, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        harness.Rules.AddActivation(rocket);
+        harness.Rules.SetChassisAnchored(rocket, anchored: false);
+        harness.Link(rocket, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, 3, 0), PhysicsVector3.Zero);
+
+        harness.Rules.SetActive(bellows, true);
+        harness.Rules.SetActive(rocket, true);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Empty(harness.Output.Commands);
+        Assert.False(harness.Rules.IsPartActive(bellows));
+        Assert.False(harness.Rules.IsPartActive(rocket));
     }
 
     [Fact]

@@ -184,6 +184,19 @@ public sealed class GameplayRules
     /// the level's own impact thresholds).</summary>
     private const float MinimumBounceApproachSpeed = 0.5f;
 
+    /// <summary>
+    /// A bellows' own cycle: <c>Bellows.CompressionScale</c>/<c>FixedUpdate</c> run one 0.5 s puff
+    /// and then wait, and <c>OnTouch</c> refuses a fresh one while
+    /// <c>Time.time - m_timeBoostStarted &lt; 0.8 + InflateDuration</c> (<c>Bellows.cs:23-27,64-67</c>),
+    /// i.e. 1.1 s for every shipped skin (the alien skin's inflate is 0.15 s, so it waits 1.0 s;
+    /// the difference is recorded as a deviation -- content carries no alien flag).
+    /// </summary>
+    private const float BellowsCycleSeconds = 1.1f;
+
+    /// <summary>The same cycle counted in ticks at the room's rate.</summary>
+    private static readonly uint BellowsCycleTicks =
+        (uint)MathF.Round(BellowsCycleSeconds / ForceSecondsPerImpulse);
+
     /// <summary>How many ticks a remembered approach speed stays usable. A contact event can
     /// arrive after the impact (measured: a 9.32 m/s landing was reported as 2.56 m/s because the
     /// solver had already absorbed the rest), so the impact speed has to outlive the event by a
@@ -590,7 +603,7 @@ public sealed class GameplayRules
     public void AddGearbox(EntityId entity) => _gearboxes.Set(entity, default);
 
     public void AddBellows(EntityId entity, float boostImpulse) =>
-        _bellows.Set(entity, new BellowsState(boostImpulse, BoostedRecently: false));
+        _bellows.Set(entity, new BellowsState(boostImpulse, ReadyAtTick: 0));
 
     public void AddDetacher(EntityId entity) => _detachers.Set(entity, default);
 
@@ -638,9 +651,16 @@ public sealed class GameplayRules
     /// <summary>True when the part has an activation entry, i.e. its content declared a switch.</summary>
     public bool HasSwitch(EntityId entity) => _activations.TryGet(entity, out _);
 
-    /// <summary>Consumes a one-shot switch: false when the part has no switch (the caller
-    /// falls back to its legacy contact rule) or the switch is off.</summary>
-    private bool TryConsumeTrigger(EntityId entity)
+    /// <summary>
+    /// Consumes a momentary button press (content <c>activation: "trigger"</c>): false when the
+    /// part carries no activation (the caller falls back to its legacy contact rule) or the button
+    /// is not pressed. The press is spent the moment it is read, before any of the part's own
+    /// gates, so a button whose effect is refused cannot stay latched on in the switch bar -- the
+    /// original's bar button is <c>BasePart.OnButtonTriggered</c> -&gt; <c>ProcessTouch()</c>
+    /// (<c>BasePart.cs:1428</c>), a one-shot, never a level (docs/specs/play-part-switches.md
+    /// Assumption 2).
+    /// </summary>
+    public bool TryConsumeButtonPress(EntityId entity)
     {
         if (!_activations.TryGet(entity, out ActivationState state))
         {
@@ -1491,46 +1511,72 @@ public sealed class GameplayRules
         var bellows = _bellows.GetEnumerator();
         while (bellows.MoveNext())
         {
-            if (!_bodies.TryGet(bellows.CurrentId, out PhysicsBodyLink link)
-                || !_kinematicsByBody.ContainsKey(link.Body.Value))
-            {
-                continue;
-            }
-
-            // A bellows is a BasePropulsion part: it needs a chassis neighbour
-            // (BasePropulsion.cs:13-20).
-            if (!IsChassisAnchored(bellows.CurrentId))
-            {
-                continue;
-            }
-
+            EntityId entity = bellows.CurrentId;
             BellowsState state = bellows.CurrentValue;
-            bool switched = HasSwitch(bellows.CurrentId);
-            bool touched = _touchedBodies.Contains(link.Body.Value);
-            if (state.BoostedRecently)
+            // The bar button is momentary (BasePart.OnButtonTriggered -> ProcessTouch,
+            // BasePart.cs:1428; Bellows.OnTouch, Bellows.cs:100-118): the press is spent the moment
+            // it is read, before any gate, so a bellows that cannot puff never leaves its button
+            // latched on.
+            bool pressed = TryConsumeButtonPress(entity);
+
+            if (!_bodies.TryGet(entity, out PhysicsBodyLink link)
+                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
             {
-                // Legacy content re-arms on lift-off; a switched part stays spent.
+                continue;
+            }
+
+            bool switched = HasSwitch(entity);
+            bool touched = _touchedBodies.Contains(link.Body.Value);
+            if (_tick < state.ReadyAtTick)
+            {
+                // A legacy bellows (no activation) re-arms the moment it leaves the ground; a
+                // pressed one waits out the original's own cycle (1.1 s from the start of the
+                // puff, Bellows.cs:64-67).
                 if (!switched && !touched)
                 {
-                    _bellows.Set(bellows.CurrentId, state with { BoostedRecently = false });
+                    _bellows.Set(entity, state with { ReadyAtTick = 0 });
                 }
 
                 continue;
             }
 
-            bool fire = switched ? TryConsumeTrigger(bellows.CurrentId) : touched;
-            if (!fire)
+            // A switch (or the button) is the only player trigger; legacy content still fires on
+            // touchdown (docs/specs/play-part-switches.md Assumption 4).
+            if (!pressed && (switched || !touched))
             {
                 continue;
             }
 
-            // A landing (legacy content) or the switch fires the jet: one forward boost
-            // along facing +X (original bellows m_boostForce one-shot) until the rig lifts off.
-            _bellows.Set(bellows.CurrentId, state with { BoostedRecently = true });
+            // A bellows is a BasePropulsion part: it needs a chassis neighbour
+            // (BasePropulsion.cs:13-20; CanBeEnabled() => m_isConnected, Bellows.cs:50-53).
+            if (!IsChassisAnchored(entity))
+            {
+                continue;
+            }
+
+            _bellows.Set(entity, state with { ReadyAtTick = _tick + (uint)BellowsCycleTicks });
+            // The puff pushes along the part's own axis: Bellows.cs:84-86 reads
+            // `transform.TransformDirection(m_direction)` and every shipped skin serializes
+            // m_direction (1,0,0), so the build rotation aims it -- the same reference frame a
+            // fan's m_forceDirection goes through (docs/specs/fan-propeller.md §7.2). The force
+            // point is the part's own mount, `transform.position + vector * 0.5` (Bellows.cs:87).
+            PhysicsQuaternion bodyRotation = _rotationByBody.TryGetValue(link.Body.Value, out PhysicsQuaternion bodyPose)
+                ? bodyPose
+                : PhysicsQuaternion.Identity;
+            PhysicsVector3 partPosition = kinematics.Position;
+            if (_localOffsetByEntity.TryGetValue(entity.Value, out PhysicsVector3 partOffset))
+            {
+                partPosition += bodyRotation.Rotate(partOffset);
+            }
+
+            PhysicsQuaternion partRotation = _localRotationByEntity.TryGetValue(entity.Value, out PhysicsQuaternion localRotation)
+                ? bodyRotation * localRotation
+                : bodyRotation;
+            PhysicsVector3 axis = partRotation.Rotate(new PhysicsVector3(1f, 0f, 0f));
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                new PhysicsVector3(state.BoostImpulse, 0f, 0f),
-                _kinematicsByBody[link.Body.Value].Position));
+                axis * state.BoostImpulse,
+                partPosition + (axis * 0.5f)));
         }
     }
 
@@ -1546,6 +1592,9 @@ public sealed class GameplayRules
             }
 
             GrappleState grapple = grapples.CurrentValue;
+            // The bar button is momentary: the press is spent before this part's own gates, so a
+            // hook that cannot fire never leaves its button latched on.
+            bool pressed = TryConsumeButtonPress(grapples.CurrentId);
             bool switched = HasSwitch(grapples.CurrentId);
             bool touched = _touchedBodies.Contains(link.Body.Value);
             if (grapple.FiredRecently)
@@ -1566,7 +1615,7 @@ public sealed class GameplayRules
                 continue;
             }
 
-            bool fire = switched ? TryConsumeTrigger(grapples.CurrentId) : touched;
+            bool fire = switched ? pressed : touched;
             if (!fire)
             {
                 continue;
@@ -1590,7 +1639,7 @@ public sealed class GameplayRules
         {
             // A switched detacher fires on its switch; legacy content keeps the
             // impact path in DetachOnImpact.
-            if (TryConsumeTrigger(detachers.CurrentId))
+            if (TryConsumeButtonPress(detachers.CurrentId))
             {
                 output.DetachedEntities.Add(detachers.CurrentId);
             }
@@ -1603,6 +1652,9 @@ public sealed class GameplayRules
         var rockets = _rockets.GetEnumerator();
         while (rockets.MoveNext())
         {
+            // The bar button is momentary: the press is spent before the chassis gate, so a rocket
+            // that never fires cannot stay latched on.
+            bool pressed = TryConsumeButtonPress(rockets.CurrentId);
             if (!_bodies.TryGet(rockets.CurrentId, out PhysicsBodyLink link)
                 || !_kinematicsByBody.ContainsKey(link.Body.Value))
             {
@@ -1621,7 +1673,7 @@ public sealed class GameplayRules
             if (!rocket.Ignited)
             {
                 // A switched rocket waits for its switch; legacy content auto-ignites.
-                if (HasSwitch(rockets.CurrentId) && !TryConsumeTrigger(rockets.CurrentId))
+                if (HasSwitch(rockets.CurrentId) && !pressed)
                 {
                     continue;
                 }
@@ -1707,7 +1759,7 @@ public sealed class GameplayRules
         while (tntComponents.MoveNext())
         {
             TntState state = tntComponents.CurrentValue;
-            if (!state.Ignited && HasSwitch(tntComponents.CurrentId) && TryConsumeTrigger(tntComponents.CurrentId))
+            if (!state.Ignited && HasSwitch(tntComponents.CurrentId) && TryConsumeButtonPress(tntComponents.CurrentId))
             {
                 // The switch is the player's lighter (original OnTouch -> Explode);
                 // impact ignition stays available unless content disabled it.
@@ -1809,7 +1861,7 @@ public sealed class GameplayRules
         var blasters = _blasters.GetEnumerator();
         while (blasters.MoveNext())
         {
-            if (!blasters.CurrentValue.Spent && TryConsumeTrigger(blasters.CurrentId))
+            if (!blasters.CurrentValue.Spent && TryConsumeButtonPress(blasters.CurrentId))
             {
                 (fired ??= new List<EntityId>()).Add(blasters.CurrentId);
             }
@@ -1835,7 +1887,7 @@ public sealed class GameplayRules
 
                 // The charge survives as a spent husk (original BlasterTNT keeps its part).
                 _blasters.Set(entity, blaster with { Spent = true });
-                TryConsumeTrigger(entity);
+                TryConsumeButtonPress(entity);
                 if (!_bodies.TryGet(entity, out PhysicsBodyLink link)
                     || !_kinematicsByBody.TryGetValue(link.Body.Value, out var center))
                 {
@@ -2057,9 +2109,9 @@ public sealed class GameplayRules
         var bellows = _bellows.GetEnumerator();
         while (bellows.MoveNext())
         {
-            if (bellows.CurrentValue.BoostedRecently)
+            if (bellows.CurrentValue.ReadyAtTick != 0)
             {
-                _bellows.Set(bellows.CurrentId, bellows.CurrentValue with { BoostedRecently = false });
+                _bellows.Set(bellows.CurrentId, bellows.CurrentValue with { ReadyAtTick = 0 });
             }
         }
 

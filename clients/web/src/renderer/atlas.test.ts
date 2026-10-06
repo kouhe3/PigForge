@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { layoutSprites, loadPartTextures, parsePartTextures } from "./atlas";
+import { layoutSprites, loadPartTextures, parsePartTextures, subEntityTexture } from "./atlas";
 
 const manifest = {
   format: "pigforge.part-textures",
@@ -54,6 +54,52 @@ describe("parsePartTextures", () => {
       parts: { "10": { bbox: [1, 1], sprites: [{ ...manifest.parts["10"].sprites[0], w: 0 }] } },
     };
     expect(() => parsePartTextures(broken)).toThrow(/rect not positive/);
+  });
+});
+
+// A v5 manifest: the host part's composite plus the art of the prefab it instantiates at run time
+// (a boxing glove's fist), in the sub-entity's own frame.
+const subEntityManifest = {
+  format: "pigforge.part-textures",
+  schemaVersion: 5,
+  atlases: { "A.png": { width: 2048, height: 2048 } },
+  parts: {
+    "28": {
+      bbox: [2, 1],
+      sprites: [{ atlas: "A.png", x: 10, y: 20, w: 100, h: 50, cx: 0.5, cy: 0, sx: 1, sy: 1, rot: 0, rotates: false }],
+      subSprites: [{ atlas: "A.png", x: 300, y: 400, w: 80, h: 60, cx: 0, cy: 0.1, sx: 0.8, sy: 0.6, rot: -1.5708, rotates: false }],
+    },
+    "27": {
+      bbox: [1, 1],
+      sprites: [{ atlas: "A.png", x: 5, y: 5, w: 40, h: 40, cx: 0, cy: 0, sx: 0.4, sy: 0.4, rot: 0, rotates: false }],
+    },
+  },
+};
+
+describe("subEntityTexture", () => {
+  it("swaps a sub-entity's art for the host part's composite", () => {
+    const texture = parsePartTextures(subEntityManifest).get(28)!;
+    expect(texture.subSprites).toHaveLength(1);
+    expect(subEntityTexture(texture, true)?.sprites).toEqual(texture.subSprites);
+  });
+
+  it("keeps the host's composite for the placed part itself", () => {
+    const texture = parsePartTextures(subEntityManifest).get(28)!;
+    expect(subEntityTexture(texture, false)).toBe(texture);
+  });
+
+  it("keeps the host's composite when the part has no sub-entity art extracted", () => {
+    // A broken spring's endpoint borrows the spring's type but ships no prefab of its own.
+    const texture = parsePartTextures(subEntityManifest).get(27)!;
+    expect(subEntityTexture(texture, true)).toBe(texture);
+  });
+
+  it("rejects a sub-entity sprite list that is not an array of sprites", () => {
+    const broken = {
+      ...subEntityManifest,
+      parts: { "28": { ...subEntityManifest.parts["28"], subSprites: [{ ...subEntityManifest.parts["28"].subSprites[0], atlas: "" }] } },
+    };
+    expect(() => parsePartTextures(broken)).toThrow(/sub-entity sprite 0 atlas/);
   });
 });
 
@@ -139,8 +185,8 @@ describe("parsePartTextures animation descriptors", () => {
     expect(() => parsePartTextures(broken)).toThrow(/hitDeltaV is not positive/);
   });
 
-  it("rejects a schema version past the connection one", () => {
-    expect(() => parsePartTextures({ ...animatedManifest, schemaVersion: 5 })).toThrow(/unsupported schemaVersion/);
+  it("rejects a schema version past the sub-entity one", () => {
+    expect(() => parsePartTextures({ ...animatedManifest, schemaVersion: 6 })).toThrow(/unsupported schemaVersion/);
   });
 });
 

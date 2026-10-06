@@ -1,4 +1,7 @@
 using PigForge.Core;
+using PigForge.Core.Content;
+using PigForge.Physics.Abstractions;
+using PigForge.Physics.Bepu;
 using PigForge.Protocol;
 using PigForge.Server;
 
@@ -6,10 +9,10 @@ namespace PigForge.Server.Tests;
 
 /// <summary>
 /// The boxing glove in a real room (docs/specs/boxing-glove.md §3-§6), real Bepu and real content:
-/// a placed glove part spawns a second body, the toggle throws it down the part's own -Y to the
-/// skin's distance, the throw knocks the part behind it off the contraption, the limp glove winds
-/// back home, and the whole thing can be thrown again. The numbers below are what the shipped part
-/// does.
+/// a placed glove part spawns a second body, its button (content `activation: trigger`) throws that
+/// body down the part's own -Y to the skin's distance, the throw knocks the part behind it off the
+/// contraption, the limp glove winds back home on its own shoot time, and the same button throws it
+/// again. The numbers below are what the shipped part does.
 /// </summary>
 public sealed class BoxingGloveRoomTests
 {
@@ -20,7 +23,7 @@ public sealed class BoxingGloveRoomTests
     private const float ThrowDistance = 2.5f;
 
     [Fact]
-    public void APlacedGloveSpawnsASecondBodyHeldAtHome()
+    public void APlacedGloveSpawnsAFistTheFrameHidesUntilItIsThrown()
     {
         using GameRoom room = PlayHost.CreateSandboxRoom();
         uint player = PlayHost.NextPlayerId();
@@ -35,13 +38,27 @@ public sealed class BoxingGloveRoomTests
 
         room.RunTicks(30);
         List<SnapshotEntity> entities = PublishEntities(room);
-        (SnapshotEntity host, SnapshotEntity sub) = GlovePair(entities, glove);
-        Assert.NotEqual(host.PhysicsBodyId, sub.PhysicsBodyId);
-        Assert.NotEqual(0u, sub.PhysicsBodyId);
-        // Wound up: the skin's yDrive holds the glove against the part (only the servo's own sag).
-        Assert.InRange(MathF.Abs(Offset(host, sub)), 0f, 0.05f);
+        // Wound up, the fist is the original's *inactive* GameObject (`InitilizeBoxingGlove` ends
+        // with `m_BoxingGlove.SetActive(false)`, SpringBoxingGlove.cs:215-222): nothing is drawn, so
+        // nothing is published -- the client shows the box alone. The body itself is still in the
+        // world (SubEntityCount above) and the physics-level test covers the drive that holds it.
+        Assert.False(FistIsOut(entities, glove));
+        Assert.Single(GloveParts(entities));
+        Assert.Equal(glove, GloveParts(entities)[0].EntityId);
         // The sub-entity is inside the room's own snapshot bound (ADR-027).
         Assert.True(room.MaxSnapshotEntityCount >= entities.Count);
+
+        // The throw puts it on the wire, flagged as the sub-entity it is (PGFS v5 bit1) so the
+        // client draws the fist instead of a second glove part.
+        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, true), player)).IsAccepted);
+        room.RunTicks(6);
+        List<SnapshotEntity> thrown = PublishEntities(room);
+        (SnapshotEntity host, SnapshotEntity sub) = GlovePair(thrown, glove);
+        Assert.Equal((byte)0, host.Flags & 0b10);
+        Assert.Equal((byte)0b10, sub.Flags & 0b10);
+        Assert.NotEqual(host.PhysicsBodyId, sub.PhysicsBodyId);
+        Assert.NotEqual(0u, sub.PhysicsBodyId);
+        Assert.True(room.MaxSnapshotEntityCount >= thrown.Count);
     }
 
     [Fact]
@@ -53,12 +70,15 @@ public sealed class BoxingGloveRoomTests
         uint glove = Place(room, ref sequence, player, PartBoxingGlove, 0f, 8f);
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
 
-        (SnapshotEntity host, SnapshotEntity sub) = GlovePair(PublishEntities(room), glove);
-        Assert.InRange(MathF.Abs(Offset(host, sub)), 0f, 0.05f);
+        // Wound up: the fist is stowed, so the frame carries the box alone.
+        Assert.False(FistIsOut(PublishEntities(room), glove));
 
-        // Toggle on: the glove is thrown (activation: toggle means SetPartActive is the trigger).
+        // The button: the glove is thrown (activation: trigger means SetPartActive is the press).
         Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, true), player)).IsAccepted);
 
+        // The fist only joins the frame once the machine has run: its first tick is what throws it.
+        SnapshotEntity host = default;
+        SnapshotEntity sub = default;
         float peak = 0f;
         float atShootEnd = 0f;
         for (int tick = 0; tick < 24; tick++)
@@ -74,13 +94,14 @@ public sealed class BoxingGloveRoomTests
         Assert.True(peak >= ThrowDistance * 0.9f, $"peak {peak} must reach the throw distance");
         Assert.InRange(atShootEnd, ThrowDistance * 0.9f, ThrowDistance * 1.1f);
 
-        // Then the wind-back: limp, home within the original's "or home within 0.1 m" test.
+        // Then the wind-back: limp, home within the original's "or home within 0.1 m" test. The
+        // fist leaves the frame when the machine reaches WindedUp again -- the original deactivates
+        // the glove GameObject there, which is exactly the stowed state the client stops drawing.
         int windTicks = 0;
         for (; windTicks < 120; windTicks++)
         {
             room.Tick();
-            (host, sub) = GlovePair(PublishEntities(room), glove);
-            if (MathF.Abs(Offset(host, sub)) < 0.1f)
+            if (!FistIsOut(PublishEntities(room), glove))
             {
                 break;
             }
@@ -91,10 +112,7 @@ public sealed class BoxingGloveRoomTests
         // neighbourhood (the home test fires well before the declared 1 s wind time).
         Assert.InRange(windTicks * (1f / 60f), 0.05f, 0.9f);
 
-        // Repeatable: the switch is still on, so the glove waits for a fresh off→on edge and throws
-        // again.
-        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, false), player)).IsAccepted);
-        room.Tick();
+        // Repeatable: the button is momentary, so a fresh press throws the same glove again.
         Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, true), player)).IsAccepted);
 
         float secondPeak = 0f;
@@ -139,6 +157,82 @@ public sealed class BoxingGloveRoomTests
     }
 
     [Fact]
+    public void APressTheThrowRefusesIsStillSpent()
+    {
+        using GameRoom room = CreateGloveRoom();
+        uint player = PlayHost.NextPlayerId();
+        uint sequence = 0;
+        uint glove = Place(room, ref sequence, player, PartBoxingGlove, 0f, 8f);
+        Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
+
+        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, true), player)).IsAccepted);
+        room.RunTicks(6);
+
+        // The fist is out, so a second press changes nothing (the machine only throws from rest) —
+        // but it must not leave the button latched on either: the next snapshot reports it clear, so
+        // the bar keeps drawing a button rather than a switch stuck on its "on" position.
+        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, true), player)).IsAccepted);
+        room.Tick();
+        Assert.Equal((byte)0, PublishEntities(room).Single(entity => entity.EntityId == glove).Flags & 1);
+    }
+
+    [Fact]
+    public void AToggleGloveThrowsOnItsSwitchLevelAndStaysLatchedOn()
+    {
+        // The branch the original's IN `SwitchableBoxingGlove` selects (spec §2/§5): the same
+        // machine, driven by the switch level, and the level stays on. Shipped content is the
+        // momentary branch instead, so the room is built from the shipped document with that one
+        // field flipped -- which is also what proves content decides the path.
+        using GameRoom room = CreateGloveRoom(PartActivation.Toggle);
+        uint player = PlayHost.NextPlayerId();
+        uint sequence = 0;
+        uint glove = Place(room, ref sequence, player, PartBoxingGlove, 0f, 8f);
+        Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
+
+        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, true), player)).IsAccepted);
+        room.Tick();
+
+        (SnapshotEntity host, SnapshotEntity sub) = GlovePair(PublishEntities(room), glove);
+        float peak = 0f;
+        for (int tick = 0; tick < 24; tick++)
+        {
+            room.Tick();
+            (host, sub) = GlovePair(PublishEntities(room), glove);
+            peak = MathF.Max(peak, Offset(host, sub));
+        }
+
+        // A level for this content, not a button press: the switch stays on in the snapshot.
+        Assert.Equal((byte)1, PublishEntities(room).Single(entity => entity.EntityId == glove).Flags & 1);
+        Assert.True(peak >= ThrowDistance * 0.9f, $"peak {peak} must reach the throw distance");
+
+        // The machine still runs its own cycle (the branches differ in what drives the throw, not
+        // in the machine): the limp fist is home within the wind time while the level is still on,
+        // and the frame drops it again the moment the machine is wound up.
+        room.RunTicks(60);
+        Assert.False(FistIsOut(PublishEntities(room), glove));
+        Assert.Equal((byte)1, PublishEntities(room).Single(entity => entity.EntityId == glove).Flags & 1);
+
+        // A press while the level is already on is not a fresh off→on edge: nothing throws.
+        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, true), player)).IsAccepted);
+        room.RunTicks(6);
+        Assert.False(FistIsOut(PublishEntities(room), glove));
+
+        // Off and on again throws: the level is the trigger, the press is not.
+        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, false), player)).IsAccepted);
+        room.Tick();
+        Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, glove, true), player)).IsAccepted);
+        float secondPeak = 0f;
+        for (int tick = 0; tick < 24; tick++)
+        {
+            room.Tick();
+            (host, sub) = GlovePair(PublishEntities(room), glove);
+            secondPeak = MathF.Max(secondPeak, Offset(host, sub));
+        }
+
+        Assert.True(secondPeak >= ThrowDistance * 0.9f, $"the fresh edge must throw too ({secondPeak})");
+    }
+
+    [Fact]
     public void APlayerResetTakesTheGloveWithItAndAFreshStartRebuildsIt()
     {
         using GameRoom room = CreateGloveRoom();
@@ -154,8 +248,10 @@ public sealed class BoxingGloveRoomTests
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
         Assert.Equal(1, room.SubEntityCount);
         List<SnapshotEntity> entities = PublishEntities(room);
-        (SnapshotEntity host, SnapshotEntity sub) = GlovePair(entities, glove);
-        Assert.NotEqual(host.PhysicsBodyId, sub.PhysicsBodyId);
+        // Rebuilt and wound up again: the box is back on the wire, the fist is stowed with it.
+        Assert.Single(GloveParts(entities));
+        Assert.Equal(glove, GloveParts(entities)[0].EntityId);
+        Assert.False(FistIsOut(entities, glove));
     }
 
     [Fact]
@@ -192,8 +288,70 @@ public sealed class BoxingGloveRoomTests
         return room.ComputeStateHash();
     }
 
-    /// <summary>A sandbox room at the default gameplay config; the glove needs no custom numbers.</summary>
-    private static GameRoom CreateGloveRoom() => PlayHost.CreateSandboxRoom();
+    /// <summary>A sandbox room at the default gameplay config; the glove needs no custom numbers.
+    /// The shipped content is the momentary branch, so the toggle branch builds its own room from
+    /// the shipped document with part 28's activation flipped.</summary>
+    private static GameRoom CreateGloveRoom(PartActivation activation = PartActivation.Trigger)
+    {
+        if (activation == PartActivation.Trigger)
+        {
+            return PlayHost.CreateSandboxRoom();
+        }
+
+        string root = FindRepositoryRoot();
+        PartContentDocument document = PartContentParser.Parse(
+            File.ReadAllText(Path.Combine(root, "content", "parts.json")));
+        PartContentDocument overridden = document with
+        {
+            Parts = document.Parts
+                .Select(part => part.PartTypeId == PartBoxingGlove && part.Capabilities is not null
+                    ? part with { Capabilities = part.Capabilities with { Activation = activation } }
+                    : part)
+                .ToArray(),
+        };
+        LevelContentDocument level = LevelContentLibrary.Parse(
+            File.ReadAllText(Path.Combine(root, "content", "levels", "terrain-v1.json")));
+        GameplayConfig config = new(
+            level.GoalZone,
+            level.MapBounds,
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 25f,
+            TntIgniteImpactSpeed: 5f,
+            MaxTicks: 1200,
+            ObjectivesEnabled: false);
+        GameRoom room = new(GameRoomOptions.Create(
+            new PartContentLibrary(overridden),
+            () => new BepuPhysicsWorld(new PhysicsVector3(0f, -9.81f, 0f)),
+            config,
+            sandboxMode: true));
+        room.SetupFromLevel(level);
+        return room;
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "content", "parts.json")))
+        {
+            directory = directory.Parent;
+        }
+
+        Assert.NotNull(directory);
+        return directory!.FullName;
+    }
+
+    /// <summary>The frame's entities carrying the glove part's type: the placed box alone while the
+    /// fist is stowed, the box and the fist while it is thrown.</summary>
+    private static List<SnapshotEntity> GloveParts(List<SnapshotEntity> entities) =>
+        entities.Where(entity => entity.PartTypeId == PartBoxingGlove).ToList();
+
+    /// <summary>True when the frame carries the glove's fist: the host's wound-up state stows it
+    /// (the original's inactive GameObject, <c>SpringBoxingGlove.cs:215-222</c>), so the client
+    /// draws the box alone until the throw puts it back on the wire.</summary>
+    private static bool FistIsOut(List<SnapshotEntity> entities, uint hostEntityId) =>
+        entities.Any(entity => entity.EntityId != hostEntityId
+            && entity.PartTypeId == PartBoxingGlove
+            && (entity.Flags & 0b10) == 0b10);
 
     /// <summary>The two published entities sharing the glove part's type: the placed part and the
     /// sub-entity the room spawned for it.</summary>

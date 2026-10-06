@@ -599,7 +599,7 @@ onUnmounted(() => {
           :key="group.partTypeId"
           type="button"
           class="gadget-button"
-          :class="{ on: group.active, trigger: group.kind === 'trigger' }"
+          :class="{ on: group.kind === 'toggle' && group.active, trigger: group.kind === 'trigger' }"
           :aria-pressed="group.kind === 'toggle' ? group.active : undefined"
           @click="toggleGadget(group)"
         >

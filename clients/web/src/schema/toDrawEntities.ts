@@ -16,5 +16,8 @@ export function toDrawEntities(entities: readonly ReplayEntityState[] | readonly
     vy: entity.linearVelocity[1],
     bodyId: entity.physicsBodyId,
     active: "active" in entity ? entity.active : false,
+    // PGFS v5's sub-entity flag (a glove's fist, a broken spring's endpoint); replay documents
+    // have no such entity and carry no flag.
+    subEntity: "subEntity" in entity ? entity.subEntity : false,
   }));
 }

@@ -1,6 +1,6 @@
 import type { DrawEntity, MarqueeRect, PartContentDocument, PartDefinition, PartShape } from "@/schema/types";
 import { poseFor, type AnimationState } from "./animation";
-import { layoutSprites, type PartTexture, type PartTextureSet } from "./atlas";
+import { layoutSprites, subEntityTexture, type PartTexture, type PartTextureSet } from "./atlas";
 import { type Camera, worldToScreen } from "./camera";
 import { conditionalSpriteVisible, connectableSides } from "./connectionVisuals";
 
@@ -17,6 +17,87 @@ function rotatePoint(x: number, y: number, angle: number): { x: number; y: numbe
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   return { x: x * cos - y * sin, y: x * sin + y * cos };
+}
+
+/**
+ * The frame's paint order. A runtime sub-entity is drawn immediately *before* the part it belongs
+ * to, so that part's art covers it: the original sorts equal-order sprites by distance to the
+ * camera (IngameCamera.cs:440 sits at z = -15 looking towards +z), and a boxing glove's fist hangs
+ * at z = 0.15 while its box sits at z = 0.1 -- the box is the nearer sprite, so it wins
+ * (docs/specs/boxing-glove.md §3). Without this the fist is painted over its own box and the end of
+ * the wind-back reads as the fist popping out of existence instead of sliding back inside.
+ *
+ * A sub-entity belongs to the nearest entity of its own part type that is a real part (it borrows
+ * the host's `partTypeId` on the wire, PGFS v5); one with no such part keeps its published place.
+ * The list is otherwise untouched -- level geometry, previews and every other part keep the
+ * snapshot order, and each entity is painted exactly once.
+ */
+export function drawOrder(entities: readonly DrawEntity[]): readonly DrawEntity[] {
+  let subEntities = false;
+  for (const entity of entities) {
+    if (entity.subEntity === true) {
+      subEntities = true;
+      break;
+    }
+  }
+
+  if (!subEntities) {
+    return entities;
+  }
+
+  const covered = new Map<number, DrawEntity[]>();
+  const deferred = new Set<number>();
+  for (const sub of entities) {
+    if (sub.subEntity !== true) {
+      continue;
+    }
+
+    let host: DrawEntity | undefined;
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const candidate of entities) {
+      if (candidate.subEntity === true || candidate.partTypeId !== sub.partTypeId) {
+        continue;
+      }
+
+      const distance = Math.hypot(candidate.x - sub.x, candidate.y - sub.y);
+      if (distance < nearest) {
+        nearest = distance;
+        host = candidate;
+      }
+    }
+
+    if (host === undefined) {
+      continue;
+    }
+
+    deferred.add(sub.entityId);
+    const list = covered.get(host.entityId);
+    if (list === undefined) {
+      covered.set(host.entityId, [sub]);
+    } else {
+      list.push(sub);
+    }
+  }
+
+  if (deferred.size === 0) {
+    return entities;
+  }
+
+  const order: DrawEntity[] = [];
+  for (const entity of entities) {
+    if (deferred.has(entity.entityId)) {
+      continue;
+    }
+
+    const under = covered.get(entity.entityId);
+    if (under !== undefined) {
+      order.push(...under);
+    }
+
+    order.push(entity);
+  }
+
+  return order;
 }
 
 /**
@@ -143,7 +224,7 @@ export function drawFrame(
     (entity) => (textures ?? null)?.parts.get(entity.partTypeId)?.connectionVisual !== undefined,
   );
 
-  for (const entity of entities) {
+  for (const entity of drawOrder(entities)) {
     const part = parts.get(entity.partTypeId);
     const origin = worldToScreen(camera, entity.x, entity.y, width, height);
     // The sandbox broadcasts previews with physicsBodyId 0: they are not physical
@@ -171,7 +252,8 @@ export function drawFrame(
     ctx.translate(origin.x, origin.y);
     const shape = part?.shapes[0];
     const atlasImages = textures?.atlases;
-    const texture = textures?.parts.get(entity.partTypeId);
+    // A runtime sub-entity draws its own art (the manifest's sub-entity list), not its host part's.
+    const texture = subEntityTexture(textures?.parts.get(entity.partTypeId), entity.subEntity === true);
     const pixelScale = entity.scale * camera.scale;
     // A wheel part's body rolls, so `yaw` carries the accumulated spin. Its turning sprites
     // spin about the axle the content describes; the mounts stay rigid to the frame the part

@@ -1233,7 +1233,7 @@
           },
           "solverIterationScale": 1.6
         },
-        "activation": "toggle"
+        "activation": "trigger"
       },
       "shapes": [
         {
@@ -10728,7 +10728,7 @@
           },
           "solverIterationScale": 1.6
         },
-        "activation": "toggle"
+        "activation": "trigger"
       },
       "shapes": [
         {
@@ -10789,7 +10789,7 @@
           },
           "solverIterationScale": 1.6
         },
-        "activation": "toggle"
+        "activation": "trigger"
       },
       "shapes": [
         {
@@ -10850,7 +10850,7 @@
           },
           "solverIterationScale": 1.6
         },
-        "activation": "toggle"
+        "activation": "trigger"
       },
       "shapes": [
         {
@@ -10911,7 +10911,7 @@
           },
           "solverIterationScale": 1.6
         },
-        "activation": "toggle"
+        "activation": "trigger"
       },
       "shapes": [
         {

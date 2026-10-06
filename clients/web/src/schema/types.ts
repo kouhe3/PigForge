@@ -272,6 +272,12 @@ export interface SnapshotEntity {
   attachYaw: number;
   /** Per-entity snapshot flags bit0: the part's switch is on. */
   active: boolean;
+  /**
+   * Per-entity snapshot flags bit1 (PGFS v5): the entity is a runtime sub-entity of another
+   * entity (a boxing glove's fist, a broken spring's endpoint -- ADR-027). It borrows its host's
+   * `partTypeId` on the wire, so the renderer draws the part's own sub-entity art instead.
+   */
+  subEntity: boolean;
 }
 
 export interface SnapshotFrame {
@@ -294,6 +300,11 @@ export interface DrawEntity {
   bodyId: number;
   /** Switch state from the snapshot (false for parts without a switch). */
   active: boolean;
+  /**
+   * The snapshot's sub-entity flag (PGFS v5; false for replay documents). Such an entity is a
+   * runtime body of its host part, drawn with the manifest's sub-entity art when it has any.
+   */
+  subEntity?: boolean;
   /**
    * Orientation of the frame this part's non-spinning sprites are attached to, from the
    * snapshot's `attachYaw` (PGFS v4). A rolling wheel's `yaw` integrates its roll, so its

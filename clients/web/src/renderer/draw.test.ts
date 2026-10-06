@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { createAnimationState, updateAnimations } from "./animation";
 import type { PartTexture, PartTextureSet } from "./atlas";
-import { drawFrame, wheelAxle } from "./draw";
+import { drawFrame, drawOrder, wheelAxle } from "./draw";
 import { createCamera } from "./camera";
 import type { DrawEntity, PartContentDocument } from "@/schema/types";
 
@@ -192,8 +192,96 @@ describe("drawFrame original-art textures", () => {
     const { ctx, calls } = makeCtx();
     drawFrame(ctx, createCamera(), [block], content, [], undefined, undefined, textures(undefined));
     expect(calls.drawImage).toBeUndefined();
-    expect(calls.fillRect).toBe(2); // background + the part shape
+    expect(calls.fillRect).toBe(2); // background + the shape fallback
   });
+
+  it("blits the sub-entity's own art for a flagged entity", () => {
+    // A boxing glove's fist: the sub-entity borrows part 28's type on the wire (PGFS v5 bit1), so
+    // without the manifest's sub-entity list the renderer would draw a second glove part over it.
+    const gloveTextures = {
+      atlases: new Map([["A.png", {} as CanvasImageSource]]),
+      parts: new Map([
+        [
+          28,
+          {
+            bbox: [1, 1] as [number, number],
+            sprites: [{ atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0, rotates: false }],
+            subSprites: [{ atlas: "A.png", x: 300, y: 400, w: 50, h: 60, cx: 0, cy: 0, sx: 1, sy: 1, rot: 0, rotates: false }],
+          },
+        ],
+      ]),
+    };
+    const glove: DrawEntity = { ...block, entityId: 5, partTypeId: 28 };
+
+    const host = makeCtx();
+    drawFrame(host.ctx, createCamera(), [glove], content, [], undefined, undefined, gloveTextures);
+    expect(host.draws[0].slice(0, 4)).toEqual([10, 20, 100, 100]);
+
+    const fist = makeCtx();
+    drawFrame(fist.ctx, createCamera(), [{ ...glove, subEntity: true }], content, [], undefined, undefined, gloveTextures);
+    expect(fist.draws[0].slice(0, 4)).toEqual([300, 400, 50, 60]);
+  });
+
+  it("paints the host part over its own sub-entity", () => {
+    // The original sorts equal-order sprites by distance to the camera, and the box (z = 0.1) is
+    // nearer than the fist (z = 0.15): the box is painted last, so a retracting fist slides in
+    // behind it instead of popping out of existence (docs/specs/boxing-glove.md §3).
+    const gloveTextures = {
+      atlases: new Map([["A.png", {} as CanvasImageSource]]),
+      parts: new Map([
+        [
+          28,
+          {
+            bbox: [1, 1] as [number, number],
+            sprites: [{ atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0, rotates: false }],
+            subSprites: [{ atlas: "A.png", x: 300, y: 400, w: 50, h: 60, cx: 0, cy: 0, sx: 1, sy: 1, rot: 0, rotates: false }],
+          },
+        ],
+      ]),
+    };
+    const glove: DrawEntity = { ...block, entityId: 5, partTypeId: 28 };
+    const fist: DrawEntity = { ...glove, entityId: 6, subEntity: true, y: 2.1 };
+
+    // The snapshot lists the box first (it owns the lower entity id); the frame paints the fist
+    // before it all the same.
+    const { ctx, draws } = makeCtx();
+    drawFrame(ctx, createCamera(), [glove, fist], content, [], undefined, undefined, gloveTextures);
+    expect(draws.map((rect) => rect.slice(0, 4))).toEqual([
+      [300, 400, 50, 60],
+      [10, 20, 100, 100],
+    ]);
+  });
+
+describe("drawOrder", () => {
+  const host: DrawEntity = { ...block, entityId: 5, partTypeId: 28 };
+  const otherHost: DrawEntity = { ...block, entityId: 7, partTypeId: 28, x: 20 };
+
+  it("returns the frame untouched when nothing is a sub-entity", () => {
+    const entities = [block, light];
+    expect(drawOrder(entities)).toBe(entities);
+  });
+
+  it("moves a sub-entity directly before the part it is nearest to", () => {
+    const near: DrawEntity = { ...host, entityId: 6, subEntity: true, y: host.y - 2.5 };
+    const far: DrawEntity = { ...host, entityId: 8, subEntity: true, x: otherHost.x, y: otherHost.y };
+    const order = drawOrder([host, otherHost, near, far]);
+    // Each fist is painted immediately before its own box, whatever order the frame listed them in.
+    expect(order.map((entity) => entity.entityId)).toEqual([6, 5, 8, 7]);
+  });
+
+  it("keeps an unpaired sub-entity where the frame put it", () => {
+    const orphan: DrawEntity = { ...block, entityId: 9, partTypeId: 44, subEntity: true };
+    const order = drawOrder([block, orphan]);
+    expect(order.map((entity) => entity.entityId)).toEqual([2, 9]);
+  });
+
+  it("paints every entity exactly once", () => {
+    const fist: DrawEntity = { ...host, entityId: 6, subEntity: true };
+    const order = drawOrder([host, otherHost, fist, block]);
+    expect(order).toHaveLength(4);
+    expect(new Set(order.map((entity) => entity.entityId)).size).toBe(4);
+  });
+});
 
   /**
    * The reported display bugs, with the real wooden-wheel geometry (content part 7): the

@@ -310,7 +310,15 @@ function familyMap(entries, family) {
 
 const springByPart = familyMap(report.spring?.prefabs, "spring");
 const gloveByPart = familyMap(report.boxingGlove?.prefabs, "glove");
-const activation = report.inFeatures?.SwitchableBoxingGlove?.value === true ? "toggle" : "trigger";
+// PigForge content puts the glove on the original's *momentary* branch. The original's own bar
+// widget for a SpringBoxingGlove is a button, not an on/off switch (`HasOnOffToggle() => false`,
+// SpringBoxingGlove.cs:81-84), and `BasePart.OnButtonTriggered` -> `ProcessTouch()` is what that
+// button calls, so a press punches and the machine winds the fist home on its own shoot time --
+// the flow the BoxingGloveProbe measured (docs/specs/boxing-glove.md §1.1). The latching branch the
+// IN switch `SwitchableBoxingGlove` selects is still implemented in the room; a skin that wants it
+// writes "toggle" here (spec §2).
+const activation = "trigger";
+const switchableBoxingGlove = report.inFeatures?.SwitchableBoxingGlove?.value === true;
 
 // A prefab that declares the wheel spring but has no content part is the state the catalog is in:
 // the OffRoadWheel (Part_MotorWheel_08_SET) is an IN extension part GameData.m_customParts never
@@ -464,7 +472,7 @@ for (const part of check.parts) {
 
   const gloveEntry = gloveByPart.get(part.partTypeId);
   if (gloveEntry) {
-    console.log(`  - ${part.partTypeId} ${part.name}: glove mass ${gloveEntry.glove.serializedMass}, activation ${activation}, distanceY ${part.capabilities.glove.shoot.distanceY}, driveSpring ${part.capabilities.glove.wind.driveSpring}`);
+    console.log(`  - ${part.partTypeId} ${part.name}: glove mass ${gloveEntry.glove.serializedMass}, activation ${activation} (IN SwitchableBoxingGlove ${switchableBoxingGlove} -- the momentary branch is chosen on purpose), distanceY ${part.capabilities.glove.shoot.distanceY}, driveSpring ${part.capabilities.glove.wind.driveSpring}`);
   }
 
   const suspension = expectedSuspension(part.partTypeId);

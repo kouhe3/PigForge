@@ -93,6 +93,13 @@ public sealed class GameRoom : IDisposable
     private readonly List<CompoundSpring> _springs = new();
     private readonly HashSet<long> _springKeys = new();
     private readonly Dictionary<uint, List<SubEntity>> _subEntitiesByHost = new();
+    private readonly HashSet<uint> _subEntityIds = new();
+    // Sub-entities the original keeps inactive while their machine idles (a boxing glove's fist:
+    // `InitilizeBoxingGlove` ends with `m_BoxingGlove.SetActive(false)`, SpringBoxingGlove.cs:215-222,
+    // and the throw turns it back on, :224-262). An inactive GameObject is neither drawn nor
+    // simulated, so a stowed sub-entity is left out of the published frame instead of being drawn
+    // over its host.
+    private readonly HashSet<uint> _stowedSubEntityIds = new();
     private int _subEntityCount;
     // Boxing gloves (docs/specs/boxing-glove.md): the host entity's runtime state, walked in
     // ascending host order each tick so the transitions — and the joints they rebuild — are
@@ -1272,11 +1279,11 @@ public sealed class GameRoom : IDisposable
             UnbindEntity(destroyed, destroyBodyIfOrphan: true);
         }
 
-        // The gloves' state machines run on this tick's telemetry: the switch level, the throw's
+        // The gloves' state machines run on this tick's telemetry: the button/switch level, the throw's
         // timers and the glove's own offset. A transition rewrites the joint/body, and a throw can
         // split the host's compound (the part behind the glove leaves), so this runs before the
         // split paths that read _liveCompounds.
-        RunGloves(eventCount, snapshotCount);
+        RunGloves(snapshotCount);
 
         // Detachers fired this tick: split their compound so the part flies free.
         foreach (EntityId detached in _output.DetachedEntities)
@@ -1356,7 +1363,7 @@ public sealed class GameRoom : IDisposable
                     ToReplay(snapshot.AngularVelocity),
                     _transforms.TryGet(new EntityId(entityValue), out EntityTransform transform) ? transform.Scale : 1f,
                     AttachYawOf(entityValue, rotation, count),
-                    _rules.IsPartActive(new EntityId(entityValue)) ? (byte)1 : (byte)0)))
+                    SnapshotFlags(new EntityId(entityValue)))))
             {
                 bytesWritten = 0;
                 return false;
@@ -1400,7 +1407,7 @@ public sealed class GameRoom : IDisposable
                     zero,
                     transform.Scale,
                     YawOf(transform.Rotation),
-                    _rules.IsPartActive(entity) ? (byte)1 : (byte)0)))
+                    SnapshotFlags(entity))))
             {
                 bytesWritten = 0;
                 return false;
@@ -1470,7 +1477,7 @@ public sealed class GameRoom : IDisposable
                     angularVelocity,
                     transform.Scale,
                     bodyId == 0 ? YawOf(rotation) : AttachYawOf(entityValue, rotation, count),
-                    _rules.IsPartActive(entity) ? (byte)1 : (byte)0)))
+                    SnapshotFlags(entity))))
             {
                 bytesWritten = 0;
                 return false;
@@ -1482,8 +1489,16 @@ public sealed class GameRoom : IDisposable
     }
 
     private static ReplayVector3 ToReplay(PhysicsVector3 value) => new(value.X, value.Y, value.Z);
-
     private static ReplayQuaternion ToReplay(PhysicsQuaternion value) => new(value.X, value.Y, value.Z, value.W);
+
+    /// <summary>
+    /// One entity's snapshot flags (PGFS v5): bit0 the part's switch is on, bit1 the entity is a
+    /// runtime sub-entity of its host (ADR-027). A sub-entity borrows its host's part type on the
+    /// wire, so without bit1 the client cannot tell a boxing glove's fist from a second glove part
+    /// and draws the host's own art over it.
+    /// </summary>
+    private byte SnapshotFlags(EntityId entity) =>
+        (byte)((_rules.IsPartActive(entity) ? 1 : 0) | (_subEntityIds.Contains(entity.Value) ? 2 : 0));
 
     /// <summary>Deterministic hash: layout hash in Building, authoritative snapshot hash in Running.</summary>
     public long ComputeStateHash()
@@ -1543,6 +1558,8 @@ public sealed class GameRoom : IDisposable
         _attachByEntity.Clear();
         _liveCompounds.Clear();
         _subEntitiesByHost.Clear();
+        _subEntityIds.Clear();
+        _stowedSubEntityIds.Clear();
         _subEntityCount = 0;
         _appliedCommands.Clear();
         _outcomeLog.Clear();
@@ -2444,29 +2461,17 @@ public sealed class GameRoom : IDisposable
 
     /// <summary>
     /// One tick of every glove's state machine (docs/specs/boxing-glove.md §4/§5): the trigger
-    /// path reads this tick's contact events, the toggle path reads the switch level and fires on
-    /// its off→on edge, and the timers — plus the glove's own offset — move the phase along. A
-    /// phase change rewrites the drive, the mass and the collider, and a throw also severs the part
-    /// behind it.
+    /// path consumes this tick's button press (the original's <c>ProcessTouch</c>, which its bar
+    /// button, its keyboard shortcut and its mouse all reach — a physics contact never does), the
+    /// toggle path reads the switch level and fires on its off→on edge, and the timers — plus the
+    /// glove's own offset — move the phase along. A phase change rewrites the drive, the mass and
+    /// the collider, and a throw also severs the part behind it.
     /// </summary>
-    private void RunGloves(int eventCount, int snapshotCount)
+    private void RunGloves(int snapshotCount)
     {
         if (_gloveHosts.Count == 0)
         {
             return;
-        }
-
-        // A trigger glove punches on its host's contact events: the same shape the rocket's
-        // TryConsumeTrigger has, except the event itself is the trigger, so the rules layer's
-        // one-shot switch is not involved (the content's activation says which path a skin is on).
-        for (int index = 0; index < eventCount; index++)
-        {
-            PhysicsEvent physicsEvent = _eventBuffer[index];
-            if (physicsEvent.Kind == PhysicsEventKind.ContactStarted)
-            {
-                RequestPunchFromContact(physicsEvent.BodyA);
-                RequestPunchFromContact(physicsEvent.BodyB);
-            }
         }
 
         for (int index = 0; index < _gloveHosts.Count; index++)
@@ -2490,9 +2495,10 @@ public sealed class GameRoom : IDisposable
                         : Transition(link, BoxingGloveRules.Abort(link.State));
                 }
             }
-            else if (link.PunchRequested)
+            else if (_rules.TryConsumeButtonPress(link.Sub.Host))
             {
-                link.PunchRequested = false;
+                // The bar button (docs/specs/play-part-switches.md Assumption 2): momentary, spent
+                // here even when the punch itself is refused, so the button never latches on.
                 changed = Punch(link, snapshotCount);
             }
 
@@ -2574,6 +2580,11 @@ public sealed class GameRoom : IDisposable
     private void ApplyGloveState(GloveLink link)
     {
         BoxingGloveDrive drive = BoxingGloveRules.DriveFor(link.State.Phase, link.Glove);
+        // The fist is the original's glove GameObject: wound up it is deactivated (nothing drawn,
+        // nothing simulated), out or winding back it is on screen
+        // (`InitilizeBoxingGlove` -> `m_BoxingGlove.SetActive(false)`, SpringBoxingGlove.cs:215-222;
+        // the throw turns it on, :224-262).
+        SetSubEntityStowed(link.Sub, link.State.Phase == BoxingGlovePhase.WindedUp);
         if (_bodyPose.ContainsKey(link.Sub.Body.Value))
         {
             _world.SetBodyMass(link.Sub.Body, drive.Mass);
@@ -2589,24 +2600,6 @@ public sealed class GameRoom : IDisposable
         AttachGlove(link.Sub, link);
     }
 
-    /// <summary>Flags the trigger gloves a contact event names: a glove part sharing the contacted
-    /// body is being punched into something.</summary>
-    private void RequestPunchFromContact(PhysicsBodyId body)
-    {
-        if (!_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
-        {
-            return;
-        }
-
-        foreach (uint memberValue in members)
-        {
-            if (_glovesByHost.TryGetValue(memberValue, out GloveLink? link)
-                && link.Activation == PartActivation.Trigger)
-            {
-                link.PunchRequested = true;
-            }
-        }
-    }
 
     /// <summary>
     /// Registers every placed part's boxing glove: the second rigidbody the original instantiates
@@ -2706,6 +2699,8 @@ public sealed class GameRoom : IDisposable
             SwitchWasActive = _rules.IsPartActive(host),
         };
         sub.Glove = link;
+        // Spawned wound up: the original leaves the glove GameObject inactive until the throw.
+        SetSubEntityStowed(sub, stowed: true);
         _glovesByHost[host.Value] = link;
         _gloveHosts.Add(host.Value);
         AttachGlove(sub, link);
@@ -3220,6 +3215,7 @@ public sealed class GameRoom : IDisposable
         }
 
         subEntities.Add(sub);
+        _subEntityIds.Add(entity.Value);
         _subEntityCount++;
         return sub;
     }
@@ -3268,7 +3264,27 @@ public sealed class GameRoom : IDisposable
 
         _parts.Remove(sub.Entity);
         _transforms.Remove(sub.Entity);
+        _subEntityIds.Remove(sub.Entity.Value);
+        _stowedSubEntityIds.Remove(sub.Entity.Value);
         _subEntityCount--;
+    }
+
+    /// <summary>
+    /// Marks a sub-entity as inactive for its machine's idle state (the original's
+    /// <c>GameObject.SetActive</c>): a stowed sub-entity is left out of the published frame, so the
+    /// client draws the host part alone instead of drawing the sub-entity over it. Its body stays
+    /// in the world -- that is what the machine then drives out.
+    /// </summary>
+    private void SetSubEntityStowed(SubEntity sub, bool stowed)
+    {
+        if (stowed)
+        {
+            _stowedSubEntityIds.Add(sub.Entity.Value);
+        }
+        else
+        {
+            _stowedSubEntityIds.Remove(sub.Entity.Value);
+        }
     }
 
     /// <summary>
@@ -3293,6 +3309,8 @@ public sealed class GameRoom : IDisposable
         }
 
         _subEntitiesByHost.Clear();
+        _subEntityIds.Clear();
+        _stowedSubEntityIds.Clear();
         _subEntityCount = 0;
         _glovesByHost.Clear();
         _gloveHosts.Clear();
@@ -3474,7 +3492,13 @@ public sealed class GameRoom : IDisposable
         var parts = _parts.GetEnumerator();
         while (parts.MoveNext())
         {
-            _entityOrder.Add(parts.CurrentId.Value);
+            // A stowed sub-entity (a wound-up glove's fist) is the original's inactive GameObject:
+            // it is not drawn, so it is not published either. The body itself stays in the world --
+            // it is what the throw then drives out.
+            if (!_stowedSubEntityIds.Contains(parts.CurrentId.Value))
+            {
+                _entityOrder.Add(parts.CurrentId.Value);
+            }
         }
 
         _entityOrder.Sort();
@@ -3490,7 +3514,10 @@ public sealed class GameRoom : IDisposable
         _entityOrder.Clear();
         foreach (KeyValuePair<uint, PhysicsBodyId> pair in _bodyByEntity)
         {
-            _entityOrder.Add(pair.Key);
+            if (!_stowedSubEntityIds.Contains(pair.Key))
+            {
+                _entityOrder.Add(pair.Key);
+            }
         }
 
         _entityOrder.Sort();
@@ -3605,7 +3632,5 @@ public sealed class GameRoom : IDisposable
         /// <summary>The toggle's last seen level, so only an off→on edge throws a punch.</summary>
         public bool SwitchWasActive { get; set; }
 
-        /// <summary>Set by a host contact event for a <see cref="PartActivation.Trigger"/> glove.</summary>
-        public bool PunchRequested { get; set; }
     }
 }

@@ -86,6 +86,9 @@ const SPOTLIGHT_SCRIPT = scriptGuid("SpotLight");
 const GRAPPLING_HOOK_SCRIPT = scriptGuid("GrapplingHook");
 const EXPLODING_GRAPPLING_HOOK_SCRIPT = scriptGuid("ExplodingGrapplingHook");
 const WINGS_SCRIPT = scriptGuid("Wings");
+// Prefab fields a part instantiates at run time: the sub-entity's art ships in its own prefab,
+// referenced by guid (SpringBoxingGlove.cs:38 m_BoxingGlovePrefab -> BoxingGlove*.prefab).
+const SUB_ENTITY_PREFAB_FIELDS = ["m_BoxingGlovePrefab"];
 
 // ------------------------------------------------------------ sprite tables
 
@@ -683,54 +686,89 @@ function extractPart(prefabName) {
   // lifts its art centre 0.63 above the part origin, so its art was drawn 0.63 below its collision
   // (the reported "collision box and texture are misaligned"). Palette thumbnails do not depend on
   // this frame -- `thumbnailPlacements` fits the composite's own bounds.
+  const emit = (s) => ({
+    atlas: s.atlas,
+    x: s.x,
+    y: s.y,
+    w: s.w,
+    h: s.h,
+    cx: round(s.cx),
+    cy: round(s.cy),
+    sx: round(s.sx),
+    sy: round(s.sy),
+    rot: round(s.rot),
+    rotates: s.rotates,
+    ...(s.flipX ? { flipX: true } : {}),
+    ...(s.flipY ? { flipY: true } : {}),
+    ...(s.condition ? { condition: s.condition } : {}),
+    ...(s.spin ? { spin: s.spin } : {}),
+    ...(s.clips
+      ? {
+          clips: Object.fromEntries(
+            Object.entries(s.clips).map(([name, clip]) => [
+              name,
+              {
+                loop: clip.loop,
+                frames: clip.frames.map((frame) => ({
+                  atlas: frame.atlas,
+                  x: frame.x,
+                  y: frame.y,
+                  w: frame.w,
+                  h: frame.h,
+                  cx: round(frame.cx),
+                  cy: round(frame.cy),
+                  sx: round(frame.sx),
+                  sy: round(frame.sy),
+                  rot: round(frame.rot),
+                  seconds: frame.seconds,
+                })),
+              },
+            ]),
+          ),
+        }
+      : {}),
+  });
+  const subSprites = extractSubEntityPrefab(prefab, prefabName);
   return {
     bbox: [round(bbox[0]), round(bbox[1])],
     ...(pivot ? { pivot: [round(pivot[0]), round(pivot[1])] } : {}),
     ...(expression ? { expression } : {}),
     ...(connectionVisual ? { connectionVisual } : {}),
-    sprites: sprites.map((s) => ({
-      atlas: s.atlas,
-      x: s.x,
-      y: s.y,
-      w: s.w,
-      h: s.h,
-      cx: round(s.cx),
-      cy: round(s.cy),
-      sx: round(s.sx),
-      sy: round(s.sy),
-      rot: round(s.rot),
-      rotates: s.rotates,
-      ...(s.flipX ? { flipX: true } : {}),
-      ...(s.flipY ? { flipY: true } : {}),
-      ...(s.condition ? { condition: s.condition } : {}),
-      ...(s.spin ? { spin: s.spin } : {}),
-      ...(s.clips
-        ? {
-            clips: Object.fromEntries(
-              Object.entries(s.clips).map(([name, clip]) => [
-                name,
-                {
-                  loop: clip.loop,
-                  frames: clip.frames.map((frame) => ({
-                    atlas: frame.atlas,
-                    x: frame.x,
-                    y: frame.y,
-                    w: frame.w,
-                    h: frame.h,
-                    cx: round(frame.cx),
-                    cy: round(frame.cy),
-                    sx: round(frame.sx),
-                    sy: round(frame.sy),
-                    rot: round(frame.rot),
-                    seconds: frame.seconds,
-                  })),
-                },
-              ]),
-            ),
-          }
-        : {}),
-    })),
+    ...(subSprites ? { subSprites: subSprites.map(emit) } : {}),
+    sprites: sprites.map(emit),
   };
+}
+
+/**
+ * The art of the prefab a part instantiates at run time (`m_BoxingGlovePrefab` on
+ * SpringBoxingGlove.cs:38, the reference is a guid). The sub-entity borrows its host's part type
+ * on the wire, so without this list a client would draw the host's own composite over it -- the
+ * reported "the glove box pops out something that is not a fist". Offsets stay in the sub-entity's
+ * own origin frame, exactly like a part's (`localOffset`).
+ */
+function extractSubEntityPrefab(prefab, prefabName) {
+  for (const behaviour of prefab.behaviours) {
+    for (const field of SUB_ENTITY_PREFAB_FIELDS) {
+      const reference = behaviour.fields[field];
+      if (!reference) continue;
+      const guid = /\{fileID: \d+, guid: ([0-9a-f]{32})/.exec(reference)?.[1];
+      const path = guid ? guidToPath.get(guid) : undefined;
+      if (!path || !existsSync(path)) {
+        warnings.push(`${prefabName}: ${field} points at a prefab the index does not have`);
+        return undefined;
+      }
+      const subPrefab = parsePrefab(readFileSync(path, "utf8"));
+      const sprites = subPrefab.sprites.map((s) => extractSprite(subPrefab, s)).filter(Boolean);
+      if (sprites.length === 0) {
+        warnings.push(`${prefabName}: sub-entity prefab ${basename(path)} has no extractable sprite`);
+        return undefined;
+      }
+      // Same paint order as a part's own sprites: far to near (see the note on `sprites.sort`).
+      sprites.sort((a, b) => b.z - a.z);
+      return sprites;
+    }
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------- main
@@ -754,8 +792,10 @@ const manifest = {
   format: "pigforge.part-textures",
   // v3 adds the optional animation descriptors (sprite `spin`/`clips`, part `expression`);
   // v4 adds the optional connection conditions (sprite `condition`, part `connectionVisual`).
+  // v5 adds the optional sub-entity art (part `subSprites`, the prefab a part instantiates at
+  // run time -- a boxing glove's fist).
   // Every addition is optional, so each older manifest is the newer one minus that layer.
-  schemaVersion: 4,
+  schemaVersion: 5,
   source: basename(BPLE),
   unitsPerPixel: UNITS_PER_PIXEL,
   atlases: Object.fromEntries([...usedAtlases].map(([name, entry]) => [name, entry.size])),

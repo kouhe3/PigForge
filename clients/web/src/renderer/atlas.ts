@@ -147,6 +147,13 @@ export interface PartTexture {
   expression?: ExpressionDescriptor;
   /** Present on parts whose sprites the original shows per connection side (v4). */
   connectionVisual?: ConnectionVisual;
+  /**
+   * Art of the part's runtime sub-entity (v5): the prefab the part instantiates at run time --
+   * a boxing glove's fist (`SpringBoxingGlove.m_BoxingGlovePrefab`) -- in the same frame as
+   * `sprites` (relative to the sub-entity's own body origin). Drawn for the snapshot entity the
+   * sub-entity flag marks; absent for parts with no sub-entity prefab.
+   */
+  subSprites?: PartSprite[];
 }
 
 export interface PartTextureSet {
@@ -156,8 +163,9 @@ export interface PartTextureSet {
 
 export const PART_TEXTURE_URL = "/assets/original/part-textures.json";
 
-/** Manifest versions this parser understands: 2 (static), 3 (adds animation), 4 (adds conditions). */
-const SUPPORTED_SCHEMA_VERSIONS = [2, 3, 4];
+/** Manifest versions this parser understands: 2 (static), 3 (adds animation), 4 (adds conditions),
+ * 5 (adds the sub-entity prefab's art). */
+const SUPPORTED_SCHEMA_VERSIONS = [2, 3, 4, 5];
 
 const LOCAL_SIDES: Record<LocalSide, true> = {
   top: true,
@@ -274,38 +282,21 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
   for (const [key, raw] of Object.entries(document.parts as Record<string, unknown>)) {
     const partTypeId = Number(key);
     if (!Number.isInteger(partTypeId) || partTypeId <= 0) throw new Error(`part-textures: bad partTypeId ${key}`);
-    const entry = raw as { bbox?: unknown; sprites?: unknown; pivot?: unknown; expression?: unknown; connectionVisual?: unknown };
+    const entry = raw as {
+      bbox?: unknown;
+      sprites?: unknown;
+      subSprites?: unknown;
+      pivot?: unknown;
+      expression?: unknown;
+      connectionVisual?: unknown;
+    };
     if (!Array.isArray(entry.bbox) || entry.bbox.length !== 2) throw new Error(`part-textures: part ${key} bbox`);
     const bbox: [number, number] = [finite(entry.bbox[0], `part ${key} bbox width`), finite(entry.bbox[1], `part ${key} bbox height`)];
     if (!(bbox[0] > 0 && bbox[1] > 0)) throw new Error(`part-textures: part ${key} bbox not positive`);
-    if (!Array.isArray(entry.sprites) || entry.sprites.length === 0) throw new Error(`part-textures: part ${key} has no sprites`);
-    const sprites = entry.sprites.map((rawSprite, index): PartSprite => {
-      const sprite = rawSprite as Record<string, unknown>;
-      if (typeof sprite.atlas !== "string" || sprite.atlas.length === 0) throw new Error(`part-textures: part ${key} sprite ${index} atlas`);
-      const rect = {
-        x: finite(sprite.x, `part ${key} sprite ${index} x`),
-        y: finite(sprite.y, `part ${key} sprite ${index} y`),
-        w: finite(sprite.w, `part ${key} sprite ${index} w`),
-        h: finite(sprite.h, `part ${key} sprite ${index} h`),
-      };
-      if (!(rect.w > 0 && rect.h > 0)) throw new Error(`part-textures: part ${key} sprite ${index} rect not positive`);
-      const what = `part ${key} sprite ${index}`;
-      return {
-        atlas: sprite.atlas,
-        ...rect,
-        cx: finite(sprite.cx, `part ${key} sprite ${index} cx`),
-        cy: finite(sprite.cy, `part ${key} sprite ${index} cy`),
-        sx: finite(sprite.sx, `part ${key} sprite ${index} sx`),
-        sy: finite(sprite.sy, `part ${key} sprite ${index} sy`),
-        rot: finite(sprite.rot ?? 0, `part ${key} sprite ${index} rot`),
-        rotates: sprite.rotates === true,
-        ...(sprite.flipX === true ? { flipX: true } : {}),
-        ...(sprite.flipY === true ? { flipY: true } : {}),
-        ...(sprite.condition === undefined ? {} : { condition: conditionOf(sprite.condition, what) }),
-        ...(sprite.spin === undefined ? {} : { spin: spinOf(sprite.spin, what) }),
-        ...(sprite.clips === undefined ? {} : { clips: clipsOf(sprite.clips, what) }),
-      };
-    });
+    const sprites = spriteListOf(entry.sprites, `part ${key}`, `part ${key} has no sprites`);
+    const subSprites = entry.subSprites === undefined
+      ? undefined
+      : spriteListOf(entry.subSprites, `part ${key} sub-entity`, `part ${key} has no sub-entity sprites`);
     const pivot =
       Array.isArray(entry.pivot) && entry.pivot.length === 2
         ? ([finite(entry.pivot[0], `part ${key} pivot x`), finite(entry.pivot[1], `part ${key} pivot y`)] as [number, number])
@@ -321,9 +312,42 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
       ...(pivot ? { pivot } : {}),
       ...(expression ? { expression } : {}),
       ...(entryVisual === undefined ? {} : { connectionVisual: entryVisual }),
+      ...(subSprites === undefined ? {} : { subSprites }),
     });
   }
   return parts;
+}
+
+/** Parses one sprite array of a manifest part; `missingMessage` is how an absent list reads. */
+function spriteListOf(value: unknown, what: string, missingMessage: string): PartSprite[] {
+  if (!Array.isArray(value) || value.length === 0) throw new Error(`part-textures: ${missingMessage}`);
+  return value.map((rawSprite, index): PartSprite => {
+    const sprite = rawSprite as Record<string, unknown>;
+    const where = `${what} sprite ${index}`;
+    if (typeof sprite.atlas !== "string" || sprite.atlas.length === 0) throw new Error(`part-textures: ${where} atlas`);
+    const rect = {
+      x: finite(sprite.x, `${where} x`),
+      y: finite(sprite.y, `${where} y`),
+      w: finite(sprite.w, `${where} w`),
+      h: finite(sprite.h, `${where} h`),
+    };
+    if (!(rect.w > 0 && rect.h > 0)) throw new Error(`part-textures: ${where} rect not positive`);
+    return {
+      atlas: sprite.atlas,
+      ...rect,
+      cx: finite(sprite.cx, `${where} cx`),
+      cy: finite(sprite.cy, `${where} cy`),
+      sx: finite(sprite.sx, `${where} sx`),
+      sy: finite(sprite.sy, `${where} sy`),
+      rot: finite(sprite.rot ?? 0, `${where} rot`),
+      rotates: sprite.rotates === true,
+      ...(sprite.flipX === true ? { flipX: true } : {}),
+      ...(sprite.flipY === true ? { flipY: true } : {}),
+      ...(sprite.condition === undefined ? {} : { condition: conditionOf(sprite.condition, where) }),
+      ...(sprite.spin === undefined ? {} : { spin: spinOf(sprite.spin, where) }),
+      ...(sprite.clips === undefined ? {} : { clips: clipsOf(sprite.clips, where) }),
+    };
+  });
 }
 
 export interface SpritePlacement {
@@ -349,6 +373,22 @@ export function layoutSprites(texture: PartTexture, scale: number): SpritePlacem
     w: sprite.sx * scale,
     h: sprite.sy * scale,
   }));
+}
+
+/**
+ * The art one entity draws. A runtime sub-entity (snapshot flags bit1) borrows its host part's
+ * type on the wire, so its host's composite would be drawn over it -- a boxing glove's fist would
+ * look like a second glove part. The manifest's own sub-entity list replaces it; nothing else of
+ * the host's texture applies, since a sub-entity never has mounts, an axle or clip art. A part
+ * with no extracted sub-entity prefab (a broken spring's endpoint) keeps its host's art.
+ */
+export function subEntityTexture(texture: PartTexture | undefined, subEntity: boolean): PartTexture | undefined {
+  if (!subEntity || texture?.subSprites === undefined) {
+    return texture;
+  }
+
+  // Only `sprites` is read for a sub-entity; the composite's own bounds stay unread.
+  return { bbox: texture.bbox, sprites: texture.subSprites };
 }
 
 export type ImageLoader = (url: string) => Promise<CanvasImageSource>;

@@ -83,9 +83,11 @@ public sealed class UmbrellaStore(EntityStore entities) : ComponentStore<Umbrell
 /// body push the opposite way (original gearbox lever direction switch).</summary>
 public readonly record struct GearboxMarker;
 
-/// <summary>Forward boost: a bellows emits a one-shot impulse along its facing
-/// direction each time the rig lands (original m_boostForce jet).</summary>
-public readonly record struct BellowsState(float BoostImpulse, bool BoostedRecently);
+/// <summary>Forward boost: a bellows emits one puff impulse along its own local +X
+/// (<c>m_direction</c>, <c>Bellows.cs:84-87</c>) -- on its button, or, for legacy content, each
+/// time the rig lands. <c>ReadyAtTick</c> is the tick the original's own cycle lets it puff again
+/// (<c>Bellows.cs:64-67</c>); 0 means ready.</summary>
+public readonly record struct BellowsState(float BoostImpulse, uint ReadyAtTick);
 
 public sealed class GearboxStore(EntityStore entities) : ComponentStore<GearboxMarker>(entities);
 
