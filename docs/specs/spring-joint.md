@@ -27,12 +27,15 @@
 
 | prefab | partTypeId | `customPartIndex` | prefab `m_mass` | **生效 mass** | 关节路径 |
 |---|---|---|---|---|---|
-| `Part_Spring_01_SET` | 12 | 0 | 0.3 | **1** | **SpringJoint**（弹力绳） |
-| `Part_Spring_02_SET` | 205 | 1 | 0.3 | **1** | ConfigurableJoint（y 软限位） |
-| `Part_Spring_03_SET` | 206 | 2 | 0.3 | **1** | **SpringJoint**（弹力绳） |
-| `Part_Spring_04_SET` | 207 | 3 | 0.3 | **1** | ConfigurableJoint（y 软限位） |
+| `Part_Spring_01_SET` | 12 | 0 | 0.3 | 0.3 | ConfigurableJoint（y 软限位） |
+| `Part_Spring_02_SET` | 205 | 1 | 0.3 | 0.3 | ConfigurableJoint（y 软限位） |
+| `Part_Spring_03_SET` | 206 | 2 | 0.3 | 0.3 | ConfigurableJoint（y 软限位） |
+| `Part_Spring_04_SET` | 207 | 3 | 0.3 | 0.3 | ConfigurableJoint（y 软限位） |
 
-（生效 mass 1 而不是 prefab 的 0.3：`StableSpringConnection = true` → `EnsureRigidbody` 强制 `mass = 1`，`Spring.cs:69-75`。）
+（**声明默认档（vanilla）**：`StableSpringConnection = false` → `EnsureRigidbody` 不覆盖质量，生效 mass = prefab 的 0.3；
+`StrongSpringConnection = false` → 断力保持 `SPRING_BREAK_FORCE` 250。`customPartIndex ∈ {0,2}` 那条 `SpringJoint` 分支
+要 `StableSpringConnection` 为真（B 档）才会走，所以 vanilla 下**四条皮肤全在 y 软限位分支**。`tools/bple-springs` 的硬断言
+直方图现在是 `{ConfigurableJointYLimit: 4}`；2026-10-06 之前它读 `INSettingsBExp.json`，报的是 `{SpringJoint: 2, ConfigurableJointYLimit: 2}`。）
 四个 prefab 的 `m_endPointPrefab` 都指向 **`SpringEndpoint.prefab`**（自带 `Rigidbody` mass 1 + `BoxCollider`），即 §4 的端点刚体。
 
 ### 1.1 原版实测（2026-10-04，`tasks/spring-probe.json`；`unity run unity/PigForge.WeldProbe -- -executeMethod PigForge.WeldProbe.Probe.SpringProbe.Run`，钉 2021.3.45f2 + 原版物理设置）
@@ -47,9 +50,12 @@
    即这个「弹簧」实际是**强阻尼的柔性链接**，不是蹦床。这解释了为什么原版里它从来不会把车弹起来。
 3. **断点 = 声明值**：`breakForce 250` → **245 N** 断；`breakForce 1200` → **1190 / 1200 / 1205 N** 断（阈值比标称低 ~2%）。
 4. **路径 B（y 软限位）**同载荷下挠度 **0.1385 m**（≈ `limit 0.1` + 柔度），同样**不振荡**、同样按声明断力断。
+5. **交付刚度是载荷相关的**（2026-10-06 补量，`tasks/spring-probe.json`）：y 软限位路径上 1 kg 载荷 **70.484 N/m**、
+   **0.6 kg 47.508 N/m**、**0.3 kg（弹簧自己的 prefab 质量）26.198 N/m**；三档断点都**正好等于声明的 250 N**（250 / 250 / 250）。
+   自由振荡的阻尼比在 0.6 kg 档读到 **ζ = 0.539356**，1 kg 档 0.5367。
 
-⇒ PigForge 的建模目标因此**更简单也更准**：两条路径都是「**在装配间距上的柔性距离关节**」（ADR-011 已有的 `Distance` 机器），
-差别只是允许的偏移量（A ≈ 0.065 m/9.8 N、B ≈ 0.14 m/9.8 N）与软度标定；**都不要做成会还给车能量的弹性件**。
+⇒ PigForge 的建模目标因此**更简单也更准**：这是一个「**在装配间距上的柔性距离关节**」（ADR-011 已有的 `Distance` 机器），
+vanilla 下只有 y 软限位这一条路径；**不要做成会还给车能量的弹性件**。
 
 ## 2. 内容
 
@@ -59,14 +65,15 @@
   "jointConnectionDirection": "upAndDown", "jointConnectionStrength": "normal",
   "jointConnectionType": "source", "powerConsumption": 0, "enginePower": 0,
   "spring": {
-    "joint": "bungee",          // "bungee" | "limit"，逐皮肤，由提取器决定
-    "stiffness": 250, "damper": 20,
-    "limit": 0.1, "bounciness": 1,   // 仅 limit 路径使用
-    "breakForce": 1200,              // StrongSpringConnection=true 的发布值
-    "mass": 1                        // StableSpringConnection=true 的发布值
+    "stiffness": 250, "damper": 20,  // 声明的 N/m 与 N·s/m（真正交付的是标定后的值，见 §1.1-5 与 §3）
+    "limit": 0.1, "bounciness": 1,   // y 线性限位
+    "breakForce": 250                // SPRING_BREAK_FORCE；B 档的 Strong 才把它翻成 1200
   }
 }
 ```
+
+**没有 `joint` 键、也没有 `mass` 键**（2026-10-06 第二十轮清理）：两者的唯一取值都来自 mod 档
+（`StableSpringConnection` / `StrongSpringConnection` = false），vanilla 下不存在第二分支，留着只会让内容撒谎。
 
 - 拳套**不再**共用这个键（见 `docs/specs/boxing-glove.md`）。
 - 五处同步：`schemas/part-content-v1.schema.json`、`PartContentParser`、`PartContentDocument`/`PartCapabilities`、
@@ -76,17 +83,18 @@
 ## 3. 装配（`CompoundAssembler` + `GameRoom`）
 
 1. **弹簧缝不并簇**：union 循环里加一档——seam 的任一端 `capabilities.spring != null` → **不 union**（与 ADR-024 的 frame↔frame 同形），
-   登记 `CompoundSpring(Left, Right, AnchorInLeft, AnchorInRight, Joint, Stiffness, Damper, Limit, Bounciness, BreakImpulse)`。
+   登记 `CompoundSpring(Left, Right, AnchorInLeft, AnchorInRight, Stiffness, Damper, Limit, Bounciness, BreakForce)`。
    否则弹簧会被并进同一个刚体，「弹性」直接消失（今天就是这样：两端都是 `source` → union）。
-2. **关节**（两条路径按 §1.1 的实测**共用一个模型**）：
+2. **关节**（照 §1.1 的实测建模）：
    - 共同形状 = **`min == max` 的距离关节（间距 = 装配时的两件间距，不允许松动）+ 弹簧频率/阻尼比 + 可断**。
      契约优先**复用 ADR-011 的 `Distance`**（只补「`min == max` + 断力」这一档），换算**只能用** `GameRoom.TrySpringResponse`
      （`omega = sqrt(k/m)`、`zeta = c/(2·sqrt(k·m))`；质量取**两端刚体**的质量，ADR-012 决策 5 的口径）。
-   - 路径差别**只用弹簧标定表达**：A（bungee）≈ 9.8 N 载荷 0.065 m 挠度；B（limit）≈ 9.8 N 载荷 0.14 m 挠度 —— 两者都**强阻尼**（实测半个周期就收敛，ζ ≈ 0.54）。
-   - **标定必须用实测的有效刚度，不是声明的 250**：Bepu 的 `Distance(min == max)` 是**精确**弹簧（实测 sag = 载荷/k 到小数点后 5 位：1 kg → **0.03924 m** = 9.81/250），
-     而原版同样的载荷下是 **0.0645 m**（等效 **150 N/m**，2 kg 时 190 N/m）⇒ 照抄 250 会比原版**硬 39%**，超出 §6 的 ±25%。
-     做法照 `ADR-024` 的先例：把**实测有效刚度**当标定输入（一个 PigForge 标定常量 + 注释写明「声明的 250 不是 PhysX 实际交付的」），并在 §7 记偏差。
-   - **不为路径 B 新开「单轴线性限位」能力**（ADR-012 的 `LinearAxisServo` 留在轮子悬挂里）：0.14 vs 0.065 的差别用标定近似，记进 §7。
+   - **标定必须用实测的有效刚度，不是声明的 250**：Bepu 的 `Distance(min == max)` 是**精确**弹簧（sag = 载荷/k 到小数点后 5 位），
+     而原版交付的等效刚度随载荷变（§1.1-5）：0.6 kg（内容自己的弹簧质量）下是 **47.508 N/m** ⇒ 照抄 250 会比原版**硬 5 倍**，远超 §6 的 ±25%。
+   - 阻尼同理：声明 20 N·s/m 在标定后的刚度下给出 ζ = 1.87（过阻尼、看不出来回弹），而原版实测 ζ = 0.5394 ⇒ 交付值 **5.7592 N·s/m**。
+     做法照 `ADR-024` 的先例：把**实测交付率**当标定输入（两个 PigForge 标定常量
+     `SpringEffectiveStiffnessScale = 0.1900307`、`SpringEffectiveDampingScale = 0.2879606`，注释写明「声明的 250/20 不是 PhysX 实际交付的」），并在 §7 记偏差。
+   - **不为 y 软限位新开「单轴线性限位」能力**（ADR-012 的 `LinearAxisServo` 留在轮子悬挂里）：挠度与阻尼都用标定近似，记进 §7。
 3. 绑定与重建沿用 `_weldJoints` 的纪律：`ForgetJointsForBody` 先忘关节再 `DestroyBody`；拆簇后 `Rebind…`（ADR-023/024 的先例）。
 
 ## 4. 断（> 3 m）
@@ -94,7 +102,7 @@
 - 每 tick 检查两锚点距离（弹簧件数很少，直接算）：> **3 m** 且该簇无 SuperGlue → 销毁这条关节 → `HandleJointBreak()` →
   host 注册一个**运行时子实体**「端点刚体」（`SpringEndpoint.prefab` 的几何/质量由提取器给出；`ADR-027`）并用同一条关节把它接上。
 - 子实体归属 host 的 owner：host 被 RESET / 离开 / 拆簇摧毁 → 子实体同处销毁。
-- 关节的断力 = `breakForce`（250 / 1200）→ 换算成规则层可复算的冲量阈值（与 G15 同一换算口径；本切片先按 §7 记录口径）。
+- 关节的断力 = 内容里的 `breakForce`（**vanilla 250**；B 档的 Strong 才是 1200），由后端直接执行，规则层不换算。
 
 ## 5. 要删掉的东西（干净切换，不留旧路径）
 
@@ -113,22 +121,30 @@
   | A（auto 锚，2 kg，break 1200） | 19.62 N | 0.1031 m | 19.65 N | 190 N/m | 半周期收敛 | 1190 N |
   | A（auto 锚，1 kg，break 250） | 9.81 N | 0.0645 m | 9.68 N | 150 N/m | — | **245 N** |
   | B（y 限位，1 kg，break 1200） | 9.81 N | 0.1385 m | 9.76 N | 70 N/m | 半周期收敛 | 1200 N |
+  | **B（y 限位，0.6 kg，break 250）** | 5.89 N | **0.1234 m** | 5.86 N | **47.508 N/m** | ζ = **0.539356** | **250 N** |
+  | B（y 限位，0.3 kg，break 250） | 2.94 N | 0.1118 m | 2.93 N | 26.198 N/m | —（峰不足 2 个） | **250 N** |
+
+  A 组是 mod 档（B 档）才存在的分支，留作对照；**标定取上表加粗的 0.6 kg 行**——它是「原版配置 + 我们内容的弹簧质量」那一格。
 
   待补（探针已支持、本轮未跑全）：拉到 > 3 m 的断点与端点刚体接管（`CreateSpringBody`）——**实现前必须补量**。
-- **Bepu 对照**：同工况 ±25% 口径照 `docs/specs/weld-compliance.md` §4.1 的写法写清。**已量到的第一版**（`SpringDistanceJointTests`，契约子代理，physics **75** 通过 = 59 非 Jolt + 16 Jolt）：
-  1 kg 载荷下 Bepu 的 sag = **0.03924 m**（= 载荷/声明的 250，精确），而原版 **0.0645 m** ⇒ **−39%，必须按上面的标定改**（这就是 §7 那条偏差的由来）；
-  断力两档已可复现（`breakForce 250` 在 294 N 载荷下第 26 tick 断、`1200` 在 1373 N 下第 62 tick 断、`breakImpulse 2 N·s` 也可断，断后两 body 都活着、`JointBroken` 事件照发）。
-- **单测**：Core（装配不并簇 → 两条 body + 一条关节；断力两条；`ForgetJointsForBody` 纪律）；Physics（真 Bepu：bungee 与 limit 各一条）。
-- **实机**（真服务器 + 真内容 + 真 Bepu，读数写进本节）：弹簧 + 木框的车从坡上下来**不被自己的弹簧撕开**、**不自己弹起**；
-  两件用弹簧连起来能感觉到「拉得住、会回弹」；`SeamBreakImpulse` 不再被弹簧触碰。
+- **Bepu 对照**（±25% 口径照 `docs/specs/weld-compliance.md` §4.1 的写法）：`SpringJointRoomTests.TheCalibratedSpringHangsTheLoadAtTheOriginalsSag`
+  在**真 Bepu 世界**里挂 0.6 kg 载荷：标定后的 sag = **0.123896 m**（= 5.886 N / 47.5077 N/m）对探针的 **0.123418 m** ⇒ **+0.4%**；
+  非空验证：声明 250 会给 0.0235 m（**−81%**，落在带外），声明 20 N·s/m 会给 ζ = 1.87。
+  断力两档可复现（`breakForce 250` 在 294 N 载荷下第 26 tick 断、`1200` 在 1373 N 下第 62 tick 断、`breakImpulse 2 N·s` 也可断，断后两 body 都活着、`JointBroken` 事件照发）。
+- **单测**：Core（装配不并簇 → 两条 body + 一条关节；标定常量与有效刚度/阻尼；`ForgetJointsForBody` 纪律）；Physics（真 Bepu 的 `Distance(min == max)` 形状与断力）。
+- **实机**（真服务器 + 真内容 + 真 Bepu，2026-10-06 第二十轮，探针跑完已删）：木框 + 弹簧 → 两个 body（**10 / 11**）、
+  两者间距在 **0.9845–1.2549 m** 之间（装配静止长度 1.0）、弹簧的 Y **从未超过起始值**（最高 4.5442 < 5）、
+  `vy` 峰值 **+0.377 m/s**（旧弹跳垫语义是 **+18.22**）、两件都不被 250 N 断力打断（载荷只有 5.9 N）。
 
 ## 7. 已知偏差（写下来就要排队，否则等于永久保留）
 
-- **IN 面**：只取 `StrongSpringConnection` / `StableSpringConnection`（原版发布 = `true`）；不实现运行时切 IN 开关。逐皮肤路径因此固定。
-- **声明的 250/20 不是 PhysX 实际交付的行为**：实测有效刚度 150–190 N/m 且**载荷相关**、且**不振荡**。PigForge 按**实测**标定（一个标定常量，照 ADR-024 的先例），不复刻「声明值 vs 实际值」这条物理差异。
-- **路径 B 的近似**：不新开单轴线性限位能力，用「`min == max` 距离关节 + 更软的标定」表达 0.14 m 的挠度（与 A 的 0.065 m 区别只在标定）。
+- **IN 面**（2026-10-06 更新）：只读**声明默认档**（`INDeclarationSettingsExp.json`）的 `StrongSpringConnection = false` / `StableSpringConnection = false`
+  （B 档的 true/true 是 mod 值，不作来源）；不实现运行时切 IN 开关。因此**只有 y 软限位一条路径**、质量取 prefab、断力 250。
+- **声明的 250/20 不是 PhysX 实际交付的行为**：交付刚度**载荷相关**（0.3 kg 26.2 / 0.6 kg 47.5 / 1 kg 70.5 N/m），阻尼比约 0.54。
+  PigForge 按**实测交付率**标定（两个标定常量，照 ADR-024 的先例），不复刻「声明值 vs 实际值」这条物理差异；残余偏差见 §6（+0.4%）。
+- **y 软限位的近似**：不新开单轴线性限位能力，用「`min == max` 距离关节 + 标定后的刚度/阻尼」表达 `limit 0.1` 的软限位。
 - **视觉**：`SpringVisualization`（弹簧线随两锚点拉伸）不做 → P1 客户端项（与绳的样条渲染同一批）。
 - **`enablePreprocessing`**：Bepu 没有对应开关；软/硬一律按 ADR-024 的连续弹簧口径拟合，**不要照 Unity 文档猜**（ADR-011 的教训）。
 - **Jolt 后端**：`limit`/`bungee` 都不声明能力（`NotSupportedException`），与 ADR-011/012 的既有约定一致。
 - **锚点与静止长度**（2026-10-04 实现落地）：`CompoundSpring` 的两端锚都取原版的 `(0, -0.5, 0)`，各自换算到该件的局部系；原版的 `m_remoteConnectionPoint`（`Spring.cs:120-122`）会让两端锚在装配时**重合**，而契约的距离带（ADR-011 的 `Distance`）要求正的静止长度，因此 PigForge 取「两端锚在装配时的实际间距」当静止长度。挠度 = 载荷/k 与静止长度无关，所以实测口径不变；「拉过 3 m」判定的就是这两个锚的世界距离，与原版同口径。**未做**：原版 `connectedAnchor` 的 Unity autoConfigure 最近点语义。
-- **断力**（2026-10-04 实现落地）：关节直接带内容声明的 `breakForce`（发布值 1200 N），由 Bepu 后端在 `Distance` 关节上按累积冲量/时间执行（physics 侧已有测试）。后端按力断 与 3 m 拉断走同一条「销毁关节 → 生成端点刚体」路径；上面 §4 里「本切片先按 §7 记录口径」的 force → impulse 换算因此不必要的：**后端直接执行声明断力**，规则层不再复算冲量阈值。端点刚体续接的那条关节不设断力（与 `CreateSpringBody` 一致，`Spring.cs:139-176`）。
+- **断力**（2026-10-04 实现落地，2026-10-06 改成 vanilla 值）：关节直接带内容声明的 `breakForce`（**250 N**），由 Bepu 后端在 `Distance` 关节上按累积冲量/时间执行（physics 侧已有测试）。后端按力断与 3 m 拉断走同一条「销毁关节 → 生成端点刚体」路径，规则层不再复算冲量阈值。端点刚体续接的那条关节不设断力（与 `CreateSpringBody` 一致，`Spring.cs:139-176`）。

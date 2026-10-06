@@ -19,7 +19,7 @@
 | **引子（要命的细节）** | `SpringBoxingGlove` **不覆写 `CustomConnectToPart`** → 它与相邻件的连接是**普通焊接**（`Contraption.AddFixedJoint`，5/5 皮肤），本切片只新增「本体↔手套」那条关节 | `tasks/bple-springs-report.json`（`jointPathHistogram: {Weld: 5}`） |
 | **逐皮肤覆盖（不许用类默认值）** | `m_SpringYDrive **380**`（类默认 60）、`m_SpringYDriveDamper **3.5**`（3）、`m_ShootTime **0.4**`（1）、`m_targetDeviationX **0**`（0.01）、`m_WindingTime 1`、`m_checkRotation 0`、`m_targetDistanceY **2.5**`——**但 `Part_SpringBoxingGlove_05_SET`（id 245）是 `5`**（+ `wind.driveSpring` 随之 = 10×5×1 = 50），它是一支**打得更远**的皮肤 | `tasks/bple-springs-report.json`（`boxingGlove.prefabs[*].overrides`） |
 | 关节（贴身态） | `ConfigurableJoint`：角三轴 Locked、`x/z Locked`、`yMotion Limited`（`limit 1`、`linearLimitSpring 0/0`）、`yDrive{positionSpring m_SpringYDrive 60, positionDamper m_SpringYDriveDamper 3, maximumForce ∞}`、`xDrive{1000, 5}`、`projectionMode PositionAndRotation`、`projectionDistance 0.1`、`projectionAngle 0`、`enablePreprocessing false`、`targetPosition (0,0,0)` | `SpringBoxingGlove.cs:170-207` |
-| 触发 | `OnTouch()`：IN `SwitchableBoxingGlove` 为真 → **开关切换**（`CanBeEnabled()` 还看相邻件/超级胶/TNT）；否则**碰到就打** | `SpringBoxingGlove.cs:263-278`；`CanBeEnabled` `:88-96` |
+| 触发 | 控件是**按钮**（`HasOnOffToggle() => false`，`SpringBoxingGlove.cs:81-84`）；`OnTouch()` 在 IN `SwitchableBoxingGlove` 为真时切 `m_enabled`（档位，mod 档），为假（**声明默认档 = vanilla**）时**按一下打一次**、`m_ShootTime` 后自己回卷 | `SpringBoxingGlove.cs:345-395`；`CanBeEnabled` `:58-69` |
 | 出拳 | `targetPosition = (±m_targetDeviationX 0.01, m_targetDistanceY 2.5 × IN BoxingGloveLength, 0)`、`linearLimitSpring.spring = 0.1`；若目标件与本体同属一个 ConnectedComponent → **销毁它的全部 FixedJoints**（把身后那件打脱） | `SpringBoxingGlove.cs:224-262` |
 | 回卷 | `m_ShootTime 1` s 后：`yDrive.positionDamper = 2.5`、`yDrive.positionSpring = 10 × m_targetDistanceY × BoxingGloveLength`、手套 mass → **0.01**、手套碰撞体 `enabled = false`；直到 `m_WindingTime 1` s 或 `|localPosition| < 0.1` 或 `localPosition.y > 0` → `InitilizeBoxingGlove()` 复位 | `SpringBoxingGlove.cs:280-330` |
 | 其它 | 手套与本体/被包裹件 `IgnoreCollision`；手套 `solverIterations × 1.6`；`HasOnOffToggle() => false`（原版的开关取消，除非 IN 开关打开）；`CanBeEnclosed() => true`；`EffectDirection() = Rotate(Down, gridRotation)`；`m_checkRotation` 下 90° 要镜像美术；`BoxingGlove.cs` 只是成就上报（无物理） | `SpringBoxingGlove.cs:88-96,140-158,215-222,263` |
@@ -77,10 +77,11 @@ prefab 的 380 驱动让手套在 **0.1 s 内冲过目标约 30%**（`3.25 > 2.5
   `SpringBoxingGlove.HasOnOffToggle() => false`（`SpringBoxingGlove.cs:81-84`），而 `UIPartTriggerButtonInfo` 正是拿这个值决定控件形状
   （`BasePart.cs:1418-1421`）；`BasePart.OnButtonTriggered` 又只是 `ProcessTouch()`（`BasePart.cs:1428-1431`）。所以按下 = 出拳，回卷由
   `m_ShootTime` 自己完成，按钮不留在「开位」。
-- **与 IN `SwitchableBoxingGlove = true` 的偏差（有意，可回退）**：`INSettingsBExp.json:504-508` 实测为 `true`，那条分支里 `OnTouch` 切的是
-  `m_enabled`（档位），`Update` 只在 `!m_enabled` 时才进回卷。PigForge 仍然实现这条分支（`activation: "toggle"`：关 = 中断回卷，开 = 出拳，
-  且快照里的 `Active` 一直是 1 —— 客户端的开关条就会把它画成一个真正的开关，这正是用户报告的「预期是按钮而不是开关」），
-  但**发布内容不再选它**；把 `tools/bple-springs/apply-springs.mjs` 的 `activation` 常量改回 `"toggle"` 即可整体回退。
+- **选中的就是 vanilla 分支**（2026-10-06 更新口径）：声明默认档 `SwitchableBoxingGlove = false`（`INDeclarationSettingsExp.json`），
+  `Update` 的 else 分支在 `!m_enabled` 时 `Shoot`、`m_ShootTime`（prefab 覆写 0.4 s）后进回卷、回卷完成复位 `m_enabled = false` 可再按。
+  `INSettingsBExp.json:504-508` 的 `true` 是 **B 档 mod**（那条分支 `OnTouch` 切 `m_enabled`、`Update` 只在 `!m_enabled` 时回卷）。
+  PigForge 两条都实现（`activation: "trigger"` 是发布值；`"toggle"`：关 = 中断回卷、开 = 出拳、快照 `Active` 恒 1 —— 客户端会画成开关，
+  正是用户报告的「预期是按钮而不是开关」），把 `tools/bple-springs/apply-springs.mjs` 的 `activation` 常量改回 `"toggle"` 即可整体回退。
 - `BoxingGloveLength = 1`（`INDeclarationSettingsExp.json:1172`，非覆盖）⇒ 伸出距离 = `2.5 × 1 = 2.5`。
 - **拳头的图**（2026-10-04 补做，用户实机报告「弹出的不是拳头」）：`m_BoxingGlovePrefab` 指向的 `BoxingGlove*.prefab`（`SpringBoxingGlove.cs:38`）
   有自己的 `Visualization` 精灵，由 `tools/bple-textures/extract.mjs` 抽成清单里的 `subSprites`（schemaVersion 5，5 个皮肤各一张）；
