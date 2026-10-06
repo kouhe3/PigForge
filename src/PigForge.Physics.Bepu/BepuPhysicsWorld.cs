@@ -290,6 +290,28 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         });
     }
 
+    public void SetBodyDamping(PhysicsBodyId body, float linearDamping, float angularDamping)
+    {
+        ThrowIfDisposed();
+        if (!float.IsFinite(linearDamping) || linearDamping < 0f || !float.IsFinite(angularDamping) || angularDamping < 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(linearDamping), linearDamping, "Damping must be finite and non-negative.");
+        }
+
+        if (!_dynamicBodies.TryGetValue(body, out BodyHandle handle))
+        {
+            throw new KeyNotFoundException($"Physics body {body.Value} does not exist or is not a dynamic body.");
+        }
+
+        // Every body this world creates went through `SetMotion`, which sized the table past its
+        // handle, so the slot exists; the angular clamp in it is the body's own and stays put (the
+        // original's Pig.FixedUpdate rewrites exactly the two damping terms).
+        BodyMotionSettings motion = _motionByHandle[handle.Value];
+        motion.LinearDamping = linearDamping;
+        motion.AngularDamping = angularDamping;
+        _motionByHandle[handle.Value] = motion;
+    }
+
     public void SetBodyCollisionEnabled(PhysicsBodyId body, bool enabled)
     {
         ThrowIfDisposed();

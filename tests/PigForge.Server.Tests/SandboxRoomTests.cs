@@ -14,6 +14,8 @@ public sealed class SandboxRoomTests
     private const uint PartEgg = 4;
     private const uint PartGround = 5;
     private const uint PartMotor = 6;
+    private const uint PartRampPig = 8;
+    private const uint PartFrame = 9;
     private const uint PlayerOne = 1;
     private const uint PlayerTwo = 2;
 
@@ -894,6 +896,107 @@ public sealed class SandboxRoomTests
         SnapshotEntity PlayerTwoBeforeReset,
         SnapshotEntity PlayerTwoAfterReset);
 
+    /// <summary>
+    /// The original's runtime damping ramp (docs/specs/body-defaults.md §6, G90): <c>Pig.FixedUpdate</c>
+    /// (<c>Pig.cs:249-262</c>) rewrites its own rigidbody's drag and angularDrag every fixed step —
+    /// below the content's <c>speedThreshold</c> both become <c>base + slope * (1 - |v|)</c>, at or
+    /// above it both go back to the part's own pair — and the room folds that value into the body the
+    /// pig rides (a PigForge body carries one pair for every part merged into it).
+    /// </summary>
+    [Fact]
+    public void ASlowRampingPigPushesTheRampedDampingOntoItsBody()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint pig = room.Submit(PlacePart(1, PlayerOne, PartRampPig, 0f, 2f)).EntityId;
+        Assert.True(room.Submit(Start(2, PlayerOne)).IsAccepted);
+        world.Damping.Clear();
+
+        // |v| = 0.5: 0.2 + 2.5 * (1 - 0.5) = 1.45 on both axes, and the pig is alone on its body.
+        world.QueueSnapshot(Snapshot(FirstBodyOf(room, pig), new PhysicsVector3(0f, 2f, 0f), new PhysicsVector3(0.5f, 0f, 0f)));
+        room.Tick();
+
+        (uint Body, float Linear, float Angular) pushed = Assert.Single(world.Damping);
+        Assert.Equal(1.45f, pushed.Linear, precision: 4);
+        Assert.Equal(1.45f, pushed.Angular, precision: 4);
+    }
+
+    [Fact]
+    public void AFastRampingPigPushesItsOwnDampingBack()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint pig = room.Submit(PlacePart(1, PlayerOne, PartRampPig, 0f, 2f)).EntityId;
+        Assert.True(room.Submit(Start(2, PlayerOne)).IsAccepted);
+        uint body = FirstBodyOf(room, pig);
+
+        world.QueueSnapshot(Snapshot(body, new PhysicsVector3(0f, 2f, 0f), new PhysicsVector3(0.5f, 0f, 0f)));
+        room.Tick();
+        Assert.Equal(1.45f, world.Damping[^1].Linear, precision: 4);
+
+        // The ramp's other branch: at and above the threshold both drags return to the part's own
+        // content pair (the fixture's document default, 0.2 / 0.05).
+        world.Damping.Clear();
+        world.QueueSnapshot(Snapshot(body, new PhysicsVector3(0f, 2f, 0f), new PhysicsVector3(6f, 0f, 0f)));
+        room.Tick();
+
+        (uint Body, float Linear, float Angular) pushed = Assert.Single(world.Damping);
+        Assert.Equal(0.2f, pushed.Linear, precision: 6);
+        Assert.Equal(0.05f, pushed.Angular, precision: 6);
+    }
+
+    [Fact]
+    public void APigWhoseContentDeclaresNoRampNeverAsksForADamping()
+    {
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint pig = room.Submit(PlacePart(1, PlayerOne, PartPig, 0f, 2f)).EntityId;
+        Assert.True(room.Submit(Start(2, PlayerOne)).IsAccepted);
+        world.Damping.Clear();
+
+        world.QueueSnapshot(Snapshot(FirstBodyOf(room, pig), new PhysicsVector3(0f, 2f, 0f), new PhysicsVector3(0.5f, 0f, 0f)));
+        room.Tick();
+
+        Assert.Empty(world.Damping);
+    }
+
+    [Fact]
+    public void ARampingPigInsideAFrameFoldsItsValueIntoTheBody()
+    {
+        // The pig is enclosed by the frame, so the two share one body (ADR-011): the body's damping
+        // is the members' mass-weighted fold with the ramped pair standing in for the pig's own
+        // value -- (1*1.45 + 3*0.2) / 4 and (1*1.45 + 3*0.05) / 4.
+        ScriptedWorld world = new();
+        using GameRoom room = CreateSandboxRoom(world);
+        room.SetupFromLevel(Level());
+        uint frame = room.Submit(PlacePart(1, PlayerOne, PartFrame, 0f, 2f)).EntityId;
+        uint pig = room.Submit(PlacePart(2, PlayerOne, PartRampPig, 0f, 2f)).EntityId;
+        Assert.True(room.Submit(Start(3, PlayerOne)).IsAccepted);
+        world.Damping.Clear();
+
+        // Both parts ride one body: the pig was placed in the frame's own cell, which encloses it.
+        uint body = FirstBodyOf(room, frame);
+        Assert.Equal(body, FirstBodyOf(room, pig));
+        world.QueueSnapshot(Snapshot(body, new PhysicsVector3(0f, 2f, 0f), new PhysicsVector3(0.5f, 0f, 0f)));
+        room.Tick();
+
+        (uint Body, float Linear, float Angular) pushed = Assert.Single(world.Damping);
+        Assert.Equal((1.45f + (3f * 0.2f)) / 4f, pushed.Linear, precision: 4);
+        Assert.Equal((1.45f + (3f * 0.05f)) / 4f, pushed.Angular, precision: 4);
+    }
+
+    /// <summary>The body a placed entity published this tick; 0 when it is still a preview.</summary>
+    private static uint FirstBodyOf(GameRoom room, uint entityId)
+    {
+        List<SnapshotEntity> entities = PublishEntities(room, out _);
+        uint body = entities.Single(entity => entity.EntityId == entityId).PhysicsBodyId;
+        Assert.NotEqual(0u, body);
+        return body;
+    }
+
     private static GameRoom CreateSandboxRoom(ScriptedWorld world, GameplayZone? mapBounds = null) =>
         new(GameRoomOptions.Create(
             new PartContentLibrary(PartContentParser.Parse(ContentJson)),
@@ -1114,7 +1217,9 @@ public sealed class SandboxRoomTests
             { "partTypeId": 4, "name": "egg", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "egg": true } },
             { "partTypeId": 5, "name": "ground", "mode": "static", "mass": 0, "material": { "restitution": 0, "friction": 0.8 }, "shapes": [ { "kind": "box", "halfExtents": [40, 0.5, 10] } ] },
             { "partTypeId": 6, "name": "motor", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "motor": { "thrustPerTick": 2, "directionX": 1 }, "activation": "toggle" } },
-            { "partTypeId": 7, "name": "rocket", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "ignitionTicks": 0, "boostTicks": 30, "endTicks": 0, "maxSpeed": 18 }, "activation": "trigger" } }
+            { "partTypeId": 7, "name": "rocket", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "ignitionTicks": 0, "boostTicks": 30, "endTicks": 0, "maxSpeed": 18 }, "activation": "trigger" } },
+            { "partTypeId": 8, "name": "ramp-pig", "mode": "dynamic", "mass": 1, "material": { "restitution": 0.2, "friction": 0.4 }, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "pig": true, "canBeEnclosed": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } } },
+            { "partTypeId": 9, "name": "frame", "mode": "dynamic", "mass": 3, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "source", "canEnclose": true } }
         ]
     }
     """;
@@ -1174,6 +1279,13 @@ public sealed class SandboxRoomTests
         public void SetBodyCollisionEnabled(PhysicsBodyId body, bool enabled)
         {
         }
+
+        /// <summary>Every runtime damping the room pushed, in call order: the original rewrites a
+        /// pig's drag every fixed step, so the same body and value repeat across ticks.</summary>
+        public List<(uint Body, float Linear, float Angular)> Damping { get; } = new();
+
+        public void SetBodyDamping(PhysicsBodyId body, float linearDamping, float angularDamping) =>
+            Damping.Add((body.Value, linearDamping, angularDamping));
 
         public PhysicsJointId CreateJoint(JointDefinition definition) => throw new NotSupportedException();
 

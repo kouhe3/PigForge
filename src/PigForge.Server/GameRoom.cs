@@ -112,6 +112,12 @@ public sealed class GameRoom : IDisposable
     private readonly List<(PhysicsJointId Joint, PhysicsBodyId Attach, PhysicsBodyId Anchor)> _attachmentJoints = new();
     private readonly Dictionary<uint, (PhysicsBodyId Body, PhysicsQuaternion LocalRotation)> _attachByEntity = new();
     private readonly List<LiveCompound> _liveCompounds = new();
+    // The original's runtime damping ramps (`Pig.FixedUpdate`, Pig.cs:249-262): the bodies a part
+    // asked for a damping this tick, the per-entity values the fold substitutes, and the live
+    // members that fold walks. Tick scratch, reused so a ramp never allocates.
+    private List<uint> _rampedBodies = new();
+    private readonly Dictionary<uint, PartDamping> _dampingOverrides = new();
+    private readonly List<CompoundMember> _liveMembers = new();
     private readonly List<PhysicsCommand> _appliedCommands = new();
     private readonly float _seamBreakImpulse;
     private readonly GameplayConfig _gameplayConfig;
@@ -250,7 +256,7 @@ public sealed class GameRoom : IDisposable
         switch (spec.Role)
         {
             case RoomActorRole.Pig:
-                _rules.AddPig(entity);
+                RegisterPig(entity);
                 break;
             case RoomActorRole.Tnt:
                 _rules.AddTnt(entity, spec.TntFuseTicks);
@@ -421,6 +427,31 @@ public sealed class GameRoom : IDisposable
         }
     }
 
+    /// <summary>
+    /// Registers a pig with the runtime damping ramp its class declares. <c>Pig.FixedUpdate</c>
+    /// (<c>Pig.cs:249-262</c>) rewrites its own rigidbody's damping every fixed step, so the rules
+    /// layer needs the part's own pair plus the ramp's three numbers; both come from content
+    /// (<c>damping</c> and <c>capabilities.dampingRamp</c>, written by <c>tools/bple-damping</c>).
+    /// </summary>
+    private void RegisterPig(EntityId entity)
+    {
+        if (!_parts.TryGet(entity, out PartLink link))
+        {
+            throw new ArgumentException($"Entity {entity.Value} has no part link.", nameof(entity));
+        }
+
+        PartDefinition part = _content.GetPart(link.PartTypeId);
+        PartDamping damping = _content.DampingOf(part);
+        PartDampingRamp? ramp = part.Capabilities?.DampingRamp;
+        _rules.AddPig(
+            entity,
+            damping.Linear,
+            damping.Angular,
+            ramp?.SpeedThreshold ?? 0f,
+            ramp?.Base ?? 0f,
+            ramp?.Slope ?? 0f);
+    }
+
     private void RegisterPlacedRole(EntityId entity, uint partTypeId)
     {
         PartDefinition part = _content.GetPart(partTypeId);
@@ -435,7 +466,7 @@ public sealed class GameRoom : IDisposable
 
         if (capabilities.IsPig)
         {
-            _rules.AddPig(entity);
+            RegisterPig(entity);
         }
 
         if (capabilities.HasMotor)
@@ -1306,6 +1337,10 @@ public sealed class GameRoom : IDisposable
         SplitFromAppliedCommands(snapshotCount);
         BreakWeldsFromAppliedCommands(snapshotCount);
         BreakSpringsFromPull(snapshotCount);
+        // Last, so the fold sees the member sets the tick ended with: a body a split, a detach or a
+        // destroyed part just changed must not carry a ramped value (or a stale fold) into the next
+        // step. The push lands before that step, which is when the backend applies it.
+        ApplyDampingOverrides();
         // A spring endpoint spawned this tick added a body after the buffers were sized, and the next
         // tick's snapshot copy must have room for it. Done last: growing the snapshot buffer discards
         // this tick's telemetry, which the phase above still reads.
@@ -1323,6 +1358,94 @@ public sealed class GameRoom : IDisposable
         {
             Tick();
         }
+    }
+
+    /// <summary>
+    /// Pushes the original's runtime damping onto the bodies it belongs to. A PigForge body carries
+    /// one linear/angular pair for every part merged into it (<see cref="CompoundCluster.Damping"/>),
+    /// so a part whose own value changed this tick is folded again with that value standing in for
+    /// its member; a body of exactly one part takes the value as it is, because the fold's mass
+    /// weights cancel. No body needs a "restore" visit: a live body's member list only ever changes
+    /// by rebuilding it (<see cref="RebuildSplitBody"/>, which spawns every piece from its own fold)
+    /// or by destroying it, so the last ramped value can never outlive the part that asked for it.
+    /// </summary>
+    private void ApplyDampingOverrides()
+    {
+        _dampingOverrides.Clear();
+        _rampedBodies.Clear();
+        for (int index = 0; index < _output.DampingOverrides.Count; index++)
+        {
+            PartDampingOverride overridden = _output.DampingOverrides[index];
+            if (!_bodies.TryGet(overridden.Entity, out PhysicsBodyLink link))
+            {
+                // The part is gone by now (destroyed or unbound this tick): its body was rebuilt or
+                // destroyed with it, so there is nothing left to push onto.
+                continue;
+            }
+
+            _dampingOverrides[overridden.Entity.Value] = new PartDamping(overridden.Linear, overridden.Angular);
+            if (!_rampedBodies.Contains(link.Body.Value))
+            {
+                _rampedBodies.Add(link.Body.Value);
+            }
+        }
+
+        for (int index = 0; index < _rampedBodies.Count; index++)
+        {
+            uint bodyValue = _rampedBodies[index];
+            if (!_entitiesByBody.TryGetValue(bodyValue, out List<uint>? members) || members.Count == 0)
+            {
+                continue;
+            }
+
+            var body = new PhysicsBodyId(bodyValue);
+            PartDamping damping = BodyDampingOf(body, members);
+            _world.SetBodyDamping(body, damping.Linear, damping.Angular);
+        }
+    }
+
+    /// <summary>
+    /// The damping one body carries this tick: its members' own pair folded by mass
+    /// (<see cref="CompoundAssembler.FoldDamping(IReadOnlyList{CompoundMember}, IReadOnlyDictionary{uint, PartDamping})"/>),
+    /// with this tick's runtime value standing in for every member that has one.
+    /// </summary>
+    private PartDamping BodyDampingOf(PhysicsBodyId body, IReadOnlyList<uint> members)
+    {
+        int liveIndex = _liveCompounds.FindIndex(candidate => candidate.Body == body);
+        if (liveIndex >= 0)
+        {
+            return FoldLiveMembers(_liveCompounds[liveIndex].Cluster.Members);
+        }
+
+        // One part, one body: the fold is that member alone, so the value is the body's damping.
+        uint only = members[0];
+        if (_dampingOverrides.TryGetValue(only, out PartDamping overridden))
+        {
+            return overridden;
+        }
+
+        return _parts.TryGet(new EntityId(only), out PartLink part)
+            ? _content.DampingOf(_content.GetPart(part.PartTypeId))
+            : default;
+    }
+
+    /// <summary>
+    /// The fold over the members that are still alive. The cluster the body was bound with keeps a
+    /// member whose entity has since died (a charge that went off inside the same body), and a
+    /// member that is gone must not drag the body's damping with it.
+    /// </summary>
+    private PartDamping FoldLiveMembers(IReadOnlyList<CompoundMember> members)
+    {
+        _liveMembers.Clear();
+        for (int index = 0; index < members.Count; index++)
+        {
+            if (_entities.IsAlive(members[index].Entity))
+            {
+                _liveMembers.Add(members[index]);
+            }
+        }
+
+        return CompoundAssembler.FoldDamping(_liveMembers, _dampingOverrides);
     }
 
     /// <summary>
@@ -1573,6 +1696,9 @@ public sealed class GameRoom : IDisposable
         _attachmentJoints.Clear();
         _attachByEntity.Clear();
         _liveCompounds.Clear();
+        _rampedBodies.Clear();
+        _dampingOverrides.Clear();
+        _liveMembers.Clear();
         _subEntitiesByHost.Clear();
         _subEntityIds.Clear();
         _stowedSubEntityIds.Clear();

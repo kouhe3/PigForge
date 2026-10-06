@@ -895,7 +895,16 @@ public static class CompoundAssembler
     /// member's drag is not averaged away by a light one. A lone member keeps its own value
     /// exactly. See <see cref="CompoundCluster.Damping"/>.
     /// </summary>
-    private static PartDamping FoldDamping(IReadOnlyList<CompoundMember> members)
+    public static PartDamping FoldDamping(IReadOnlyList<CompoundMember> members) => FoldDamping(members, null);
+
+    /// <summary>
+    /// The same fold with a runtime value standing in for some members' own damping: the original
+    /// rewrites a part's drag and angularDrag every fixed step while its runtime ramp is active
+    /// (<c>Pig.FixedUpdate</c>, <c>Pig.cs:249-262</c>), and a PigForge body carries one pair for all
+    /// its members, so the ramped value has to be folded again every tick. <paramref name="overrides"/>
+    /// is keyed by entity; a member missing from it keeps its own value.
+    /// </summary>
+    public static PartDamping FoldDamping(IReadOnlyList<CompoundMember> members, IReadOnlyDictionary<uint, PartDamping>? overrides)
     {
         float totalMass = 0f;
         float linear = 0f;
@@ -903,9 +912,15 @@ public static class CompoundAssembler
         for (int index = 0; index < members.Count; index++)
         {
             CompoundMember member = members[index];
+            PartDamping damping = member.Damping;
+            if (overrides is not null && overrides.TryGetValue(member.Entity.Value, out PartDamping overridden))
+            {
+                damping = overridden;
+            }
+
             totalMass += member.Mass;
-            linear += member.Mass * member.Damping.Linear;
-            angular += member.Mass * member.Damping.Angular;
+            linear += member.Mass * damping.Linear;
+            angular += member.Mass * damping.Angular;
         }
 
         return totalMass > 0f ? new PartDamping(linear / totalMass, angular / totalMass) : default;

@@ -41,6 +41,17 @@ public sealed record PartContentPhysics(float MaximumAngularSpeed, PartDamping D
 /// </summary>
 public readonly record struct PartDamping(float Linear, float Angular);
 
+/// <summary>
+/// The original's runtime damping ramp (<c>Pig.FixedUpdate</c>, <c>Pig.cs:249-262</c>): while the
+/// contraption runs, below <see cref="SpeedThreshold"/> m/s the rigidbody's linear and angular
+/// damping are both rewritten every fixed step to <c>Base + Slope * (1 - |v|)</c> — 0.2 + 2.5 *
+/// (1 - |v|), so up to 2.7 at a standstill — and at or above it both go back to the part's own
+/// spawn pair. Only the <c>Pig</c> class declares that method, so it is a class fact
+/// (<c>KingPig</c> and <c>GoldenPig</c> are <c>BasePart</c> subclasses and never ramp); extracted
+/// from the method body by <c>tools/bple-damping</c>, never authored.
+/// </summary>
+public readonly record struct PartDampingRamp(float SpeedThreshold, float Base, float Slope);
+
 public sealed record PartDefinition(
     uint PartTypeId,
     string Name,
@@ -369,7 +380,11 @@ public sealed record PartCapabilities(
     // never authored by hand. 0 means "not a consumer" / "not an engine" (the original
     // serializes both fields on every part, so 0 is the absent value).
     float PowerConsumption = 0f,
-    float EnginePower = 0f)
+    float EnginePower = 0f,
+    // The original's runtime damping ramp, a class fact of exactly the Pig class
+    // (`Pig.FixedUpdate`, Pig.cs:249-262) extracted by `tools/bple-damping`. A body carrying one of
+    // these parts folds the ramped value into its damping every tick.
+    PartDampingRamp? DampingRamp = null)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 

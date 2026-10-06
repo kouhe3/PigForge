@@ -22,6 +22,9 @@
 //   Rope.FixedUpdate()           per-node drag                                -- RUNTIME, excluded
 //   INContraption.FixedUpdateSelf()  zeroes every body's damping behind the `NoDrag` switch
 //                                    (INContraption.cs:329-341)               -- a player setting, not content
+//   Pig.FixedUpdate()            while the contraption runs, `|v| < 1` rewrites BOTH drag and
+//                                angularDrag to `0.2 + 2.5 * (1 - |v|)` and otherwise puts the
+//                                class's spawn pair back (Pig.cs:249-262)   -- EXTRACTED, below
 //
 // The values are read out of the decompiled C# (never authored here): one class per file, the
 // damping lands in `EnsureRigidbody` or in the spawn-time `Initialize` the original calls right
@@ -44,6 +47,7 @@
 //   - damping is only ever assigned from {EnsureRigidbody, Initialize} (RUNTIME_METHODS lists the
 //     known runtime overrides and is reported, not applied);
 //   - the original's PhysicsManager clamp is the value the report carries.
+//   - the runtime damping ramps are exactly EXPECTED_DAMPING_RAMPS, read out of `FixedUpdate`.
 
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -318,6 +322,129 @@ function collectAssignmentMethods(classes, classNames) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The original's runtime damping ramps.
+// ---------------------------------------------------------------------------------------------
+
+/** The one admissible class -> ramp table. `Pig.FixedUpdate` is the project's only method that
+ * rewrites a rigidbody's damping every step, and its numbers are read out of that body: a
+ * source-level drift (or a mis-parse) fails this tool rather than silently writing a different
+ * world. The ramp is content (`capabilities.dampingRamp`) because it is a class fact of exactly
+ * the classes listed here -- `KingPig` and `GoldenPig` are `BasePart` subclasses and never ramp. */
+const EXPECTED_DAMPING_RAMPS = { Pig: { speedThreshold: 1, base: 0.2, slope: 2.5 } };
+
+const RAMP_GATE = /if\s*\(\s*\(bool\)base\.contraption\s*&&\s*base\.contraption\.IsRunning\s*\)/;
+const RAMP_SPEED = /float\s+magnitude\s*=\s*base\.rigidbody\.velocity\.magnitude\s*;/;
+const RAMP_LOW = /if\s*\(\s*magnitude\s*<\s*(-?\d+(?:\.\d+)?)f\s*\)/;
+const RAMP_RAMPED =
+  /base\.rigidbody\.(drag|angularDrag)\s*=\s*(-?\d+(?:\.\d+)?)f\s*\+\s*(-?\d+(?:\.\d+)?)f\s*\*\s*\(\s*1f\s*-\s*magnitude\s*\)\s*;/g;
+const RAMP_IDLE = /base\.rigidbody\.(drag|angularDrag)\s*=\s*(-?\d+(?:\.\d+)?)f\s*;/g;
+
+/** Reads a class's `FixedUpdate` damping ramp, or null when it declares none. The shape is
+ * asserted rather than guessed: an `IsRunning` gate, a `magnitude` speed read, one
+ * `magnitude < threshold` branch whose two assignments agree on base and slope, and a pair of
+ * plain assignments that restores exactly the class's own spawn damping. */
+function resolveDampingRamp(className, classes, spawn) {
+  // Only a class the table expects is parsed as a ramp: every other runtime assignment
+  // (`FanPropeller`'s rotor angularDrag, a rope node's drag) is reported by
+  // `collectAssignmentMethods` instead, and must not be mistaken for this shape.
+  if (!(className in EXPECTED_DAMPING_RAMPS)) {
+    return null;
+  }
+
+  const text = classes.texts.get(className);
+  if (text === undefined) {
+    return null;
+  }
+
+  const body = methodBodies(text).get("FixedUpdate");
+  if (body === undefined) {
+    return null;
+  }
+
+  RAMP_IDLE.lastIndex = 0;
+  const idle = [...body.matchAll(RAMP_IDLE)];
+  if (idle.length === 0) {
+    return null;
+  }
+
+  const source = `${basename(classes.files.get(className) ?? "")}:FixedUpdate`;
+  const drift = (message) => fail(`${className}.${source} ${message}`);
+  if (!RAMP_GATE.test(body)) {
+    drift("has no `contraption.IsRunning` gate.");
+  }
+  if (!RAMP_SPEED.test(body)) {
+    drift("has no `float magnitude = base.rigidbody.velocity.magnitude;` read.");
+  }
+  const low = RAMP_LOW.exec(body);
+  if (low === null) {
+    drift("has no `if (magnitude < threshold)` branch.");
+  }
+
+  RAMP_RAMPED.lastIndex = 0;
+  const ramped = [...body.matchAll(RAMP_RAMPED)];
+  const fields = new Map();
+  for (const match of ramped) {
+    const field = match[1] === "drag" ? "linear" : "angular";
+    if (fields.has(field)) {
+      drift(`assigns ${match[1]} twice in the ramped branch.`);
+    }
+    fields.set(field, { at: match.index, base: Number(match[2]), slope: Number(match[3]) });
+  }
+  if (fields.size !== 2) {
+    drift(`ramps ${fields.size} of the two drags, expected both.`);
+  }
+  const linear = fields.get("linear");
+  const angular = fields.get("angular");
+  if (linear.base !== angular.base || linear.slope !== angular.slope) {
+    drift(`ramps the two drags differently (${linear.base} + ${linear.slope}, ${angular.base} + ${angular.slope}).`);
+  }
+
+  const restores = new Map();
+  for (const match of idle) {
+    const field = match[1] === "drag" ? "linear" : "angular";
+    if (restores.has(field)) {
+      drift(`restores ${match[1]} twice.`);
+    }
+    restores.set(field, { at: match.index, value: Number(match[2]) });
+  }
+  if (restores.size !== 2) {
+    drift(`restores ${restores.size} of the two drags, expected both.`);
+  }
+  if (restores.get("linear").value !== spawn.linear || restores.get("angular").value !== spawn.angular) {
+    drift(
+      `restores ${restores.get("linear").value} / ${restores.get("angular").value}, not the class's own spawn pair ${spawn.linear} / ${spawn.angular}.`,
+    );
+  }
+  if (linear.at > restores.get("linear").at || angular.at > restores.get("angular").at) {
+    drift("assigns the ramped pair after the restoring pair; the ramp is the `magnitude < threshold` branch.");
+  }
+
+  const speedThreshold = Number(low[1]);
+  if (!(speedThreshold > 0)) {
+    drift(`has a non-positive speed threshold (${speedThreshold}).`);
+  }
+
+  const expected = EXPECTED_DAMPING_RAMPS[className];
+  if (
+    !expected ||
+    expected.speedThreshold !== speedThreshold ||
+    expected.base !== linear.base ||
+    expected.slope !== linear.slope
+  ) {
+    drift(
+      `extracted { speedThreshold: ${speedThreshold}, base: ${linear.base}, slope: ${linear.slope} }, expected ${JSON.stringify(expected ?? null)}.`,
+    );
+  }
+
+  return {
+    speedThreshold,
+    base: linear.base,
+    slope: linear.slope,
+    source: `${basename(classes.files.get(className) ?? "")}:FixedUpdate`,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
 // The original's project-wide physics settings.
 // ---------------------------------------------------------------------------------------------
 
@@ -354,9 +481,18 @@ if (Object.keys(assignments).length !== content.parts.length) {
 }
 
 const classDamping = new Map();
+const classRamps = new Map();
 const usedClasses = new Set();
 const parts = {};
 const missing = [];
+
+/** A class's runtime damping ramp, resolved at most once per class (see `resolveDampingRamp`). */
+function dampingRampOf(className, spawn) {
+  if (!classRamps.has(className)) {
+    classRamps.set(className, resolveDampingRamp(className, classes, spawn));
+  }
+  return classRamps.get(className);
+}
 
 /** A class's damping: its `EnsureRigidbody` chain folded with its `Initialize` chain, resolved at
  * most once per class. */
@@ -432,6 +568,7 @@ for (const part of content.parts) {
     continue;
   }
 
+  const ramp = dampingRampOf(className, { linear: linear.value, angular: angular.value });
   parts[partTypeId] = {
     partTypeId: Number(partTypeId),
     name: part.name,
@@ -440,6 +577,7 @@ for (const part of content.parts) {
     linear: linear.value,
     angular: angular.value,
     source: `${basename(classes.files.get(linear.declaringClass) ?? "")}:${linear.method}`,
+    ...(ramp ? { dampingRamp: ramp } : {}),
   };
 }
 
@@ -485,7 +623,23 @@ for (const className of [...usedClasses].sort()) {
   }
 }
 
-// Any other method that assigns damping must be a known runtime override.
+// The ramp set is the second invariant: exactly the classes EXPECTED_DAMPING_RAMPS names declare a
+// `FixedUpdate` ramp, and every part of such a class carries it.
+const rampedClasses = [...classRamps.entries()].filter(([, ramp]) => ramp !== null).map(([name]) => name).sort();
+const expectedRamped = Object.keys(EXPECTED_DAMPING_RAMPS).sort();
+if (rampedClasses.join(",") !== expectedRamped.join(",")) {
+  fail(`classes that ramp their damping at runtime: ${rampedClasses.join(", ") || "none"}; expected ${expectedRamped.join(", ")}`);
+}
+for (const part of Object.values(parts)) {
+  if (rampedClasses.includes(part.className) !== (part.dampingRamp !== undefined)) {
+    fail(`part ${part.partTypeId} (${part.name}) of class ${part.className} carries the ramp inconsistently.`);
+  }
+}
+const rampedParts = Object.values(parts).filter((part) => part.dampingRamp !== undefined).length;
+const rampTable = Object.fromEntries(rampedClasses.map((name) => [name, classRamps.get(name)]));
+
+// Any other method that assigns damping must be a known runtime override, so a new one is caught
+// instead of silently overwritten every step.
 const assignmentMethods = collectAssignmentMethods(classes, [...usedClasses, "FanPropeller", "Rope", "INContraption", "HingePlate", "Pig", "GoldenPig"]);
 const unknownMethods = [];
 const runtimeOverrides = {};
@@ -493,11 +647,18 @@ for (const [site, method] of [...assignmentMethods].sort()) {
   if (SPAWN_METHODS.includes(method)) {
     continue;
   }
-  if (RUNTIME_METHODS.has(method)) {
-    runtimeOverrides[site] = method;
+  if (!RUNTIME_METHODS.has(method)) {
+    unknownMethods.push(`${site} assigns damping from ${method}, which is neither a spawn method nor a known runtime override`);
     continue;
   }
-  unknownMethods.push(`${site} assigns damping from ${method}, which is neither a spawn method nor a known runtime override`);
+
+  runtimeOverrides[site] = {
+    method,
+    // `Pig.FixedUpdate` is the one runtime override content models; the rest are either a player
+    // setting the vanilla declaration defaults leave off, or a part family PigForge does not have
+    // (docs/specs/body-defaults.md §6.4).
+    disposition: rampedClasses.includes(site.split(".")[0]) ? "content:capabilities.dampingRamp" : "not modelled",
+  };
 }
 if (drifts.length > 0 || unknownMethods.length > 0) {
   fail([...drifts, ...unknownMethods].join("\n"));
@@ -520,12 +681,18 @@ for (const part of Object.values(parts)) {
 const dynamicParts = content.parts.filter((part) => part.mode === "dynamic").length;
 const report = {
   format: "pigforge.bple-part-damping",
-  schemaVersion: 1,
+  schemaVersion: 2,
   source: BPLE,
   physics: settings,
   classTable,
+  dampingRamps: rampTable,
   runtimeOverrides,
-  counts: { contentParts: content.parts.length, dynamicParts, reportedParts: Object.keys(parts).length },
+  counts: {
+    contentParts: content.parts.length,
+    dynamicParts,
+    reportedParts: Object.keys(parts).length,
+    rampedParts,
+  },
   histogram,
   parts,
   warnings,
@@ -547,7 +714,11 @@ if (process.argv.includes("--write")) {
     "",
     `Histogram: ${Object.entries(histogram).map(([key, value]) => `${key} x${value}`).join(", ")}`,
     "",
-    `Runtime overrides (not content): ${Object.keys(runtimeOverrides).join(", ") || "none"}`,
+    `Runtime damping ramps (content \`capabilities.dampingRamp\`, ${rampedParts} parts): ${
+      rampedClasses.map((name) => `${name} { ${Object.entries(rampTable[name]).filter(([key]) => key !== "source").map(([key, value]) => `${key}: ${value}`).join(", ")} } (${rampTable[name].source})`).join(", ") || "none"
+    }`,
+    "",
+    `Runtime overrides: ${Object.entries(runtimeOverrides).map(([site, entry]) => `${site} (${entry.disposition})`).join(", ") || "none"}`,
     "",
   ].join("\n");
   writeFileSync(OUT_MD, markdown);

@@ -129,4 +129,41 @@ public sealed class JoltBodyDampingTests
         Assert.Equal(5f * MathF.Pow(1f - (AngularDrag * Step), 60f), snapshots[0].AngularVelocity.Z, precision: 4);
         world.DestroyBody(body);
     }
+
+    [Fact]
+    public void JoltTakesARuntimeDampingChangeOnTheVeryNextStep()
+    {
+        // The same contract method on the other backend: the original's runtime ramp
+        // (Pig.FixedUpdate) writes 2.7 onto a body created with 0.2 / 0.05, and Jolt reads the pair
+        // out of the body's motion properties every step, so the next step must decay at 2.7.
+        using JoltPhysicsWorld world = new(PhysicsVector3.Zero);
+        PhysicsBodyId body = world.CreateBody(Body(
+            PhysicsVector3.Zero,
+            new PhysicsVector3(10f, 0f, 0f),
+            damping: LinearDrag,
+            angularDamping: AngularDrag,
+            angularVelocity: new PhysicsVector3(0f, 0f, 5f)));
+        FixedTimeStep timeStep = FixedTimeStep.FromSeconds(Step);
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[1];
+
+        world.Step(timeStep);
+        Assert.Equal(1, world.CopySnapshots(snapshots));
+        float spawned = snapshots[0].LinearVelocity.X;
+        Assert.Equal(10f * (1f - (LinearDrag * Step)), spawned, precision: 4);
+
+        world.SetBodyDamping(body, 2.7f, 2.7f);
+        float factor = 1f - (2.7f * Step);
+        for (int tick = 0; tick < 2; tick++)
+        {
+            world.Step(timeStep);
+            Assert.Equal(1, world.CopySnapshots(snapshots));
+            Assert.Equal(spawned * factor, snapshots[0].LinearVelocity.X, precision: 4);
+            spawned = snapshots[0].LinearVelocity.X;
+        }
+
+        Assert.Equal(5f * (1f - (AngularDrag * Step)) * factor * factor, snapshots[0].AngularVelocity.Z, precision: 3);
+        Assert.Throws<ArgumentOutOfRangeException>(() => world.SetBodyDamping(body, 0.2f, -0.05f));
+        Assert.Throws<KeyNotFoundException>(() => world.SetBodyDamping(new PhysicsBodyId(999), 0.2f, 0.05f));
+        world.DestroyBody(body);
+    }
 }

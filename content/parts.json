@@ -36,7 +36,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1861,7 +1861,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1877,7 +1877,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1893,7 +1893,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1909,7 +1909,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1925,7 +1925,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1941,7 +1941,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1957,7 +1957,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1973,7 +1973,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -1989,7 +1989,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2005,7 +2005,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2021,7 +2021,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2037,7 +2037,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2053,7 +2053,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2069,7 +2069,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2084,7 +2084,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2100,7 +2100,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2115,7 +2115,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2131,7 +2131,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",
@@ -2147,7 +2147,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true, "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 } },
       "shapes": [
         {
           "kind": "sphere",

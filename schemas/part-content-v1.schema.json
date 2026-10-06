@@ -200,9 +200,35 @@
           "description": "Original BasePart.m_enginePower (BasePart.cs:164): > 0 makes the part an engine (BasePart.cs:606-608). While enclosed (Engine.cs:61) it adds this to its cluster's engine power, the numerator of the power factor; it never applies force itself (Engine.cs:29,138). Extracted by tools/bple-power, never authored.",
           "type": "number",
           "minimum": 0
+        },
+        "dampingRamp": {
+          "description": "Original Pig.FixedUpdate (Pig.cs:249-262): while the contraption runs, below speedThreshold m/s the rigidbody's linear AND angular damping are both rewritten every fixed step to `base + slope * (1 - |v|)`, and at or above it both go back to the part's own spawn pair. A class fact of exactly the Pig class -- KingPig/GoldenPig are BasePart subclasses and never ramp. Extracted by tools/bple-damping from that method, never authored.",
+          "$ref": "#/$defs/dampingRampCapability"
         }
       }
     },
+  "dampingRampCapability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["speedThreshold", "base", "slope"],
+    "properties": {
+      "speedThreshold": {
+        "description": "The speed below which the ramp applies, in metres per second (`magnitude < 1f` in the original).",
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "base": {
+        "description": "The damping both drags fall back to as the speed approaches the threshold (`0.2f` in the original).",
+        "type": "number",
+        "minimum": 0
+      },
+      "slope": {
+        "description": "How much damping the ramp adds at a standstill (`2.5f` in the original, so 0.2 + 2.5 = 2.7 at rest).",
+        "type": "number",
+        "minimum": 0
+      }
+    }
+  },
   "attachmentCapability": {
     "type": "object",
     "additionalProperties": false,

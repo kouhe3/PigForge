@@ -370,6 +370,12 @@ public sealed class PartContentTests
     [InlineData("{ \"suspension\": { \"stiffness\": 50, \"damper\": -1, \"restOffset\": 0 } }", "damper")]
     [InlineData("{ \"suspension\": { \"stiffness\": 50, \"damper\": 5 } }", "restOffset")]
     [InlineData("{ \"suspension\": { \"stiffness\": 50, \"damper\": 5, \"restOffset\": 0, \"limit\": 0 } }", "unknown property")]
+    [InlineData("{ \"dampingRamp\": 2.7 }", "dampingRamp")]
+    [InlineData("{ \"dampingRamp\": { \"base\": 0.2, \"slope\": 2.5 } }", "speedThreshold")]
+    [InlineData("{ \"dampingRamp\": { \"speedThreshold\": 0, \"base\": 0.2, \"slope\": 2.5 } }", "speedThreshold")]
+    [InlineData("{ \"dampingRamp\": { \"speedThreshold\": 1, \"base\": -1, \"slope\": 2.5 } }", "base")]
+    [InlineData("{ \"dampingRamp\": { \"speedThreshold\": 1, \"base\": 0.2 } }", "slope")]
+    [InlineData("{ \"dampingRamp\": { \"speedThreshold\": 1, \"base\": 0.2, \"slope\": 2.5, \"speed\": 1 } }", "unknown property")]
     public void InvalidJointEnclosureAndAttachmentCapabilitiesAreRejected(string capabilities, string expectedErrorFragment)
     {
         AssertRejected(
@@ -436,6 +442,39 @@ public sealed class PartContentTests
                 || capabilities.HasSuspension
                 || capabilities.Attachment is not null
                 || capabilities.Spring is not null));
+    }
+
+    /// <summary>
+    /// G90 (docs/specs/body-defaults.md §6): the original's <c>Pig.FixedUpdate</c> rewrites its own
+    /// rigidbody's drag and angularDrag every fixed step while the contraption runs
+    /// (<c>Pig.cs:249-262</c>), so the ramp is content (<c>capabilities.dampingRamp</c>) on exactly
+    /// the parts whose class declares it. Only <c>Pig</c> does — <c>KingPig</c> and
+    /// <c>GoldenPig</c> derive from <c>BasePart</c> — so the 20 pig skins carry it and the 7
+    /// king-pig skins do not. Extracted by tools/bple-damping from the method body, never authored.
+    /// </summary>
+    [Fact]
+    public void TheRealContentCarriesTheExtractedPigDampingRamp()
+    {
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        List<PartDefinition> pigs = library.Document.Parts
+            .Where(part => part.Name == "pig" || part.Name.StartsWith("pig-v", StringComparison.Ordinal))
+            .ToList();
+        List<PartDefinition> kingPigs = library.Document.Parts
+            .Where(part => part.Name == "king-pig" || part.Name.StartsWith("king-pig-v", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.Equal(20, pigs.Count);
+        Assert.Equal(7, kingPigs.Count);
+        Assert.All(pigs, pig =>
+        {
+            Assert.True(pig.Capabilities!.IsPig);
+            Assert.Equal(new PartDampingRamp(1f, 0.2f, 2.5f), pig.Capabilities.DampingRamp!.Value);
+        });
+        Assert.All(kingPigs, king => Assert.Null(king.Capabilities!.DampingRamp));
+
+        // Nothing outside the pig family carries a ramp: this is a class fact, not a per-part choice.
+        Assert.Equal(pigs.Count, library.Document.Parts.Count(part => part.Capabilities?.DampingRamp is not null));
     }
 
     [Fact]

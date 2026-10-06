@@ -212,6 +212,43 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         throw new NotSupportedException("JoltPhysicsSharp backend does not implement runtime collider toggling.");
     }
 
+    public void SetBodyDamping(PhysicsBodyId body, float linearDamping, float angularDamping)
+    {
+        ThrowIfDisposed();
+        if (!float.IsFinite(linearDamping) || linearDamping < 0f || !float.IsFinite(angularDamping) || angularDamping < 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(linearDamping), linearDamping, "Damping must be finite and non-negative.");
+        }
+
+        if (!_ridsByBody.TryGetValue(body, out BodyID rid) || !_dynamicRids.Contains(rid.ID))
+        {
+            throw new KeyNotFoundException($"Physics body {body.Value} does not exist or is not a dynamic body.");
+        }
+
+        // Jolt reads the pair out of the body's motion properties every step
+        // (`MotionProperties.inl::ApplyForceTorqueAndDragInternal`), so a runtime write lands on the
+        // next step exactly as the creation values do; no activation is needed because every body
+        // here is created with `AllowSleeping = false`. The write goes through Jolt's own body lock
+        // because that is the only public route to a body's motion properties this wrapper offers.
+        BodyLockInterface locks = _physicsSystem.BodyLockInterface;
+        locks.LockWrite(in rid, out BodyLockWrite write);
+        if (!write.Succeeded)
+        {
+            throw new KeyNotFoundException($"Physics body {body.Value} is not in the broad phase.");
+        }
+
+        if (write.Body is not Body nativeBody)
+        {
+            locks.UnlockWrite(in write);
+            throw new KeyNotFoundException($"Physics body {body.Value} is not dynamic, so it has no motion properties.");
+        }
+
+        MotionProperties motion = nativeBody.MotionProperties;
+        motion.LinearDamping = linearDamping;
+        motion.AngularDamping = angularDamping;
+        locks.UnlockWrite(in write);
+    }
+
     public PhysicsJointId CreateJoint(JointDefinition definition)
     {
         ThrowIfDisposed();

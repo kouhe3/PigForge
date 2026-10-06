@@ -638,6 +638,11 @@ public sealed class PhysicsContractTests
             ThrowIfDisposed();
         }
 
+        public void SetBodyDamping(PhysicsBodyId body, float linearDamping, float angularDamping)
+        {
+            ThrowIfDisposed();
+        }
+
         public PhysicsJointId CreateJoint(JointDefinition definition)
         {
             ThrowIfDisposed();

@@ -183,4 +183,53 @@ public sealed class BodyDampingTests
         Assert.Throws<ArgumentOutOfRangeException>(() => Body(PhysicsVector3.Zero, PhysicsVector3.Zero, angularDamping: -0.1f));
         Assert.Throws<ArgumentOutOfRangeException>(() => Body(PhysicsVector3.Zero, PhysicsVector3.Zero, maximumAngularSpeed: -1f));
     }
+
+    [Fact]
+    public void ARuntimeDampingChangeTakesEffectOnTheVeryNextStep()
+    {
+        // The original's Pig.FixedUpdate rewrites its own rigidbody's drag and angularDrag every
+        // fixed step (Pig.cs:249-262), so damping is not a spawn-time property: SetBodyDamping must
+        // land exactly where the created pair lands, on both axes, and must leave the body's
+        // angular clamp alone.
+        using BepuPhysicsWorld world = new(PhysicsVector3.Zero);
+        PhysicsBodyId body = world.CreateBody(Body(
+            PhysicsVector3.Zero,
+            new PhysicsVector3(10f, 0f, 0f),
+            damping: LinearDrag,
+            angularDamping: AngularDrag,
+            maximumAngularSpeed: ProjectAngularCap,
+            angularVelocity: new PhysicsVector3(0f, 0f, 100f)));
+        FixedTimeStep timeStep = FixedTimeStep.FromSeconds(Step);
+        PhysicsBodySnapshot[] snapshots = new PhysicsBodySnapshot[1];
+
+        world.Step(timeStep);
+        Assert.Equal(1, world.CopySnapshots(snapshots));
+        float spawned = snapshots[0].LinearVelocity.X;
+        float spun = snapshots[0].AngularVelocity.Z;
+        Assert.Equal(10f * (1f - (LinearDrag * Step)), spawned, precision: 4);
+        Assert.Equal(ProjectAngularCap, spun, precision: 3);
+
+        // The ramp's own value at a standstill: 0.2 + 2.5 * (1 - 0) = 2.7 on both axes, which is
+        // 13.5x the created drag -- the next step's decay has to change at once.
+        world.SetBodyDamping(body, 2.7f, 2.7f);
+        float factor = 1f - (2.7f * Step);
+        for (int tick = 0; tick < 2; tick++)
+        {
+            world.Step(timeStep);
+            Assert.Equal(1, world.CopySnapshots(snapshots));
+            Assert.Equal(spawned * factor, snapshots[0].LinearVelocity.X, precision: 4);
+            spawned = snapshots[0].LinearVelocity.X;
+        }
+
+        // The spin decays by the new angular drag too (the write replaces the created 0.05), and the
+        // clamp the body was created with survives it: the pair is all that changed.
+        Assert.Equal(spun * factor * factor, snapshots[0].AngularVelocity.Z, precision: 3);
+        Assert.True(snapshots[0].AngularVelocity.Z < ProjectAngularCap);
+
+        // And the contract's own validation, on the runtime path too.
+        Assert.Throws<ArgumentOutOfRangeException>(() => world.SetBodyDamping(body, -0.1f, 0.05f));
+        Assert.Throws<ArgumentOutOfRangeException>(() => world.SetBodyDamping(body, 0.2f, -0.05f));
+        Assert.Throws<KeyNotFoundException>(() => world.SetBodyDamping(new PhysicsBodyId(999), 0.2f, 0.05f));
+        world.DestroyBody(body);
+    }
 }

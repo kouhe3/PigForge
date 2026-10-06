@@ -179,6 +179,12 @@ export interface PartCapabilities {
   jointConnectionDirection?: "any" | "right" | "up" | "left" | "down" | "leftAndRight" | "upAndDown" | "none";
   /** Elastic wheel attachment: the original's linear-limit spring (N/m, N*s/m) holding the wheel at restOffset along its own Y. */
   suspension?: { stiffness: number; damper: number; restOffset: number };
+  /**
+   * The original's runtime damping ramp (`Pig.FixedUpdate`, Pig.cs:249-262): while the
+   * contraption runs, both drags are `base + slope * (1 - |v|)` below `speedThreshold` m/s and the
+   * part's own spawn pair above it. Written by tools/bple-damping for exactly the Pig class.
+   */
+  dampingRamp?: { speedThreshold: number; base: number; slope: number };
 }
 
 export interface PartDefinition {

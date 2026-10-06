@@ -195,6 +195,10 @@ public sealed class SnapshotPublishingTests
         {
         }
 
+        public void SetBodyDamping(PhysicsBodyId body, float linearDamping, float angularDamping)
+        {
+        }
+
         public PhysicsJointId CreateJoint(JointDefinition definition) => throw new NotSupportedException();
 
         public void DestroyJoint(PhysicsJointId joint) => throw new NotSupportedException();

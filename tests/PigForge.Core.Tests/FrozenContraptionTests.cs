@@ -124,7 +124,7 @@ public sealed class FrozenContraptionTests
         PhysicsBodyStore bodies = new(entities);
         GameplayRules rules = CreateGameplayRules(entities, bodies);
         EntityId pig = entities.Create();
-        rules.AddPig(pig);
+        rules.AddPig(pig, 0.2f, 0.05f);
         PhysicsBodyId body = new(7);
         bodies.Set(pig, new PhysicsBodyLink(body));
         rules.LinkBody(pig, body);
@@ -144,7 +144,7 @@ public sealed class FrozenContraptionTests
         EntityStore entities = new();
         GameplayRules rules = CreateGameplayRules(entities, new PhysicsBodyStore(entities));
         EntityId pig = entities.Create();
-        rules.AddPig(pig);
+        rules.AddPig(pig, 0.2f, 0.05f);
         rules.AddTnt(entities.Create(), fuseTicks: 3);
 
         rules.ResetAll();

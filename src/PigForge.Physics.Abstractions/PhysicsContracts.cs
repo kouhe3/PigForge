@@ -1030,6 +1030,16 @@ public interface IPhysicsWorld : IDisposable
 	/// </summary>
 	void SetBodyCollisionEnabled(PhysicsBodyId body, bool enabled);
 
+	/// <summary>
+	/// Rewrites a dynamic body's damping mid-run: the original's <c>Pig.FixedUpdate</c> recomputes
+	/// its own rigidbody's <c>drag</c> and <c>angularDrag</c> every fixed step
+	/// (<c>Pig.cs:249-262</c>), so damping is not a spawn-time property alone. Only the two damping
+	/// terms change — the body's angular clamp and frozen degrees of freedom stay as they were
+	/// created — and the next <see cref="Step"/> applies the new pair exactly as it applies
+	/// <see cref="BodyDefinition.LinearDamping"/>. Both values must be finite and non-negative.
+	/// </summary>
+	void SetBodyDamping(PhysicsBodyId body, float linearDamping, float angularDamping);
+
 	PhysicsJointId CreateJoint(JointDefinition definition);
 	void DestroyJoint(PhysicsJointId joint);
 	void ApplyCommands(ReadOnlySpan<PhysicsCommand> commands);

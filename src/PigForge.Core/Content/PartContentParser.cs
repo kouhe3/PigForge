@@ -525,6 +525,7 @@ public static class PartContentParser
         float? grappleDirectionX = null;
         float? grappleDirectionY = null;
         PartActivation activation = PartActivation.None;
+        PartDampingRamp? dampingRamp = null;
         bool hasError = false;
 
         float powerConsumption = 0f;
@@ -883,6 +884,12 @@ public static class PartContentParser
             hasError = true;
         }
 
+        if (seenKeys.Contains("dampingRamp")
+            && !TryReadDampingRamp(capabilitiesElement, path, errors, out dampingRamp))
+        {
+            hasError = true;
+        }
+
         if (blasterRadius is not null && activation != PartActivation.Trigger)
         {
             errors.Add($"{path}.capabilities.blaster: requires activation \"trigger\" (the blaster fires from its switch).");
@@ -901,7 +908,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "mirror" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "canBeEnclosed" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "mirror" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "canBeEnclosed" or "attachment" or "suspension" or "powerConsumption" or "enginePower" or "dampingRamp"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -913,7 +920,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, canBeEnclosed, attachment, suspension, glove, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, canBeEnclosed, attachment, suspension, glove, powerConsumption, enginePower, dampingRamp);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -1692,6 +1699,67 @@ public static class PartContentParser
         thrust = thrustValue;
         directionX = directionXValue;
         directionY = directionYValue;
+        return true;
+    }
+
+    /// <summary>
+    /// The original's runtime damping ramp (`Pig.FixedUpdate`, <c>Pig.cs:249-262</c>): while the
+    /// contraption runs, both drags fall to <c>base + slope * (1 - |v|)</c> below
+    /// <c>speedThreshold</c> m/s and go back to the part's own spawn pair at or above it.
+    /// </summary>
+    private static bool TryReadDampingRamp(JsonElement capabilities, string path, List<string> errors, out PartDampingRamp? ramp)
+    {
+        ramp = null;
+        string field = $"{path}.capabilities.dampingRamp";
+        if (!capabilities.TryGetProperty("dampingRamp", out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{field}: must be an object.");
+            return false;
+        }
+
+        HashSet<string> keys = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!keys.Add(property.Name))
+            {
+                errors.Add($"{field}: duplicate property '{property.Name}'.");
+            }
+
+            if (property.Name is not ("speedThreshold" or "base" or "slope"))
+            {
+                errors.Add($"{field}: unknown property '{property.Name}'.");
+            }
+        }
+
+        if (!keys.Contains("speedThreshold") || !keys.Contains("base") || !keys.Contains("slope"))
+        {
+            errors.Add($"{field}: speedThreshold, base and slope are all required.");
+            return false;
+        }
+
+        if (!element.TryGetProperty("speedThreshold", out JsonElement thresholdElement)
+            || thresholdElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(thresholdElement)
+            || !thresholdElement.TryGetSingle(out float speedThreshold)
+            || !(speedThreshold > 0f))
+        {
+            errors.Add($"{field}.speedThreshold: must be a finite positive number.");
+            return false;
+        }
+
+        if (!element.TryGetProperty("base", out JsonElement baseElement) || !TryReadNonNegative(baseElement, out float baseValue))
+        {
+            errors.Add($"{field}.base: must be a finite non-negative number.");
+            return false;
+        }
+
+        if (!element.TryGetProperty("slope", out JsonElement slopeElement) || !TryReadNonNegative(slopeElement, out float slopeValue))
+        {
+            errors.Add($"{field}.slope: must be a finite non-negative number.");
+            return false;
+        }
+
+        ramp = new PartDampingRamp(speedThreshold, baseValue, slopeValue);
         return true;
     }
 

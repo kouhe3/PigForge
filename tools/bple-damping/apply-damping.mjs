@@ -13,6 +13,12 @@
 // A stale override that equals the document default is removed, so the file states each fact once.
 // A static part carries nothing: the original's static level pieces are not rigidbodies at all.
 //
+// A class that rewrites its own damping every fixed step (`Pig.FixedUpdate`) carries one more key,
+// patched into its existing `capabilities` line:
+//   "dampingRamp": { "speedThreshold": 1.0, "base": 0.2, "slope": 2.5 }
+// which reads as "while running, below `speedThreshold` m/s both drags are
+// `base + slope * (1 - |v|)`, otherwise the class's own spawn pair".
+//
 // Usage:
 //   node tools/bple-damping/apply-damping.mjs [--report <file>] [--content <file>] [--dry-run]
 
@@ -52,6 +58,9 @@ const num = (value) => (Number.isInteger(value) ? `${value.toFixed(1)}` : `${Num
 
 const renderDamping = (entry) => `{ "linear": ${num(entry.linear)}, "angular": ${num(entry.angular)} }`;
 const isDefault = (entry) => entry.linear === defaultDamping.linear && entry.angular === defaultDamping.angular;
+const renderRamp = (ramp) =>
+  `"dampingRamp": { "speedThreshold": ${num(ramp.speedThreshold)}, "base": ${num(ramp.base)}, "slope": ${num(ramp.slope)} }`;
+const RAMP_KEY = /"dampingRamp":\s*\{[^{}]*\}/;
 
 const document_ = JSON.parse(readFileSync(CONTENT, "utf8"));
 if (!Array.isArray(document_.parts)) {
@@ -89,6 +98,7 @@ const physicsLine = `  "physics": { "maximumAngularSpeed": ${num(clamp)}, "dampi
 let updated = 0;
 let unchanged = 0;
 const overrides = new Map();
+const ramps = new Map();
 const covered = new Set();
 
 // Top level: the `physics` block goes right after `contentVersion`, and a stale one is replaced.
@@ -140,6 +150,31 @@ for (const span of spans) {
   const entry = entries[String(partTypeId)];
   if (!entry) {
     throw new Error(`part ${partTypeId} is dynamic but the report carries no damping for it`);
+  }
+
+  // The original's runtime ramp (`Pig.FixedUpdate`) rides inside `capabilities`, which the content
+  // writes on one line, so this is a patch of that line rather than a new key.
+  const capabilitiesIndex = within(/^\s*"capabilities":\s*\{/);
+  if (capabilitiesIndex >= 0) {
+    const lineIndex = start + capabilitiesIndex;
+    const line = lines[lineIndex];
+    const existing = RAMP_KEY.test(line);
+    let patched = line;
+    if (!entry.dampingRamp) {
+      patched = existing ? line.replace(/,\s*"dampingRamp":\s*\{[^{}]*\}/, "") : line;
+    } else if (existing) {
+      patched = line.replace(RAMP_KEY, renderRamp(entry.dampingRamp));
+    } else {
+      const close = line.lastIndexOf("}");
+      patched = `${line.slice(0, close).replace(/\s+$/, "")}, ${renderRamp(entry.dampingRamp)} }${line.slice(close + 1)}`;
+    }
+    if (patched !== line) {
+      lines[lineIndex] = patched;
+      updated++;
+    }
+    ramps.set(partTypeId, entry.dampingRamp ?? null);
+  } else if (entry.dampingRamp) {
+    throw new Error(`part ${partTypeId} ramps its damping but declares no capabilities block`);
   }
 
   // Only an override is written; anything equal to the document default stays implicit.
@@ -218,6 +253,15 @@ for (const part of check.parts) {
   if (effective.linear !== entry.linear || effective.angular !== entry.angular) {
     throw new Error(`rewritten part ${part.partTypeId} resolves to ${renderDamping(effective)}, expected ${renderDamping(entry)}`);
   }
+  const ramp = part.capabilities?.dampingRamp;
+  const expectedRamp = entry.dampingRamp;
+  if ((ramp === undefined) !== (expectedRamp === undefined)) {
+    throw new Error(`rewritten part ${part.partTypeId} carries ${JSON.stringify(ramp)}, expected ${JSON.stringify(expectedRamp)}`);
+  }
+  if (ramp !== undefined
+    && (ramp.speedThreshold !== expectedRamp.speedThreshold || ramp.base !== expectedRamp.base || ramp.slope !== expectedRamp.slope)) {
+    throw new Error(`rewritten part ${part.partTypeId} ramps ${JSON.stringify(ramp)}, expected ${JSON.stringify(expectedRamp)}`);
+  }
 }
 
 if (!DRY_RUN) {
@@ -225,4 +269,6 @@ if (!DRY_RUN) {
 }
 
 console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} lines in ${CONTENT}`);
-console.log(`already matching: ${unchanged}; overrides written: ${overrides.size}; dynamic parts verified: ${covered.size}; clamp ${clamp}`);
+console.log(
+  `already matching: ${unchanged}; overrides written: ${overrides.size}; ramps written: ${[...ramps.values()].filter(Boolean).length}; dynamic parts verified: ${covered.size}; clamp ${clamp}`,
+);

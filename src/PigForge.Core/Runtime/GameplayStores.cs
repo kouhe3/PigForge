@@ -9,7 +9,27 @@ public readonly record struct TntState(ushort FuseTicks, bool Ignited, bool Chai
 
 public readonly record struct WheelMarker;
 
-public readonly record struct PigMarker;
+/// <summary>
+/// A pig. <c>Pig.FixedUpdate</c> (<c>Pig.cs:249-262</c>) rewrites its own rigidbody's damping every
+/// fixed step while the contraption runs: below <paramref name="RampSpeedThreshold"/> m/s both drags
+/// become <c>RampBase + RampSlope * (1 - |v|)</c>, and at or above it both go back to the part's own
+/// pair (<paramref name="OwnLinear"/>/<paramref name="OwnAngular"/>, i.e. the content's damping).
+/// Only the original's <c>Pig</c> class declares that method — <c>KingPig</c> and <c>GoldenPig</c>
+/// are <c>BasePart</c> subclasses — so only a part carrying content
+/// <c>capabilities.dampingRamp</c> has a non-zero threshold; a zero threshold means no ramp.
+/// Flattened into the store the way <see cref="FanState"/> and <see cref="RocketState"/> are.
+/// </summary>
+public readonly record struct PigMarker(
+    float RampSpeedThreshold = 0f,
+    float RampBase = 0f,
+    float RampSlope = 0f,
+    float OwnLinear = 0f,
+    float OwnAngular = 0f)
+{
+    /// <summary>True for the class whose <c>FixedUpdate</c> ramps its damping (content
+    /// <c>capabilities.dampingRamp</c>).</summary>
+    public bool HasDampingRamp => RampSpeedThreshold > 0f;
+}
 
 /// <summary>Lift per tick applied straight up (a balloon supplies buoyancy).</summary>
 public readonly record struct BalloonState(float LiftPerTick);

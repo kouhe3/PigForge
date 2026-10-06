@@ -59,13 +59,24 @@ public sealed class GameplayTickOutput
     /// becomes its own body.</summary>
     public List<EntityId> DetachedEntities { get; } = new();
 
+    /// <summary>Parts whose damping changed this tick, which the room folds into the body each of
+    /// them rides (a PigForge body carries one damping pair for all its members). The original's
+    /// <c>Pig.FixedUpdate</c> rewrites its own rigidbody's drag and angularDrag every fixed step
+    /// (<c>Pig.cs:249-262</c>), so this is a per-tick value, not a spawn-time one.</summary>
+    public List<PartDampingOverride> DampingOverrides { get; } = new();
+
     public void Clear()
     {
         Commands.Clear();
         DestroyedEntities.Clear();
         DetachedEntities.Clear();
+        DampingOverrides.Clear();
     }
 }
+
+/// <summary>One part's damping for this tick: the linear/angular pair the original wrote onto the
+/// part's own rigidbody. See <see cref="GameplayTickOutput.DampingOverrides"/>.</summary>
+public readonly record struct PartDampingOverride(EntityId Entity, float Linear, float Angular);
 
 /// <summary>
 /// Runtime gameplay rules (motors, wheels, pigs, TNT, joint breaks, level outcome) that
@@ -402,9 +413,21 @@ public sealed class GameplayRules
         _restitutions.Set(entity, new RestitutionState(restitution, mass));
     }
 
-    public void AddPig(EntityId entity)
+    /// <summary>
+    /// Registers a pig. <paramref name="ownLinear"/>/<paramref name="ownAngular"/> are the part's
+    /// content damping (what the original writes at spawn and restores once its ramp is idle), and
+    /// the three ramp values come from content <c>capabilities.dampingRamp</c> — absent on every
+    /// class whose <c>FixedUpdate</c> leaves its damping alone (see <see cref="PigMarker"/>).
+    /// </summary>
+    public void AddPig(
+        EntityId entity,
+        float ownLinear,
+        float ownAngular,
+        float rampSpeedThreshold = 0f,
+        float rampBase = 0f,
+        float rampSlope = 0f)
     {
-        _pigs.Set(entity, default);
+        _pigs.Set(entity, new PigMarker(rampSpeedThreshold, rampBase, rampSlope, ownLinear, ownAngular));
         _alivePigs++;
     }
 
@@ -796,10 +819,49 @@ public sealed class GameplayRules
         RunRockets(output);
         RunTntFuses(output);
         RunBlasters(output);
+        RunSlowSpeedDamping(output);
         DropCommandsForDestroyedBodies(output);
         CheckObjectives(tick);
         StorePreviousVelocities();
         _hasProcessedTick = true;
+    }
+
+    /// <summary>
+    /// The original's runtime damping ramp: while the contraption runs, <c>Pig.FixedUpdate</c>
+    /// (<c>Pig.cs:249-262</c>) rewrites its own rigidbody's drag <b>and</b> angularDrag every fixed
+    /// step — below the content's <c>speedThreshold</c> m/s both become
+    /// <c>base + slope * (1 - |v|)</c> (0.2 + 2.5 * (1 - |v|), up to 2.7 at rest), and at or above it
+    /// both go back to the part's own pair. The speed is the body's, because the pig's rigidbody is
+    /// what the original reads; a body carrying no such part is never touched, and neither is a pig
+    /// whose class does not declare the method (<c>KingPig</c>/<c>GoldenPig</c> are
+    /// <c>BasePart</c> subclasses).
+    /// </summary>
+    private void RunSlowSpeedDamping(GameplayTickOutput output)
+    {
+        var pigs = _pigs.GetEnumerator();
+        while (pigs.MoveNext())
+        {
+            ref readonly PigMarker marker = ref pigs.CurrentValue;
+            if (!marker.HasDampingRamp || !_bodies.TryGet(pigs.CurrentId, out PhysicsBodyLink link))
+            {
+                continue;
+            }
+
+            float speed = _kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics)
+                ? PhysicsVector3.Distance(kinematics.Velocity, PhysicsVector3.Zero)
+                : 0f;
+            if (speed >= marker.RampSpeedThreshold)
+            {
+                output.DampingOverrides.Add(new PartDampingOverride(pigs.CurrentId, marker.OwnLinear, marker.OwnAngular));
+                continue;
+            }
+
+            // The original writes the ramped expression into *both* fields, so the pig's own
+            // angular value (0.05) does not survive the branch -- at the threshold the pair jumps
+            // from (0.2, 0.05) to (0.2, 0.2), exactly as Pig.cs:253-254 does.
+            float ramped = marker.RampBase + (marker.RampSlope * (1f - speed));
+            output.DampingOverrides.Add(new PartDampingOverride(pigs.CurrentId, ramped, ramped));
+        }
     }
 
     private void StorePreviousVelocities()

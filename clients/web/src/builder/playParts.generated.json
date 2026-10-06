@@ -70,7 +70,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4380,7 +4385,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4411,7 +4421,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4442,7 +4457,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4473,7 +4493,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4504,7 +4529,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4535,7 +4565,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4566,7 +4601,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4597,7 +4637,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4628,7 +4673,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4659,7 +4709,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4690,7 +4745,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4721,7 +4781,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4752,7 +4817,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4783,7 +4853,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4809,7 +4884,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4840,7 +4920,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4866,7 +4951,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4897,7 +4987,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {
@@ -4928,7 +5023,12 @@
         "powerConsumption": 0,
         "enginePower": 20,
         "jointConnectionType": "none",
-        "pig": true
+        "pig": true,
+        "dampingRamp": {
+          "speedThreshold": 1,
+          "base": 0.2,
+          "slope": 2.5
+        }
       },
       "shapes": [
         {

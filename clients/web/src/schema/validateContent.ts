@@ -244,6 +244,15 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
       errors.push(`Part ${partTypeId} capabilities.fan needs a finite thrustPerTick, an optional positive maxSpeed and an optional boolean rotor.`);
     }
   }
+  if (value.dampingRamp !== undefined) {
+    const ramp = value.dampingRamp as { speedThreshold?: unknown; base?: unknown; slope?: unknown } | null;
+    if (typeof ramp !== "object" || ramp === null
+      || typeof ramp.speedThreshold !== "number" || !Number.isFinite(ramp.speedThreshold) || ramp.speedThreshold <= 0
+      || typeof ramp.base !== "number" || !Number.isFinite(ramp.base) || ramp.base < 0
+      || typeof ramp.slope !== "number" || !Number.isFinite(ramp.slope) || ramp.slope < 0) {
+      errors.push(`Part ${partTypeId} capabilities.dampingRamp needs a positive speedThreshold and a finite non-negative base and slope.`);
+    }
+  }
   if (value.spring !== undefined) {
     if (!isSpring(value.spring)) {
       errors.push(`Part ${partTypeId} capabilities.spring must be { stiffness, damper, limit, bounciness, breakForce }, with a positive stiffness/breakForce and non-negative damper/limit/bounciness.`);

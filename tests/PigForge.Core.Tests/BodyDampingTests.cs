@@ -134,6 +134,18 @@ public sealed class BodyDampingTests
         CompoundCluster single = Assert.Single(CompoundAssembler.Assemble(new[] { alone }, otherRules, content).Clusters);
         Assert.Equal(1f, single.Damping.Linear, precision: 6);
         Assert.Equal(0.2f, single.Damping.Angular, precision: 6);
+
+        // The original's runtime ramp rewrites one member's pair every step (`Pig.FixedUpdate`,
+        // Pig.cs:249-262), so the body carries the fold of the *new* pair: the ramping member is
+        // replaced, the others keep theirs -- (1*2.7 + 3*0.2) / 4 and (1*2.7 + 3*0.05) / 4.
+        Dictionary<uint, PartDamping> ramped = new() { [light.Value] = new PartDamping(2.7f, 2.7f) };
+        PartDamping runtime = CompoundAssembler.FoldDamping(cluster.Members, ramped);
+        Assert.Equal((2.7f + (3f * 0.2f)) / 4f, runtime.Linear, precision: 4);
+        Assert.Equal((2.7f + (3f * 0.05f)) / 4f, runtime.Angular, precision: 4);
+
+        // A body of one part folds nothing with anything: the runtime value *is* its damping.
+        Dictionary<uint, PartDamping> singleRamped = new() { [alone.Value] = new PartDamping(2.7f, 2.7f) };
+        Assert.Equal(new PartDamping(2.7f, 2.7f), CompoundAssembler.FoldDamping(single.Members, singleRamped));
     }
 
     [Fact]

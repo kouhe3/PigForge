@@ -95,7 +95,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId pig = entities.Create();
-        harness.Rules.AddPig(pig);
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
         harness.Link(pig, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(20, 0, 0));
         harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
@@ -357,7 +357,7 @@ public sealed class GameplayRulesTests
             TntBlastImpulse: 12f,
             TntIgniteImpactSpeed: 5f));
         EntityId pig = entities.Create();
-        harness.Rules.AddPig(pig);
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
         harness.Link(pig, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(-8, 1, 0), PhysicsVector3.Zero);
 
@@ -377,7 +377,7 @@ public sealed class GameplayRulesTests
             TntBlastImpulse: 12f,
             TntIgniteImpactSpeed: 5f));
         EntityId pig = entities.Create();
-        harness.Rules.AddPig(pig);
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
         harness.Link(pig, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(60, 1, 0), PhysicsVector3.Zero);
 
@@ -400,7 +400,7 @@ public sealed class GameplayRulesTests
             TntIgniteImpactSpeed: 5f,
             ObjectivesEnabled: false));
         EntityId pig = entities.Create();
-        harness.Rules.AddPig(pig);
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
         harness.Link(pig, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(-8, 1, 0), PhysicsVector3.Zero);
 
@@ -421,7 +421,7 @@ public sealed class GameplayRulesTests
             TntIgniteImpactSpeed: 5f,
             ObjectivesEnabled: false));
         EntityId pig = entities.Create();
-        harness.Rules.AddPig(pig);
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
         harness.Link(pig, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(60, 1, 0), PhysicsVector3.Zero);
 
@@ -525,6 +525,98 @@ public sealed class GameplayRulesTests
             visualization: false,
             explodeRadius,
             explodeImpulse);
+
+    /// <summary>
+    /// The original's runtime damping ramp (<c>Pig.FixedUpdate</c>, <c>Pig.cs:249-262</c>): while
+    /// the contraption runs, a pig whose <c>|v|</c> is below its content <c>speedThreshold</c>
+    /// rewrites <b>both</b> of its rigidbody's damping terms to <c>base + slope * (1 - |v|)</c> every
+    /// fixed step, and at or above it both go back to the part's own pair. The ramp is a class fact
+    /// of exactly the <c>Pig</c> class, so a pig whose content carries no
+    /// <c>capabilities.dampingRamp</c> (a king pig) asks for nothing at all.
+    /// </summary>
+    [Theory]
+    [InlineData(0f, 2.7f)]
+    [InlineData(0.4f, 1.7f)]
+    [InlineData(0.5f, 1.45f)]
+    public void ASlowPigAsksForTheRampedDampingOnBothAxes(float speed, float expected)
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig, ownLinear: 0.2f, ownAngular: 0.05f, rampSpeedThreshold: 1f, rampBase: 0.2f, rampSlope: 2.5f);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(speed, 0f, 0f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PartDampingOverride overridden = Assert.Single(harness.Output.DampingOverrides);
+        Assert.Equal(pig, overridden.Entity);
+        Assert.Equal(expected, overridden.Linear, precision: 4);
+        Assert.Equal(expected, overridden.Angular, precision: 4);
+    }
+
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(2f)]
+    public void APigAtOrAboveTheThresholdAsksForItsOwnPairBack(float speed)
+    {
+        // The original's branch is `magnitude < 1f`, so exactly the threshold already takes the
+        // else branch and both drags go back to the part's own values -- (0.2, 0.05).
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig, ownLinear: 0.2f, ownAngular: 0.05f, rampSpeedThreshold: 1f, rampBase: 0.2f, rampSlope: 2.5f);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(speed, 0f, 0f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PartDampingOverride overridden = Assert.Single(harness.Output.DampingOverrides);
+        Assert.Equal(0.2f, overridden.Linear, precision: 6);
+        Assert.Equal(0.05f, overridden.Angular, precision: 6);
+    }
+
+    [Fact]
+    public void APigWhoseClassDeclaresNoRampAsksForNothing()
+    {
+        // KingPig and GoldenPig derive from BasePart, not from Pig: their FixedUpdate leaves the
+        // damping alone, and content gives them no dampingRamp.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId king = entities.Create();
+        harness.Rules.AddPig(king, ownLinear: 0.5f, ownAngular: 1f);
+        harness.Link(king, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(0.1f, 0f, 0f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Empty(harness.Output.DampingOverrides);
+    }
+
+    [Fact]
+    public void EachRampingPigReadsTheSpeedOfItsOwnBody()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId slow = entities.Create();
+        EntityId fast = entities.Create();
+        harness.Rules.AddPig(slow, ownLinear: 0.2f, ownAngular: 0.05f, rampSpeedThreshold: 1f, rampBase: 0.2f, rampSlope: 2.5f);
+        harness.Rules.AddPig(fast, ownLinear: 0.2f, ownAngular: 0.05f, rampSpeedThreshold: 1f, rampBase: 0.2f, rampSlope: 2.5f);
+        harness.Link(slow, new PhysicsBodyId(1));
+        harness.Link(fast, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(0f, 0.4f, 0f));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(12f, 0f, 0f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(2, harness.Output.DampingOverrides.Count);
+        PartDampingOverride ramped = harness.Output.DampingOverrides.Single(overridden => overridden.Entity == slow);
+        Assert.Equal(1.7f, ramped.Linear, precision: 4);
+        Assert.Equal(1.7f, ramped.Angular, precision: 4);
+        PartDampingOverride own = harness.Output.DampingOverrides.Single(overridden => overridden.Entity == fast);
+        Assert.Equal(0.2f, own.Linear, precision: 6);
+        Assert.Equal(0.05f, own.Angular, precision: 6);
+    }
 
     private sealed class GameplayHarness
     {
@@ -689,7 +781,7 @@ public sealed class GameplayRulesTests
 
             if (spawn.Role == LevelActorRole.Pig)
             {
-                _rules.AddPig(entity);
+                _rules.AddPig(entity, 0.2f, 0.05f);
             }
             else if (spawn.Role == LevelActorRole.Tnt)
             {
