@@ -316,3 +316,27 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 - 原作参考：`C:\tmp\BAD_PIGGIES\BPLE_Unity6\Assets\Scripts\Assembly-CSharp\{BasePart,Contraption,Engine,MotorWheel,FanPropeller,Gearbox,GadgetButton,GadgetButtonList}.cs`
 - `src/PigForge.Core/Runtime/{GameplayRules,GameplayStores}.cs`、`src/PigForge.Protocol/{ProtocolContracts,CommandWire,SnapshotWire,ReplayContracts,ReplayDocumentValidator}.cs`
 - `src/PigForge.Server/{GameRoom,CommandValidator,SandboxPlayers}.cs`、`clients/web/src/{App.vue,schema/*,live/*,renderer/draw.ts}`
+
+## 风箱的 puff：原版那条 0.5 s 斜坡（G98，2026-10-06 收口）
+
+风箱的按钮语义（按下必被消费）在 Assumption 2 里已经定了，但**力**当时还是手写的「一个 puff 的总冲量」
+（`bellows: 8.0`，外星皮肤 32.0）。原版是一条逐帧斜坡：
+
+| # | 规则 | 出处 |
+|---|---|---|
+| 1 | puff 从 `m_timeBoostStarted` 起 **0.5 s 内每帧**施加 `num2 = 1 - (1 - num/0.5)²` 倍的 `m_boostForce`（`num` = 秒），方向 `transform.TransformDirection(m_direction)`、施力点 `transform.position + vector × 0.5`、`ForceMode.Force` | `Bellows.cs:100-110` |
+| 2 | 0.5 s 之后到 `0.8 + InflateDuration` 之间**不出力**；`OnTouch` 在这个窗口内拒绝新的 puff（`m_isConnected` 为前置） | `Bellows.cs:95-99,123-125` |
+| 3 | `InflateDuration` = 0.3 s（外星皮肤 **0.15 s**）→ 周期 = 0.5 + 0.3 + inflate = **1.1 s / 0.95 s**；`BOOST_DURATION`/`WAIT_DURATION` 是类的常量，不随皮肤变 | `Bellows.cs:14-20,36-46` |
+| 4 | 8 个 prefab：`m_boostForce` **30**（01–06、08）/ **120**（07 外星），`m_direction (1,0,0)` 全同 | prefab；`tools/bple-bellows` 硬断言 |
+
+**内容模型**（由 `tools/bple-bellows` 写出，不许手写）：
+
+```json
+"bellows": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.5, "inflateTicks": 18 }
+```
+
+`thrustPerTick = m_boostForce / 60`（`ADR-013` 决策 4 的换算），`inflateTicks` = 皮肤自己的 inflate × 60（18 / 9）；
+0.5 s 与 0.3 s 留在代码里（`GameplayRules.BellowsBoostTicks = 30` / `BellowsWaitTicks = 18`，带 `file:line`）。
+
+**行为**：按下 → 该 tick 起 puff（**第一帧的斜坡是 0**，所以旧模型「一按就是满冲量」的手感变了）；
+30 个 tick 里按 `1 - (1 - t)²` 出力，随后静默到周期结束（无开关的旧内容是「触地触发」，见 Assumption 4）。
