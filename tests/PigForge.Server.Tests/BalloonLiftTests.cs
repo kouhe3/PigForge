@@ -9,9 +9,10 @@ namespace PigForge.Server.Tests;
 /// <summary>
 /// The balloon's lift on the real content and the Bepu backend, against the original's numbers:
 /// <c>Part_Balloon_01_SET.prefab</c> serializes <c>m_force: 11.5</c> and <c>Balloon.cs:181</c>
-/// multiplies it by <c>BalloonForce</c> (<c>INSettingsBExp.json</c>, 2.0) for 23 N, applied every
+/// multiplies it by <c>BalloonForce</c> (<c>INDeclarationSettingsExp.json</c>, the vanilla 1.0) for
+/// 11.5 N, applied every
 /// <c>FixedUpdate</c> to the balloon's own body (<c>Balloon.cs:207-210</c>). <c>Balloon.cs:129</c>
-/// rewrites that body to <c>mass 0.1f</c>, so the original's lift is 230 m/s².
+/// rewrites that body to <c>mass 0.1f</c>, so the original's lift is 115 m/s².
 /// PigForge applies one impulse per tick (<c>GameplayRules.RunBalloons</c>), so content carries
 /// <c>force / 60</c>, and a free balloon must accelerate at exactly the original's force/mass.
 /// </summary>
@@ -19,12 +20,15 @@ public sealed class BalloonLiftTests
 {
     private const uint PartWoodenBlock = 1;
     private const uint PartBalloon = 10;
+    /// <summary>Two stacked balloons (content 19): 2 x 11.5 = 23 N, which is what it takes to
+    /// out-lift a 1 kg frame plus its own 0.2 kg under the vanilla multiplier.</summary>
+    private const uint PartBalloonDouble = 19;
 
     private const float Gravity = 9.81f;
     private const float TickRate = 60f;
 
-    /// <summary>11.5 N (prefab) x 2.0 (BalloonForce) = 23 N of lift on a 0.1 kg body.</summary>
-    private const float OriginalForcePerBalloon = 23f;
+    /// <summary>11.5 N (prefab) x 1.0 (BalloonForce, vanilla) = 11.5 N of lift on a 0.1 kg body.</summary>
+    private const float OriginalForcePerBalloon = 11.5f;
     private const float OriginalBalloonMass = 0.1f;
 
     /// <summary>Unity's <c>Rigidbody.drag</c> the original writes on a balloon's body
@@ -52,7 +56,8 @@ public sealed class BalloonLiftTests
         // `drag = 2` (Balloon.cs:130, extracted by tools/bple-damping), so its velocity follows
         // `v <- (v + a*dt) * (1 - drag*dt)` -- the exact law the original's own editor produced
         // (unity/PigForge.WeldProbe body-defaults probe: v *= (1 - c*dt), max abs error 0 over 51
-        // samples; gravity added before damping). The terminal rise is (F/m - g)/drag = 110.1 m/s.
+        // samples; gravity added before damping). The terminal rise is (F/m - g)/drag = 57.5 m/s
+        // (the IN mod's profile B doubled BalloonForce and with it this number).
         float previousY = BalloonY(room, balloon);
         float velocity = 0f;
         bool seeded = false;
@@ -91,17 +96,18 @@ public sealed class BalloonLiftTests
         uint sequence = 0;
 
         uint frame = Place(room, ref sequence, player, PartWoodenBlock, 0f, 2f);
-        Place(room, ref sequence, player, PartBalloon, 0f, 3f);
+        Place(room, ref sequence, player, PartBalloonDouble, 0f, 3f);
         float buildY = PublishEntities(room).Single(entity => entity.EntityId == frame).Position.Y;
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
 
         room.RunTicks(60);
 
         float lifted = PublishEntities(room).Single(entity => entity.EntityId == frame).Position.Y - buildY;
-        // A single 1 kg frame under one 23 N balloon must climb, and must not be yanked: the
-        // pre-fix 90 N equivalent threw it ~30 m in the same second.
+        // A single 1 kg frame plus the balloon's own 0.2 kg needs more than one vanilla balloon
+        // (11.5 N against 11.8 N of weight), so the rig carries two (23 N). It must climb, and it
+        // must not be yanked: the pre-fix 90 N equivalent threw it ~30 m in the same second.
         Assert.True(lifted > 0.2f, $"the balloon must lift the frame: {lifted} m");
-        Assert.True(lifted < 4f, $"the lift must stay near the original's 23 N: {lifted} m in one second");
+        Assert.True(lifted < 6f, $"the lift must stay near the original's 23 N: {lifted} m in one second");
     }
 
     [Fact]

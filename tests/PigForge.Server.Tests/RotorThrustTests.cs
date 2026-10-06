@@ -46,29 +46,38 @@ public sealed class RotorThrustTests
         float lifted = Position(room, frame).Y - resting;
         SnapshotEntity climbing = PublishEntities(room).Single(entity => entity.EntityId == rotor);
         Assert.True(lifted > 1f, $"the powered rotor must lift the rig: {lifted} m in one second");
-        // 14 m/s cap x the cluster's power factor (150 engine power against 200 consumption), plus
-        // the few m/s the cap's decay and the overspeed brake let it creep past. The pre-fix lift
-        // was unbounded: the same rig reached hundreds of metres.
-        Assert.True(lifted < 30f, $"the lift must be bounded by the rotor's top speed: {lifted} m in one second");
+        // 7 m/s cap x the cluster's power factor (150 engine power against 200 consumption, which
+        // the rules layer applies as factor^0.75) is about 5.6 m/s, so one second of climb stays
+        // under the cap. The pre-fix lift was unbounded: the same rig reached hundreds of metres.
+        Assert.True(lifted < 12f, $"the lift must be bounded by the rotor's top speed: {lifted} m in one second");
         Assert.True(climbing.Position.Y > resting, "the rotor entity must survive its own switch");
 
         // The climb rate is a speed, not an acceleration: two consecutive ticks cannot differ by
-        // more than a fraction of the cap.
+        // more than a fraction of the cap. Past the cap the rotor's own overspeed brake
+        // (FanPropeller.cs:198-207) holds the rig there, so a tick at the cap can even give a
+        // little back.
         float before = Position(room, frame).Y;
         room.Tick();
         float after = Position(room, frame).Y;
-        Assert.InRange(after - before, 0f, 0.5f);
+        Assert.InRange(after - before, -0.2f, 0.5f);
 
-        // Switch off: the thrust stops. The rig keeps its momentum for a moment -- a rotor that
-        // were still turning would hold the climb rate at the cap -- and then falls.
+        // Under the vanilla cap (7 m/s x the cluster's factor) this rig does *not* hold a steady
+        // climb: it rises, then the rotor's overspeed brake (FanPropeller.cs:198-207) and the
+        // torque from a rotor mounted above the centre of mass put it into a limit cycle. What the
+        // cap certainly does is bound the lift -- the pre-fix, uncapped rotor reached hundreds of
+        // metres in the same second. The exact sustained behaviour under the vanilla cap needs a
+        // measurement on the original before it can be asserted; recorded in
+        // tasks/original-vs-implemented.md (G105's execution notes).
+
+        // Switch off: the thrust stops and the rig falls. (Under the vanilla cap the rig is already
+        // in the limit cycle described above, so there is no clean "momentum carries it higher"
+        // moment to assert -- the observable is that the climb is gone.)
         Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, rotor, false), player)).IsAccepted);
         float atSwitchOff = Position(room, frame).Y;
-        room.Tick();
-        Assert.True(Position(room, frame).Y > atSwitchOff, "momentum must carry the rig past the switch");
-        room.RunTicks(90);
-        float coasted = Position(room, frame).Y;
-        room.Tick();
-        Assert.True(Position(room, frame).Y - coasted < 0f, "a rotor whose switch is off must stop thrusting: the rig must fall");
+        // Measured over a whole second, like the climb above: the limit cycle makes single ticks
+        // noisy, the trend is what the switch changes.
+        room.RunTicks(60);
+        Assert.True(Position(room, frame).Y < atSwitchOff, "a rotor whose switch is off must stop thrusting: the rig must fall");
         Assert.Contains(PublishEntities(room), entity => entity.EntityId == rotor);
     }
 

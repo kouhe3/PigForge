@@ -256,7 +256,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.383333,
+        "balloon": 0.191667,
         "activation": "trigger"
       },
       "shapes": [
@@ -285,7 +285,7 @@
           "thrustPerTick": 0.116667,
           "directionX": -1,
           "directionY": 0,
-          "maxSpeed": 18
+          "maxSpeed": 3
         },
         "activation": "toggle"
       },
@@ -693,7 +693,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.766667,
+        "balloon": 0.383333,
         "activation": "trigger"
       },
       "shapes": [
@@ -733,7 +733,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 1.15,
+        "balloon": 0.575,
         "activation": "trigger"
       },
       "shapes": [
@@ -1652,7 +1652,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -1699,7 +1699,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -2145,7 +2146,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.383333,
+        "balloon": 0.191667,
         "activation": "trigger"
       },
       "shapes": [
@@ -2186,7 +2187,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.383333,
+        "balloon": 0.191667,
         "activation": "trigger"
       },
       "shapes": [
@@ -2227,7 +2228,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.383333,
+        "balloon": 0.191667,
         "activation": "trigger"
       },
       "shapes": [
@@ -2268,7 +2269,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.383333,
+        "balloon": 0.191667,
         "activation": "trigger"
       },
       "shapes": [
@@ -2309,7 +2310,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.383333,
+        "balloon": 0.191667,
         "activation": "trigger"
       },
       "shapes": [
@@ -2350,7 +2351,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.383333,
+        "balloon": 0.191667,
         "activation": "trigger"
       },
       "shapes": [
@@ -2391,7 +2392,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.383333,
+        "balloon": 0.191667,
         "activation": "trigger"
       },
       "shapes": [
@@ -2432,7 +2433,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.766667,
+        "balloon": 0.383333,
         "activation": "trigger"
       },
       "shapes": [
@@ -2473,7 +2474,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.766667,
+        "balloon": 0.383333,
         "activation": "trigger"
       },
       "shapes": [
@@ -2514,7 +2515,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.766667,
+        "balloon": 0.383333,
         "activation": "trigger"
       },
       "shapes": [
@@ -2555,7 +2556,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.766667,
+        "balloon": 0.383333,
         "activation": "trigger"
       },
       "shapes": [
@@ -2596,7 +2597,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.766667,
+        "balloon": 0.383333,
         "activation": "trigger"
       },
       "shapes": [
@@ -2637,7 +2638,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.766667,
+        "balloon": 0.383333,
         "activation": "trigger"
       },
       "shapes": [
@@ -2678,7 +2679,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 0.766667,
+        "balloon": 0.383333,
         "activation": "trigger"
       },
       "shapes": [
@@ -2719,7 +2720,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 1.15,
+        "balloon": 0.575,
         "activation": "trigger"
       },
       "shapes": [
@@ -2760,7 +2761,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 1.15,
+        "balloon": 0.575,
         "activation": "trigger"
       },
       "shapes": [
@@ -2801,7 +2802,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 1.15,
+        "balloon": 0.575,
         "activation": "trigger"
       },
       "shapes": [
@@ -2842,7 +2843,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 1.15,
+        "balloon": 0.575,
         "activation": "trigger"
       },
       "shapes": [
@@ -2883,7 +2884,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 1.15,
+        "balloon": 0.575,
         "activation": "trigger"
       },
       "shapes": [
@@ -2924,7 +2925,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 1.15,
+        "balloon": 0.575,
         "activation": "trigger"
       },
       "shapes": [
@@ -2965,7 +2966,7 @@
           "pigDistanceBonus": 0.3
         },
         "jointConnectionType": "none",
-        "balloon": 1.15,
+        "balloon": 0.575,
         "activation": "trigger"
       },
       "shapes": [
@@ -2995,7 +2996,7 @@
           "thrustPerTick": 0.116667,
           "directionX": -1,
           "directionY": 0,
-          "maxSpeed": 18
+          "maxSpeed": 3
         },
         "activation": "toggle"
       },
@@ -3035,7 +3036,7 @@
           "thrustPerTick": 0.116667,
           "directionX": -1,
           "directionY": 0,
-          "maxSpeed": 18
+          "maxSpeed": 3
         },
         "activation": "toggle"
       },
@@ -3075,7 +3076,7 @@
           "thrustPerTick": 0.116667,
           "directionX": -1,
           "directionY": 0,
-          "maxSpeed": 18
+          "maxSpeed": 3
         },
         "activation": "toggle"
       },
@@ -3115,7 +3116,7 @@
           "thrustPerTick": 0.116667,
           "directionX": -1,
           "directionY": 0,
-          "maxSpeed": 18
+          "maxSpeed": 3
         },
         "activation": "toggle"
       },
@@ -3155,7 +3156,7 @@
           "thrustPerTick": 1,
           "directionX": -1,
           "directionY": 0,
-          "maxSpeed": 18
+          "maxSpeed": 3
         },
         "activation": "toggle"
       },
@@ -5127,7 +5128,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -5166,7 +5168,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -5205,7 +5208,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -5244,7 +5248,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -5283,7 +5288,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -5322,7 +5328,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -5361,7 +5368,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -5400,7 +5408,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": 1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -5439,7 +5448,8 @@
         "fan": {
           "thrustPerTick": 0.616667,
           "directionX": -1,
-          "directionY": 0
+          "directionY": 0,
+          "maxSpeed": 16
         },
         "activation": "toggle"
       },
@@ -7239,7 +7249,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -7288,7 +7298,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -7337,7 +7347,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -7386,7 +7396,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -7435,7 +7445,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -7484,7 +7494,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -7533,7 +7543,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -7582,7 +7592,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": -1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"
@@ -7631,7 +7641,7 @@
           "thrustPerTick": 2,
           "directionX": 0,
           "directionY": 1,
-          "maxSpeed": 14,
+          "maxSpeed": 7,
           "rotor": true
         },
         "activation": "toggle"

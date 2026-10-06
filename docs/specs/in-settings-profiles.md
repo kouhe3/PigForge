@@ -77,16 +77,43 @@
 | 弹簧 / 拳套的 `Stable/Strong/Switchable*` 分支（ADR-027/028） | 以 B 档为真实现 | 默认档为 false，行为不同 |
 | 自动对齐 / 包裹 / 可旋转件（`Rotatable*`、`EnclosableParts`、G96 相关） | 以 B 档为真 | 默认档为 false |
 
-## 4. 待拍板
+## 4. 已拍板：基准 = 声明默认档（vanilla）
 
-**PigForge 以哪个档为「原版」？**
+2026-10-06 用户拍板：**PigForge 的 IN 倍率一律取声明默认值（`INDeclarationSettingsExp.json`）**，
+即 A/O/版本 0 的语义、也是用户实机所见的零售版行为（火箭一次用品、TNT 不参与自动对齐等）。
+B 档（`INSettingsB*.json`）是 mod 的「全功能」档，**不作为任何原版零件的数值来源**。
 
-- **声明默认档（= A/O/版本 0）**：与用户实机所见的零售版一致（例：火箭是**一次用品**、TNT 不可旋转）；
-  代价是按上表重算风扇/旋翼/螺旋桨顶速、气球升力、火箭与 TNT 的倍率、焊缝强度，并重审 ADR-027/028 的分支。
-- **B 档**：现状成立（现有内容与多份 ADR 的数字都以它为准），但它把 IN 的一切打开并翻倍，**不是零售版行为**；
-  选它就必须在内容与规格里写明「基准 = B 档」。
+### 4.1 架构约束（用户 2026-10-06 重申，与既有「变体 = 独立零件」一致）
 
-用户 2026-10-06 的实机证词（火箭是一次用品）与声明默认档一致 → **倾向声明默认档**，但改动面大，需明确拍板。
+**不许用 mod 值改写原版零件**：B 档改了哪个原版零件，那个零件就不是原版零件了——要保留 mod 的手感就得
+**新增一个零件**，而不是把原版零件的数值改掉。这与本仓库既有的目录架构同源：
+
+- 每个皮肤/效果变体都是**自己的内容条目**（独立 `partTypeId` + `variantOf`/`variantName` 分组，
+  `ADR-004`/`ADR-006`、`docs/specs/part-variant-catalog.md`），不是基准件的属性；
+- 行为差异走**该条目自己的能力值**（如异形风箱的 `bellows`、拳套的 `glove.distanceY`），
+  绝不去改基准件的值；
+- 所以本次「回到 vanilla」是**把原版零件的数字恢复成原版的**，B 档的数字不保留在原版零件上；
+  若将来要 B 档体验，做法是（a）新增零件，或（b）像原作那样做成可选的档位，而不是覆盖原版值。
+
+**同一个道理的另一面（待办）**：IN 零件本身也是档位门控的——`BlasterTNT`、`OffRoadWheel`、`HingePlate`、
+`SpecialEggs`、`MetalBox`、`NewAlienEgg` 等在**声明默认档里不存在**（`false`）。我们目录里已经把它们收作
+**独立 part id**（与「不同东西 = 新零件」一致），但要注意它们不是零售版零件；要不要继续收、要不要另开
+「IN 扩展件」分类标注，见 §5 待办。
+
+### 4.2 执行分期（每片一次验收）
+
+1. **工具基准切换**：新增共享的 `tools/in-settings/vanilla-settings.mjs`（只读声明默认档），
+   `bple-fans` / `bple-lift` 改用它 → 风扇顶速 `18 → 3`、旋翼 `14 → 7`、螺旋桨 `∞ → 16`、
+   气球 `23 N/帧 → 11.5 N/帧`（内容 `0.383333 → 0.191667`）；同步受影响的测试与规格数字。
+2. **代码常量**：`EnginePowerLimit 4.0 → 1.0`（`GameplayRules.cs:150` 的 40 → 10）、
+   `ConnectionStrength 2.0 → 1.0`（`CompoundAssembler.cs:457` 的焊缝 ×2 → ×1）、
+   `BalloonConnectionDistance 10 → 5` / `SandbagConnectionDistance 10 → 1`（`ConstructionRules`）。
+3. **门控分支**：`EnclosableParts`、`Rotatable*`（G96 的范围）、`Avoidance/TrackingRocket`、
+   `StableSpringConnection`/`StrongSpringConnection`/`SwitchableBoxingGlove`（ADR-027/028 的默认分支）
+   按 `false` 重审。
+4. **火箭 / TNT 的倍率**：与 G101（`tools/bple-rockets`）同批，按声明默认倍率（×1.0）写内容。
+5. **记录**：更新受影响规格（`fan-propeller`、`body-defaults`、`spring-joint`、`boxing-glove`、
+   `part-variant-catalog`）与 ADR（022/025/027/028、013 的气球升力），差距表 `G105` 收口。
 
 ## 5. 参考
 

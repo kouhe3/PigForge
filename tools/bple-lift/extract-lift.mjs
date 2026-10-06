@@ -4,7 +4,10 @@
 //
 // Original truth (Unity):
 //   - Balloon.cs:7          `m_force` default 10f (serialized 11.5 in every Part_Balloon* prefab)
-//   - Balloon.cs:181        `m_force *= INSettings.GetFloat(INFeature.BalloonForce)` -> 11.5 * 2.0 = 23 N
+//   - Balloon.cs:181        `m_force *= INSettings.GetFloat(INFeature.BalloonForce)` -> 11.5 * 1.0 = 11.5 N
+//                           (`BalloonForce` is read from the *vanilla* declaration defaults:
+//                           `INDeclarationSettingsExp.json`; the IN mod's profile B doubles it --
+//                           see tools/in-settings/vanilla-settings.mjs)
 //   - Balloon.cs:207-210    `FixedUpdate` does `rigidbody.AddForce(m_force * m_direction, ForceMode.Force)`
 //                           on the balloon's OWN body, every FixedUpdate (Unity's default 0.02 s here
 //                           is irrelevant to us: our room ticks at 60 Hz, see below)
@@ -22,6 +25,7 @@
 // Usage: node tools/bple-lift/extract-lift.mjs [--bple <path>] [--json <path>] [--md <path>]
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { loadVanillaSettings, VANILLA_SETTINGS_NAME } from "../in-settings/vanilla-settings.mjs";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -36,7 +40,7 @@ const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE
 const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-lift-report.json")));
 const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-lift-report.md")));
 const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
-const INSETTINGS = join(BPLE, "Assets", "TextAsset", "INSettingsBExp.json");
+const inSettingsSource = loadVanillaSettings(BPLE);
 const CONTENT_PARTS = join(REPO, "content", "parts.json");
 const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
 
@@ -73,17 +77,15 @@ function readStack(text) {
   return match ? Number(match[1]) : null;
 }
 
-/** `INSettings.GetFloat(INFeature.BalloonForce)` -- the global multiplier Balloon.cs:181 applies. */
+/** `INSettings.GetFloat(INFeature.BalloonForce)` -- the global multiplier Balloon.cs:181 applies,
+ * from the vanilla declaration defaults. */
 function readBalloonForce() {
-  const settings = JSON.parse(readFileSync(INSETTINGS, "utf8"));
-  const entries = settings.items;
-  const entry = entries.find((candidate) => candidate.name === "BalloonForce");
-  if (!entry) {
-    warnings.push("INSettingsBExp.json has no BalloonForce entry");
+  if (!inSettingsSource.has("BalloonForce")) {
+    warnings.push(`${VANILLA_SETTINGS_NAME} has no BalloonForce entry`);
     return null;
   }
 
-  return Number(entry.value);
+  return inSettingsSource.getFloat("BalloonForce");
 }
 
 /** partTypeId -> prefab name, reusing the mapping the shapes/textures extractors established so

@@ -127,7 +127,7 @@
       "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.191667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -141,7 +141,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 18.0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 3.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -306,7 +306,7 @@
       "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -321,7 +321,7 @@
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.575, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -686,7 +686,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -705,7 +705,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -911,7 +911,7 @@
       "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.191667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -927,7 +927,7 @@
       "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.191667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -943,7 +943,7 @@
       "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.191667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -959,7 +959,7 @@
       "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.191667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -975,7 +975,7 @@
       "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.191667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -991,7 +991,7 @@
       "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.191667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1007,7 +1007,7 @@
       "mass": 0.1,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.191667, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1023,7 +1023,7 @@
       "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1039,7 +1039,7 @@
       "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1055,7 +1055,7 @@
       "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1071,7 +1071,7 @@
       "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1087,7 +1087,7 @@
       "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1103,7 +1103,7 @@
       "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1119,7 +1119,7 @@
       "mass": 0.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.766667, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.383333, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1135,7 +1135,7 @@
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.575, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1151,7 +1151,7 @@
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.575, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1167,7 +1167,7 @@
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.575, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1183,7 +1183,7 @@
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.575, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1199,7 +1199,7 @@
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.575, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1215,7 +1215,7 @@
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.575, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1231,7 +1231,7 @@
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 2.0, "angular": 0.5 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 1.15, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "attachment": { "direction": "down", "offset": [0.0, 0.5, 0.0], "distanceFactor": 1.0, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 }, "jointConnectionType": "none", "balloon": 0.575, "activation": "trigger" },
       "shapes": [
         {
           "kind": "sphere",
@@ -1246,7 +1246,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 18.0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 3.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1262,7 +1262,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 18.0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 3.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1278,7 +1278,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 18.0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 3.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1294,7 +1294,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 18.0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 30, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.116667, "directionX": -1, "directionY": 0, "maxSpeed": 3.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -1310,7 +1310,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 10, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 1.0, "directionX": -1, "directionY": 0, "maxSpeed": 18.0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "normal", "powerConsumption": 10, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 1.0, "directionX": -1, "directionY": 0, "maxSpeed": 3.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2265,7 +2265,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2281,7 +2281,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2297,7 +2297,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2313,7 +2313,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2329,7 +2329,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2345,7 +2345,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2361,7 +2361,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2377,7 +2377,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": 1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2393,7 +2393,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": -1, "directionY": 0 }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "left", "jointConnectionStrength": "high", "powerConsumption": 100, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 0.616667, "directionX": -1, "directionY": 0, "maxSpeed": 16.0 }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3206,7 +3206,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3226,7 +3226,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3246,7 +3246,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3266,7 +3266,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3286,7 +3286,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3306,7 +3306,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3326,7 +3326,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3346,7 +3346,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": -1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": -1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3366,7 +3366,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 14.0, "rotor": true }, "activation": "toggle" },
+      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "normal", "powerConsumption": 200, "enginePower": 0, "jointConnectionType": "target", "fan": { "thrustPerTick": 2.0, "directionX": 0, "directionY": 1, "maxSpeed": 7.0, "rotor": true }, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",

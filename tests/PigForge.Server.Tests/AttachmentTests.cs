@@ -17,6 +17,7 @@ public sealed class AttachmentTests
 {
     private const uint PartFrame = 1;    // wooden-block, jointConnectionType source
     private const uint PartBalloon = 10; // balloon, attachment direction down
+    private const uint PartBalloonDouble = 19; // two stacked balloons: 2 x 11.5 = 23 N (vanilla)
     private const uint PartSandbag = 21; // sandbag, attachment direction up (maxDistance 0.5)
 
     /// <summary>terrain-v1 puts the ground slabs' top at y = -3, so a free sandbag settles
@@ -66,7 +67,9 @@ public sealed class AttachmentTests
         uint sequence = 0;
 
         uint frame = Place(room, ref sequence, player, PartFrame, 0f, 0f);
-        uint balloon = Place(room, ref sequence, player, PartBalloon, 0f, 1f);
+        // Two balloons, not one: under the vanilla `BalloonForce` of 1.0 a single 11.5 N balloon
+        // only just out-weighs the 0.1 kg balloon itself and cannot lift a 1 kg frame.
+        uint balloon = Place(room, ref sequence, player, PartBalloonDouble, 0f, 1f);
         List<SnapshotEntity> before = PublishEntities(room);
         float buildY = before.Single(entity => entity.EntityId == frame).Position.Y;
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
