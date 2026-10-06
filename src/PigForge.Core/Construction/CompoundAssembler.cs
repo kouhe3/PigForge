@@ -400,8 +400,16 @@ public static class CompoundAssembler
     /// sags disproportionately), while a spring's stays linear. The acceptance that pins them, and
     /// its ±25% band, live in <c>tests/PigForge.Physics.Tests/WeldComplianceTests.cs</c>.
     /// </para>
+    /// <para>
+    /// Re-fitted 2026-10-06 (gap G90): the first fit was swept on a fixture whose bodies carried no
+    /// damping, while the original's own chain is made of real parts and therefore runs at
+    /// <c>drag 0.2</c> / <c>angularDrag 0.05</c> — and so does the same chain when a room builds it
+    /// from content (ADR-025). Damping shrinks the excursion, so the same band now sits at 20 Hz:
+    /// tip +15.0% / worst joint −15.3% / curvature +14.1% (worst 15.3%), against 20.5 Hz's
+    /// 15.6% on the undamped fixture.
+    /// </para>
     /// </summary>
-    public const float FrameWeldSpringFrequency = 20.5f;
+    public const float FrameWeldSpringFrequency = 20f;
 
     /// <summary>Critical damping (1.0): the original's joint has no damper either, and the fitted
     /// chain sits in the middle of its band for the whole 0.4…1.0 range, so the choice buys

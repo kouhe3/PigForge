@@ -140,9 +140,10 @@ public sealed class CompoundAssemblerTests
     public void TheFrameWeldComplianceIsTheFittedPair()
     {
         // The calibration the original's own chain measurement produced (docs/specs/weld-compliance.md
-        // §4.4). tests/PigForge.Physics.Tests/WeldComplianceTests.cs runs the eight-frame chain with
-        // the same pair: changing either value invalidates that acceptance, so this pins them.
-        Assert.Equal(20.5f, CompoundAssembler.FrameWeldSpringFrequency);
+        // §4.4), re-fitted on a fixture that carries the original's per-part damping — as the chain
+        // does in the game. tests/PigForge.Physics.Tests/WeldComplianceTests.cs runs the eight-frame
+        // chain with the same pair: changing either value invalidates that acceptance, so this pins it.
+        Assert.Equal(20f, CompoundAssembler.FrameWeldSpringFrequency);
         Assert.Equal(1f, CompoundAssembler.FrameWeldSpringDampingRatio);
     }
 

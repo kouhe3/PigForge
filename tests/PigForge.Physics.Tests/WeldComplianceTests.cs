@@ -27,7 +27,7 @@ public sealed class WeldComplianceTests
     /// in PigForge.Core (this project deliberately sits below Core, and
     /// <c>CompoundAssemblerTests.TheFrameWeldComplianceIsTheFittedPair</c> pins the shipped value to
     /// this same pair — change one and that test tells you).</summary>
-    private const float FittedFrequency = 20.5f;
+    private const float FittedFrequency = 20f;
 
     private const float FittedDampingRatio = 1f;
 
@@ -85,8 +85,11 @@ public sealed class WeldComplianceTests
 /// each a 1x1x1 box of 0.5 kg with the original's rigidbody setup, sagging under gravity. Three of
 /// the original's settings exist here too: the frames are jointed but still collide face to face
 /// (the original's 1x1x1 grid), every body freezes Z and the X/Y rotations
-/// (<c>RigidbodyConstraints</c> 56), and the root is immovable. The one thing the original has and
-/// PigForge does not is its per-body drag (0.2 / 0.05); a static sag does not depend on it.
+/// (<c>RigidbodyConstraints</c> 56), and the root is immovable. The frames also carry the original's
+/// per-part drag pair through <see cref="WeldChainScenario.FrameLinearDamping"/> /
+/// <see cref="WeldChainScenario.FrameAngularDamping"/> — the probe's chain is made of real parts, and
+/// so is the same chain when a room builds it from content (ADR-025), so an undamped fixture would
+/// fit the weld spring against something the game never runs.
 /// <para>
 /// The original holds the chain on a <em>kinematic</em> rigidbody. The physics contract has no joint
 /// between a static and a dynamic body (Bepu refuses it), so the root is a dynamic body frozen on
@@ -123,6 +126,14 @@ internal static class WeldChainScenario
     /// <summary>Tip drop is negative, the way the probe records it.</summary>
     public readonly record struct ChainMeasurement(float TipDrop, float MaxJointAngleDegrees, float SumJointAngleDegrees);
 
+    /// <summary>The per-part rigidbody pair every original part carries (<c>BasePart.EnsureRigidbody</c>,
+    /// <c>BasePart.cs:1200-1201</c>, extracted by <c>tools/bple-damping</c>): the framed chain in the
+    /// original's probe is made of real parts, so its frames are damped — and so is the same chain
+    /// when a room builds it from content. The anchor is immovable, so its own pair cannot matter.</summary>
+    public const float FrameLinearDamping = 0.2f;
+
+    public const float FrameAngularDamping = 0.05f;
+
     public static ChainMeasurement Run(IPhysicsWorld world, float springFrequency, float springDampingRatio, int steps)
     {
         PhysicsBodyId[] frames = new PhysicsBodyId[FrameCount];
@@ -141,7 +152,9 @@ internal static class WeldChainScenario
                 PhysicsQuaternion.Identity,
                 FrameMass,
                 new ShapeDefinition[] { new BoxShapeDefinition(HalfExtent, HalfExtent, HalfExtent) },
-                constraints: PlanarLock));
+                constraints: PlanarLock,
+                linearDamping: FrameLinearDamping,
+                angularDamping: FrameAngularDamping));
         }
 
         for (int index = 1; index < FrameCount; index++)
