@@ -1,7 +1,7 @@
 # 规格：IN 设置档（BPLE 的 mod 框架）与「基准档」问题
 
-> 状态：**待拍板**（2026-10-06 立，用户问「是 BPLE 的 MOD 吗」时查清）。
-> 差距：`G104`（火箭族的激活语义）、**`G105`（基线：现有 IN 倍率来自 B 档）**。
+> 状态：**已拍板（基准 = 声明默认档）；§4.2 第 1–2 片已交付，§4.3 门控审查完成、四项待实现**（2026-10-06 第二十轮）。
+> 差距：`G104`（火箭族的激活语义）、**`G105`（基线；新拆出 `G106`–`G109`）**。
 > 影响面：所有读 `INSettingsBExp.json` 的提取器与由它们写出的内容值。
 
 ## 1. 这是什么
@@ -102,18 +102,48 @@ B 档（`INSettingsB*.json`）是 mod 的「全功能」档，**不作为任何�
 
 ### 4.2 执行分期（每片一次验收）
 
-1. **工具基准切换**：新增共享的 `tools/in-settings/vanilla-settings.mjs`（只读声明默认档），
+1. ~~**工具基准切换**~~ —— **已交付**（2026-10-06 第十五轮，`172f330`）：新增共享的 `tools/in-settings/vanilla-settings.mjs`（只读声明默认档），
    `bple-fans` / `bple-lift` 改用它 → 风扇顶速 `18 → 3`、旋翼 `14 → 7`、螺旋桨 `∞ → 16`、
    气球 `23 N/帧 → 11.5 N/帧`（内容 `0.383333 → 0.191667`）；同步受影响的测试与规格数字。
-2. **代码常量**：`EnginePowerLimit 4.0 → 1.0`（`GameplayRules.cs:150` 的 40 → 10）、
-   `ConnectionStrength 2.0 → 1.0`（`CompoundAssembler.cs:457` 的焊缝 ×2 → ×1）、
-   `BalloonConnectionDistance 10 → 5` / `SandbagConnectionDistance 10 → 1`（`ConstructionRules`）。
-3. **门控分支**：`EnclosableParts`、`Rotatable*`（G96 的范围）、`Avoidance/TrackingRocket`、
-   `StableSpringConnection`/`StrongSpringConnection`/`SwitchableBoxingGlove`（ADR-027/028 的默认分支）
-   按 `false` 重审。
-4. **火箭 / TNT 的倍率**：与 G101（`tools/bple-rockets`）同批，按声明默认倍率（×1.0）写内容。
-5. **记录**：更新受影响规格（`fan-propeller`、`body-defaults`、`spring-joint`、`boxing-glove`、
-   `part-variant-catalog`）与 ADR（022/025/027/028、013 的气球升力），差距表 `G105` 收口。
+2. ~~**代码常量**~~ —— **已交付**（2026-10-06 第二十轮）：
+   - `EnginePowerLimit 4.0 → 1.0`（`GameplayRules.EnginePowerLimit = 1f`）：raw 比上限 `10 × 4 = 40 → 10`，
+     上限因子 `40^0.585 = 8.6539 → 10^0.585 = 3.8459`（`Part_EngineSmall_05_SET` 的 5000 现在被截到 3.8459）。
+   - `ConnectionStrength 2.0 → 1.0`（`CompoundAssembler.NormalJointStrength 250f → 125f`）：`GameData.asset:101-105`
+     的 Normal 与 Weak 同为 125，vanilla 的木↔木 `breakForce` = **250**（B 档 1000）；缝阈值的比值
+     `1.0 / 木↔铁 2.9 / 铁↔铁 4.8 / HighlyExtreme 9.6`（B 档口径是 1.0 / 1.7 / 2.4 / 4.8）。
+   - `SandbagConnectionDistance = 1` / `BalloonConnectionDistance = 5`（原单个 `AttachmentSearchCells = 10`）：
+     `ConstructionRules.{Sandbag,Balloon}AttachmentSearchCells` + `FindAttachmentTarget(..., maxCells)`，
+     `GameRoom.BindAttachments` 按 `capabilities.HasBalloon` 选家族。
+   - 测试同步：`PowerSystemTests.PowerFactorFollows…`、`CompoundAssemblerTests.{TheSeamThresholdScales…,TheCatalogGivesMetalWelds…}`、
+     `JointAndEnclosureTests.{AttachmentSearchStops…,AttachmentSearchAccepts…,ASandbagOnlyReachesTheCellAboveIt,ABalloonReachesFiveCells}`。
+3. **门控分支** —— **已审查（结论见 §4.3）**，其中四项**尚未实现**（新差距 `G106`–`G109`）：
+   `DynamicPowerSystem`、`Stable/StrongSpringConnection`、`EnclosableParts` 的「可包裹件族」、IN 档专属零件的目录范围。
+4. ~~**火箭 / TNT 的倍率**~~ —— **已核对**：火箭族由 `tools/bple-rockets` 按声明默认档写出（G101/G104）；
+   TNT 的 `GameplayConfig.TntBlastImpulse = 25f` 与 prefab `m_explosionImpulse: 25` 一致、`TNTExplosionForce` vanilla = 1.0，
+   **倍率无待办**。（TNT 的半径 4 vs prefab 8 是另一条差距 `G46`。）
+5. **记录** —— 本轮已更新：`ADR-015`、`ADR-012`/`ADR-022`/`ADR-025`/`ADR-027`/`ADR-028` 之外的
+   `docs/specs/{weld-compliance,nesting-and-pig-cargo,power-system,spring-joint,part-variant-catalog}.md`、根 `AGENTS.md`、
+   `tasks/original-vs-implemented.md`（G105 + 新差距行）；`fan-propeller`/`body-defaults`/`boxing-glove` 里仍有 B 档读数的段落见 §4.3 的处置列。
+
+### 4.3 门控审查（2026-10-06 第二十轮，`INDeclarationSettingsExp.json` = vanilla）
+
+原版读取点由两个只读子代理逐条核对（`INFeature.*` 全树 grep + 逐处 verbatim）。结论与处置：
+
+| IN 键（vanilla 值） | vanilla 行为（出处） | PigForge 现状 | 处置 |
+|---|---|---|---|
+| `EnginePowerLimit = 1.0` | raw 比上限 `10 × 1 = 10`（`Contraption.cs:545`，两分支同一表达式） | 已改成 1f | **本片交付** |
+| `ConnectionStrength = 1.0` | Normal 不翻倍（`Contraption.cs:1494-1503`），木↔木 250 / 木↔铁 725 / 铁↔铁 1200 | 已改（NormalJointStrength 125） | **本片交付** |
+| `SandbagConnectionDistance = 1` / `BalloonConnectionDistance = 5` | 逐家族循环上界（`Sandbag.cs:63`、`Balloon.cs:87`） | 已改（逐家族常量） | **本片交付** |
+| `DynamicPowerSystem = false` | **走遗留分支**（`Contraption.cs:556-582`）：分母 = 装配期消耗 − `0.9 ×` 每个无接地马达轮消耗，且消耗**不逐帧重算**（`:2626-2649`）。接地工况与动态分支相同（`1.5^0.585 ≈ 1.2677`）；轮离地时遗留分支直接顶到上限 `3.8459` | 实现的是**动态分支**（B 档语义） | **新差距 `G106`**，建议独立一片（规则层有 `_touchedBodies`，可复算） |
+| `StableSpringConnection = false` / `StrongSpringConnection = false` | 8 个皮肤**全部**走 y 软限位路径（`Spring.cs:99-138`）、质量取 prefab（弹簧 0.3，不强制 1，`:70-76`）、`breakForce = 250`（`:15,26-41`）、`> 3 m` 拉断生效（`:80-92` 不短路） | 内容是 B 档口径：逐皮肤 `joint: bungee/limit`、`breakForce 1200`、`mass 1` | **新差距 `G107`**，需要 `tools/bple-springs` 按 vanilla 重跑 + `SpringProbe` 复核标定（两条 `*EffectiveStiffnessScale` 都是在 1 kg 弹力绳探针格上拟合的） |
+| `SwitchableBoxingGlove = false` | 一次性按钮：`Update` 的 else 分支在 `!m_enabled` 时出拳、`m_ShootTime`（prefab 覆写 0.4）后回卷再复位（`SpringBoxingGlove.cs:345-395`） | 内容 `activation: "trigger"`（按下出拳、可重复） | **已一致**（G99 当时按用户实机报告选对了分支，理由从「B 档 toggle」改写为「vanilla 按钮」） |
+| `SwitchableWing` / `SwitchableTail` = false | 机翼/尾翼常开（`Wings.cs:106`、`Tail.cs:59`） | `Aerodynamics.cs` 已按此实现 | 无 |
+| `SwitchableCokeSodaRocket = false` | 火箭/瓶族一生一次（`Rocket.cs:570-581`） | 已实现（G104） | 无 |
+| `EnclosableParts = false` | **只关掉基类** `CanBeEnclosed()`（`BasePart.cs:1148-1165`）；13 个类覆写为 `true`（猪族/蛋/引擎/齿轮箱/TNT/点光/南瓜/拳套/定时炸弹/铰链板/CustomPart），`Frame.CanEncloseParts()` 恒 true，`Frame.Initialize` 的焊接**无门控**。B 档专属的只有 `CanConnectTo(JCD)` 的 `enclosedInto` 放宽（`Contraption.cs:735-740`）与 `Rocket.cs:141`/`SpotLight.cs:72` 的附件隐藏 | 允许**任意非框件**入框（内容 `canEnclose` + 代码推 `canBeEnclosed`） | **新差距 `G108`**：把「可被包裹的件族」做成内容位（从类覆写表提取），或在规格里记为有意放宽 |
+| `Rotatable*` = false（TNT/Wing/Tail/Sandbag/Balloon/Gearbox/Pumpkin） | 关掉 (a) `EffectDirection()` 随 yaw 旋转、(b) `m_autoAlign = Rotate` 自动对齐、(c) UI 四向按钮；附带事实：`Tail.cs:78-84` 读的是 `RotatableWing`，`RotatableTail` 全树未被读取 | 自由 yaw（`Place` 接受任意角）；开关条按 **(零件类型, 有效方向)** 分组，方向随 yaw 旋转（2026-10-06 第十九轮，**用户点名**） | 开关条分组**保留为有意偏差**（纯 UI，用户要的）；自动对齐仍是差距 `G96` |
+| `AvoidanceRocket` / `TrackingRocket` = false | 无追踪/规避弹道（`Rocket.cs:292-311`） | 未实现 | 无 |
+| `BlasterTNT`、`OffRoadWheel`、`HingePlate`、`MetalBox`、`WoodenBox`、`ColoredFrame`、`BracketFrame`、`AutoGun`、`MultipartGenerator`、`DecelerationLight`、`AutoControlLight`、`FuelSystem`/`ElectricalSystem`/`MechanicalSystem` = false | 14 个 `RegisterPart` 键为 false → `RemoveCustomPart` 掉对应条目（`INPartFactoryManager.cs:57-110`），即这些零件在 vanilla **不存在** | 目录 284 件里**只有 52 `tnt-blaster`（`Part_TNT_07_SET`）是 IN 档专属** | **新差距 `G109`**：目录范围（保留并标注 / 移除）待用户拍板 |
+| `NoDrag = false` | 不清零全场阻尼（`INContraption.cs:305`） | 运行期阻尼覆盖（G90）本就未做 | 无变化 |
 
 ## 5. 参考
 

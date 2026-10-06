@@ -15,13 +15,13 @@
 |---|---|---|
 | 限位弹簧刚度 / 阻尼 | `SPRING_LIMIT_SPRING = 250` N/m、`SPRING_DAMPING = 20` N·s/m | `Spring.cs:7,9` |
 | 限位 / 弹性 | `SPRING_LIMIT = 0.1`、`SPRING_BOUNCINESS = 1` | `Spring.cs:11,13` |
-| 断力 | `SPRING_BREAK_FORCE = 250`；IN `StrongSpringConnection=true` → `m_jointConnectionStrengthHigh × 2 = 1200`（并把自身强度改 High） | `Spring.cs:15,38-39` |
+| 断力 | `SPRING_BREAK_FORCE = 250`（**声明默认档就是这个值**）；只有 B 档的 `StrongSpringConnection=true` 才会改成 `m_jointConnectionStrengthHigh × 2 = 1200`（并把自身强度改 High） | `Spring.cs:15,26-41`；`INDeclarationSettingsExp.json` |
 | 关节路径 A（**弹力绳**） | `StableSpringConnection && m_customPartIndex ∈ {0,2}` → `SpringJoint`：`minDistance 0 / maxDistance 0 / spring 250 / damper 20`、`anchor (0,−0.5,0)`、`breakForce = SPRING_BREAK_FORCE`、`enablePreprocessing true`；**`connectedAnchor` 留给 Unity 默认（autoConfigure = true）** | `Spring.cs:104-118`；`JointExtensions.cs:5-12` |
 | 关节路径 B（**y 软限位**） | 其余皮肤 → `ConfigurableJoint`：角三轴 Locked、`x/z Locked`、`yMotion Limited`、`configuredInWorldSpace true`、`linearLimitSpring(250,20)`、`linearLimit(0.1, bounciness 1)`、`enablePreprocessing false`、`breakForce = SPRING_BREAK_FORCE`；`connectedAnchor` 同样留默认 | `Spring.cs:119-127` |
 | 拉断 | `FixedUpdate`：两锚点距离 > **3 m** 且 `!contraption.HasSuperGlue` → 销毁该件的全部 FixedJoints → `HandleJointBreak()` → `CreateSpringBody(Direction.Down)`（实例化 `SpringEndpoint.prefab` 为**新刚体**并挂上同款关节）；`m_jointBroken` 只挡重复断 | `Spring.cs:78-92,131-176` |
-| 质量 | IN `StableSpringConnection` → `rigidbody.mass = 1`；否则 prefab（内容现 0.6） | `Spring.cs:69-75` |
+| 质量 | **声明默认档 `StableSpringConnection = false`** → 不覆盖，取 prefab 的 `m_mass`（**0.3**，`Part_Spring_01_SET`）；只有 B 档才强制 `rigidbody.mass = 1` | `Spring.cs:70-76`；`INDeclarationSettingsExp.json` |
 | 锚点/视觉 | `m_localConnectionPoint = (0, 0.5, 0)`（本件系）、`m_remoteConnectionPoint = part.InverseTransformPoint(self.position − 0.5·up)`；`SpringVisualization` 每帧按两锚点距离缩放摆向 | `Spring.cs:47-58,120-122` |
-| IN 发布配置 | `StrongSpringConnection = true`、`StableSpringConnection = true`（`INSettingsBExp.json`） | 见 §7 |
+| IN 档位 | **声明默认档（vanilla）**：`StrongSpringConnection = false`、`StableSpringConnection = false` → **8 个皮肤全部走路径 B**（y 软限位），质量取 prefab、断力 250、`> 3 m` 拉断生效（`Spring.cs:80-92` 的守卫在 Strong 为 false 时**不**短路）。下表与 `tasks/bple-springs-report.json` 的**逐皮肤路径**是 B 档口径（`INSettingsBExp.json` 里两者都是 true），**按 vanilla 重做是待办**（差距 `G107`） | `INDeclarationSettingsExp.json`；见 §7 |
 
 **逐皮肤关节路径（`tasks/bple-springs-report.json`，27 条硬断言，直方图由工具守卫）**：
 

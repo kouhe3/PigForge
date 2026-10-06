@@ -86,8 +86,9 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
    `281..286` = big 的 6 个兄弟，`variantOf` 指向 270/271。
 3. **`Part_EngineSmall_05_SET` 的 5000**：它自己的 prefab 写着 `m_enginePower: 5000`（同族其余 9 件都是 50，
    100 倍），**照原版保留**（`variant-overrides.json` 的 `variants` 覆盖 `enginePower`，并附 `note`）。
-   无需 PigForge 平衡决定：原版自己的 raw 比上限（`10 × EnginePowerLimit = 40`，`Contraption.cs:545`）已经把它截住——
-   现有公式测试里 `ComputePowerFactor(5000, 100)` 与 `(4000, 100)` 相等（都是上限值 8.6539）。
+   无需 PigForge 平衡决定：原版自己的 raw 比上限（`10 × EnginePowerLimit = 10`，`Contraption.cs:545`；
+   vanilla 的 `EnginePowerLimit` 是 1.0，`INDeclarationSettingsExp.json`）已经把它截住——
+   现有公式测试里 `ComputePowerFactor(5000, 100)` 与 `(1000, 100)` 相等（都是上限值 3.8459）。
 4. **漂移守卫**：`import-variants.mjs` 现在对「注册表里有分组、但没有基座、且成员没写进 `extras`」**发警告**
    （以前是静默 `continue`，G87 就是这么漏掉的），并**断言** `extras`/变体覆盖里声明的 `enginePower` 等于
    prefab 的 `m_enginePower`、`massFactor` 等于「prefab 质量 / 基准 prefab 质量」（所以那两个数字不是手写的）。
@@ -103,7 +104,7 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 | `Part_SmallWheel_08_SET` | 加 `motor { thrustPerTick: 2.2, directionX: 1 }` + `activation: toggle` | 脚本是 `MotorWheel`（force 50/power 100/mass 1），同组其余是 `CartWheel` |
 | `Part_MetalFrame_11_SET` | `light: 2.14` | prefab 内置 `PointLightSource` size 5；PigForge 手电筒 size 7 → 3.0，按比例 5/7 |
 | `Part_Bellows_07_SET` | `bellows: 32.0` | prefab `m_alienBellow=1, m_boostForce=120`，兄弟件 30；PigForge 风箱 8.0，按 120/30 |
-| `Part_EngineSmall_05_SET` | `enginePower: 5000` | 自己的 prefab 就是 5000（同族 9 件都是 50）；原版 raw 比上限 40 已把它截住，照原版保留 |
+| `Part_EngineSmall_05_SET` | `enginePower: 5000` | 自己的 prefab 就是 5000（同族 9 件都是 50）；原版 raw 比上限 10 已把它截住，照原版保留 |
 
 **明确不建模（皮肤处理 + 文档记录）**：`Balloon_08` 不可碰破（PigForge 气球本就不破）、`Rope_03/04` 绳段可碰撞、`Kicker_2..5` 自动/弹性/标记连接器、`PointLight` 家族的闪烁/夜视/常亮、`SpringBoxingGlove_05` 出拳距离 5 vs 2.5、`MetalFrame_09` 随机贴图、瓶子 `Cork` 装饰。
 

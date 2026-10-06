@@ -48,9 +48,9 @@
 | 2 | **没有 spring/damper**：全 343 prefab 零弹簧字段 → 关节的「软」是**迭代求解的残差**（链式弯矩下 10°–26°/关节，实测 §0.2），不是参数 | 报告 `noSpringAnywhere`；§0.2 |
 | 3 | `enablePreprocessing`（`a && b`，27/343 件 = 全部木/铁/彩框 + TimeBomb）：改的是**关节间的分配**，不改总曲率（实测 22.66° vs 22.69°） | `Contraption.cs:1540`；§0.2 |
 | 4 | 相邻件的碰撞体**不屏蔽互相碰撞**（框面对面接触，实测把下沉从 6.55 m 压到 1.84 m） | `Part_*.prefab` 1×1×1；§0.2 |
-| 5 | `breakForce = gs(a)+gs(b)`（再乘 `ConnectionStrength`）：实测 1000→1020 N、2400→2420 N 断；`breakTorque` 未设（默认 ∞） | `Contraption.cs:1541-1543,2268`；`Contraption.AddJointToMap`；§0.1 |
+| 5 | `breakForce = (gs(a)+gs(b)) × ConnectionStrength`：声明默认档（vanilla）的倍率是 1，木↔木 **250**、木↔铁 725、铁↔铁 **1200**（B 档 2.0 会把这四档整体翻倍，`docs/specs/in-settings-profiles.md`）；探针用 1000 → **1020 N**、2400 → **2420 N** 验证断点≈声明值；`breakTorque` 未设（默认 ∞） | `Contraption.cs:1541-1543,2268`；`Contraption.AddJointToMap`；§0.1 |
 | 6 | 强力胶只改强度：`MakeUnbreakable()` 把每条关节 `breakForce = +Inf`；**无任何站点改 `enablePreprocessing`** | `:2238-2247,2599` 等 |
-| 7 | 木/铁的全部物理输入只差质量（0.5 / 1 / 4；TimeBomb 0.2）与断裂阈值（1000 vs 2400）；`BoxFrame` 的 IN 质量 feature 在 BExp 无覆盖 → 均 1.0 | prefab；`BoxFrame.cs:9-18` |
+| 7 | 木/铁的全部物理输入只差质量（0.5 / 1 / 4；TimeBomb 0.2）与断裂阈值（vanilla 250 vs 1200，B 档 1000 vs 2400）；`BoxFrame` 的 IN 质量 feature 在声明默认档无覆盖 → 均 1.0 | prefab；`BoxFrame.cs:9-18` |
 | 8 | 原版没有关节软度的 IN 开关（只有 `ConnectionStrength` 54 与 `FrameJoint` 80） | `INFeature.cs`；`INSettingsBExp.json` |
 
 ## 2. PigForge 现状（要改的就是这里）

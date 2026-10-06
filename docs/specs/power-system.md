@@ -16,13 +16,13 @@
 | 2 | 「耗能件」= `m_powerConsumption > 0`；「引擎」= `m_enginePower > 0` | `BasePart.cs:601-608` |
 | 3 | 引擎**不推刚体**：它只激活同分量内可启用的耗能件 | `Engine.cs:29`、`Engine.cs:138 ActivateAllPoweredParts` |
 | 4 | 引擎必须被包裹才算有效零件 | `Engine.cs:61 ValidatePart() => m_enclosedInto != null` |
-| 5 | 分量功率 = 累加成员；**只有启用中的耗能件计入消耗** | `Contraption.cs:891-920`、`:1034` |
-| 6 | 功率因子：`raw = min(enginePower / powerConsumption, 10 × EnginePowerLimit)`（消耗 > 1）；`raw = 1`（有引擎且消耗 ≤ 1）；否则 `raw = 0`；`factor = pow(raw, raw > 1 ? 0.585 : 0.75)` | `Contraption.cs:540-556` |
-| 7 | 开关默认打开、上限默认 4：`DynamicPowerSystem = true`、`EnginePowerLimit = 4.0` | `INSettingsBExp.json` |
+| 5 | 分量功率 = 累加成员；**只有启用中的耗能件计入消耗**（累加发生在装配期） | `Contraption.cs:891-920`、`:1034`、`:1377-1380` |
+| 6 | 功率因子：`raw = min(enginePower / powerConsumption, 10 × EnginePowerLimit)`（消耗 > 1）；`raw = 1`（有引擎且消耗 ≤ 1）；否则 `raw = 0`；`factor = pow(raw, raw > 1 ? 0.585 : 0.75)` | `Contraption.cs:540-556`（动态分支）、`:556-582`（遗留分支，同一表达式） |
+| 7 | **声明默认档（vanilla）**：`DynamicPowerSystem = false`、`EnginePowerLimit = 1.0` → raw 比上限 **`10 × 1 = 10`**；B 档才是 `true` / `4.0`（上限 40）。 | `INDeclarationSettingsExp.json`；B 档 `INSettingsBExp.json` |
 | 8 | 动力轮/推进件把 `factor` 乘到力与最高速：`m_maximumForce = m_force × factor`、`m_maximumSpeed = 15 × factor` | `MotorWheel.cs:101-109`、`OffRoadWheel.cs:172-180` |
 | 9 | 推进件必须至少相邻 1 个底盘邻居（`Frame` 是唯一 `IsPartOfChassis()` 为真的类）；风扇/螺旋桨/旋翼、火箭/喷气、风箱、机翼、尾翼都走这条 | `BasePropulsion.cs:13-20`、`Frame.cs:37-40`、`Wings.cs:14-31`、`Tail.cs:12-29` |
 
-补充：`Contraption.cs:558-571` 是 `DynamicPowerSystem = false` 的旧分支（还会把动力轮的消耗乘 0.9 折抵），默认不走，**本规格不实现**。
+补充：`Contraption.cs:556-582` 是 `DynamicPowerSystem = false` 的**遗留分支**，而**声明默认档就是 false**（原版零售设置走的就是它，`INDeclarationSettingsExp.json`）：分母取装配期累加的消耗，再减去 `0.9 ×` 每个**无接地**马达轮的消耗（`MotorWheel.HasContact`），且**不按开关状态逐帧重算**（`:2626-2649` 的重算循环被 `if (!DynamicPowerSystem || …) return;` 短路）。PigForge 实现的是**动态分支**（逐 tick 只统计启用件、不做接地折抵）→ 记为差距，见 §7。
 
 ## 3. PigForge 现状
 
@@ -63,7 +63,10 @@
 ## 7. 不做
 
 - 电气回路（`ElectricalPart`/`Wire`/`Electrode` 的逻辑电平系统）与 `FuelTube`：那是开关/逻辑子系统，与机械动力无关。
-- 旧分支（`DynamicPowerSystem = false`）。
+- **遗留分支（`DynamicPowerSystem = false`）——vanilla 就是这一支**（`INDeclarationSettingsExp.json`，PigForge 用的是 B 档才有的动态分支）：
+  两处差异，都未实现（差距 `G106`）——①分母 = 装配期 `Σ m_powerConsumption` **减去 `0.9 ×` 每个无接地马达轮的消耗**（`Contraption.cs:556-582`、`MotorWheel.cs:34,58,290,314`），
+  ②消耗**不按开关状态逐帧重算**（`:2626-2649` 被 `DynamicPowerSystem` 短路）。
+  后果：接地工况两支相同（引擎 150 / 动力轮 100 → `1.5^0.585 ≈ 1.2677`），**动力轮离地时分歧极大**（遗留：分母 10 → 截到上限 10 → `3.8459`；我们的模型仍是 `1.2677`）。
 - ~~**原作马达限速**~~（**已落地，2026-10-04**）：`m_maximumSpeed = 15 × factor`、`sqrt(1 - |v∥|/max)` 递减、到顶零出力（`MotorWheel.cs:101-103,292-299`），见 §4 决议 4。
 - **刚体线性阻尼**（新的未做项）：原版每个零件刚体 `linearDamping 0.2` / `angularDamping 0.05`（`BasePart.cs:1192-1193`），机翼与尾翼覆盖成 `1.0` / `0.2`（`Wings.cs:99`、`Tail.cs:52`），气球 2.0（`Balloon.cs:130`）、沙袋 1.0（`Sandbag.cs:133`）、金猪 0.5（`GoldenPig.cs:16`），并且有一个 IN 开关 `NoDrag` 会把全场阻尼清零（`INContraption.cs:299-336`）。**PigForge 的 `IPhysicsWorld` 契约里没有阻尼项**，所以火箭/螺旋桨/肚子推力都没有终端速度；要补就是契约 + Bepu/Jolt 两个后端 + 逐件内容值（提取器）+ 簇内按质量聚合。
 - ~~**推进件的因子**~~（已实现，2026-10-03）：原作对 `FanPropeller`/`PoweredUmbrella`/`StickyWheel` 同样乘因子（`FanPropeller.cs:85-92`、`PoweredUmbrella.cs:70-89`、`StickyWheel.cs:119`）。粘轮归入 `motor` 驱动路径（决议 4 的补丁）；`fan`/`umbrella` 与 `rotor`（旋翼，现与风扇同为 `FanPropeller` 的 `fan` 推力件，走 `RunFans` 且受 `maxSpeed` 上限约束，见 `docs/specs/fan-propeller.md`）现在统一走 `GameplayRules.TryDriveFactor` 按 `ClusterPowerFactor` 缩放，簇内无引擎即为 0。同一批还落地了 §2 真值 9 的底盘门控（G25）。唯一未建模的是 `PoweredUmbrella.cs:70-89` 里「有功率但该分量没有引擎」时再乘 0.5 的分支——本模型的「分量」就是功率簇，不区分这两档。

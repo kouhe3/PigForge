@@ -52,7 +52,7 @@ PigForge 内容里（`tools/bple-joints/extract-joints.mjs` 报告）：**`none`
 
 | # | 原版规则 | 出处 |
 |---|---|---|
-| 1 | 沿网格方向搜索 `FindPartAt(coordX + i*dx, coordY + i*dy)`，半径 **10 格**（`INSettingsBExp.json` 的 `SandbagConnectionDistance`/`BalloonConnectionDistance` = 10）；取第一个**合法锚点**并停止 | `Sandbag.cs:71,96-102`、`Balloon.cs:93,104-107` |
+| 1 | 沿网格方向搜索 `FindPartAt(coordX + i*dx, coordY + i*dy)`，半径是**各自家族的**连接距离：沙袋 **1 格**、气球 **5 格**（声明默认档 `INDeclarationSettingsExp.json` 的 `SandbagConnectionDistance = 1` / `BalloonConnectionDistance = 5`；B 档把两者都写成 10，2026-10-06 起已按 vanilla 落地）；取第一个**合法锚点**并停止 | `Sandbag.cs:63,71,96-102`、`Balloon.cs:87,93,104-107` |
 | 2 | 合法锚点 = `IsPartOfChassis()`（＝我们的 `source` 件／框）**或猪**（气球另含 Kicker）。判空条件写作「既不是底盘**也不是猪**才丢弃」，所以**猪是合法锚点**，其他零件（轮子、TNT…）跳过继续向外找 | `Sandbag.cs:96-102`、`Balloon.cs:104-107`、气球为猪特判 `Balloon.cs:139-147` |
 | 3 | 沙袋挂到锚点**下方**，`SpringJoint`：`minDistance 0`、`spring 100`、`damper 10`、`anchor = up*0.5`；`maxDistance` 按这一摞的袋数取值：1 袋 **0.5**、2 袋 **0.55**、3 袋 **0.65**（含各自挂点偏移，见 `Sandbag.cs:144-160`） | `Sandbag.cs:136-164` |
 | 4 | 气球镜像：**向下**搜索、浮在锚点上方、`anchor = up*-0.5`；`maxDistance = Random.Range(0.8,1.2) * (两点距离 - 0.5) + (锚点是猪 ? 0.3 : 0)`，并给锚点挂 `BalloonBalancer` | `Balloon.cs:136-163` |
