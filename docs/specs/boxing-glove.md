@@ -69,40 +69,76 @@ prefab 的 380 驱动让手套在 **0.1 s 内冲过目标约 30%**（`3.25 > 2.5
     "wind": { "time": 1.0, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }
     // wind.driveSpring = 10 × m_targetDistanceY × BoxingGloveLength（以 IN 值为准）
   },
-  "activation": "trigger"   // IN SwitchableBoxingGlove=true 时改为 "toggle"（按提取结果写）
+  "activation": "trigger"   // 按钮：按下/点击出拳（见下）
 }
 ```
 
-- `activation` 的取值由提取器读出的 IN 值决定，**两种都实现**。
-- **实测的 IN 值：`SwitchableBoxingGlove = true`**（`INSettingsBExp.json:519`）⇒ **内容写 `activation: "toggle"`**（点一下开=出拳、再点关=中断回卷），`trigger`（碰到就打）作为另一条已实现路径保留；
-  `BoxingGloveLength = 1`（`INDeclarationSettingsExp.json:1172`，非覆盖）⇒ 伸出距离 = `2.5 × 1 = 2.5`。
-- 手套的**美术**不在本切片：子实体用 host 的 `partTypeId`（客户端按 host 的美术/形状画），拳头自己的图另记 P1。
+- **内容选的是按钮分支**（`activation: "trigger"`，2026-10-04 用户实机报告后定）：原版这个零件的**控件**就是按钮而不是开关——
+  `SpringBoxingGlove.HasOnOffToggle() => false`（`SpringBoxingGlove.cs:81-84`），而 `UIPartTriggerButtonInfo` 正是拿这个值决定控件形状
+  （`BasePart.cs:1418-1421`）；`BasePart.OnButtonTriggered` 又只是 `ProcessTouch()`（`BasePart.cs:1428-1431`）。所以按下 = 出拳，回卷由
+  `m_ShootTime` 自己完成，按钮不留在「开位」。
+- **与 IN `SwitchableBoxingGlove = true` 的偏差（有意，可回退）**：`INSettingsBExp.json:504-508` 实测为 `true`，那条分支里 `OnTouch` 切的是
+  `m_enabled`（档位），`Update` 只在 `!m_enabled` 时才进回卷。PigForge 仍然实现这条分支（`activation: "toggle"`：关 = 中断回卷，开 = 出拳，
+  且快照里的 `Active` 一直是 1 —— 客户端的开关条就会把它画成一个真正的开关，这正是用户报告的「预期是按钮而不是开关」），
+  但**发布内容不再选它**；把 `tools/bple-springs/apply-springs.mjs` 的 `activation` 常量改回 `"toggle"` 即可整体回退。
+- `BoxingGloveLength = 1`（`INDeclarationSettingsExp.json:1172`，非覆盖）⇒ 伸出距离 = `2.5 × 1 = 2.5`。
+- **拳头的图**（2026-10-04 补做，用户实机报告「弹出的不是拳头」）：`m_BoxingGlovePrefab` 指向的 `BoxingGlove*.prefab`（`SpringBoxingGlove.cs:38`）
+  有自己的 `Visualization` 精灵，由 `tools/bple-textures/extract.mjs` 抽成清单里的 `subSprites`（schemaVersion 5，5 个皮肤各一张）；
+  快照用 `flags` bit1 标出子实体（PGFS v5，`docs/specs/play-part-switches.md` Assumption 9），客户端 `subEntityTexture` 拿它换掉宿主的合成图。
+  偏移仍在子实体自己的原点系（与零件的参照系约定一致）。
 
 ## 3. 子实体（`ADR-027`）
 
 - 物化时（`StartPlayer`/`Start`/`MaterializeLevelActors`）给拳套注册一个子实体「手套」：`PartLink`（host 的 partTypeId）、自己的刚体（mass = `glove.mass`）、自己的形状（`glove.shapes`），**不进** `ConstructionRules`。
 - 关节：本体 body ↔ 手套 body，`yMotion` 限位 + `yDrive`（贴身态按 `glove.limit/yDrive`）；手套与本体所在簇 `IgnoreCollision`（拳套与它自己刚体之间）。
 - 生命周期：host 的 RESET / 离开 / 拆簇摧毁 / 规则销毁 → 子实体同处销毁（先 `ForgetJointsForBody` 再 `DestroyBody`）。
-- 快照：子实体照 73 B 记录发布；`MaxSnapshotEntityCount` 必须把它算进去（否则沙盒大帧被静默丢弃）。
+- 快照：子实体照 73 B 记录发布，`flags` bit1 = 1（PGFS v5，ADR-028）；`MaxSnapshotEntityCount` 必须把它算进去（否则沙盒大帧被静默丢弃）。
+- **静止时不参与快照**（2026-10-04 第十三轮补，**用户实机报告**「未触发时我看到的是拳套，原版是盒子」）：原版 `InitilizeBoxingGlove()` 的**最后一步是
+  `m_BoxingGlove.SetActive(false)`**（`SpringBoxingGlove.cs:215-222`），出拳才 `SetActive(true)`（`:224-262`）——被停用的 GameObject **既不渲染、也不参与模拟**。
+  我们保留子实体的刚体（yDrive 要在出拳那一刻把手套从贴身位置推出去），但**缠绕态不把它放进已发布的帧**：`GameRoom._stowedSubEntityIds` 在
+  `ApplyGloveState`（`WindedUp` → stowed）/`SpawnGlove`（出生即缠绕）/`DestroySubEntity`/`ClearSubEntities` 维护，`FillConstructionOrder`/`FillEntityOrder`
+  跳过它。⇒ 客户端在静止时只画盒子，出拳/回卷时才有拳头（`Shoot`/`Winding` 都发布）。拉断弹簧的端点不属于任何机器，永远发布。
 
 ## 4. 状态机
 
 ```text
-WindedUp --触发(OnTouch / 开)--> Shoot --m_ShootTime 秒--> Winding --m_WindingTime 秒 / 回到 0.1 内--> WindedUp
+WindedUp --按下 / off→on--> Shoot --m_ShootTime 秒--> Winding --m_WindingTime 秒 / 回到 0.1 内--> WindedUp
 ```
 
 | 状态 | 刚体/关节改写 |
 |---|---|
-| `WindedUp` | 手套 mass `glove.mass`、碰撞体开、`yDrive = glove.yDrive`、`targetPosition = 0`、`linearLimitSpring = 0/0`（等 `InitilizeBoxingGlove`） |
+| `WindedUp` | 手套 mass `glove.mass`、碰撞体开、`yDrive = glove.yDrive`、`targetPosition = 0`、`linearLimitSpring = 0/0`（等 `InitilizeBoxingGlove`）；**且子实体被 stow**（原版 `SetActive(false)`：不进快照、不渲染） |
 | `Shoot` | `targetPosition = (±deviationX·rand, shoot.distanceY·BoxingGloveLength, 0)`、`linearLimitSpring.spring = shoot.limitSpring`、碰撞体开；**并把 `EffectDirection()` 相邻件的关节全部断掉**（同簇才断） |
 | `Winding` | `targetPosition = 0`、`yDrive = { wind.driveSpring, wind.driveDamper }`、手套 mass `wind.mass`、碰撞体关 |
 | 复位 | 满足 `Winding` 退出条件 → 回到 `WindedUp` 的全套初值 |
 
+> 一句话：**stow ⇔ `WindedUp`**，其余两态都在快照里（客户端因此只在拳头真的在外/回卷时画它）。
+
+### 4.1 画序：宿主盖住子实体（2026-10-04 第十三轮，**用户实机报告**「拳头收回后突然消失」）
+
+原版同一 sorting order 的精灵按**到相机的距离**排序（相机在 `z = -15` 看向 +z，`IngameCamera.cs:440`），而两件东西的 z 不同：
+
+| 节点 | local z | 谁在上面 |
+|---|---|---|
+| 零件自己的 `Visualization`（盒子，`Part_SpringBoxingGlove_01_SET.prefab`） | **0.1** | ✅ 更近 → 后画 → **盖住拳头** |
+| 拳套的 `Visualization`（拳头，`BoxingGlove.prefab`，挂在件原点下） | **0.15** | 更远 → 先画 |
+| 零件自己的 `SpringVisualization`（弹簧线） | 0.2 | 最远 |
+
+所以原版收回时拳头是**贴着盒子滑进去**、被盒子的美术盖住，而不是凭空消失（盒子自己的美术里本来就画着收在里面的拳头与弹簧，静止时那一步是无缝的）。
+PigForge 的渲染器跨实体只按快照顺序（实体升序 = 创建序），子实体的 id 大于宿主 → 拳头画在盒子**上面**，才让收尾那一下显眼。
+
+修法：`clients/web/src/renderer/draw.ts` 的 `drawOrder(entities)` 把每个子实体**紧挨着它所属的件之前**画（归属 = 同 `partTypeId` 里最近的那个非子实体；找不到就留在原位），
+其余顺序与实体数完全不变。⇒ 拳头在收缩过程中始终位于盒子之下，`WindedUp` 把它从帧里去掉时它已经在盒子底下了（与 `SetActive(false)` 的那一瞬一致）。
+测试：`draw.test.ts` 的 `drawOrder` 组 + `paints the host part over its own sub-entity`（真 `drawFrame` 的 `drawImage` 顺序）。
+
 ## 5. 触发路径（服务器权威）
 
-- **触发式**（`activation: trigger`）：host 的**接触事件**（`ContactStarted`，与火箭的 `TryConsumeTrigger` 同一形状）→ 若处于 `WindedUp` 且 `CanBeEnabled` → 进入 `Shoot`。
-- **开关式**（`activation: toggle`）：`SetPartActive`（既有命令通道）→ 开 = 出拳、关 = 中断回卷。
-- `CanBeEnabled`：手套身后那件有 SuperGlue 且不是 TNT → 不可用（原版 `m_CanBeEnabled` 的近似，写清口径）。
+- **按钮式**（`activation: trigger`，发布内容的选择）：`SetPartActive`（既有命令通道，条上的按钮与点零件都走它）→ `GameRoom.RunGloves`
+  在 `_rules.TryConsumeButtonPress(host)` 上出拳；按下一律被消费（即使 `CanBeEnabled` 拒绝），这样按钮永远不留在开位。
+  **物理接触不出拳**：原版的 `ProcessTouch` 只由 UI 到达（`Contraption.OnButtonTriggered`/`ActivateOnePartOfType`/鼠标），从不来自碰撞事件；
+  早先实现把 `ContactStarted` 当触摸，会「落地就出拳」，已删除。
+- **开关式**（`activation: toggle`，原版 IN 那条）：`SetPartActive` 读成档位，off→on 沿出拳，on→off 中断/回卷。
+- 两条路都只从 `WindedUp` 出拳；`CanBeEnabled`：手套身后那件有 SuperGlue 且不是 TNT → 不可用（原版 `m_CanBeEnabled` 的近似，写清口径）。
 
 ## 6. 验收
 
@@ -128,16 +164,26 @@ WindedUp --触发(OnTouch / 开)--> Shoot --m_ShootTime 秒--> Winding --m_Windi
 | **回卷到 offset 绝对值 < 0.1** | **0.35 s**（21 tick） | **0.333 s**（20 tick） | 0.34 s（len 1）/ 0.22 s（len 2） |
 | 横向/旋转 | x、z 位移 0，相对偏航 0（±1e-4） | — | x/z Locked、角三轴 Locked |
 | 出拳打断身后件 | — | 同簇的 1×1 木块被打脱（各自成体，双方存活） | 目标件 FixedJoints 全断 |
-| 可重复 | — | 关/再开一次 → 第二次同样打出 ≥ 2.25 m | — |
+| 可重复 | — | 再按一次 → 第二次同样打出 ≥ 2.25 m | — |
+| 子实体标志 | — | 手套的 `flags` bit1 = 1、宿主 = 0（PGFS v5） | — |
+| 静止时帧里没有拳头 | — | 缠绕态：帧里只有盒子（`SubEntityCount` 仍是 1，刚体在）；出拳后拳头才出现在帧里、回卷结束又消失（`APlacedGloveSpawnsAFistTheFrameHidesUntilItIsThrown`、`APunchThrowsTheGloveToTheSkinsDistanceThenWindsItHome`） | 原版 `SetActive(false)`（`:215-222`） |
+| 按钮不留在开位 | — | 出拳中途再按一次 → 快照 `Active` 仍为 0（按下一律被消费） | — |
+| toggle 分支 | — | 同一装置把内容改成 `toggle`：off→on 出拳、level 一直为 1、再按无效（`AToggleGloveThrowsOnItsSwitchLevelAndStaysLatchedOn`） | — |
 | 确定性 | 双跑逐 tick 轨迹相同 | 双跑 `ComputeStateHash()` 相同 | — |
 | 子实体清场 | — | RESET / 离开后 `SubEntityCount == 0`，重开再建 | — |
 
-三个测试层：Core 262、Server 125、Physics 66（非 Jolt）+ 16（Jolt）全绿；Release 全量重建 0 警告 0 错误。
+**真客户端读数（2026-10-04 第十三轮，浏览器跑 vite 页面 + 真房间）**：页面的 `viewState.entities` 里读到拳头的 `subEntity === true`（与宿主相距 2.12 m 时），
+`loadPartTextures()` 给出 part 28 的 `subSprites` = 1 张（`IngameAtlas.png`，rect `(1694,1122,99×85)`，世界尺寸 1.0313×0.8854、`rot −1.5708`），
+把它画进 canvas 得到 **5822 个不透明像素**（图集确实加载到了）；录屏（7 s，30 fps）里拳头出现在拳套箱旁约 2.5 m 处——**弹出的确实是拳头，不再是一个拳套零件**。
+
+三个测试层（2026-10-04 第十三轮收工）：Core 266、Server 129、Physics 66（非 Jolt）+ 16（Jolt）全绿；Release 全量重建 0 警告 0 错误。
 拳套的一条 `_jointedPairs` 抑制让手套与**它所属的那个刚体**（并簇后即整簇）互不接触，正是原版的 `IgnoreCollision`。
 
 ## 7. 已知偏差（排队或写清，别只写在 ADR 里）
 
-- **拳头美术**：子实体暂无自己的贴图 → 用 host 的美术/形状（P1 客户端项：`BoxingGlove*.prefab` 的精灵进清单、按子实体单独画）。
+- **拳头的图只有一张静态精灵**（2026-10-04 已补）：`m_BoxingGlovePrefab` 的 `Visualization` 抽进清单的 `subSprites`，子实体按它画；
+  弹簧线（`SpringVisualization`，原版按手腕到拳头的距离建一条拉伸的线）仍**没有**视觉——它需要客户端按两个实体的位置自己生成，与弹簧的线视觉同一批（P1）。
+  没有 `subSprites` 的子实体（拉断弹簧的端点）继续借宿主的图（现状不变）。
 - **`solverIterations × 1.6`**：Bepu 没有 per-body 求解迭代数 → 不实现，记偏差。
 - **`projectionMode PositionAndRotation` / `projectionDistance 0.1`**：Bepu 无投影项 → 用更硬的驱动/限位近似，记偏差。
 - **`m_checkRotation` 的 90° 美术镜像**：属渲染层（客户端），与滑翔翼水平镜像（协议）同一批，本切片不做。
