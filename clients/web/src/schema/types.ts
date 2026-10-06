@@ -118,7 +118,25 @@ export interface PartCapabilities {
    * reference, never authored.
    */
   glove?: PartGlove;
-  rocket?: { thrustPerTick: number; directionX: -1 | 0 | 1; directionY?: -1 | 0 | 1; durationTicks: number; explodeRadius?: number; explodeImpulse?: number };
+  /**
+   * The original's three-phase burn (Rocket.cs:228-300), in 60 Hz ticks: `ignitionTicks` is a
+   * no-thrust phase for the bottle family (`visualization`), `boostTicks` is full thrust and
+   * `endTicks` the linear ramp back to zero; `maxSpeed` is `m_maximumSpeed`, past which the force
+   * divides by `1 + v - maxSpeed` (Rocket.cs:529-541). A charge with `explodeRadius` blasts where
+   * it stands when the burn ends and survives as a spent husk. Written by tools/bple-rockets.
+   */
+  rocket?: {
+    thrustPerTick: number;
+    directionX: -1 | 0 | 1;
+    directionY?: -1 | 0 | 1;
+    ignitionTicks: number;
+    boostTicks: number;
+    endTicks: number;
+    maxSpeed: number;
+    visualization?: boolean;
+    explodeRadius?: number;
+    explodeImpulse?: number;
+  };
   egg?: boolean;
   /** The original's `Wings.m_liftConstant` (Wings.cs:6), the only wing number its clamped |v|^2 response curve reads. */
   wing?: { liftConstant: number };

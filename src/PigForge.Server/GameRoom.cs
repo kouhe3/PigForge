@@ -486,7 +486,18 @@ public sealed class GameRoom : IDisposable
 
         if (capabilities.HasRocket)
         {
-            _rules.AddRocket(entity, capabilities.RocketThrustPerTick!.Value, capabilities.RocketDirectionX ?? 1f, capabilities.RocketDirectionY ?? 0f, capabilities.RocketDurationTicks!.Value, capabilities.RocketExplodeRadius ?? 0f, capabilities.RocketExplodeImpulse ?? 0f);
+            _rules.AddRocket(
+                entity,
+                capabilities.RocketThrustPerTick!.Value,
+                capabilities.RocketDirectionX ?? 1f,
+                capabilities.RocketDirectionY ?? 0f,
+                capabilities.RocketIgnitionTicks!.Value,
+                capabilities.RocketBoostTicks!.Value,
+                capabilities.RocketEndTicks!.Value,
+                capabilities.RocketMaxSpeed!.Value,
+                capabilities.RocketVisualization,
+                capabilities.RocketExplodeRadius ?? 0f,
+                capabilities.RocketExplodeImpulse ?? 0f);
         }
 
         if (capabilities.IsEgg)

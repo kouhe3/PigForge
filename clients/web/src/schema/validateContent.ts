@@ -259,15 +259,18 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
     }
   }
   if (value.rocket !== undefined) {
-    const rocket = value.rocket as { thrustPerTick?: unknown; directionX?: unknown; directionY?: unknown; durationTicks?: unknown; explodeRadius?: unknown; explodeImpulse?: unknown } | null;
+    const rocket = value.rocket as { thrustPerTick?: unknown; directionX?: unknown; directionY?: unknown; ignitionTicks?: unknown; boostTicks?: unknown; endTicks?: unknown; maxSpeed?: unknown; visualization?: unknown; explodeRadius?: unknown; explodeImpulse?: unknown } | null;
+    const phase = (ticks: unknown) => typeof ticks === "number" && Number.isInteger(ticks) && ticks >= 0 && ticks <= 65535;
     if (typeof rocket !== "object" || rocket === null
       || typeof rocket.thrustPerTick !== "number" || !Number.isFinite(rocket.thrustPerTick)
       || rocket.directionX !== -1 && rocket.directionX !== 0 && rocket.directionX !== 1
       || rocket.directionY !== undefined && rocket.directionY !== -1 && rocket.directionY !== 0 && rocket.directionY !== 1
-      || typeof rocket.durationTicks !== "number" || !Number.isInteger(rocket.durationTicks) || rocket.durationTicks < 0
+      || !phase(rocket.ignitionTicks) || !phase(rocket.boostTicks) || !phase(rocket.endTicks)
+      || typeof rocket.maxSpeed !== "number" || !Number.isFinite(rocket.maxSpeed) || rocket.maxSpeed < 0
+      || rocket.visualization !== undefined && typeof rocket.visualization !== "boolean"
       || rocket.explodeRadius !== undefined && (typeof rocket.explodeRadius !== "number" || !Number.isFinite(rocket.explodeRadius) || rocket.explodeRadius < 0)
       || rocket.explodeImpulse !== undefined && (typeof rocket.explodeImpulse !== "number" || !Number.isFinite(rocket.explodeImpulse) || rocket.explodeImpulse < 0)) {
-      errors.push(`Part ${partTypeId} capabilities.rocket needs finite thrustPerTick, directionX/directionY in -1, 0, 1, non-negative integer durationTicks, optional non-negative explodeRadius/explodeImpulse.`);
+      errors.push(`Part ${partTypeId} capabilities.rocket needs finite thrustPerTick, directionX/directionY in -1, 0, 1, non-negative integer ignitionTicks/boostTicks/endTicks, a non-negative finite maxSpeed, optional visualization and optional non-negative explodeRadius/explodeImpulse.`);
     }
   }
   if (value.egg !== undefined && typeof value.egg !== "boolean") {

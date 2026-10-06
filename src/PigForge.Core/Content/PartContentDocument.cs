@@ -309,7 +309,16 @@ public sealed record PartCapabilities(
     float? RocketThrustPerTick = null,
     float? RocketDirectionX = null,
     float? RocketDirectionY = null,
-    ushort? RocketDurationTicks = null,
+    // The original's burn is three phases in seconds (Rocket.cs:228-300), carried as 60 Hz ticks:
+    // m_ignitionTime (no thrust for the bottle family, whose m_visualization returns early),
+    // m_boostDuration (full thrust) and m_boostEndDuration (the linear ramp to zero). `RocketMaxSpeed`
+    // is m_maximumSpeed after the vanilla IN multipliers; `RocketVisualization` is "the prefab
+    // carries an m_visualization", which is what makes the ignition phase silent.
+    ushort? RocketIgnitionTicks = null,
+    ushort? RocketBoostTicks = null,
+    ushort? RocketEndTicks = null,
+    float? RocketMaxSpeed = null,
+    bool RocketVisualization = false,
     float? RocketExplodeRadius = null,
     float? RocketExplodeImpulse = null,
     bool IsEgg = false,

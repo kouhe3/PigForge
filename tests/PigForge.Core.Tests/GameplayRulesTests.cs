@@ -392,6 +392,35 @@ public sealed class GameplayRulesTests
         TntBlastImpulse: 12f,
         TntIgniteImpactSpeed: 5f);
 
+    /// <summary>
+    /// A plain rocket for the axis/point tests: no ignition phase, no ramp-down and no speed cap
+    /// (the original's <c>Rocket</c> with an <c>m_ignitionTime</c> that only matters to the bottle
+    /// family, which carries an <c>m_visualization</c>, and <c>m_maximumSpeed</c> 0 meaning "never
+    /// limit" here because the tests measure the force itself).
+    /// </summary>
+    private static void AddPlainRocket(
+        GameplayHarness harness,
+        EntityId rocket,
+        float thrustPerTick,
+        float directionX,
+        float directionY,
+        ushort boostTicks,
+        float maxSpeed = 0f,
+        float explodeRadius = 0f,
+        float explodeImpulse = 0f) =>
+        harness.Rules.AddRocket(
+            rocket,
+            thrustPerTick,
+            directionX,
+            directionY,
+            ignitionTicks: 0,
+            boostTicks,
+            endTicks: 0,
+            maxSpeed,
+            visualization: false,
+            explodeRadius,
+            explodeImpulse);
+
     private sealed class GameplayHarness
     {
         private readonly PhysicsBodyStore _bodies;
@@ -932,12 +961,12 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
-    public void RocketThrustsThenSelfDestructsAfterDuration()
+    public void ARocketBurnsThenGoesQuietWhereItStands()
     {
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        AddPlainRocket(harness, rocket, 4f, 1f, 0f, boostTicks: 2);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
@@ -945,31 +974,123 @@ public sealed class GameplayRulesTests
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), command.Body);
         Assert.Equal(4f, command.Impulse.X);
-        Assert.Empty(harness.Output.DestroyedEntities);
 
         harness.Tick(2, Array.Empty<PhysicsEvent>());
         Assert.Single(harness.Output.Commands);
-        Assert.Empty(harness.Output.DestroyedEntities);
 
-        // Duration exhausted: the rocket self-destructs (destroyed entity surfaced).
+        // Burn exhausted: the original only stops the thrust (`m_enabled = false`, Rocket.cs:281-284)
+        // and `m_boostUsed` keeps a one-shot from re-igniting (:570-581) -- the part stays in the
+        // world, a spent husk, and is NOT destroyed.
         harness.Tick(3, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands);
-        Assert.Contains(rocket, harness.Output.DestroyedEntities);
+        Assert.Empty(harness.Output.DestroyedEntities);
+
+        harness.Tick(4, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
     }
 
     [Fact]
-    public void RocketWithZeroRemainingTicksSpendsImmediately()
+    public void ARocketBurnsInTheOriginalsThreePhases()
+    {
+        // Rocket.cs:228-300: m_ignitionTime (a no-thrust phase for a part that carries an
+        // `m_visualization` -- the bottle family), m_boostDuration of full thrust, then
+        // m_boostEndDuration of the linear ramp `1 - (num - ignition - boost) / end`.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(
+            rocket,
+            thrustPerTick: 6f,
+            directionX: 1f,
+            directionY: 0f,
+            ignitionTicks: 2,
+            boostTicks: 3,
+            endTicks: 2,
+            maxSpeed: 0f,
+            visualization: true);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        // The ignition tick and the one after it: the bottle wobbles but does not push.
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+
+        // The boost phase: four ticks at full thrust (with `end > 0` the ramp's first tick is the
+        // last boost tick, exactly the continuous formula sampled at 60 Hz).
+        for (uint tick = 3; tick <= 6; tick++)
+        {
+            harness.Tick(tick, Array.Empty<PhysicsEvent>());
+            Assert.Equal(6f, Assert.Single(harness.Output.Commands).Impulse.X, 4);
+        }
+
+        // The ramp: half thrust, then the burn is spent.
+        harness.Tick(7, Array.Empty<PhysicsEvent>());
+        Assert.Equal(3f, Assert.Single(harness.Output.Commands).Impulse.X, 4);
+        harness.Tick(8, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+        Assert.Empty(harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
+    public void APlainRocketPushesDuringItsIgnitionPhaseToo()
+    {
+        // The ignition phase is silent only because the bottle family's `m_visualization` makes the
+        // original return early (Rocket.cs:236-240); a plain rocket has none and thrusts from its
+        // first tick.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 5f, 1f, 0f, ignitionTicks: 2, boostTicks: 2, endTicks: 1, maxSpeed: 0f, visualization: false);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Equal(5f, Assert.Single(harness.Output.Commands).Impulse.X, 4);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Equal(5f, Assert.Single(harness.Output.Commands).Impulse.X, 4);
+    }
+
+    [Fact]
+    public void ARocketTapersOffPastItsMaximumSpeed()
+    {
+        // `LimitForceForSpeed` (Rocket.cs:529-541): the part's own speed along the thrust axis past
+        // `m_maximumSpeed` divides the force by `1 + v - maxSpeed`.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        AddPlainRocket(harness, rocket, 11f, 1f, 0f, boostTicks: 4, maxSpeed: 10f);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(20f, 0, 0));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Equal(1f, Assert.Single(harness.Output.Commands).Impulse.X, 4); // 11 / (1 + 20 - 10)
+
+        // Under the cap the full thrust applies, and a velocity across the thrust axis is not the
+        // one the limit measures.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(9f, 0, 0));
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Equal(11f, Assert.Single(harness.Output.Commands).Impulse.X, 4);
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0f, 40f, 0));
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        Assert.Equal(11f, Assert.Single(harness.Output.Commands).Impulse.X, 4);
+    }
+
+    [Fact]
+    public void ARocketWithAZeroLengthBurnNeverThrusts()
     {
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 2f, 1f, 0f, durationTicks: 0);
+        AddPlainRocket(harness, rocket, 2f, 1f, 0f, boostTicks: 0);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands);
-        Assert.Contains(rocket, harness.Output.DestroyedEntities);
+        Assert.Empty(harness.Output.DestroyedEntities);
     }
 
     [Fact]
@@ -1016,7 +1137,7 @@ public sealed class GameplayRulesTests
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
         // 45-degree lift (1, 1) must be normalized and push up-right.
-        harness.Rules.AddRocket(rocket, 6f, 1f, 1f, durationTicks: 2);
+        AddPlainRocket(harness, rocket, 6f, 1f, 1f, boostTicks: 2);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
@@ -1039,7 +1160,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        AddPlainRocket(harness, rocket, 4f, 1f, 0f, boostTicks: 2);
         harness.Link(rocket, new PhysicsBodyId(1), localRotation: PhysicsQuaternion.FromZAngle(MathF.PI));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
@@ -1058,7 +1179,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        AddPlainRocket(harness, rocket, 4f, 1f, 0f, boostTicks: 2);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.IngestBody(
             new PhysicsBodyId(1),
@@ -1079,7 +1200,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        AddPlainRocket(harness, rocket, 4f, 1f, 0f, boostTicks: 2);
         // The member sits one cell to the right of the compound's centre of mass.
         harness.Link(rocket, new PhysicsBodyId(1), localOffset: new PhysicsVector3(1f, 0f, 0f));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsVector3.Zero);
@@ -1103,7 +1224,7 @@ public sealed class GameplayRulesTests
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
         EntityId neighbour = entities.Create();
-        harness.Rules.AddRocket(rocket, 0f, 1f, 0f, durationTicks: 0, explodeRadius: 3f, explodeImpulse: 10f);
+        AddPlainRocket(harness, rocket, 0f, 1f, 0f, boostTicks: 0, explodeRadius: 3f, explodeImpulse: 10f);
         harness.Link(rocket, new PhysicsBodyId(1), localOffset: new PhysicsVector3(1f, 0f, 0f));
         harness.Link(neighbour, new PhysicsBodyId(2));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsVector3.Zero);
@@ -1111,20 +1232,23 @@ public sealed class GameplayRulesTests
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
 
-        PhysicsCommand blast = Assert.Single(harness.Output.Commands);
-        Assert.Equal(new PhysicsBodyId(2), blast.Body);
-        Assert.True(blast.Impulse.X < 0f);
-        Assert.Contains(rocket, harness.Output.DestroyedEntities);
+        // Both bodies are in the blast: the original's OverlapSphere at the charge's own position
+        // includes the charge's own collider (Rocket.cs:630), and the neighbour is thrown toward -x
+        // because the sphere is centred on the charge at x = 1, not on the compound's centre.
+        PhysicsCommand blast = Assert.Single(harness.Output.Commands, command => command.Body == new PhysicsBodyId(2));
+        Assert.True(blast.Impulse.X < 0f, $"neighbour impulse {blast.Impulse}, all {string.Join(" | ", harness.Output.Commands)}");
+        Assert.Contains(harness.Output.Commands, command => command.Body == new PhysicsBodyId(1));
+        Assert.Empty(harness.Output.DestroyedEntities);
     }
 
     [Fact]
-    public void RocketEndsWithRadialBlastAndSelfDestructs()
+    public void ARocketWithMExplodesBlastsWhenItsBurnEndsAndStaysPut()
     {
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
         EntityId neighbour = entities.Create();
-        harness.Rules.AddRocket(rocket, 4f, 0f, 1f, durationTicks: 1, explodeRadius: 3f, explodeImpulse: 10f);
+        AddPlainRocket(harness, rocket, 4f, 0f, 1f, boostTicks: 1, explodeRadius: 3f, explodeImpulse: 10f);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.Link(neighbour, new PhysicsBodyId(2));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
@@ -1134,12 +1258,15 @@ public sealed class GameplayRulesTests
         PhysicsCommand push = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), push.Body);
 
-        // Next tick the rocket is spent: it blasts its neighbour outward and self-destructs.
+        // The burn is spent on the next tick: the charge blasts (its neighbour outward, itself too)
+        // and stays in the world as a spent husk -- Rocket.cs:281-284 only stops the thrust.
         harness.Tick(2, Array.Empty<PhysicsEvent>());
-        Assert.Contains(rocket, harness.Output.DestroyedEntities);
-        PhysicsCommand blast = Assert.Single(harness.Output.Commands);
-        Assert.Equal(new PhysicsBodyId(2), blast.Body);
+        PhysicsCommand blast = Assert.Single(harness.Output.Commands, command => command.Body == new PhysicsBodyId(2));
         Assert.True(blast.Impulse.X > 0f);
+        Assert.Empty(harness.Output.DestroyedEntities);
+
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
     }
 
     [Fact]
@@ -1148,7 +1275,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 2f, 1f, 0f, durationTicks: 1);
+        AddPlainRocket(harness, rocket, 2f, 1f, 0f, boostTicks: 1);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
@@ -1156,7 +1283,7 @@ public sealed class GameplayRulesTests
         Assert.Single(harness.Output.Commands);
         harness.Tick(2, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands);
-        Assert.Contains(rocket, harness.Output.DestroyedEntities);
+        Assert.Empty(harness.Output.DestroyedEntities);
     }
 
     /// <summary>
@@ -1522,7 +1649,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        AddPlainRocket(harness, rocket, 4f, 1f, 0f, boostTicks: 2);
         harness.Rules.AddActivation(rocket);
         harness.Link(rocket, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
@@ -1593,7 +1720,7 @@ public sealed class GameplayRulesTests
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
         EntityId rocket = entities.Create();
-        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        AddPlainRocket(harness, rocket, 4f, 1f, 0f, boostTicks: 2);
         harness.Rules.AddActivation(rocket);
         harness.Rules.SetChassisAnchored(rocket, anchored: false);
         harness.Link(rocket, new PhysicsBodyId(2));

@@ -1114,7 +1114,7 @@ public sealed class SandboxRoomTests
             { "partTypeId": 4, "name": "egg", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "egg": true } },
             { "partTypeId": 5, "name": "ground", "mode": "static", "mass": 0, "material": { "restitution": 0, "friction": 0.8 }, "shapes": [ { "kind": "box", "halfExtents": [40, 0.5, 10] } ] },
             { "partTypeId": 6, "name": "motor", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "motor": { "thrustPerTick": 2, "directionX": 1 }, "activation": "toggle" } },
-            { "partTypeId": 7, "name": "rocket", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "durationTicks": 30 }, "activation": "trigger" } }
+            { "partTypeId": 7, "name": "rocket", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.4] } ], "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "ignitionTicks": 0, "boostTicks": 30, "endTicks": 0, "maxSpeed": 18 }, "activation": "trigger" } }
         ]
     }
     """;

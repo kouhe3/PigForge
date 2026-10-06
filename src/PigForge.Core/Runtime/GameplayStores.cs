@@ -23,18 +23,29 @@ public readonly record struct BalloonState(float LiftPerTick);
 /// See docs/specs/fan-propeller.md.</summary>
 public readonly record struct FanState(float ImpulsePerTick, float DirectionX, float DirectionY, float MaxSpeed, bool IsRotor);
 
-/// <summary>Rocket thrust: auto-ignites on simulation start, applies
-/// <paramref name="ThrustPerTick"/> along the normalized planar
-/// (<paramref name="DirectionX"/>, <paramref name="DirectionY"/>) direction for
-/// <paramref name="DurationTicks"/>, then self-destructs — exploding with
-/// <paramref name="ExplodeRadius"/>/<paramref name="ExplodeImpulse"/> when either is
-/// positive (fireworks semantics; 0/0 = plain burn-out).</summary>
+/// <summary>
+/// A rocket's burn, which the original runs in three phases (Rocket.cs:228-300):
+/// <paramref name="IgnitionTicks"/> first (<b>no thrust</b> for the bottle family, whose
+/// <c>m_visualization</c> makes the class return early — <paramref name="Visualization"/>), then
+/// <paramref name="BoostTicks"/> at full <paramref name="ThrustPerTick"/>, then
+/// <paramref name="EndTicks"/> of linear ramp back to zero. <paramref name="MaxSpeed"/> is the
+/// original's <c>m_maximumSpeed</c>: past that speed along the thrust axis the force is divided by
+/// <c>1 + v - maxSpeed</c> (Rocket.cs:529-541). <paramref name="ElapsedTicks"/> counts from the
+/// ignition tick (0 on it). At the end of the burn the part <b>stays</b> in the world — spent, with
+/// no thrust — and a part with <paramref name="ExplodeRadius"/>/<paramref name="ExplodeImpulse"/>
+/// blasts where it stands (the original's <c>m_explodes</c>, Rocket_03/RedRocket_03 only).
+/// </summary>
 public readonly record struct RocketState(
     float ThrustPerTick,
     float DirectionX,
     float DirectionY,
-    ushort DurationTicks,
+    ushort IgnitionTicks,
+    ushort BoostTicks,
+    ushort EndTicks,
+    float MaxSpeed,
+    bool Visualization,
     bool Ignited,
+    uint ElapsedTicks = 0u,
     float ExplodeRadius = 0f,
     float ExplodeImpulse = 0f);
 

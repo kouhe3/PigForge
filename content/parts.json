@@ -172,7 +172,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.833333, "ignitionTicks": 60, "boostTicks": 180, "endTicks": 60, "maxSpeed": 18.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -406,7 +406,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 10.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -446,7 +446,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 10.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -530,7 +530,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.833333, "ignitionTicks": 60, "boostTicks": 180, "endTicks": 60, "maxSpeed": 18.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2647,7 +2647,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.833333, "ignitionTicks": 60, "boostTicks": 180, "endTicks": 60, "maxSpeed": 18.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2688,7 +2688,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.833333, "ignitionTicks": 60, "boostTicks": 180, "endTicks": 60, "maxSpeed": 18.0, "explodeRadius": 8.0, "explodeImpulse": 25.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -2729,7 +2729,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 4.0, "directionX": 1, "durationTicks": 60 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.833333, "ignitionTicks": 60, "boostTicks": 180, "endTicks": 60, "maxSpeed": 18.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3874,7 +3874,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 10.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3915,7 +3915,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 10.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3956,7 +3956,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 10.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3997,7 +3997,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 8.0, "directionX": 1, "directionY": 0, "durationTicks": 30 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 30000, "endTicks": 30, "maxSpeed": 25.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4176,7 +4176,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.833333, "ignitionTicks": 60, "boostTicks": 180, "endTicks": 60, "maxSpeed": 18.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4217,7 +4217,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.833333, "ignitionTicks": 60, "boostTicks": 180, "endTicks": 60, "maxSpeed": 18.0, "explodeRadius": 8.0, "explodeImpulse": 25.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4258,7 +4258,7 @@
       "mode": "dynamic",
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 30, "explodeRadius": 4.0, "explodeImpulse": 20.0 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.833333, "ignitionTicks": 60, "boostTicks": 180, "endTicks": 60, "maxSpeed": 18.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4299,7 +4299,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 10.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4340,7 +4340,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 10.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4381,7 +4381,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 0.583333, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 10.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4422,7 +4422,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "thrustPerTick": 6.0, "directionX": 0, "directionY": 1, "durationTicks": 40 }, "activation": "trigger" },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "rocket": { "directionX": 1, "directionY": 0, "thrustPerTick": 2.5, "ignitionTicks": 60, "boostTicks": 60, "endTicks": 30, "maxSpeed": 150.0, "visualization": true }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",

@@ -217,7 +217,7 @@ public sealed class PartContentTests
             "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 8, "name": "engine", "mode": "dynamic", "mass": 1, "capabilities": { "motor": { "thrustPerTick": 2, "directionX": 1 }, "activation": "toggle" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] },
-                { "partTypeId": 13, "name": "rocket", "mode": "dynamic", "mass": 1, "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "durationTicks": 30 }, "activation": "trigger" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }
+                { "partTypeId": 13, "name": "rocket", "mode": "dynamic", "mass": 1, "capabilities": { "rocket": { "thrustPerTick": 4, "directionX": 1, "ignitionTicks": 0, "boostTicks": 30, "endTicks": 0, "maxSpeed": 18 }, "activation": "trigger" }, "shapes": [ { "kind": "box", "halfExtents": [1, 1, 1] } ] }
             ]
         }
         """);
@@ -474,6 +474,73 @@ public sealed class PartContentTests
             Assert.False(wing && tail, $"part {part.PartTypeId} cannot be both a wing and a tail");
             Assert.Equal(wing || tail, part.Capabilities?.Mirror == true);
         }
+    }
+
+    /// <summary>
+    /// G101 + G104 (docs/specs/rocket-boost.md): the rocket family's content is extracted, not
+    /// written. The original's burn is three phases in seconds (Rocket.cs:228-300) taken at 60 Hz,
+    /// with `m_maximumSpeed` capping the speed along the thrust axis (Rocket.cs:529-541), the
+    /// bottle family silent through its ignition phase (its prefab carries a `BottleVisualization`,
+    /// Rocket.cs:236-240) and only `Rocket_03`/`RedRocket_03` exploding when the burn ends
+    /// (`m_explodes` 1, radius 8, impulse 25).
+    /// </summary>
+    [Fact]
+    public void TheRealContentCarriesTheExtractedRocketBurn()
+    {
+        PartContentDocument document = PartContentParser.Parse(File.ReadAllText(FindRepositoryFile("content/parts.json")));
+        Dictionary<uint, PartCapabilities> capabilities = document.Parts
+            .Where(part => part.Capabilities?.HasRocket == true)
+            .ToDictionary(part => part.PartTypeId, part => part.Capabilities!);
+
+        // 18 parts: the 4 Rocket prefabs, the 4 RedRocket prefabs and the 10 bottles.
+        Assert.Equal(
+            new uint[] { 13, 25, 26, 30, 157, 158, 159, 217, 218, 219, 220, 227, 228, 229, 230, 231, 232, 233 },
+            capabilities.Keys.OrderBy(id => id).ToArray());
+
+        // The plain rocket: m_boostForce 50 -> 0.833333 per tick, 1 s ignition + 3 s boost + 1 s
+        // ramp, m_maximumSpeed 18, and `m_direction` (1,0,0) -- the old content had the hand-written
+        // 4.0 / 60 ticks and no speed cap at all.
+        PartCapabilities rocket = capabilities[13];
+        Assert.Equal(0.833333f, rocket.RocketThrustPerTick!.Value, 6);
+        Assert.Equal((ushort)60, rocket.RocketIgnitionTicks);
+        Assert.Equal((ushort)180, rocket.RocketBoostTicks);
+        Assert.Equal((ushort)60, rocket.RocketEndTicks);
+        Assert.Equal(18f, rocket.RocketMaxSpeed);
+        Assert.False(rocket.RocketVisualization);
+        Assert.Equal(1f, rocket.RocketDirectionX);
+        Assert.Equal(0f, rocket.RocketDirectionY);
+
+        // The bottles: 35 N/s (m_boostForce 35), 1 s ignition (silent), 1 s boost, 0.5 s ramp,
+        // capped at 10 m/s -- and their direction is the prefab's (1,0,0), which the hand-written
+        // content had pointed up for the soda family.
+        PartCapabilities bottle = capabilities[25];
+        Assert.Equal(0.583333f, bottle.RocketThrustPerTick!.Value, 6);
+        Assert.True(bottle.RocketVisualization);
+        Assert.Equal((ushort)30, bottle.RocketEndTicks);
+        Assert.Equal(10f, bottle.RocketMaxSpeed);
+        Assert.Equal(1f, bottle.RocketDirectionX);
+        Assert.Equal(0f, bottle.RocketDirectionY);
+
+        // The legendary skins take the vanilla declaration values outright (Rocket.cs:180-200):
+        // the coke bottle burns 500 s at 25 m/s, the soda bottle pushes 150 N/s to 150 m/s.
+        Assert.Equal((ushort)30000, capabilities[220].RocketBoostTicks);
+        Assert.Equal(25f, capabilities[220].RocketMaxSpeed);
+        Assert.Equal(2.5f, capabilities[233].RocketThrustPerTick!.Value, 6);
+        Assert.Equal(150f, capabilities[233].RocketMaxSpeed);
+
+        // Only the two `m_explodes` prefabs blast at the end of their burn, from the charge's own
+        // pose; every other part burns out quietly and stays where it is.
+        foreach (PartCapabilities part in capabilities.Values)
+        {
+            bool explodes = part.RocketExplodeRadius is > 0f && part.RocketExplodeImpulse is > 0f;
+            Assert.Equal(explodes, part.RocketExplodeRadius is > 0f);
+        }
+
+        Assert.Equal(8f, capabilities[158].RocketExplodeRadius);
+        Assert.Equal(25f, capabilities[158].RocketExplodeImpulse);
+        Assert.Equal(8f, capabilities[228].RocketExplodeRadius);
+        Assert.Null(capabilities[13].RocketExplodeRadius);
+        Assert.Null(capabilities[30].RocketExplodeRadius);
     }
 
     [Theory]

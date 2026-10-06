@@ -347,12 +347,28 @@
   "rocketCapability": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["thrustPerTick", "directionX", "durationTicks"],
+    "required": ["thrustPerTick", "directionX", "ignitionTicks", "boostTicks", "endTicks", "maxSpeed"],
     "properties": {
       "thrustPerTick": { "type": "number" },
       "directionX": { "enum": [-1, 0, 1] },
       "directionY": { "enum": [-1, 0, 1] },
-      "durationTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
+      "ignitionTicks": {
+        "description": "The original's burn is three phases in seconds (Rocket.cs:228-300): m_ignitionTime, m_boostDuration, m_boostEndDuration. m_ignitionTime is a no-thrust phase for the bottle family only (its m_visualization suppresses the force, :236-240); m_boostDuration is full thrust and m_boostEndDuration the linear ramp back to zero (:266-269). All three travel as 60 Hz ticks, written by tools/bple-rockets.",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 65535
+      },
+      "boostTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
+      "endTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
+      "maxSpeed": {
+        "description": "m_maximumSpeed: past this speed along the thrust axis the force is divided by (1 + v - maxSpeed) (Rocket.cs:529-541). The vanilla declaration defaults multiply it by RocketSpeed / CokeSodaSpeed, and the legendary bottles take AlienCokeSpeedValue / AlienSodaSpeedValue outright (Rocket.cs:180-200).",
+        "type": "number",
+        "minimum": 0
+      },
+      "visualization": {
+        "description": "True only on the bottle family, whose prefab carries a `m_visualization`: while the burn is inside m_ignitionTime the original returns before applying any force (Rocket.cs:236-240). A plain rocket has none and thrusts from its first tick.",
+        "type": "boolean"
+      },
       "explodeRadius": { "type": "number", "minimum": 0 },
       "explodeImpulse": { "type": "number", "minimum": 0 }
     }

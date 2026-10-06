@@ -501,7 +501,11 @@ public static class PartContentParser
         float? rocketThrust = null;
         float? rocketDirectionX = null;
         float? rocketDirectionY = null;
-        ushort? rocketDuration = null;
+        ushort? rocketIgnitionTicks = null;
+        ushort? rocketBoostTicks = null;
+        ushort? rocketEndTicks = null;
+        float? rocketMaxSpeed = null;
+        bool rocketVisualization = false;
         float? rocketExplodeRadius = null;
         float? rocketExplodeImpulse = null;
         bool isEgg = false;
@@ -614,9 +618,9 @@ public static class PartContentParser
 
         if (seenKeys.Contains("rocket"))
         {
-            if (!capabilitiesElement.TryGetProperty("rocket", out JsonElement rocketElement) || !TryReadRocket(rocketElement, path, out rocketThrust, out rocketDirectionX, out rocketDirectionY, out rocketDuration, out rocketExplodeRadius, out rocketExplodeImpulse))
+            if (!capabilitiesElement.TryGetProperty("rocket", out JsonElement rocketElement) || !TryReadRocket(rocketElement, path, out rocketThrust, out rocketDirectionX, out rocketDirectionY, out rocketIgnitionTicks, out rocketBoostTicks, out rocketEndTicks, out rocketMaxSpeed, out rocketVisualization, out rocketExplodeRadius, out rocketExplodeImpulse))
             {
-                errors.Add($"{path}.capabilities.rocket: must be an object with a finite thrustPerTick, a directionX/directionY in -1, 0, 1, a durationTicks integer in [0, 65535], and optional finite explodeRadius/explodeImpulse.");
+                errors.Add($"{path}.capabilities.rocket: must be an object with a finite thrustPerTick, a directionX/directionY in -1, 0, 1, ignitionTicks/boostTicks/endTicks integers in [0, 65535], a finite maxSpeed, optional visualization, and optional finite explodeRadius/explodeImpulse.");
                 hasError = true;
             }
         }
@@ -896,7 +900,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, glove, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, glove, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -1886,12 +1890,28 @@ public static class PartContentParser
         return true;
     }
 
-    private static bool TryReadRocket(JsonElement element, string path, out float? thrust, out float? directionX, out float? directionY, out ushort? duration, out float? explodeRadius, out float? explodeImpulse)
+    private static bool TryReadRocket(
+        JsonElement element,
+        string path,
+        out float? thrust,
+        out float? directionX,
+        out float? directionY,
+        out ushort? ignitionTicks,
+        out ushort? boostTicks,
+        out ushort? endTicks,
+        out float? maxSpeed,
+        out bool visualization,
+        out float? explodeRadius,
+        out float? explodeImpulse)
     {
         thrust = null;
         directionX = null;
         directionY = null;
-        duration = null;
+        ignitionTicks = null;
+        boostTicks = null;
+        endTicks = null;
+        maxSpeed = null;
+        visualization = false;
         explodeRadius = null;
         explodeImpulse = null;
         if (element.ValueKind != JsonValueKind.Object)
@@ -1929,11 +1949,32 @@ public static class PartContentParser
             directionY = directionYValue;
         }
 
-        if (!element.TryGetProperty("durationTicks", out JsonElement durationElement)
-            || durationElement.ValueKind != JsonValueKind.Number
-            || !durationElement.TryGetUInt16(out ushort durationValue))
+        // The three phases plus the speed cap: the original's m_ignitionTime / m_boostDuration /
+        // m_boostEndDuration / m_maximumSpeed (Rocket.cs:228-300,529-541), in ticks and m/s.
+        if (!TryReadTicks(element, "ignitionTicks", out ushort ignitionValue)
+            || !TryReadTicks(element, "boostTicks", out ushort boostValue)
+            || !TryReadTicks(element, "endTicks", out ushort endValue))
         {
             return false;
+        }
+
+        if (!element.TryGetProperty("maxSpeed", out JsonElement maxSpeedElement)
+            || maxSpeedElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(maxSpeedElement)
+            || !maxSpeedElement.TryGetSingle(out float maxSpeedValue)
+            || maxSpeedValue < 0f)
+        {
+            return false;
+        }
+
+        if (element.TryGetProperty("visualization", out JsonElement visualizationElement))
+        {
+            if (visualizationElement.ValueKind != JsonValueKind.True && visualizationElement.ValueKind != JsonValueKind.False)
+            {
+                return false;
+            }
+
+            visualization = visualizationElement.GetBoolean();
         }
 
         if (element.TryGetProperty("explodeRadius", out JsonElement radiusElement))
@@ -1959,8 +2000,19 @@ public static class PartContentParser
         }
 
         thrust = thrustValue;
-        duration = durationValue;
+        ignitionTicks = ignitionValue;
+        boostTicks = boostValue;
+        endTicks = endValue;
+        maxSpeed = maxSpeedValue;
         return true;
+    }
+
+    private static bool TryReadTicks(JsonElement element, string name, out ushort value)
+    {
+        value = 0;
+        return element.TryGetProperty(name, out JsonElement tickElement)
+            && tickElement.ValueKind == JsonValueKind.Number
+            && tickElement.TryGetUInt16(out value);
     }
 
     private static void ParseShape(JsonElement element, string path, List<PartShapeDefinition> shapes, List<string> errors)

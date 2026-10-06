@@ -363,9 +363,13 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 4,
           "directionX": 1,
-          "durationTicks": 60
+          "directionY": 0,
+          "thrustPerTick": 0.833333,
+          "ignitionTicks": 60,
+          "boostTicks": 180,
+          "endTicks": 60,
+          "maxSpeed": 18
         },
         "activation": "trigger"
       },
@@ -931,10 +935,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 8,
           "directionX": 1,
           "directionY": 0,
-          "durationTicks": 30
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 10,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -1039,10 +1047,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 40
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 10,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -1263,12 +1275,13 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 30,
-          "explodeRadius": 4,
-          "explodeImpulse": 20
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.833333,
+          "ignitionTicks": 60,
+          "boostTicks": 180,
+          "endTicks": 60,
+          "maxSpeed": 18
         },
         "activation": "trigger"
       },
@@ -6012,9 +6025,13 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 4,
           "directionX": 1,
-          "durationTicks": 60
+          "directionY": 0,
+          "thrustPerTick": 0.833333,
+          "ignitionTicks": 60,
+          "boostTicks": 180,
+          "endTicks": 60,
+          "maxSpeed": 18
         },
         "activation": "trigger"
       },
@@ -6120,9 +6137,15 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 4,
           "directionX": 1,
-          "durationTicks": 60
+          "directionY": 0,
+          "thrustPerTick": 0.833333,
+          "ignitionTicks": 60,
+          "boostTicks": 180,
+          "endTicks": 60,
+          "maxSpeed": 18,
+          "explodeRadius": 8,
+          "explodeImpulse": 25
         },
         "activation": "trigger"
       },
@@ -6228,9 +6251,13 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 4,
           "directionX": 1,
-          "durationTicks": 60
+          "directionY": 0,
+          "thrustPerTick": 0.833333,
+          "ignitionTicks": 60,
+          "boostTicks": 180,
+          "endTicks": 60,
+          "maxSpeed": 18
         },
         "activation": "trigger"
       },
@@ -8786,10 +8813,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 8,
           "directionX": 1,
           "directionY": 0,
-          "durationTicks": 30
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 10,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -8895,10 +8926,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 8,
           "directionX": 1,
           "directionY": 0,
-          "durationTicks": 30
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 10,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -9004,10 +9039,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 8,
           "directionX": 1,
           "directionY": 0,
-          "durationTicks": 30
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 10,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -9113,10 +9152,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 8,
           "directionX": 1,
           "directionY": 0,
-          "durationTicks": 30
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 30000,
+          "endTicks": 30,
+          "maxSpeed": 25,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -9516,12 +9559,13 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 30,
-          "explodeRadius": 4,
-          "explodeImpulse": 20
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.833333,
+          "ignitionTicks": 60,
+          "boostTicks": 180,
+          "endTicks": 60,
+          "maxSpeed": 18
         },
         "activation": "trigger"
       },
@@ -9627,12 +9671,15 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 30,
-          "explodeRadius": 4,
-          "explodeImpulse": 20
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.833333,
+          "ignitionTicks": 60,
+          "boostTicks": 180,
+          "endTicks": 60,
+          "maxSpeed": 18,
+          "explodeRadius": 8,
+          "explodeImpulse": 25
         },
         "activation": "trigger"
       },
@@ -9738,12 +9785,13 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 30,
-          "explodeRadius": 4,
-          "explodeImpulse": 20
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.833333,
+          "ignitionTicks": 60,
+          "boostTicks": 180,
+          "endTicks": 60,
+          "maxSpeed": 18
         },
         "activation": "trigger"
       },
@@ -9849,10 +9897,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 40
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 10,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -9958,10 +10010,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 40
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 10,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -10067,10 +10123,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 40
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.583333,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 10,
+          "visualization": true
         },
         "activation": "trigger"
       },
@@ -10176,10 +10236,14 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "rocket": {
-          "thrustPerTick": 6,
-          "directionX": 0,
-          "directionY": 1,
-          "durationTicks": 40
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 2.5,
+          "ignitionTicks": 60,
+          "boostTicks": 60,
+          "endTicks": 30,
+          "maxSpeed": 150,
+          "visualization": true
         },
         "activation": "trigger"
       },

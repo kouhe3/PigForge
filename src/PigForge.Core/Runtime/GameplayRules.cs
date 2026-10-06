@@ -605,8 +605,31 @@ public sealed class GameplayRules
     public void AddFan(EntityId entity, float impulsePerTick, float directionX, float directionY, float maxSpeed = 0f, bool isRotor = false) =>
         _fans.Set(entity, new FanState(impulsePerTick, directionX, directionY, maxSpeed, isRotor));
 
-    public void AddRocket(EntityId entity, float thrustPerTick, float directionX, float directionY, ushort durationTicks, float explodeRadius = 0f, float explodeImpulse = 0f) =>
-        _rockets.Set(entity, new RocketState(thrustPerTick, directionX, directionY, durationTicks, Ignited: false, explodeRadius, explodeImpulse));
+    public void AddRocket(
+        EntityId entity,
+        float thrustPerTick,
+        float directionX,
+        float directionY,
+        ushort ignitionTicks,
+        ushort boostTicks,
+        ushort endTicks,
+        float maxSpeed,
+        bool visualization,
+        float explodeRadius = 0f,
+        float explodeImpulse = 0f) =>
+        _rockets.Set(entity, new RocketState(
+            thrustPerTick,
+            directionX,
+            directionY,
+            ignitionTicks,
+            boostTicks,
+            endTicks,
+            maxSpeed,
+            visualization,
+            Ignited: false,
+            ElapsedTicks: 0u,
+            explodeRadius,
+            explodeImpulse));
 
     public void AddEgg(EntityId entity) => _eggs.Set(entity, default);
 
@@ -1716,14 +1739,18 @@ public sealed class GameplayRules
 
     private void RunRockets(GameplayTickOutput output)
     {
-        List<(EntityId Entity, PhysicsVector3 Origin, float Radius, float Impulse)> spent = null!;
+        List<(PhysicsVector3 Origin, float Radius, float Impulse)> spent = null!;
         var rockets = _rockets.GetEnumerator();
         while (rockets.MoveNext())
         {
+            // The entity id is read once: ending a burn removes the entry, and a store's enumerator
+            // must not be asked for its current id after a mutation (it would hand back the slot's
+            // new occupant, and the blast below resolves the part's own frame from it).
+            EntityId rocketEntity = rockets.CurrentId;
             // The bar button is momentary: the press is spent before the chassis gate, so a rocket
             // that never fires cannot stay latched on.
-            bool pressed = TryConsumeButtonPress(rockets.CurrentId);
-            if (!_bodies.TryGet(rockets.CurrentId, out PhysicsBodyLink link)
+            bool pressed = TryConsumeButtonPress(rocketEntity);
+            if (!_bodies.TryGet(rocketEntity, out PhysicsBodyLink link)
                 || !_kinematicsByBody.ContainsKey(link.Body.Value))
             {
                 continue;
@@ -1732,7 +1759,7 @@ public sealed class GameplayRules
             // A rocket (and the jet engine, which shares the class hierarchy) is a BasePropulsion
             // part: without a chassis neighbour it never fires at all
             // (BasePropulsion.cs:13-20) -- no ignition, no thrust, no end-of-burn blast.
-            if (!IsChassisAnchored(rockets.CurrentId))
+            if (!IsChassisAnchored(rocketEntity))
             {
                 continue;
             }
@@ -1741,31 +1768,57 @@ public sealed class GameplayRules
             if (!rocket.Ignited)
             {
                 // A switched rocket waits for its switch; legacy content auto-ignites.
-                if (HasSwitch(rockets.CurrentId) && !pressed)
+                if (HasSwitch(rocketEntity) && !pressed)
                 {
                     continue;
                 }
 
-                rocket = rocket with { Ignited = true };
+                rocket = rocket with { Ignited = true, ElapsedTicks = 0u };
             }
-            if (rocket.DurationTicks == 0)
+            else
             {
-                // The end-of-burn blast radiates from the charge part, not from the compound's
-                // centre of mass: Rocket.cs:627-634 overlaps a sphere at `transform.position`,
-                // exactly as the TNT charge does.
+                // One tick of burn has passed since the ignition tick, which is `num` seconds after
+                // `m_timeBoostStarted` in the original (Rocket.cs:228).
+                rocket = rocket with { ElapsedTicks = rocket.ElapsedTicks + 1u };
+            }
+
+            uint burnTicks = (uint)rocket.IgnitionTicks + rocket.BoostTicks + rocket.EndTicks;
+            if (rocket.ElapsedTicks >= burnTicks)
+            {
+                // The burn is spent. The original only stops the thrust (`m_enabled = false`): the
+                // part stays in the world, and a charge with `m_explodes` blasts where it stands
+                // (Rocket.cs:281-284, :627-634) -- the explosion radiates from the charge's own pose,
+                // not from the compound's centre of mass.
+                // Dropping the role is what makes it a one-shot: `m_boostUsed` keeps OnTouch from
+                // ever igniting the same part again (Rocket.cs:570-573).
+                _rockets.Remove(rocketEntity);
+                if (rocket.ExplodeRadius <= 0f || rocket.ExplodeImpulse <= 0f)
+                {
+                    continue;
+                }
+
                 ResolvePartFrame(
-                    rockets.CurrentId,
+                    rocketEntity,
                     link.Body.Value,
                     _kinematicsByBody[link.Body.Value].Position,
                     out PhysicsVector3 blastOrigin,
                     out _);
-                (spent ??= new List<(EntityId, PhysicsVector3, float, float)>()).Add(
-                    (rockets.CurrentId, blastOrigin, rocket.ExplodeRadius, rocket.ExplodeImpulse));
-                _rockets.Remove(rockets.CurrentId);
+                (spent ??= new List<(PhysicsVector3, float, float)>()).Add(
+                    (blastOrigin, rocket.ExplodeRadius, rocket.ExplodeImpulse));
                 continue;
             }
 
-            _rockets.Set(rockets.CurrentId, rocket with { DurationTicks = checked((ushort)(rocket.DurationTicks - 1)) });
+            _rockets.Set(rocketEntity, rocket);
+
+            // The bottle family does not push during its ignition phase: the original returns
+            // before the force when `num < m_ignitionTime` and the prefab carries an
+            // `m_visualization` (Rocket.cs:235-240). A plain rocket has none and thrusts from its
+            // first tick.
+            if (rocket.Visualization && rocket.ElapsedTicks < rocket.IgnitionTicks)
+            {
+                continue;
+            }
+
             float magnitude = PhysicsVector3.Distance(
                 new PhysicsVector3(rocket.DirectionX, rocket.DirectionY, 0f), PhysicsVector3.Zero);
             if (magnitude <= float.Epsilon)
@@ -1773,12 +1826,34 @@ public sealed class GameplayRules
                 continue;
             }
 
+            // The third phase is the original's linear ramp back to zero (Rocket.cs:266-269):
+            // `1 - (num - ignitionTime - boostDuration) / boostEndDuration`.
+            float phase = 1f;
+            if (rocket.EndTicks > 0 && rocket.ElapsedTicks > (uint)rocket.IgnitionTicks + rocket.BoostTicks)
+            {
+                phase = 1f - ((float)(rocket.ElapsedTicks - (uint)rocket.IgnitionTicks - rocket.BoostTicks) / rocket.EndTicks);
+            }
+
+            // `LimitForceForSpeed` (Rocket.cs:529-541): the component of the body's velocity along
+            // the thrust axis, and past `m_maximumSpeed` the force divides by `1 + v - maxSpeed`.
+            float force = phase * rocket.ThrustPerTick;
+            if (rocket.MaxSpeed > 0f
+                && _kinematicsByBody.TryGetValue(link.Body.Value, out var flight)
+                && PhysicsVector3.Dot(PhysicsVector3.Normalize(flight.Velocity), new PhysicsVector3(rocket.DirectionX / magnitude, rocket.DirectionY / magnitude, 0f)) is float along && along > 0f)
+            {
+                float speed = PhysicsVector3.Distance(flight.Velocity, PhysicsVector3.Zero) * along;
+                if (speed > rocket.MaxSpeed)
+                {
+                    force /= 1f + speed - rocket.MaxSpeed;
+                }
+            }
+
             // Rocket.cs:298-300 reads the axis off the part's own transform
             // (`transform.TransformDirection(m_direction)`) and pushes there
             // (`AddForceAtPosition(..., transform.position + zero * 0.5f)`), so a rocket built the
             // other way round pushes the other way -- the same reference frame a fan goes through.
             ResolvePartFrame(
-                rockets.CurrentId,
+                rocketEntity,
                 link.Body.Value,
                 _kinematicsByBody[link.Body.Value].Position,
                 out PhysicsVector3 partPosition,
@@ -1787,7 +1862,7 @@ public sealed class GameplayRules
                 new PhysicsVector3(rocket.DirectionX / magnitude, rocket.DirectionY / magnitude, 0f));
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                direction * rocket.ThrustPerTick,
+                direction * force,
                 partPosition));
         }
 
@@ -1796,16 +1871,16 @@ public sealed class GameplayRules
             return;
         }
 
-        foreach ((EntityId entity, PhysicsVector3 origin, float radius, float impulse) in spent)
+        foreach ((PhysicsVector3 origin, float radius, float impulse) in spent)
         {
-            if (radius > 0f && impulse > 0f
-                && _bodies.TryGet(entity, out PhysicsBodyLink link)
-                && _kinematicsByBody.ContainsKey(link.Body.Value))
+            // The charge's own body is in the blast: the original's `Physics.OverlapSphere` at
+            // `transform.position` (Rocket.cs:630) includes the charge's own collider, so a part that
+            // explodes is driven by its own explosion -- the same rule ADR-019 recorded for TNT. The
+            // part itself survives as a spent husk; the original only stops its thrust.
+            if (radius > 0f && impulse > 0f)
             {
-                RadialBlast(origin, radius, impulse, link.Body, output);
+                RadialBlast(origin, radius, impulse, source: default, output);
             }
-
-            output.DestroyedEntities.Add(entity);
         }
     }
 
