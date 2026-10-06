@@ -127,8 +127,16 @@
 帧版本 `frameVersion = 6` ✓。`PlacePart(mirrored: true)` 打到未声明镜像的件上由房间层拒绝
 （`ConstructionError.PartNotMirrorable`，`PartMirrorRoomTests` 覆盖）。
 
-原版侧的量（8 态姿态与两条曲线的实测力）由 `unity/PigForge.WeldProbe` 的 `MirrorAeroProbe`
-在**原版编辑器 2021.3.45f2** 上跑出（`replays/mirror-aero-probe.json`，抄进 `tasks/mirror-aero-probe.json`）。
+原版侧的量由 `unity/PigForge.WeldProbe` 的 `MirrorAeroProbe` 在**原版编辑器 2021.3.45f2** 上跑出
+（`replays/mirror-aero-probe.json`，抄进 `tasks/mirror-aero-probe.json`）：
+
+- **8 态姿态**：4 个翻转态（`rotation` 1/3/5/7）与 `Rz(90×num2) ∘ Ry(180)` 的 `Quaternion.Angle` = **0°**、
+  最小轴点积 **0.9999998**、最大分量差 **8.7e-08**（即只在 Unity 自己的 `Quaternion.Euler` 里丢了几位浮点）；
+  4 个不翻转态（0/2/4/6）与 `Rz(90×num2)` **逐位相同**，且与镜像复合**相差 180°**（它们确实不是镜像）。
+- **两条曲线的力**：20 行（两族 × 两个手性 × 5 个速度，50 Hz 一步），探针里「逐字转写」与「按公式独立推算」
+  的最大分歧 **7.6e-06 N**，「PhysX 实测」与「公式推算」的最大分歧 **2.2e-05 N**；唯一触发 100 N 夹紧的是
+  `wing_lift0.8_plain_v30_0_0`（`|v| = 30`）——也就是说这份转写与原版在 2021 的 PhysX 上逐行一致（误差 < 0.1 mN）。
+- 同一探针还量了带原版阻尼（`drag 1 / angularDrag 0.2`，`Wings.EnsureRigidbody`）的一行，用于对照。
 
 ## 6. 已知偏差
 
