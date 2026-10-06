@@ -24,6 +24,8 @@ Current state: the "multiplayer persistent sandbox" slice, **PLAY part switches*
   `file:line` alongside. Numbers measured from the original (e.g. the weld probe in
   `unity/PigForge.WeldProbe`) are the only admissible substitute for an authored value.
 
+- **`INSettings`/`INFeature` are the IN ("Innovation") mod framework, not vanilla balance** (found 2026-10-06): BPLE boots into a version-select menu (`INVersionSelector.cs:62-67` → `INSettings.Initialize(0..3)`; `INSettings.cs:304-320` maps 2="A", 1="O", 0=declaration defaults, 3="B") and loads one of four profiles. `INDeclarationSettingsExp.json` (208 keys) is the vanilla value of every key; profiles **A** (39 overrides) and **O** (27) only switch on UI/editor tooling and touch **no** physics multiplier; profile **B** (130 overrides) turns every IN system and part on and re-balances physics (`RocketForce 1.0→2.0`, `RocketSpeed 1.0→∞`, `TNTExplosionForce 1.0→2.0`, `BalloonForce 1.0→2.0`, `FanSpeed 1.0→6.0`, `RotorSpeed 1.0→2.0`, `PropellerSpeed 1.0→∞`, `ConnectionStrength 1.0→2.0`, `Switchable*/Rotatable*/Stable*/Strong*` false→true). Every PigForge extractor reads `INSettingsBExp.json` (= profile B) today, so the fan/rotor/propeller top speed (18/14/∞), the balloon's 23 N per frame, the blast multipliers, the weld strength table and the ADR-027/028 branch choices are all B-profile values; the rocket family's "repeatedly toggled switch" is B-only — vanilla is a **one-shot** (`Rocket.cs:570-581`). **Which profile governs is an open decision**: `docs/specs/in-settings-profiles.md`, gaps G104/G105.
+
 ## Architecture & Data Flow
 
 Dependency direction (no cycles; Core never sees Protocol, a physics backend, or Unity):
