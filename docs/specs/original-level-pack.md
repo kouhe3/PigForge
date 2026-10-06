@@ -64,6 +64,13 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 - **地形碰撞体来自 fill 多边形**，不是 curve 网格：`hasCollider` 时把 fill 顶点按
   `e2dConstants.COLLISION_MESH_Z_DEPTH` 挤出成三角带，铺在名为 collider 的子节点上（`LevelLoader.cs:339-380`）。
   `hasCollider` 的关卡占比见 §6。
+- **碰撞轮廓必须走边界环，不能照抄顶点表顺序**（实测 2026-10-06，1648 个带碰撞体的地形）：
+  `CreateCollider` 的实现是「顶点 i 连顶点 i+1」并沿 z 挤出 ±`depth/2`（`depth = 10`），它默认 fill 网格的
+  **顶点表顺序就是轮廓**。实测 **1643** 个确实如此；**4** 个在一点相接（某个顶点带 4 条边界边 = 两个环共点，
+  顶点表会两次经过它）；**1** 个是「549/550 顶点的单环」（有一个顶点根本不在边界上，照抄顶点表会在那里戳出一根刺）。
+  硬不变量是**每个边界顶点的边界边数都是偶数** ⇒ 轮廓总能分解成闭环，工具断言这一条、转换器按环挤出。
+- **地形实例的变换是恒等**（2146/2146 的 `euler` 为 0、`localScale` 为 1），所以地形内容只需要 `position`
+  ＋顶点表；终点同理：263/277 关正好有一个 `Goal*` 实例（14 个沙盒/MM 关没有），位置就是终点区中心。
 
 `PrefabOverrides` 是**文本**（`ObjectDeserializer`），不是二进制；解析时用 loader 的 `m_references`
 作为引用表（`LevelLoader.cs:198-208`）。277 关**全部**带 overrides（1795 条 / 2.08 MB）——它是关卡级组件数据
