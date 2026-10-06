@@ -117,7 +117,8 @@ B 档（`INSettingsB*.json`）是 mod 的「全功能」档，**不作为任何�
    - 测试同步：`PowerSystemTests.PowerFactorFollows…`、`CompoundAssemblerTests.{TheSeamThresholdScales…,TheCatalogGivesMetalWelds…}`、
      `JointAndEnclosureTests.{AttachmentSearchStops…,AttachmentSearchAccepts…,ASandbagOnlyReachesTheCellAboveIt,ABalloonReachesFiveCells}`。
 3. **门控分支** —— **已审查（结论见 §4.3）**，其中四项**尚未实现**（新差距 `G106`–`G109`）：
-   `DynamicPowerSystem`、`Stable/StrongSpringConnection`、`EnclosableParts` 的「可包裹件族」、IN 档专属零件的目录范围。
+   ~~`DynamicPowerSystem`~~（2026-10-06 第二十轮之三已落地，`G106`）、~~`Stable/StrongSpringConnection`~~（同日第二十轮之二已落地，`G107`）、
+   `EnclosableParts` 的「可包裹件族」、IN 档专属零件的目录范围。
 4. ~~**火箭 / TNT 的倍率**~~ —— **已核对**：火箭族由 `tools/bple-rockets` 按声明默认档写出（G101/G104）；
    TNT 的 `GameplayConfig.TntBlastImpulse = 25f` 与 prefab `m_explosionImpulse: 25` 一致、`TNTExplosionForce` vanilla = 1.0，
    **倍率无待办**。（TNT 的半径 4 vs prefab 8 是另一条差距 `G46`。）
@@ -134,7 +135,7 @@ B 档（`INSettingsB*.json`）是 mod 的「全功能」档，**不作为任何�
 | `EnginePowerLimit = 1.0` | raw 比上限 `10 × 1 = 10`（`Contraption.cs:545`，两分支同一表达式） | 已改成 1f | **本片交付** |
 | `ConnectionStrength = 1.0` | Normal 不翻倍（`Contraption.cs:1494-1503`），木↔木 250 / 木↔铁 725 / 铁↔铁 1200 | 已改（NormalJointStrength 125） | **本片交付** |
 | `SandbagConnectionDistance = 1` / `BalloonConnectionDistance = 5` | 逐家族循环上界（`Sandbag.cs:63`、`Balloon.cs:87`） | 已改（逐家族常量） | **本片交付** |
-| `DynamicPowerSystem = false` | **走遗留分支**（`Contraption.cs:556-582`）：分母 = 装配期消耗 − `0.9 ×` 每个无接地马达轮消耗，且消耗**不逐帧重算**（`:2626-2649`）。接地工况与动态分支相同（`1.5^0.585 ≈ 1.2677`）；轮离地时遗留分支直接顶到上限 `3.8459` | 实现的是**动态分支**（B 档语义） | **新差距 `G106`**，建议独立一片（规则层有 `_touchedBodies`，可复算） |
+| `DynamicPowerSystem = false` | **走遗留分支**（`Contraption.cs:556-582`）：分母 = 装配期消耗（开关不影响）− `0.9 ×` 每个无接地马达轮消耗，且消耗**不逐帧重算**（`:2626-2649`） | **已落地**（`GameplayRules.RecomputePowerClusters` 每 tick 刷新 + `IsMotorWheelGrounded` 取原版 `m_hasContact = true` 的初值） | **G106 已收口**：两动力轮的车峰值从 12.089 上限抬到实测 **13.6895 m/s**（一轮离地时上限 17.984），见 `docs/specs/power-system.md` §6/§7 |
 | `StableSpringConnection = false` / `StrongSpringConnection = false` | 8 个皮肤**全部**走 y 软限位路径（`Spring.cs:99-138`）、质量取 prefab（弹簧 0.3，不强制 1，`:70-76`）、`breakForce = 250`（`:15,26-41`）、`> 3 m` 拉断生效（`:80-92` 不短路） | 内容是 B 档口径：逐皮肤 `joint: bungee/limit`、`breakForce 1200`、`mass 1` | **新差距 `G107`**，需要 `tools/bple-springs` 按 vanilla 重跑 + `SpringProbe` 复核标定（两条 `*EffectiveStiffnessScale` 都是在 1 kg 弹力绳探针格上拟合的） |
 | `SwitchableBoxingGlove = false` | 一次性按钮：`Update` 的 else 分支在 `!m_enabled` 时出拳、`m_ShootTime`（prefab 覆写 0.4）后回卷再复位（`SpringBoxingGlove.cs:345-395`） | 内容 `activation: "trigger"`（按下出拳、可重复） | **已一致**（G99 当时按用户实机报告选对了分支，理由从「B 档 toggle」改写为「vanilla 按钮」） |
 | `SwitchableWing` / `SwitchableTail` = false | 机翼/尾翼常开（`Wings.cs:106`、`Tail.cs:59`） | `Aerodynamics.cs` 已按此实现 | 无 |
