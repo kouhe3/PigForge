@@ -100,6 +100,7 @@ public bool IsPartActive(EntityId entity);                        // 快照/哈�
 - `RunBellows` / `RunGrapples` / `RunRockets`：**先** `TryConsumeButtonPress(entity)`（按钮的按下一律被消费，见 Assumption 2），**再**判该件自己的门控（底盘/power/方向）；无条目 → 保持触地触发、离地重臂。
 - `RunBellows` 的节流：按下 puff 一次，然后按原版的 `0.8 s + 0.3 s inflate`（`Bellows.cs:64-67`，`BellowsState.ReadyAtTick`）才接受下一次；推力沿零件自己的局部 +X（`m_direction`，`Bellows.cs:84-87`）打在 `transform.position + dir × 0.5`。
 - `RunGrapples`：有条目 → 按下触发一次，`FiredRecently` 为**永久已用**（钩子只有一发）；无条目 → 保持触地触发、离地重臂。
+- `RunRockets` / `RunGrapples` 的**取轴**：两者都读零件自己的 `transform`——`Rocket.cs:298-300`、`GrapplingHook.cs:467` 的 `transform.TransformDirection(m_direction)`——与风扇/风箱同一条路径（`GameplayRules.ResolvePartFrame`，零件自己的位姿 = `bodyRotation · memberLocalRotation`），施力点也是零件自己的 `transform.position`；火箭的收尾爆心取施爆件位姿（`Rocket.cs:627-634`）。见 `ADR-029`。
 - `RunDetachers`（新增）：条目 `Active` → `output.DetachedEntities.Add(entity)`；无条目 → 只有 `DetachOnImpact` 的撞击路径。
 - `RunTntFuses` / `IgniteTntOnBody`：激活沿 `Ignited = true`（与撞击路径共用既有状态）。
 - `RunSprings`、翼/尾、灯：不变（被动）。
