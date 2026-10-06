@@ -35,12 +35,15 @@ public sealed class PowerSystemTests
         Assert.Equal(1.2676f, GameplayRules.ComputePowerFactor(EnginePower, WheelConsumption), 3);
         // 25 / 100 = 0.25 <= 1 -> the 0.75 branch.
         Assert.Equal(0.353553f, GameplayRules.ComputePowerFactor(25f, WheelConsumption), 5);
-        // 25 / 100... a bigger ratio on the 0.585 branch: 2500 / 100 = 25.
-        Assert.Equal(6.5730f, GameplayRules.ComputePowerFactor(2500f, WheelConsumption), 3);
+        // A bigger ratio on the 0.585 branch: 500 / 100 = 5.
+        Assert.Equal(2.5639f, GameplayRules.ComputePowerFactor(500f, WheelConsumption), 3);
 
-        // The raw ratio is capped at 10 * EnginePowerLimit = 40 (INSettingsBExp EnginePowerLimit
-        // 4.0, Contraption.cs:545): 40 is the largest raw value, and everything above it is equal.
-        float capped = 8.6539f;
+        // The raw ratio is capped at 10 * EnginePowerLimit = 10 (the vanilla declaration default
+        // EnginePowerLimit 1.0, INDeclarationSettingsExp.json; Contraption.cs:545): 10 is the
+        // largest raw value, and everything above it is equal.
+        float capped = 3.8459f;
+        Assert.Equal(capped, GameplayRules.ComputePowerFactor(1000f, WheelConsumption), 3);
+        Assert.Equal(capped, GameplayRules.ComputePowerFactor(2500f, WheelConsumption), 3);
         Assert.Equal(capped, GameplayRules.ComputePowerFactor(4000f, WheelConsumption), 3);
         Assert.Equal(capped, GameplayRules.ComputePowerFactor(5000f, WheelConsumption), 3);
         Assert.Equal(capped, GameplayRules.ComputePowerFactor(1_000_000f, WheelConsumption), 3);
@@ -379,8 +382,9 @@ public sealed class PowerSystemTests
         Assert.Equal(250f, library.GetPart(271).Capabilities!.EnginePower);
         // And exactly one skin of the ten small engines declares 5000 in its own prefab
         // (Part_EngineSmall_05_SET, 100x its siblings). It is kept verbatim: the original's own
-        // raw-ratio cap (10 * EnginePowerLimit = 40, Contraption.cs:545) bounds what it can do, so
-        // the outlier needs no PigForge balance decision -- the formula test above covers 5000.
+        // raw-ratio cap (10 * EnginePowerLimit = 10 in the vanilla declaration defaults,
+        // Contraption.cs:545) bounds what it can do, so the outlier needs no PigForge balance
+        // decision -- the formula test above covers 5000.
         Assert.Equal(5000f, library.Document.Parts.Single(part => part.Name == "engine-small-v05").Capabilities!.EnginePower);
 
         // The motor wheel is the consumer: it consumes and has no engine power of its own.

@@ -21,14 +21,15 @@ public sealed class CompoundAssemblerTests
     [Fact]
     public void TheSeamThresholdScalesWithBothEndsDeclaredStrength()
     {
-        // Normal-Normal keeps the caller's fallback: the original's ConnectionStrength factor
-        // cancels against the Normal pair (Contraption.cs:1541-1543, :2268).
+        // Normal-Normal keeps the caller's fallback: in the vanilla declaration defaults
+        // ConnectionStrength is 1, so the pair is the plain sum of two Normal 125s — the 250 the
+        // seam maths normalizes against (Contraption.cs:1494-1503, :1541-1543, :2268).
         Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse, SeamBreak(null, null), precision: 4);
-        // Weak 125 / High 600 / HighlyExtreme 1200 against Normal 250 in a 2 x 250 denominator.
-        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 0.5f, SeamBreak("weak", "weak"), precision: 4);
-        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 1.7f, SeamBreak("normal", "high"), precision: 4);
-        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 2.4f, SeamBreak("high", "high"), precision: 4);
-        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 4.8f, SeamBreak("highlyExtreme", "highlyExtreme"), precision: 4);
+        // Weak 125 / High 600 / HighlyExtreme 1200 against Normal 125 in a 2 x 125 denominator.
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse, SeamBreak("weak", "weak"), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 2.9f, SeamBreak("normal", "high"), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 4.8f, SeamBreak("high", "high"), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 9.6f, SeamBreak("highlyExtreme", "highlyExtreme"), precision: 4);
     }
 
     [Fact]
@@ -38,12 +39,14 @@ public sealed class CompoundAssemblerTests
         const uint MetalBox = 18;
         PartContentLibrary content = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
 
-        // Wood-wood (Normal 250 each) keeps the fallback; metal-metal (High 600 each) is 2.4x.
+        // Wood-wood (Normal 125 each, 250 the pair) keeps the fallback; metal-metal (High 600 each,
+        // 1200 the pair) is 4.8x. In the vanilla declaration defaults ConnectionStrength is 1, so
+        // only the Normal arm would ever double — and it does not (gaps G105).
         // This is the wooden-vs-metal difference the extraction exists to reproduce.
         // Both parts are frames, so the pair is two bodies held by a weld rather than one compound
         // with a seam (docs/specs/weld-compliance.md) — the strength maths is the same.
         Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse, CatalogFrameBreak(content, WoodenBlock, WoodenBlock), precision: 4);
-        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 2.4f, CatalogFrameBreak(content, MetalBox, MetalBox), precision: 4);
+        Assert.Equal(CompoundAssembler.DefaultSeamBreakImpulse * 4.8f, CatalogFrameBreak(content, MetalBox, MetalBox), precision: 4);
     }
 
     private static float CatalogFrameBreak(PartContentLibrary content, uint leftPart, uint rightPart)

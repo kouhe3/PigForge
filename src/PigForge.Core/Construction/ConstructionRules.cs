@@ -56,9 +56,15 @@ public sealed class ConstructionRules
 
     public const float MaxScale = 4f;
 
-    /// <summary>Cells an attachment searches for its anchor (INSettingsBExp.json:
-    /// <c>SandbagConnectionDistance</c>/<c>BalloonConnectionDistance</c> = 10).</summary>
-    public const int AttachmentSearchCells = 10;
+    /// <summary>Cells a sandbag searches for its anchor: the original's
+    /// <c>SandbagConnectionDistance</c> in the vanilla declaration defaults (1,
+    /// <c>INDeclarationSettingsExp.json</c>), the loop bound at <c>Sandbag.cs:63,73-84</c>.</summary>
+    public const int SandbagAttachmentSearchCells = 1;
+
+    /// <summary>Cells a balloon searches for its anchor: the original's
+    /// <c>BalloonConnectionDistance</c> in the vanilla declaration defaults (5,
+    /// <c>INDeclarationSettingsExp.json</c>), the loop bound at <c>Balloon.cs:87,97-108</c>.</summary>
+    public const int BalloonAttachmentSearchCells = 5;
 
     private const float BucketSize = 4f;
 
@@ -215,16 +221,17 @@ public sealed class ConstructionRules
 
     /// <summary>
     /// The first legal runtime-attachment anchor along a direction, or null. The original walks
-    /// the build grid one cell at a time (Sandbag.cs:96-102, Balloon.cs:104-107) up to
-    /// <c>SandbagConnectionDistance</c>/<c>BalloonConnectionDistance</c> = 10 cells
-    /// (INSettingsBExp.json), discarding every part that is neither chassis nor pig — a wheel, a
-    /// TNT, another sandbag — and stopping at the first that is. A balloon's extra Kicker
+    /// the build grid one cell at a time (Sandbag.cs:96-102, Balloon.cs:104-107) up to its own
+    /// family's connection distance — <see cref="SandbagAttachmentSearchCells"/> or
+    /// <see cref="BalloonAttachmentSearchCells"/>, the caller's business — discarding every part
+    /// that is neither chassis nor pig — a wheel, a TNT, another sandbag — and stopping at the
+    /// first that is. A balloon's extra Kicker
     /// exemption needs no case here: the kicker is a <see cref="JointConnectionType.Source"/>
     /// part in our content, so the chassis test already accepts it. Deterministic: cells are
     /// walked outward from the part's own cell and each cell's parts are taken in ascending
     /// EntityId order.
     /// </summary>
-    public EntityId? FindAttachmentTarget(EntityId attach, int directionX, int directionY)
+    public EntityId? FindAttachmentTarget(EntityId attach, int directionX, int directionY, int maxCells)
     {
         if ((directionX == 0 && directionY == 0)
             || !_transforms.TryGet(attach, out EntityTransform origin)
@@ -237,7 +244,7 @@ public sealed class ConstructionRules
         int cellY = (int)MathF.Floor(origin.Position.Y / CellSize);
         int stepX = Math.Sign(directionX);
         int stepY = Math.Sign(directionY);
-        for (int distance = 1; distance <= AttachmentSearchCells; distance++)
+        for (int distance = 1; distance <= maxCells; distance++)
         {
             EntityId anchor = FindAnchorInCell(cellX + (stepX * distance), cellY + (stepY * distance), attach.Value, owner);
             if (anchor.IsValid)

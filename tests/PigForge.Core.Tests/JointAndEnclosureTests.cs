@@ -227,15 +227,16 @@ public sealed class JointAndEnclosureTests
     public void AttachmentSearchStopsAtTheFirstChassis()
     {
         (ConstructionRules rules, _) = CreateRules();
-        EntityId sandbag = rules.Place(PartSandbag, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId balloon = rules.Place(PartBalloon, 0f, 2f, 0f, 1f, 0).Entity;
         EntityId wheel = rules.Place(PartWheel, 0f, 1f, 0f, 1f, 0).Entity;
-        EntityId frame = rules.Place(PartFrame, 0f, 2f, 0f, 1f, 0).Entity;
+        EntityId frame = rules.Place(PartFrame, 0f, 0f, 0f, 1f, 0).Entity;
 
-        // The wheel is neither chassis nor pig, so the walk skips it and keeps going.
-        Assert.Equal(frame, rules.FindAttachmentTarget(sandbag, 0, 1));
-        // Downward the frame meets the wheel and then the sandbag: neither is an anchor, so the
-        // search runs out of legal targets and gives up.
-        Assert.Null(rules.FindAttachmentTarget(frame, 0, -1));
+        // A balloon searches five cells down (BalloonConnectionDistance 5 in the vanilla
+        // declaration defaults): the wheel is neither chassis nor pig, so the walk skips it and
+        // keeps going to the frame.
+        Assert.Equal(frame, rules.FindAttachmentTarget(balloon, 0, -1, ConstructionRules.BalloonAttachmentSearchCells));
+        // Upward the same walk meets nothing but non-anchors in range.
+        Assert.Null(rules.FindAttachmentTarget(wheel, 0, 1, ConstructionRules.SandbagAttachmentSearchCells));
     }
 
     [Fact]
@@ -245,17 +246,38 @@ public sealed class JointAndEnclosureTests
         EntityId sandbag = rules.Place(PartSandbag, 0f, 0f, 0f, 1f, 0).Entity;
         EntityId pig = rules.Place(PartPig, 0f, 1f, 0f, 1f, 0).Entity;
 
-        Assert.Equal(pig, rules.FindAttachmentTarget(sandbag, 0, 1));
+        Assert.Equal(pig, rules.FindAttachmentTarget(sandbag, 0, 1, ConstructionRules.SandbagAttachmentSearchCells));
     }
 
     [Fact]
-    public void AttachmentSearchGivesUpAfterTenCells()
+    public void ASandbagOnlyReachesTheCellAboveIt()
     {
         (ConstructionRules rules, _) = CreateRules();
-        EntityId sandbag = rules.Place(PartSandbag, 0f, 0f, 0f, 1f, 0).Entity;
-        Assert.True(rules.Place(PartFrame, 0f, ConstructionRules.AttachmentSearchCells + 2f, 0f, 1f, 0).IsSuccess);
+        EntityId near = rules.Place(PartSandbag, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId nearFrame = rules.Place(PartFrame, 0f, 2f, 0f, 1f, 0).Entity;
+        EntityId far = rules.Place(PartSandbag, 4f, 0f, 0f, 1f, 0).Entity;
+        EntityId farFrame = rules.Place(PartFrame, 4f, 3f, 0f, 1f, 0).Entity;
 
-        Assert.Null(rules.FindAttachmentTarget(sandbag, 0, 1));
+        // SandbagConnectionDistance is 1 in the vanilla declaration defaults: the frame whose cell
+        // is the one directly above the sandbag is in range ...
+        Assert.Equal(nearFrame, rules.FindAttachmentTarget(near, 0, 1, ConstructionRules.SandbagAttachmentSearchCells));
+        // ... and the frame a cell further up is not (the balloon's five cells would reach it).
+        Assert.Null(rules.FindAttachmentTarget(far, 0, 1, ConstructionRules.SandbagAttachmentSearchCells));
+        Assert.Equal(farFrame, rules.FindAttachmentTarget(far, 0, 1, ConstructionRules.BalloonAttachmentSearchCells));
+    }
+
+    [Fact]
+    public void ABalloonReachesFiveCells()
+    {
+        (ConstructionRules rules, _) = CreateRules();
+        EntityId near = rules.Place(PartBalloon, 0f, 0f, 0f, 1f, 0).Entity;
+        EntityId frame = rules.Place(PartFrame, 0f, -ConstructionRules.BalloonAttachmentSearchCells, 0f, 1f, 0).Entity;
+        EntityId far = rules.Place(PartBalloon, 4f, 0f, 0f, 1f, 0).Entity;
+        Assert.True(rules.Place(PartFrame, 4f, -(ConstructionRules.BalloonAttachmentSearchCells + 1f), 0f, 1f, 0).IsSuccess);
+
+        Assert.Equal(frame, rules.FindAttachmentTarget(near, 0, -1, ConstructionRules.BalloonAttachmentSearchCells));
+        // One cell past the distance is out of range.
+        Assert.Null(rules.FindAttachmentTarget(far, 0, -1, ConstructionRules.BalloonAttachmentSearchCells));
     }
 
     // --- determinism -----------------------------------------------------------------------

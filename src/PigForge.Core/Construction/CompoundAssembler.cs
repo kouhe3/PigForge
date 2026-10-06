@@ -453,15 +453,17 @@ public static class CompoundAssembler
     private static readonly PhysicsVector3 SpringAnchor = new(0f, -0.5f, 0f);
 
     /// <summary>
-    /// The strength the original's <c>Normal</c> enum resolves to under the shipped
-    /// <c>INFeature.ConnectionStrength</c> of 2 (INSettingsBExp.json:208-210): the
-    /// <c>Contraption.GetJointConnectionStrength</c> table (Contraption.cs:1494-1506) reads
-    /// 125 from <c>GameData.asset:101-105</c> and doubles <em>only</em> the Normal arm
-    /// (Contraption.cs:1500), so Normal is 250 while Weak stays 125 and High/Extreme/
-    /// HighlyExtreme are 600/900/1200 unchanged. It is also the fallback for a part whose
-    /// strength was never extracted.
+    /// The strength the original's <c>Normal</c> enum resolves to under the vanilla declaration
+    /// defaults (<c>InDeclarationSettingsExp.json</c>, <c>INFeature.ConnectionStrength = 1.0</c>):
+    /// <c>Contraption.GetJointConnectionStrength</c> (Contraption.cs:1494-1503) reads 125 from
+    /// <c>GameData.asset:101-105</c> and doubles <em>only</em> the Normal arm when the multiplier is
+    /// above 1 (profile B's 2.0 — a mod value, gaps G105), so in vanilla Normal is 125, the same as
+    /// Weak, while High/Extreme/HighlyExtreme are 600/900/1200. <c>AddJointToMap</c> scales every
+    /// joint's breakForce by that same multiplier (Contraption.cs:2268), which in vanilla is 1, so a
+    /// wooden pair breaks at 2 x 125 = 250 — the pair strength this class normalizes seams against.
+    /// It is also the fallback for a part whose strength was never extracted.
     /// </summary>
-    private const float NormalJointStrength = 250f;
+    private const float NormalJointStrength = 125f;
 
     /// <summary>
     /// Welds the connected dynamic parts into clusters, splits them along preset seams, resolves the
@@ -1024,9 +1026,10 @@ public static class CompoundAssembler
 
     /// <summary>
     /// The original's joint-connection strength for one part, in its own units: the enum
-    /// resolved through the <c>GameData.asset:101-105</c> floats with the Normal-only x2 the
-    /// shipped <c>ConnectionStrength</c> of 2 applies (Contraption.cs:1494-1506). A part with
-    /// no extracted strength (the three without a prefab) falls back to Normal.
+    /// resolved through the <c>GameData.asset:101-105</c> floats with the Normal-only doubling
+    /// <c>ConnectionStrength</c> applies above 1 (Contraption.cs:1494-1503) — the vanilla
+    /// declaration default is 1.0, so Normal is the same 125 as Weak. A part with no extracted
+    /// strength (the three without a prefab) falls back to Normal.
     /// </summary>
     private static float JointConnectionStrengthOf(EntityId entity, ConstructionRules construction, PartContentLibrary content)
     {
@@ -1328,10 +1331,11 @@ public static class CompoundAssembler
                     construction.TryGetTransform(new EntityId(right), out EntityTransform rightTransform);
                     PhysicsVector3 midpoint = (leftTransform.Position + rightTransform.Position) * 0.5f;
                     // The original's general path sums both ends' strengths and multiplies by
-                    // ConnectionStrength (Contraption.cs:1541-1543 then :2268). That factor is a
-                    // constant here, so it cancels against the Normal pair: the seam keeps the
-                    // caller's fallback for Normal-Normal and scales by the strength ratio
-                    // (wood-wood 1.0, wood-metal 1.7, metal-metal 2.4, timebomb-timebomb 4.8).
+                    // ConnectionStrength (Contraption.cs:1541-1543 then :2268). In the vanilla
+                    // declaration defaults that multiplier is 1, so the break force is the plain sum
+                    // and a wooden pair (Normal 125 + 125) is 250: the seam keeps the caller's
+                    // fallback for Normal-Normal and scales by the strength ratio (wood-wood 1.0,
+                    // weak-weak 1.0, wood-metal 2.9, metal-metal 4.8, timebomb-timebomb 9.6).
                     float pairStrength =
                         JointConnectionStrengthOf(new EntityId(left), construction, content)
                         + JointConnectionStrengthOf(new EntityId(right), construction, content);

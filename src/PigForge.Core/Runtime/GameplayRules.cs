@@ -156,11 +156,13 @@ public sealed class GameplayRules
     private readonly HashSet<uint> _unanchoredPropulsion = new();
 
     /// <summary>
-    /// The original's <c>EnginePowerLimit</c> (INSettingsBExp.json, 4.0): the raw ratio is capped
-    /// at <c>10 * EnginePowerLimit</c> before the exponent (Contraption.cs:545). The two exponents
-    /// are the verbatim constants of Contraption.cs:553.
+    /// The original's <c>EnginePowerLimit</c> in the vanilla declaration defaults
+    /// (<c>INDeclarationSettingsExp.json</c>, 1.0 — profile B's 4.0 is a mod value, gaps G105): the
+    /// raw ratio is capped at <c>10 * EnginePowerLimit</c> = 10 before the exponent
+    /// (Contraption.cs:545, the same expression in both the dynamic and the legacy branch). The two
+    /// exponents are the verbatim constants of Contraption.cs:553.
     /// </summary>
-    public const float EnginePowerLimit = 4f;
+    public const float EnginePowerLimit = 1f;
 
     private const float PowerFactorHighExponent = 0.585f;
 

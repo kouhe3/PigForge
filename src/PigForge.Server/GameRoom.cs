@@ -2956,14 +2956,21 @@ public sealed class GameRoom : IDisposable
                 continue;
             }
 
-            PartAttachment? attachment = _content.GetPart(link.PartTypeId).Capabilities?.Attachment;
+            PartDefinition attachPart = _content.GetPart(link.PartTypeId);
+            PartAttachment? attachment = attachPart.Capabilities?.Attachment;
             if (attachment is null)
             {
                 continue;
             }
 
+            // The original's two attachment families search different distances in the vanilla
+            // declaration defaults (Sandbag.cs:63, Balloon.cs:87): one cell for a sandbag, five for
+            // a balloon. The family is the lift capability — balloons carry it, sandbags do not.
+            int searchCells = attachPart.Capabilities?.HasBalloon == true
+                ? ConstructionRules.BalloonAttachmentSearchCells
+                : ConstructionRules.SandbagAttachmentSearchCells;
             int directionY = attachment.Direction == AttachmentDirection.Up ? 1 : -1;
-            if (_construction.FindAttachmentTarget(entity, 0, directionY) is not EntityId anchor
+            if (_construction.FindAttachmentTarget(entity, 0, directionY, searchCells) is not EntityId anchor
                 || !_bodies.TryGet(entity, out PhysicsBodyLink attachLink)
                 || !_bodies.TryGet(anchor, out PhysicsBodyLink anchorLink)
                 || attachLink.Body == anchorLink.Body
@@ -2975,7 +2982,6 @@ public sealed class GameRoom : IDisposable
                 continue;
             }
 
-            PartDefinition attachPart = _content.GetPart(link.PartTypeId);
             PartDefinition anchorPart = _content.GetPart(anchorPartLink.PartTypeId);
             float distance = PhysicsVector3.Distance(attachPose.Position, anchorPose.Position);
             float maxDistance = attachment.DistanceFactor is float factor
