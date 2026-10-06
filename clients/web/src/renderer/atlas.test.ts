@@ -185,8 +185,113 @@ describe("parsePartTextures animation descriptors", () => {
     expect(() => parsePartTextures(broken)).toThrow(/hitDeltaV is not positive/);
   });
 
-  it("rejects a schema version past the sub-entity one", () => {
-    expect(() => parsePartTextures({ ...animatedManifest, schemaVersion: 6 })).toThrow(/unsupported schemaVersion/);
+  it("rejects a schema version past the activation one", () => {
+    expect(() => parsePartTextures({ ...animatedManifest, schemaVersion: 7 })).toThrow(/unsupported schemaVersion/);
+  });
+
+  // A v6 manifest: the same static sprites plus the activation-time art of the extractor -- the
+  // bottle's ignition jitter, content cross-fade and cork launch, and the blaster's blast ring.
+  const manifestSprite = { atlas: "A.png", x: 10, y: 20, w: 100, h: 50, cx: 0, cy: 0, sx: 1, sy: 1, rot: 0, rotates: false };
+  const bottleActivation = {
+    seconds: 2,
+    jitter: { sprites: [0, 1, 2, 7], radius: 0.1, seconds: 1 },
+    fade: [
+      { sprite: 1, from: 1, to: 0, start: 0, seconds: 1 },
+      { sprite: 0, from: 0, to: 1, start: 0, seconds: 1 },
+      { sprite: 0, from: 1, to: 0, start: 1, seconds: 1 },
+    ],
+    launch: { sprite: 7, start: 1, speed: 20, spinDegreesPerSecond: 200, lifetime: 0.75 },
+  };
+  const activationManifest = {
+    format: "pigforge.part-textures",
+    schemaVersion: 6,
+    atlases: { "A.png": { width: 2048, height: 2048 } },
+    parts: {
+      "25": {
+        bbox: [2, 1] as [number, number],
+        sprites: Array.from({ length: 8 }, () => manifestSprite),
+        activation: bottleActivation,
+      },
+      "52": {
+        bbox: [2, 2] as [number, number],
+        sprites: [manifestSprite],
+        // The extractor writes its own `seconds` on the ring; the typed shape drops it.
+        activation: {
+          seconds: 2,
+          ring: {
+            atlas: "Blast_Texture.png",
+            x: 0,
+            y: 0,
+            w: 2048,
+            h: 2048,
+            startRadius: 0.5,
+            radiusVelocity: 160,
+            radiusDrag: 0.2,
+            stepSeconds: 0.02,
+            alphaNumerator: 64,
+            alphaCap: 0.25,
+            seconds: 2,
+          },
+        },
+      },
+    },
+  };
+
+  it("reads the activation descriptor of a bottle and of a blaster", () => {
+    const parts = parsePartTextures(activationManifest);
+    expect(parts.get(25)!.activation).toEqual(bottleActivation);
+
+    const ring = parts.get(52)!.activation!.ring!;
+    expect(ring.atlas).toBe("Blast_Texture.png");
+    expect([ring.startRadius, ring.radiusVelocity, ring.radiusDrag, ring.stepSeconds]).toEqual([0.5, 160, 0.2, 0.02]);
+    expect([ring.alphaNumerator, ring.alphaCap]).toEqual([64, 0.25]);
+    expect(ring).not.toHaveProperty("seconds");
+  });
+
+  it("rejects a fade alpha outside 0..1", () => {
+    const withFade = (from: number, to: number) => ({
+      ...activationManifest,
+      parts: {
+        "25": {
+          ...activationManifest.parts["25"],
+          activation: { ...bottleActivation, fade: [{ sprite: 0, from, to, start: 0, seconds: 1 }] },
+        },
+      },
+    });
+    expect(() => parsePartTextures(withFade(1.5, 0))).toThrow(/fade 0 alpha/);
+    expect(() => parsePartTextures(withFade(0, -0.1))).toThrow(/fade 0 alpha/);
+  });
+
+  it("rejects a sprite reference that is not a non-negative integer", () => {
+    const negative = {
+      ...activationManifest,
+      parts: {
+        "25": {
+          ...activationManifest.parts["25"],
+          activation: { ...bottleActivation, launch: { ...bottleActivation.launch, sprite: -1 } },
+        },
+      },
+    };
+    expect(() => parsePartTextures(negative)).toThrow(/launch sprite is not a sprite index/);
+
+    const fractional = {
+      ...activationManifest,
+      parts: {
+        "25": {
+          ...activationManifest.parts["25"],
+          activation: { ...bottleActivation, jitter: { ...bottleActivation.jitter, sprites: [0, 0.5] } },
+        },
+      },
+    };
+    expect(() => parsePartTextures(fractional)).toThrow(/jitter sprite 1 is not a sprite index/);
+  });
+
+  it("rejects an activation with no channel", () => {
+    const bare = {
+      ...activationManifest,
+      parts: { "25": { ...activationManifest.parts["25"], activation: { seconds: 2 } } },
+    };
+    expect(() => parsePartTextures(bare)).toThrow(/activation has no channel/);
   });
 });
 

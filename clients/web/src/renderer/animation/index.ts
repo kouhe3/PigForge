@@ -23,6 +23,17 @@ import {
   type ExpressionState,
 } from "./frames";
 import { createSpinState, foreshorten, stepSpin, type SpinState } from "./spin";
+import {
+  activationOverlay,
+  activationOverride,
+  createActivationState,
+  noteActivationEdges as noteEdges,
+  resetActivation,
+  stepActivations,
+  type ActivationOverlay,
+  type ActivationState,
+} from "./activation";
+export type { ActivationOverlay } from "./activation";
 
 /** Clip players and the expression machine of one entity. */
 interface EntityFrames {
@@ -42,6 +53,10 @@ export interface AnimationState {
   live: Set<number>;
   /** Injected blink roll; the app passes `Math.random`, tests pin it. */
   random: () => number;
+  /** Seconds this state has been advancing: the activation clock (0 while the view is frozen). */
+  now: number;
+  /** Activation-time runs, started from the switch edge of a snapshot (see `activation.ts`). */
+  activation: ActivationState;
 }
 
 /** The pose the renderer blits for one sprite: the manifest sprite, or its clip's current frame. */
@@ -52,6 +67,13 @@ export interface SpritePose {
   /** Scale about the sprite's own centre; the spin foreshortening writes one axis. */
   scaleX: number;
   scaleY: number;
+  /** Offset in the part's own frame, world units: the ignition jitter of a bottle. */
+  offsetX: number;
+  offsetY: number;
+  /** Alpha multiplier (1 = opaque): the bottle's content cross-fade. */
+  alpha: number;
+  /** False for a sprite the part no longer draws itself (a launched cork flies as an overlay). */
+  visible: boolean;
 }
 
 /** Σ thrust of a body's active motors and Σ mass of every part on it: the two inputs of vRef. */
@@ -67,7 +89,7 @@ const PART_INDEX = new Map<number, PartDefinition>();
 let pose: SpritePose | null = null;
 
 export function createAnimationState(random: () => number = Math.random): AnimationState {
-  return { spins: new Map(), frames: new Map(), live: new Set(), random };
+  return { spins: new Map(), frames: new Map(), live: new Set(), random, now: 0, activation: createActivationState() };
 }
 
 /**
@@ -79,6 +101,8 @@ export function resetAnimations(state: AnimationState): void {
   state.spins.clear();
   state.frames.clear();
   state.live.clear();
+  state.now = 0;
+  resetActivation(state.activation);
 }
 
 /**
@@ -93,6 +117,10 @@ export function updateAnimations(
   dtSeconds: number,
 ): void {
   sweepRemoved(state, entities);
+  // The activation clock is the same time base as everything else here, so a frozen view
+  // (build mode, a paused replay) freezes a bottle's ignition with it.
+  state.now += dtSeconds;
+  stepActivations(state.activation, state.live, dtSeconds, state.random);
   if (!(dtSeconds > 0) || textures === null) return;
   const totals = collectBodyTotals(entities, content);
   for (const entity of entities) {
@@ -127,8 +155,7 @@ export function updateAnimations(
 /**
  * Pose of one sprite. The returned object is reused between calls, so the renderer must consume
  * it before asking for the next sprite (`draw.ts` draws immediately); a sprite without an
- * animation descriptor gets `{ sprite, rot: 0, scaleX: 1, scaleY: 1 }` — an exact pass-through
- * of the manifest art.
+ * animation descriptor gets a plain pose — an exact pass-through of the manifest art.
  */
 export function poseFor(
   state: AnimationState,
@@ -136,11 +163,23 @@ export function poseFor(
   spriteIndex: number,
   sprite: PartSprite,
 ): SpritePose {
-  const result = pose ?? (pose = { sprite, rot: 0, scaleX: 1, scaleY: 1 });
+  const result =
+    pose ?? (pose = { sprite, rot: 0, scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0, alpha: 1, visible: true });
   result.sprite = sprite;
   result.rot = 0;
   result.scaleX = 1;
   result.scaleY = 1;
+  result.offsetX = 0;
+  result.offsetY = 0;
+  result.alpha = 1;
+  result.visible = true;
+  const activation = activationOverride(state.activation.runs.get(entity.entityId), spriteIndex);
+  if (activation) {
+    result.offsetX = activation.offsetX;
+    result.offsetY = activation.offsetY;
+    result.alpha = activation.alpha;
+    result.visible = activation.visible;
+  }
   if (sprite.spin) {
     const spin = state.spins.get(entity.entityId)?.get(spriteIndex);
     if (spin) {
@@ -159,6 +198,27 @@ export function poseFor(
     if (player) result.sprite = player.pose;
   }
   return result;
+}
+
+/**
+ * The sprite one entity's activation draws in world space rather than in the part's frame -- the
+ * launched cork, the blast ring -- or null. The record is reused between calls, like a pose.
+ */
+export function activationOverlayFor(state: AnimationState, entityId: number): ActivationOverlay | null {
+  return activationOverlay(state.activation.runs.get(entityId));
+}
+
+/**
+ * Records the switch edges of one decoded snapshot (see `activation.ts`). Call this from the
+ * snapshot handler, not from the paint loop: a trigger part's switch bit is true in a single
+ * snapshot, and the paint loop only ever sees the last one that arrived.
+ */
+export function noteActivationEdges(
+  state: AnimationState,
+  entities: readonly DrawEntity[],
+  textures: PartTextureSet | null,
+): void {
+  noteEdges(state.activation, entities, textures, state.now);
 }
 
 /** Advances the part's expression machine once and returns the clip it wants played. */

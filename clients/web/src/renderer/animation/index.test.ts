@@ -178,6 +178,15 @@ describe("updateAnimations frames and expression", () => {
     const plain = entity(1);
     updateAnimations(state, [plain], content, textures, 0.1);
     const pose = poseFor(state, plain, 0, blade);
-    expect(pose).toEqual({ sprite: blade, rot: 0, scaleX: 1, scaleY: 1 });
+    expect(pose).toEqual({
+      sprite: blade,
+      rot: 0,
+      scaleX: 1,
+      scaleY: 1,
+      offsetX: 0,
+      offsetY: 0,
+      alpha: 1,
+      visible: true,
+    });
   });
 });

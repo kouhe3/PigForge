@@ -162,7 +162,13 @@ function parsePrefab(text) {
   const gameObjects = new Map();
   const transforms = new Map();
   const renderers = new Map();
+  // component file id -> the GameObject it belongs to, so a serialized reference to a component
+  // (Rocket.m_content points at the MeshRenderer, not at the Sprite component) resolves to the
+  // node -- and from there to the extracted sprite -- the same way the game resolves it.
+  const components = new Map();
   for (const { classId, fileId, body } of blocks) {
+    const owner = /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1];
+    if (owner) components.set(fileId, owner);
     if (classId === 1) {
       gameObjects.set(fileId, { name: field(body, "m_Name"), active: field(body, "m_IsActive") !== "0" });
     } else if (classId === 4) {
@@ -177,7 +183,7 @@ function parsePrefab(text) {
         scale: scale ? [Number(scale[1]), Number(scale[2]), Number(scale[3])] : [1, 1, 1],
       });
     } else if (classId === 23) {
-      const gameObject = /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1];
+      const gameObject = owner;
       const material = /^\s*- \{fileID: 2100000, guid: ([0-9a-f]{32}), type: 2\}/m.exec(body)?.[1];
       if (gameObject) renderers.set(gameObject, material);
     }
@@ -211,7 +217,7 @@ function parsePrefab(text) {
       gameObject,
       fields,
     }));
-  return { gameObjects, transforms, transformByGameObject, renderers, sprites, behaviours };
+  return { gameObjects, transforms, transformByGameObject, renderers, components, sprites, behaviours };
 }
 
 function textureOfMaterial(materialGuid) {
@@ -305,6 +311,183 @@ function connectionVisualOf(prefab) {
     if (visual) return visual;
   }
   return undefined;
+}
+
+// ------------------------------------------------------- activation animation
+
+/**
+ * `Rocket.m_visualization` is resolved at run time by name (`Awake` does
+ * `transform.Find("BottleVisualization")`, Rocket.cs:114-118), so the node is matched by name:
+ * a plain Rocket/RedRocket prefab has none and jitters nothing.
+ */
+const BOTTLE_VISUALIZATION_NODE = "BottleVisualization";
+/** The cork is a child of the visualization node; the rocket reparents it out and calls
+ * `Cork.Fly(-20 * transform.right, 200, 0.75)` when the ignition ends (Rocket.cs:255-262). */
+const CORK_NODE = "Cork";
+/** `Cork.Update` integrates `velocity + dt * 9.81 * down` and spins `dt * 200` degrees about
+ * its own forward axis, then destroys the object once the lifetime runs out (Cork.cs:15-33). */
+const CORK_FLIGHT = { speed: 20, spinDegreesPerSecond: 200, lifetime: 0.75 };
+/** `Rocket.FixedUpdate` jitters the visualization inside a 0.1-radius circle every frame while
+ * `num < m_ignitionTime` (`Random.insideUnitCircle * 0.1`, Rocket.cs:238-240) and resets it to
+ * the node's own origin the moment the ignition ends (:250-252). */
+const BOTTLE_JITTER_RADIUS = 0.1;
+/**
+ * `Rocket.Update` (Rocket.cs:202-226) cross-fades the two `BottleContent` sprites: `m_content`
+ * 1 -> 0 and `m_content2` 0 -> 1 while the ignition runs, then `m_content2` 1 -> 0 once `num`
+ * passes `m_ignitionTime` (it was seeded at 1 in `Awake`). Both alphas step by
+ * `Time.deltaTime`, so each leg takes exactly one second.
+ */
+const BOTTLE_FADE_SECONDS = 1;
+/** The Rocket component's two cross-faded sprite fields, in fade order. */
+const BOTTLE_CONTENT_FIELDS = ["m_content", "m_content2"];
+/** `BlasterTNT.m_blasterSprite = transform.Find("BlasterSprite")` (BlasterTNT.cs:79). The node
+ * has no Sprite component -- its art is a quad with a standalone texture -- and the prefab parks
+ * it inactive; the blast is what turns it on. */
+const BLASTER_SPRITE_NODE = "BlasterSprite";
+/**
+ * `BlasterTNT.ExplodeSpecial` seeds a `BlasterInfo` (BlasterTNT.cs:123-140) and `FixedUpdate`
+ * grows the ring for two seconds before hiding it (:163-169, :219-227): the radius starts at 0.5
+ * and grows at 160 m/s against 0.2 drag, integrated in fixed 0.02 s steps (`DeltaTime`), the quad
+ * is scaled to `2 * radius` world units, and the alpha is `min(64 / radius^2, 0.25)`.
+ */
+const BLASTER_RING = {
+  startRadius: 0.5,
+  radiusVelocity: 160,
+  radiusDrag: 0.2,
+  stepSeconds: 0.02,
+  alphaNumerator: 64,
+  alphaCap: 0.25,
+  seconds: 2,
+};
+
+/** Transform id of the first node with this name: the run-time `transform.Find` lookups the
+ * original makes are not serialized in the prefab. */
+function transformByName(prefab, name) {
+  for (const [gameObjectId, gameObject] of prefab.gameObjects) {
+    if (gameObject.name === name) return prefab.transformByGameObject.get(gameObjectId);
+  }
+  return undefined;
+}
+
+/** The extracted sprite sitting on the node a serialized component reference points at
+ * (`Rocket.m_content` references the content node's MeshRenderer, not its Sprite component). */
+function spriteOfReference(prefab, sprites, reference) {
+  const componentId = /\{fileID: (\d+)\}/.exec(reference ?? "")?.[1];
+  const gameObjectId = componentId === undefined ? undefined : prefab.components.get(componentId);
+  return gameObjectId === undefined ? undefined : sprites.find((sprite) => sprite.gameObject === gameObjectId);
+}
+
+/**
+ * The bottle family's activation animation: the ignition jitter of the `BottleVisualization`
+ * subtree, the cross-fade of its two `BottleContent` sprites, and the cork's launch. Every
+ * reference here is a sprite object; `emitActivation` turns them into paint-order indices once
+ * the sprite order is final.
+ */
+function bottleActivation(prefab, sprites, prefabName) {
+  const rocket = prefab.behaviours.find((behaviour) => behaviour.script === ROCKET_SCRIPT);
+  if (!rocket) return undefined;
+  const visualizationId = transformByName(prefab, BOTTLE_VISUALIZATION_NODE);
+  if (visualizationId === undefined) return undefined;
+  const jittered = sprites.filter((sprite) => sprite.node.chain.includes(visualizationId));
+  const contents = BOTTLE_CONTENT_FIELDS.map((field) => spriteOfReference(prefab, sprites, rocket.fields[field]));
+  if (jittered.length === 0 || contents.some((sprite) => sprite === undefined)) {
+    warnings.push(`${prefabName}: bottle visualization without its sprites or contents`);
+    return undefined;
+  }
+  const ignition = Number(rocket.fields.m_ignitionTime);
+  const ignitionSeconds = Number.isFinite(ignition) && ignition > 0 ? ignition : 1;
+  const [content, content2] = contents;
+  const corkId = transformByName(prefab, CORK_NODE);
+  const cork = corkId === undefined ? undefined : jittered.find((sprite) => sprite.node.chain.includes(corkId));
+  return {
+    jitter: { sprites: jittered, radius: BOTTLE_JITTER_RADIUS, seconds: ignitionSeconds },
+    fade: [
+      { sprite: content, from: 1, to: 0, start: 0, seconds: BOTTLE_FADE_SECONDS },
+      { sprite: content2, from: 0, to: 1, start: 0, seconds: BOTTLE_FADE_SECONDS },
+      { sprite: content2, from: 1, to: 0, start: ignitionSeconds, seconds: BOTTLE_FADE_SECONDS },
+    ],
+    // The launch coincides with the end of the ignition: `FixedUpdate` resets the visualization's
+    // local position and reparents the cork in the same `num > m_ignitionTime` branch (:247-262).
+    ...(cork ? { launch: { sprite: cork, start: ignitionSeconds, ...CORK_FLIGHT } } : {}),
+    seconds: ignitionSeconds + BOTTLE_FADE_SECONDS,
+  };
+}
+
+/**
+ * The BlasterTNT's expanding ring. The `BlasterSprite` node carries no Sprite component, so its
+ * art never enters the sprite list: it is a built-in quad whose material points at a standalone
+ * texture, drawn at the blast radius. Its own image is registered as an atlas so the client can
+ * load it, and the whole texture is the rect (the quad's UVs cover all of it).
+ */
+function blasterActivation(prefab, prefabName) {
+  if (!prefab.behaviours.some((behaviour) => behaviour.script === BLASTER_TNT_SCRIPT)) return undefined;
+  const nodeId = transformByName(prefab, BLASTER_SPRITE_NODE);
+  const gameObjectId = nodeId === undefined ? undefined : prefab.transforms.get(nodeId)?.gameObject;
+  const materialGuid = gameObjectId === undefined ? undefined : prefab.renderers.get(gameObjectId);
+  const texturePath = materialGuid ? textureOfMaterial(materialGuid) : undefined;
+  const size = texturePath ? pngSize(texturePath) : undefined;
+  if (!texturePath || !size) {
+    warnings.push(`${prefabName}: BlasterSprite without a texture`);
+    return undefined;
+  }
+  const atlas = texturePath.split(/[\\/]/).pop();
+  usedAtlases.set(atlas, { size, path: texturePath });
+  return {
+    ring: { atlas, x: 0, y: 0, w: size.width, h: size.height, ...BLASTER_RING },
+    seconds: BLASTER_RING.seconds,
+  };
+}
+
+/** One activation descriptor with every sprite reference turned into the index it has in the
+ * emitted sprite array (paint order). Indices stay in `emit`'s rounding frame: they are integers,
+ * and a reference the dedupe dropped invalidates the whole descriptor instead of shifting it. */
+function emitActivation(activation, sprites, prefabName) {
+  const indexOf = (sprite) => sprites.indexOf(sprite);
+  const round = (value) => Math.round(value * 1e4) / 1e4;
+  const indices = [
+    ...(activation.jitter?.sprites ?? []),
+    ...(activation.fade ?? []).map((leg) => leg.sprite),
+    ...(activation.launch ? [activation.launch.sprite] : []),
+  ].map(indexOf);
+  if (indices.some((index) => index < 0)) {
+    warnings.push(`${prefabName}: activation references a sprite the manifest dropped`);
+    return undefined;
+  }
+  return {
+    seconds: round(activation.seconds),
+    ...(activation.jitter
+      ? {
+          jitter: {
+            sprites: activation.jitter.sprites.map(indexOf),
+            radius: round(activation.jitter.radius),
+            seconds: round(activation.jitter.seconds),
+          },
+        }
+      : {}),
+    ...(activation.fade
+      ? {
+          fade: activation.fade.map((leg) => ({
+            sprite: indexOf(leg.sprite),
+            from: leg.from,
+            to: leg.to,
+            start: round(leg.start),
+            seconds: round(leg.seconds),
+          })),
+        }
+      : {}),
+    ...(activation.launch
+      ? {
+          launch: {
+            sprite: indexOf(activation.launch.sprite),
+            start: round(activation.launch.start),
+            speed: activation.launch.speed,
+            spinDegreesPerSecond: activation.launch.spinDegreesPerSecond,
+            lifetime: activation.launch.lifetime,
+          },
+        }
+      : {}),
+    ...(activation.ring ? { ring: activation.ring } : {}),
+  };
 }
 
 /** Sprite centre offset from the prefab root, in BPLE world units (root's own offset
@@ -676,6 +859,12 @@ function extractPart(prefabName) {
   // hole and hides its axle behind the wheel (the reported motor-wheel regression).
   sprites.sort((a, b) => b.z - a.z);
   const expression = pigExpression(prefab);
+  // Activation-time animation (schemaVersion 6): what the original does to a *placed* part's art
+  // the moment its switch fires -- a bottle's ignition jitter, cross-fade and cork, a blaster's
+  // expanding ring. Read after the sort, because the descriptor addresses sprites by their
+  // paint-order index.
+  const activationSource = bottleActivation(prefab, sprites, prefabName) ?? blasterActivation(prefab, prefabName);
+  const activation = activationSource ? emitActivation(activationSource, sprites, prefabName) : undefined;
   // Everything below stays in the PART-ORIGIN frame (`localOffset`'s accumulation), because that
   // is the frame the wire uses: `PGFS` carries the part's own origin (a lone member's body pose is
   // its shape centre, and the room re-bases each entity by the member's local offset), so a sprite
@@ -734,6 +923,7 @@ function extractPart(prefabName) {
     ...(pivot ? { pivot: [round(pivot[0]), round(pivot[1])] } : {}),
     ...(expression ? { expression } : {}),
     ...(connectionVisual ? { connectionVisual } : {}),
+    ...(activation ? { activation } : {}),
     ...(subSprites ? { subSprites: subSprites.map(emit) } : {}),
     sprites: sprites.map(emit),
   };
@@ -794,8 +984,10 @@ const manifest = {
   // v4 adds the optional connection conditions (sprite `condition`, part `connectionVisual`).
   // v5 adds the optional sub-entity art (part `subSprites`, the prefab a part instantiates at
   // run time -- a boxing glove's fist).
+  // v6 adds the optional activation-time animation (part `activation`: the bottle family's
+  // ignition jitter, cross-fade and cork launch, plus the blaster's expanding ring).
   // Every addition is optional, so each older manifest is the newer one minus that layer.
-  schemaVersion: 5,
+  schemaVersion: 6,
   source: basename(BPLE),
   unitsPerPixel: UNITS_PER_PIXEL,
   atlases: Object.fromEntries([...usedAtlases].map(([name, entry]) => [name, entry.size])),

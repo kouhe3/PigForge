@@ -1,5 +1,5 @@
 import type { DrawEntity, MarqueeRect, PartContentDocument, PartDefinition, PartShape } from "@/schema/types";
-import { poseFor, type AnimationState } from "./animation";
+import { activationOverlayFor, poseFor, type ActivationOverlay, type AnimationState } from "./animation";
 import { layoutSprites, subEntityTexture, type PartTexture, type PartTextureSet } from "./atlas";
 import { type Camera, worldToScreen } from "./camera";
 import { conditionalSpriteVisible, connectableSides } from "./connectionVisuals";
@@ -277,6 +277,13 @@ export function drawFrame(
     const placed = texture !== undefined && atlasImages !== undefined ? layoutSprites(texture, entity.scale) : undefined;
     const tire = turning && placed !== undefined ? placed.find((_, index) => turning[index]) : undefined;
     const entitySides = connections.get(entity.entityId);
+    // The one sprite the activation draws in the world instead of the part's frame: the blast
+    // ring (behind the part's art) or the launched cork (above it). The record is reused between
+    // entities, so it is consumed inside this iteration.
+    const activation = animations ? activationOverlayFor(animations, entity.entityId) : null;
+    if (activation !== null && activation.behind && atlasImages !== undefined) {
+      drawActivationOverlay(ctx, activation, atlasImages, camera, entity.scale, width, height);
+    }
     // The build pose's handedness (PGFS v6, ADR-030). The original turns a mirrored part's whole
     // frame 180 degrees about its own up axis, so in the plane every sprite offset mirrors in x, a
     // sprite's own rotation runs the other way, and its art is mirrored rather than turned. Only
@@ -298,14 +305,18 @@ export function drawFrame(
         // A pose is the manifest sprite unless the animation state replaced it with its clip's
         // current frame, which carries its own rect, size and centre (see `animation/index.ts`).
         const pose = animations ? poseFor(animations, entity, index, placement.sprite) : null;
+        if (pose !== null && !pose.visible) return;
         const drawn = pose?.sprite ?? placement.sprite;
         const image = textures.atlases.get(drawn.atlas);
         if (!image) return;
+        // The ignition jitter offsets the whole node, so it rides the sprite's own centre.
+        const jitterX = pose?.offsetX ?? 0;
+        const jitterY = pose?.offsetY ?? 0;
         // Sprite offsets are in manifest metres, so everything scales with the part like the
         // content shapes do; the spin foreshortening shrinks one axis about the sprite centre.
         // The mirror negates the sprite's x offset in the part's own frame (ADR-030).
-        const centreX = (mirrored ? -1 : 1) * drawn.cx * entity.scale;
-        const centreY = drawn.cy * entity.scale;
+        const centreX = (mirrored ? -1 : 1) * (drawn.cx + jitterX) * entity.scale;
+        const centreY = (drawn.cy + jitterY) * entity.scale;
         const w = drawn.sx * pixelScale * (pose?.scaleX ?? 1);
         const h = drawn.sy * pixelScale * (pose?.scaleY ?? 1);
         // Position and orientation in the world frame, both taken from the part origin.
@@ -327,6 +338,7 @@ export function drawFrame(
         }
 
         ctx.save();
+        if (pose !== null && pose.alpha !== 1) ctx.globalAlpha *= pose.alpha;
         ctx.translate(offsetX * pixelScale, -offsetY * pixelScale);
         // `angle` is the yaw plus this sprite's pose rotation, so the sprite's own rotation is
         // `angle - yaw + drawn.rot`; the mirror reverses it about the part's up axis.
@@ -385,6 +397,10 @@ export function drawFrame(
       }
       ctx.restore();
     }
+    // The launched cork flies in world space, above the part it left.
+    if (activation !== null && !activation.behind && atlasImages !== undefined) {
+      drawActivationOverlay(ctx, activation, atlasImages, camera, entity.scale, width, height);
+    }
     // A switchable part with its switch on gets an amber ring around its shape.
     if (!preview && entity.active && part?.capabilities?.activation !== undefined) {
       ctx.save();
@@ -419,6 +435,34 @@ export function drawFrame(
     ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
     ctx.setLineDash([]);
   }
+}
+
+/**
+ * One sprite an activation draws in the world rather than in the part's frame: the blaster's
+ * expanding ring (behind the part's art) or the launched cork (above it). Both scale with the
+ * part's own build scale, like the rest of its art.
+ */
+function drawActivationOverlay(
+  ctx: CanvasRenderingContext2D,
+  overlay: ActivationOverlay,
+  atlases: ReadonlyMap<string, CanvasImageSource>,
+  camera: Camera,
+  partScale: number,
+  width: number,
+  height: number,
+): void {
+  const image = atlases.get(overlay.atlas);
+  if (image === undefined) return;
+  const point = worldToScreen(camera, overlay.worldX, overlay.worldY, width, height);
+  const scale = partScale * camera.scale;
+  const w = overlay.worldW * scale;
+  const h = overlay.worldH * scale;
+  ctx.save();
+  ctx.globalAlpha *= overlay.alpha;
+  ctx.translate(point.x, point.y);
+  ctx.rotate(-overlay.rotation);
+  ctx.drawImage(image, overlay.x, overlay.y, overlay.w, overlay.h, -w / 2, -h / 2, w, h);
+  ctx.restore();
 }
 
 function strokeActive(ctx: CanvasRenderingContext2D, shape: PartShape | undefined, pixelScale: number): void {

@@ -134,6 +134,83 @@ export interface ExpressionDescriptor {
   fallFearThreshold: number;
 }
 
+/**
+ * One leg of an activation cross-fade: a sprite's alpha ramps linearly from `from` to `to` over
+ * `seconds`, beginning `start` seconds after the part's switch edge. A leg that has not started
+ * contributes nothing and one that has run out holds its `to` value, so later legs of the same
+ * sprite overwrite earlier ones -- the order the original writes its `material.color` in
+ * (`Rocket.Update`, Rocket.cs:202-226).
+ */
+export interface ActivationFade {
+  sprite: number;
+  from: number;
+  to: number;
+  start: number;
+  seconds: number;
+}
+
+/**
+ * The ignition jitter: every listed sprite belongs to one node in the original (the bottle's
+ * `BottleVisualization`), so they all take the same random offset inside a circle of `radius`
+ * world units while the run is younger than `seconds` (`Rocket.FixedUpdate` writes
+ * `Random.insideUnitCircle * 0.1` on it, Rocket.cs:238-240, and zeroes it at the ignition's end).
+ */
+export interface ActivationJitter {
+  sprites: number[];
+  radius: number;
+  seconds: number;
+}
+
+/**
+ * The cork's launch: at `start` seconds the cork leaves the part along its own -X at `speed` m/s,
+ * spinning `spinDegreesPerSecond`, and its own prefab object is destroyed after `lifetime`
+ * seconds (`Rocket.FixedUpdate` calls `Cork.Fly(-20 * transform.right, 200, 0.75)`,
+ * Rocket.cs:255-262; `Cork.Update` integrates the flight, Cork.cs:15-33).
+ */
+export interface ActivationLaunch {
+  sprite: number;
+  start: number;
+  speed: number;
+  spinDegreesPerSecond: number;
+  lifetime: number;
+}
+
+/**
+ * The blaster's expanding ring (`BlasterTNT.cs:123-169, 219-227`): a standalone image -- the node
+ * carries a quad with its own material, not a sprite -- drawn at the blast centre, scaled to
+ * `2 * radius` world units, with an alpha of `min(alphaNumerator / radius^2, alphaCap)`. The
+ * radius starts at `startRadius` and grows at `radiusVelocity` m/s against `radiusDrag`, stepped
+ * in fixed `stepSeconds` increments whoever the frame rate is.
+ */
+export interface ActivationRing {
+  atlas: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  startRadius: number;
+  radiusVelocity: number;
+  radiusDrag: number;
+  stepSeconds: number;
+  alphaNumerator: number;
+  alphaCap: number;
+}
+
+/**
+ * What the original's own script does to a placed part's art between its switch edge and the end
+ * of the activation (v6): the bottle family's ignition jitter, content cross-fade and cork
+ * launch, or the blaster's expanding ring. `seconds` is how long the whole run lasts -- the
+ * longest channel, after which the client drops it. Absent on every part whose art does not
+ * animate on activation, which is all but the eleven bottle/blaster parts.
+ */
+export interface ActivationDescriptor {
+  seconds: number;
+  jitter?: ActivationJitter;
+  fade?: ActivationFade[];
+  launch?: ActivationLaunch;
+  ring?: ActivationRing;
+}
+
 export interface PartTexture {
   /** Composite bounds in world units; validated as a manifest sanity check. */
   bbox: [number, number];
@@ -154,6 +231,8 @@ export interface PartTexture {
    * sub-entity flag marks; absent for parts with no sub-entity prefab.
    */
   subSprites?: PartSprite[];
+  /** Present on the parts whose art animates when their switch fires (v6). */
+  activation?: ActivationDescriptor;
 }
 
 export interface PartTextureSet {
@@ -164,8 +243,8 @@ export interface PartTextureSet {
 export const PART_TEXTURE_URL = "/assets/original/part-textures.json";
 
 /** Manifest versions this parser understands: 2 (static), 3 (adds animation), 4 (adds conditions),
- * 5 (adds the sub-entity prefab's art). */
-const SUPPORTED_SCHEMA_VERSIONS = [2, 3, 4, 5];
+ * 5 (adds the sub-entity prefab's art), 6 (adds the activation-time animation). */
+const SUPPORTED_SCHEMA_VERSIONS = [2, 3, 4, 5, 6];
 
 const LOCAL_SIDES: Record<LocalSide, true> = {
   top: true,
@@ -268,6 +347,84 @@ function conditionOf(value: unknown, what: string): SpriteCondition {
   throw new Error(`part-textures: ${what} condition kind`);
 }
 
+/** Non-negative integer index into the part's own sprite array. */
+function spriteIndex(value: unknown, what: string): number {
+  const index = finite(value, what);
+  if (!Number.isInteger(index) || index < 0) throw new Error(`part-textures: ${what} is not a sprite index`);
+  return index;
+}
+
+function activationOf(value: unknown, what: string): ActivationDescriptor {
+  const activation = value as Record<string, unknown>;
+  if (typeof activation !== "object" || activation === null) throw new Error(`part-textures: ${what} activation`);
+  const descriptor: ActivationDescriptor = { seconds: positive(activation.seconds, `${what} activation seconds`) };
+  if (activation.jitter !== undefined) {
+    const jitter = activation.jitter as Record<string, unknown>;
+    if (!Array.isArray(jitter.sprites) || jitter.sprites.length === 0) {
+      throw new Error(`part-textures: ${what} activation jitter sprites`);
+    }
+    descriptor.jitter = {
+      sprites: jitter.sprites.map((sprite, index) => spriteIndex(sprite, `${what} activation jitter sprite ${index}`)),
+      radius: positive(jitter.radius, `${what} activation jitter radius`),
+      seconds: positive(jitter.seconds, `${what} activation jitter seconds`),
+    };
+  }
+  if (activation.fade !== undefined) {
+    if (!Array.isArray(activation.fade) || activation.fade.length === 0) {
+      throw new Error(`part-textures: ${what} activation fade`);
+    }
+    descriptor.fade = activation.fade.map((rawLeg, index): ActivationFade => {
+      const leg = rawLeg as Record<string, unknown>;
+      const source = `${what} activation fade ${index}`;
+      const from = finite(leg.from, `${source} from`);
+      const to = finite(leg.to, `${source} to`);
+      if (from < 0 || from > 1 || to < 0 || to > 1) throw new Error(`part-textures: ${source} alpha`);
+      return {
+        sprite: spriteIndex(leg.sprite, `${source} sprite`),
+        from,
+        to,
+        start: finite(leg.start, `${source} start`),
+        seconds: positive(leg.seconds, `${source} seconds`),
+      };
+    });
+  }
+  if (activation.launch !== undefined) {
+    const launch = activation.launch as Record<string, unknown>;
+    descriptor.launch = {
+      sprite: spriteIndex(launch.sprite, `${what} activation launch sprite`),
+      start: finite(launch.start, `${what} activation launch start`),
+      speed: positive(launch.speed, `${what} activation launch speed`),
+      spinDegreesPerSecond: finite(launch.spinDegreesPerSecond, `${what} activation launch spin`),
+      lifetime: positive(launch.lifetime, `${what} activation launch lifetime`),
+    };
+  }
+  if (activation.ring !== undefined) {
+    const ring = activation.ring as Record<string, unknown>;
+    const source = `${what} activation ring`;
+    if (typeof ring.atlas !== "string" || ring.atlas.length === 0) throw new Error(`part-textures: ${source} atlas`);
+    const rect = {
+      x: finite(ring.x, `${source} x`),
+      y: finite(ring.y, `${source} y`),
+      w: positive(ring.w, `${source} w`),
+      h: positive(ring.h, `${source} h`),
+    };
+    descriptor.ring = {
+      atlas: ring.atlas,
+      ...rect,
+      startRadius: positive(ring.startRadius, `${source} startRadius`),
+      radiusVelocity: positive(ring.radiusVelocity, `${source} radiusVelocity`),
+      radiusDrag: positive(ring.radiusDrag, `${source} radiusDrag`),
+      stepSeconds: positive(ring.stepSeconds, `${source} stepSeconds`),
+      alphaNumerator: positive(ring.alphaNumerator, `${source} alphaNumerator`),
+      alphaCap: positive(ring.alphaCap, `${source} alphaCap`),
+    };
+  }
+  if (descriptor.jitter === undefined && descriptor.fade === undefined && descriptor.launch === undefined && descriptor.ring === undefined) {
+    throw new Error(`part-textures: ${what} activation has no channel`);
+  }
+  return descriptor;
+}
+
 /** Validates a manifest document. Throws on malformed data; the loader turns that into a fallback. */
 export function parsePartTextures(value: unknown): Map<number, PartTexture> {
   if (typeof value !== "object" || value === null) throw new Error("part-textures: not an object");
@@ -289,6 +446,7 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
       pivot?: unknown;
       expression?: unknown;
       connectionVisual?: unknown;
+      activation?: unknown;
     };
     if (!Array.isArray(entry.bbox) || entry.bbox.length !== 2) throw new Error(`part-textures: part ${key} bbox`);
     const bbox: [number, number] = [finite(entry.bbox[0], `part ${key} bbox width`), finite(entry.bbox[1], `part ${key} bbox height`)];
@@ -302,6 +460,7 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
         ? ([finite(entry.pivot[0], `part ${key} pivot x`), finite(entry.pivot[1], `part ${key} pivot y`)] as [number, number])
         : undefined;
     const expression = entry.expression === undefined ? undefined : expressionOf(entry.expression, `part ${key}`);
+    const activation = entry.activation === undefined ? undefined : activationOf(entry.activation, `part ${key}`);
     const entryVisual = entry.connectionVisual;
     if (entryVisual !== undefined && !isConnectionVisual(entryVisual)) {
       throw new Error(`part-textures: part ${key} connectionVisual`);
@@ -312,6 +471,7 @@ export function parsePartTextures(value: unknown): Map<number, PartTexture> {
       ...(pivot ? { pivot } : {}),
       ...(expression ? { expression } : {}),
       ...(entryVisual === undefined ? {} : { connectionVisual: entryVisual }),
+      ...(activation === undefined ? {} : { activation }),
       ...(subSprites === undefined ? {} : { subSprites }),
     });
   }
@@ -419,6 +579,9 @@ export async function loadPartTextures(
           for (const frame of clip.frames) names.add(frame.atlas);
         }
       }
+      // The blaster's ring is a quad with a standalone image, not a sprite of any atlas
+      // (manifest v6): it ships as its own file and is loaded alongside the atlases.
+      if (texture.activation?.ring) names.add(texture.activation.ring.atlas);
     }
     await Promise.all(
       [...names].map(async (name) => {

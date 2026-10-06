@@ -9,7 +9,7 @@ import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
 import { createPlayerSession, type CommandKind } from "./live/playerSession";
 import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
-import { createAnimationState, resetAnimations, updateAnimations } from "./renderer/animation";
+import { createAnimationState, noteActivationEdges, resetAnimations, updateAnimations } from "./renderer/animation";
 import { createAnimationClock } from "./renderer/animation/clock";
 import { loadPartTextures, type PartTextureSet } from "./renderer/atlas";
 import { partThumbnailDataUrl } from "./renderer/thumbnails";
@@ -350,6 +350,7 @@ function connectLive(): void {
     disconnectLive = connectSnapshotSocket(
       url,
       (frame) => {
+        noteActivationEdges(animations, frame.entities, partTextures.value);
         session.applyLiveEntities(frame.tick, frame.entities, frame.phase);
         liveFrame.value += 1;
       },
@@ -360,6 +361,10 @@ function connectLive(): void {
   const play = connectPlaySocket(
     url,
     (snapshot) => {
+      // Every decoded snapshot is inspected for a switch edge: a trigger part spends its press in
+      // one tick, so a frame-rate reader would drop the edge as soon as two snapshots land between
+      // two paints (see `renderer/animation/activation.ts`).
+      noteActivationEdges(animations, snapshot.entities, partTextures.value);
       session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase);
       liveFrame.value += 1;
     },

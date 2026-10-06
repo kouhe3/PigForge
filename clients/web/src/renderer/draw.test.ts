@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { createAnimationState, updateAnimations } from "./animation";
+import { createAnimationState, noteActivationEdges, updateAnimations } from "./animation";
 import type { PartTexture, PartTextureSet } from "./atlas";
 import { drawFrame, drawOrder, wheelAxle } from "./draw";
 import { createCamera } from "./camera";
@@ -11,6 +11,7 @@ function makeCtx() {
   const alphas: number[] = [];
   const translations: Array<[number, number]> = [];
   const draws: number[][] = [];
+  const drawAlphas: number[] = [];
   const alpha = { value: 1 };
   const gradient: CanvasGradient = { addColorStop: () => {} } as unknown as CanvasGradient;
   const rotations: number[] = [];
@@ -33,6 +34,7 @@ function makeCtx() {
     drawImage: (...args: unknown[]) => {
       calls.drawImage = (calls.drawImage ?? 0) + 1;
       draws.push(args.slice(1) as number[]);
+      drawAlphas.push(alpha.value);
     },
     beginPath: () => {
       calls.beginPath = (calls.beginPath ?? 0) + 1;
@@ -75,7 +77,7 @@ function makeCtx() {
     textAlign: "",
     textBaseline: "",
   };
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations, draws, rotations, scales };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations, draws, drawAlphas, rotations, scales };
 }
 
 const content: PartContentDocument = {
@@ -617,6 +619,102 @@ describe("drawFrame animation", () => {
     const last = translations[translations.length - 1];
     expect(last[0]).toBeCloseTo(18);
     expect(last[1]).toBeCloseTo(0);
+  });
+
+  /** The bottle's activation (manifest part 25): two content sprites cross-fading for a second. */
+  const bottleActivation = {
+    seconds: 2,
+    jitter: { sprites: [0, 1, 2, 7], radius: 0.1, seconds: 1 },
+    fade: [
+      { sprite: 1, from: 1, to: 0, start: 0, seconds: 1 },
+      { sprite: 0, from: 0, to: 1, start: 0, seconds: 1 },
+      { sprite: 0, from: 1, to: 0, start: 1, seconds: 1 },
+    ],
+    launch: { sprite: 7, start: 1, speed: 20, spinDegreesPerSecond: 200, lifetime: 0.75 },
+  };
+  const bottleTextures: PartTextureSet = {
+    atlases: new Map([["A.png", image]]),
+    parts: new Map([
+      [
+        25,
+        {
+          bbox: [1, 1] as [number, number],
+          sprites: [
+            { atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0, rotates: false },
+            { atlas: "A.png", x: 200, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0, rotates: false },
+          ],
+          activation: bottleActivation,
+        },
+      ],
+    ]),
+  };
+
+  it("blits a mid-fade bottle's content sprite at a reduced globalAlpha", () => {
+    const { ctx, draws, drawAlphas } = makeCtx();
+    const bottle: DrawEntity = { ...block, entityId: 11, partTypeId: 25, active: true };
+    const state = createAnimationState(() => 0.5);
+    noteActivationEdges(state, [bottle], bottleTextures);
+    updateAnimations(state, [bottle], content, bottleTextures, 0.5);
+    drawFrame(ctx, createCamera(), [bottle], content, [], undefined, undefined, bottleTextures, null, state);
+
+    // Both content legs are half way at 0.5 s, so each of the two blits is halved. The mock's
+    // save/restore are no-ops, so only the first blit still carries its own alpha.
+    expect(draws).toHaveLength(2);
+    expect(drawAlphas[0]).toBeCloseTo(0.5, 6);
+  });
+
+  /** The blaster's blast (manifest part 52): a standalone quad, not a sprite of the atlas. */
+  const blasterTextures: PartTextureSet = {
+    atlases: new Map([
+      ["A.png", image],
+      ["Blast_Texture.png", image],
+    ]),
+    parts: new Map([
+      [
+        52,
+        {
+          bbox: [1, 1] as [number, number],
+          sprites: [{ atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 1, sy: 1, rot: 0, rotates: false }],
+          activation: {
+            seconds: 2,
+            ring: {
+              atlas: "Blast_Texture.png",
+              x: 0,
+              y: 0,
+              w: 2048,
+              h: 2048,
+              startRadius: 0.5,
+              radiusVelocity: 160,
+              radiusDrag: 0.2,
+              stepSeconds: 0.02,
+              alphaNumerator: 64,
+              alphaCap: 0.25,
+            },
+          },
+        },
+      ],
+    ]),
+  };
+
+  it("blits a mid-blast blaster's ring at its own rect, 2 * radius * camera scale wide", () => {
+    const { ctx, draws, drawAlphas } = makeCtx();
+    const blaster: DrawEntity = { ...block, entityId: 12, partTypeId: 52, active: true };
+    const state = createAnimationState(() => 0.5);
+    noteActivationEdges(state, [blaster], blasterTextures);
+    updateAnimations(state, [blaster], content, blasterTextures, 0.5);
+    drawFrame(ctx, createCamera(), [blaster], content, [], undefined, undefined, blasterTextures, null, state);
+
+    // The ring is drawn first, behind the part's own sprite. A 0.5 s frame runs 24 of the
+    // descriptor's 0.02 s steps, so the radius is 73.57521223001905 world units.
+    expect(draws).toHaveLength(2);
+    expect(draws[0].slice(0, 4)).toEqual([0, 0, 2048, 2048]);
+    const size = 2 * 73.57521223001905 * (1 * 36);
+    expect(draws[0][4]).toBeCloseTo(-size / 2, 3);
+    expect(draws[0][5]).toBeCloseTo(-size / 2, 3);
+    expect(draws[0][6]).toBeCloseTo(size, 3);
+    expect(draws[0][7]).toBeCloseTo(size, 3);
+    // min(64 / radius^2, 0.25) at radius 73.57521223001905 is well under the cap.
+    expect(drawAlphas[0]).toBeCloseTo(0.011822707007822538, 9);
   });
 });
 
