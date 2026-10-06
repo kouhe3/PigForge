@@ -194,17 +194,15 @@ public sealed class GameplayRules
     private const float MinimumBounceApproachSpeed = 0.5f;
 
     /// <summary>
-    /// A bellows' own cycle: <c>Bellows.CompressionScale</c>/<c>FixedUpdate</c> run one 0.5 s puff
-    /// and then wait, and <c>OnTouch</c> refuses a fresh one while
-    /// <c>Time.time - m_timeBoostStarted &lt; 0.8 + InflateDuration</c> (<c>Bellows.cs:23-27,64-67</c>),
-    /// i.e. 1.1 s for every shipped skin (the alien skin's inflate is 0.15 s, so it waits 1.0 s;
-    /// the difference is recorded as a deviation -- content carries no alien flag).
+    /// The puff's own length: the original pushes while <c>num &lt; 0.5 s</c>
+    /// (<c>Bellows.cs:14,100-110</c>), then the belt goes quiet for the rest of the cycle.
     /// </summary>
-    private const float BellowsCycleSeconds = 1.1f;
+    private const uint BellowsBoostTicks = 30;
 
-    /// <summary>The same cycle counted in ticks at the room's rate.</summary>
-    private static readonly uint BellowsCycleTicks =
-        (uint)MathF.Round(BellowsCycleSeconds / ForceSecondsPerImpulse);
+    /// <summary>The original's 0.3 s wait after the puff (:15); together with the puff and the
+    /// skin's own inflate duration it is what <c>OnTouch</c> waits out before it accepts a fresh
+    /// press (:123-125).</summary>
+    private const uint BellowsWaitTicks = 18;
 
     /// <summary>How many ticks a remembered approach speed stays usable. A contact event can
     /// arrive after the impact (measured: a 9.32 m/s landing was reported as 2.56 m/s because the
@@ -644,8 +642,15 @@ public sealed class GameplayRules
 
     public void AddGearbox(EntityId entity) => _gearboxes.Set(entity, default);
 
-    public void AddBellows(EntityId entity, float boostImpulse) =>
-        _bellows.Set(entity, new BellowsState(boostImpulse, ReadyAtTick: 0));
+    public void AddBellows(EntityId entity, float thrustPerTick, float directionX, float directionY, ushort inflateTicks) =>
+        _bellows.Set(entity, new BellowsState(
+            thrustPerTick,
+            directionX,
+            directionY,
+            inflateTicks,
+            Active: false,
+            ElapsedTicks: 0u,
+            ReadyAtTick: 0u));
 
     public void AddDetacher(EntityId entity) => _detachers.Set(entity, default);
 
@@ -1603,7 +1608,7 @@ public sealed class GameplayRules
             EntityId entity = bellows.CurrentId;
             BellowsState state = bellows.CurrentValue;
             // The bar button is momentary (BasePart.OnButtonTriggered -> ProcessTouch,
-            // BasePart.cs:1428; Bellows.OnTouch, Bellows.cs:100-118): the press is spent the moment
+            // BasePart.cs:1428; Bellows.OnTouch, Bellows.cs:123-142): the press is spent the moment
             // it is read, before any gate, so a bellows that cannot puff never leaves its button
             // latched on.
             bool pressed = TryConsumeButtonPress(entity);
@@ -1616,11 +1621,43 @@ public sealed class GameplayRules
 
             bool switched = HasSwitch(entity);
             bool touched = _touchedBodies.Contains(link.Body.Value);
+
+            if (state.Active)
+            {
+                // The original's puff: `num = Time.time - m_timeBoostStarted` keeps rising, and the
+                // force is applied only while `num < 0.5 s` (Bellows.cs:100-110).
+                if (state.ElapsedTicks >= BellowsBoostTicks)
+                {
+                    _bellows.Set(entity, state with { Active = false });
+                    continue;
+                }
+
+                // `num2 = 1 - (1 - num/0.5)^2` (Bellows.cs:103-104): zero at the start of the puff,
+                // peaking at its end. The force point is the part's own mount,
+                // `transform.position + vector * 0.5` (:107), and the axis is the part's own
+                // `transform.TransformDirection(m_direction)` (:106) -- the same reference frame a
+                // fan's m_forceDirection goes through (docs/specs/fan-propeller.md §7.2).
+                float t = (float)state.ElapsedTicks / BellowsBoostTicks;
+                float scale = 1f - ((1f - t) * (1f - t));
+                _bellows.Set(entity, state with { ElapsedTicks = state.ElapsedTicks + 1u });
+                if (scale <= 0f)
+                {
+                    continue;
+                }
+
+                PhysicsVector3 puffAxis = ResolveAxis(entity, link.Body.Value, kinematics.Position, state.DirectionX, state.DirectionY, out PhysicsVector3 puffPosition);
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    link.Body,
+                    puffAxis * (scale * state.ThrustPerTick),
+                    puffPosition + (puffAxis * 0.5f)));
+                continue;
+            }
+
             if (_tick < state.ReadyAtTick)
             {
                 // A legacy bellows (no activation) re-arms the moment it leaves the ground; a
-                // pressed one waits out the original's own cycle (1.1 s from the start of the
-                // puff, Bellows.cs:64-67).
+                // pressed one waits out the original's own cycle (0.5 s puff + 0.3 s wait + the
+                // skin's inflate, Bellows.cs:123-125).
                 if (!switched && !touched)
                 {
                     _bellows.Set(entity, state with { ReadyAtTick = 0 });
@@ -1643,19 +1680,32 @@ public sealed class GameplayRules
                 continue;
             }
 
-            _bellows.Set(entity, state with { ReadyAtTick = _tick + (uint)BellowsCycleTicks });
-            // The puff pushes along the part's own axis: Bellows.cs:84-86 reads
-            // `transform.TransformDirection(m_direction)` and every shipped skin serializes
-            // m_direction (1,0,0), so the build rotation aims it -- the same reference frame a
-            // fan's m_forceDirection goes through (docs/specs/fan-propeller.md §7.2). The force
-            // point is the part's own mount, `transform.position + vector * 0.5` (Bellows.cs:87).
-            ResolvePartFrame(entity, link.Body.Value, kinematics.Position, out PhysicsVector3 partPosition, out PhysicsQuaternion partRotation);
-            PhysicsVector3 axis = partRotation.Rotate(new PhysicsVector3(1f, 0f, 0f));
-            output.Commands.Add(PhysicsCommand.ApplyImpulse(
-                link.Body,
-                axis * state.BoostImpulse,
-                partPosition + (axis * 0.5f)));
+            _bellows.Set(entity, state with
+            {
+                Active = true,
+                ElapsedTicks = 0u,
+                ReadyAtTick = _tick + BellowsBoostTicks + BellowsWaitTicks + state.InflateTicks,
+            });
         }
+    }
+
+    /// <summary>
+    /// The part's own axis for a planar content direction, plus the point the force is applied at:
+    /// the part's own `transform.position` (ADR-029). Shared by the bellows' puff, which reads
+    /// `transform.TransformDirection(m_direction)` and `transform.position + vector * 0.5`.
+    /// </summary>
+    private PhysicsVector3 ResolveAxis(
+        EntityId entity,
+        uint body,
+        PhysicsVector3 bodyPosition,
+        float directionX,
+        float directionY,
+        out PhysicsVector3 partPosition)
+    {
+        ResolvePartFrame(entity, body, bodyPosition, out partPosition, out PhysicsQuaternion partRotation);
+        PhysicsVector3 direction = new(directionX, directionY, 0f);
+        float magnitude = PhysicsVector3.Distance(direction, PhysicsVector3.Zero);
+        return magnitude <= float.Epsilon ? PhysicsVector3.Zero : partRotation.Rotate(direction * (1f / magnitude));
     }
 
     private void RunGrapples(GameplayTickOutput output)

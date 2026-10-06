@@ -393,6 +393,16 @@ public sealed class GameplayRulesTests
         TntIgniteImpactSpeed: 5f);
 
     /// <summary>
+    /// <c>Bellows.cs:103-104</c>: <c>num2 = 1 - (1 - num/0.5)^2</c>, sampled at the tick's own
+    /// elapsed time inside the 0.5 s puff (30 ticks at 60 Hz).
+    /// </summary>
+    private static float BellowsRamp(uint elapsedTicks, float thrustPerTick)
+    {
+        float t = (float)elapsedTicks / 30f;
+        return thrustPerTick * (1f - ((1f - t) * (1f - t)));
+    }
+
+    /// <summary>
     /// A plain rocket for the axis/point tests: no ignition phase, no ramp-down and no speed cap
     /// (the original's <c>Rocket</c> with an <c>m_ignitionTime</c> that only matters to the bottle
     /// family, which carries an <c>m_visualization</c>, and <c>m_maximumSpeed</c> 0 meaning "never
@@ -1458,23 +1468,110 @@ public sealed class GameplayRulesTests
         Assert.Equal(-2f, command.Impulse.X, 5); // reversed
     }
 
+    /// <summary>
+    /// The puff is a 0.5 s ramp (Bellows.cs:100-110): `num2 = 1 - (1 - num/0.5)^2` is zero on the
+    /// frame the puff starts, 0.75 halfway and 1 at the end, so a bellows does not kick off with a
+    /// full impulse the way the old single-impulse model did. Legacy content (no switch) re-arms
+    /// on touchdown.
+    /// </summary>
     [Fact]
-    public void BellowsPushesForwardOncePerTouchdown()
+    public void ALegacyBellowsRampsItsPuffUpFromTouchdown()
     {
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId bellows = entities.Create();
-        harness.Rules.AddBellows(bellows, boostImpulse: 8f);
+        harness.Rules.AddBellows(bellows, thrustPerTick: 8f, directionX: 1f, directionY: 0f, inflateTicks: 18);
         harness.Link(bellows, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
-        PhysicsCommand command = Assert.Single(harness.Output.Commands);
-        Assert.Equal(8f, command.Impulse.X, 5);
-
-        // Still grounded: no second boost until airborne.
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        // The touchdown starts the puff; its first frame is the ramp's zero.
+        harness.Tick(1, Grounded());
         Assert.Empty(harness.Output.Commands);
+
+        // Thirty frames, `num2 = 1 - (1 - elapsed/30)^2`: zero, then rising to a hair under the
+        // force -- 8.0 N/s here, i.e. 0.5 N per tick was the old single-impulse value.
+        for (uint tick = 2; tick <= 31; tick++)
+        {
+            harness.Tick(tick, Grounded());
+            float expected = BellowsRamp(tick - 2, 8f);
+            if (expected <= 0f)
+            {
+                Assert.Empty(harness.Output.Commands);
+                continue;
+            }
+
+            Assert.Equal(expected, Assert.Single(harness.Output.Commands).Impulse.X, 4);
+        }
+
+        // Then the cycle waits (0.3 s plus the skin's inflate) while the rig is still grounded:
+        // the bellows is silent until it is ready again at tick 67.
+        for (uint tick = 32; tick < 67; tick++)
+        {
+            harness.Tick(tick, Grounded());
+            Assert.Empty(harness.Output.Commands);
+        }
+    }
+
+    /// <summary>One grounded contact, the shape a landing arrives in.</summary>
+    private static PhysicsEvent[] Grounded() =>
+        [PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2))];
+
+    [Fact]
+    public void BellowsPuffsOnItsButtonAndAgainAfterItsOwnCycle()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId bellows = entities.Create();
+        harness.Rules.AddBellows(bellows, thrustPerTick: 8f, directionX: 1f, directionY: 0f, inflateTicks: 18);
+        harness.Rules.AddActivation(bellows);
+        harness.Link(bellows, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        // Grounded but unpressed: nothing fires.
+        harness.Tick(1, Grounded());
+        Assert.Empty(harness.Output.Commands);
+
+        // The button is momentary: the press starts one puff (its first frame is the ramp's zero)
+        // and is spent with it.
+        harness.Rules.SetActive(bellows, true);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
+        Assert.False(harness.Rules.IsPartActive(bellows));
+
+        for (uint tick = 3; tick <= 32; tick++)
+        {
+            harness.Tick(tick, Array.Empty<PhysicsEvent>());
+            float expected = BellowsRamp(tick - 3, 8f);
+            if (expected <= 0f)
+            {
+                Assert.Empty(harness.Output.Commands);
+                continue;
+            }
+
+            Assert.Equal(expected, Assert.Single(harness.Output.Commands).Impulse.X, 4);
+        }
+
+        // The puff is over and the cycle still has 0.3 s of wait plus the inflate to run: a press
+        // inside it is spent without puffing (so the bar button never sits latched on,
+        // Bellows.cs:123-125) and nothing fires.
+        harness.Rules.SetActive(bellows, true);
+        for (uint tick = 33; tick < 68; tick++)
+        {
+            harness.Tick(tick, Array.Empty<PhysicsEvent>());
+            Assert.Empty(harness.Output.Commands);
+        }
+
+        Assert.False(harness.Rules.IsPartActive(bellows));
+
+        // The cycle is up at 2 + 66 ticks (30 + 18 + 18): the same button puffs again, and the new
+        // puff ramps from zero the same way.
+        harness.Rules.SetActive(bellows, true);
+        harness.Tick(68, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands); // the start frame
+        harness.Tick(69, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands); // `elapsed` 0: still the ramp's zero
+        harness.Tick(70, Array.Empty<PhysicsEvent>());
+        Assert.Equal(BellowsRamp(1, 8f), Assert.Single(harness.Output.Commands).Impulse.X, 4);
     }
 
     [Fact]
@@ -1664,47 +1761,6 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
-    public void BellowsPuffsOnItsButtonAndAgainAfterItsOwnCycle()
-    {
-        EntityStore entities = new();
-        GameplayHarness harness = new(entities, FarZonesConfig());
-        EntityId bellows = entities.Create();
-        harness.Rules.AddBellows(bellows, boostImpulse: 8f);
-        harness.Rules.AddActivation(bellows);
-        harness.Link(bellows, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
-
-        // Grounded but unpressed: nothing fires.
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
-        Assert.Empty(harness.Output.Commands);
-
-        // The button is momentary: one puff per press, and the press is spent with it.
-        harness.Rules.SetActive(bellows, true);
-        harness.Tick(2, Array.Empty<PhysicsEvent>());
-        PhysicsCommand command = Assert.Single(harness.Output.Commands);
-        Assert.Equal(8f, command.Impulse.X, 5);
-        Assert.False(harness.Rules.IsPartActive(bellows));
-
-        // A press during the original's own cycle (0.8 s + the 0.3 s inflate, Bellows.cs:23-27,64-67)
-        // is spent without puffing, so the button never sits latched on the bar.
-        harness.Rules.SetActive(bellows, true);
-        harness.Tick(3, Array.Empty<PhysicsEvent>());
-        Assert.Empty(harness.Output.Commands);
-        Assert.False(harness.Rules.IsPartActive(bellows));
-
-        for (uint tick = 4; tick < 68; tick++)
-        {
-            harness.Tick(tick, Array.Empty<PhysicsEvent>());
-        }
-
-        Assert.Empty(harness.Output.Commands);
-        // The cycle is up at 2 + 66 ticks: the same button puffs again.
-        harness.Rules.SetActive(bellows, true);
-        harness.Tick(68, Array.Empty<PhysicsEvent>());
-        Assert.Equal(8f, Assert.Single(harness.Output.Commands).Impulse.X, 5);
-    }
-
-    [Fact]
     public void AButtonPressAPartsOwnGateRefusesIsStillSpent()
     {
         EntityStore entities = new();
@@ -1713,7 +1769,7 @@ public sealed class GameplayRulesTests
         // (BasePropulsion.cs:13-20). The press must be spent all the same -- otherwise the bar
         // shows a switch stuck on its "on" position, which is not a button any more.
         EntityId bellows = entities.Create();
-        harness.Rules.AddBellows(bellows, boostImpulse: 8f);
+        harness.Rules.AddBellows(bellows, thrustPerTick: 8f, directionX: 1f, directionY: 0f, inflateTicks: 18);
         harness.Rules.AddActivation(bellows);
         harness.Rules.SetChassisAnchored(bellows, anchored: false);
         harness.Link(bellows, new PhysicsBodyId(1));

@@ -332,7 +332,15 @@ public sealed record PartCapabilities(
     float? UmbrellaDragCoef = null,
     bool IsGearbox = false,
     bool IsDetacher = false,
-    float? BellowsBoostImpulse = null,
+    // The original's bellows (Bellows.cs:92-121): the puff is a 0.5 s ramp of `(1 - (1 - t)^2)`
+    // times `m_boostForce` along the part's own axis, then 0.3 s of silence and the inflate
+    // animation. `BellowsThrustPerTick` is m_boostForce/60 and `BellowsInflateTicks` is the
+    // inflate duration (18 ticks, 9 on the alien skin) -- the two other phase lengths are class
+    // constants.
+    float? BellowsThrustPerTick = null,
+    float? BellowsDirectionX = null,
+    float? BellowsDirectionY = null,
+    ushort? BellowsInflateTicks = null,
     float? LightRadius = null,
     float? GrappleImpulse = null,
     float? GrappleDirectionX = null,
@@ -379,7 +387,7 @@ public sealed record PartCapabilities(
     public bool HasUmbrella => UmbrellaDragCoef is float drag && drag != 0f;
 
 
-    public bool HasBellows => BellowsBoostImpulse is float boost && boost != 0f;
+    public bool HasBellows => BellowsThrustPerTick is float thrust && thrust != 0f;
 
     public bool HasGrapple => GrappleImpulse is float impulse && impulse != 0f;
 

@@ -515,7 +515,10 @@ public static class PartContentParser
         float? umbrellaDragCoef = null;
         bool isGearbox = false;
         bool isDetacher = false;
-        float? bellowsBoost = null;
+        float? bellowsThrust = null;
+        float? bellowsDirectionX = null;
+        float? bellowsDirectionY = null;
+        ushort? bellowsInflate = null;
         float? lightRadius = null;
         float? grappleImpulse = null;
         float? grappleDirectionX = null;
@@ -707,15 +710,10 @@ public static class PartContentParser
         if (seenKeys.Contains("bellows"))
         {
             if (!capabilitiesElement.TryGetProperty("bellows", out JsonElement bellowsElement)
-                || bellowsElement.ValueKind != JsonValueKind.Number
-                || !IsFiniteNumber(bellowsElement))
+                || !TryReadBellows(bellowsElement, path, out bellowsThrust, out bellowsDirectionX, out bellowsDirectionY, out bellowsInflate))
             {
-                errors.Add($"{path}.capabilities.bellows: must be a finite boostImpulse number.");
+                errors.Add($"{path}.capabilities.bellows: must be an object with a finite thrustPerTick, a directionX/directionY in -1, 0, 1 and an inflateTicks integer in [0, 65535].");
                 hasError = true;
-            }
-            else
-            {
-                bellowsBoost = bellowsElement.GetSingle();
             }
         }
 
@@ -900,7 +898,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, glove, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, glove, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -2004,6 +2002,68 @@ public static class PartContentParser
         boostTicks = boostValue;
         endTicks = endValue;
         maxSpeed = maxSpeedValue;
+        return true;
+    }
+
+    /// <summary>
+    /// The original's bellows (Bellows.cs:5-20,92-121): the puff's force and its own local
+    /// direction (`m_direction`, (1,0,0) on all eight skins), plus the inflate duration that
+    /// differs on the alien skin. The 0.5 s boost and 0.3 s wait are class constants.
+    /// </summary>
+    private static bool TryReadBellows(
+        JsonElement element,
+        string path,
+        out float? thrust,
+        out float? directionX,
+        out float? directionY,
+        out ushort? inflateTicks)
+    {
+        thrust = null;
+        directionX = null;
+        directionY = null;
+        inflateTicks = null;
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("thrustPerTick", out JsonElement thrustElement)
+            || thrustElement.ValueKind != JsonValueKind.Number
+            || !IsFiniteNumber(thrustElement)
+            || !thrustElement.TryGetSingle(out float thrustValue))
+        {
+            return false;
+        }
+
+        if (!element.TryGetProperty("directionX", out JsonElement directionElement)
+            || directionElement.ValueKind != JsonValueKind.Number
+            || !directionElement.TryGetInt32(out int directionValue)
+            || directionValue is not (-1 or 0 or 1))
+        {
+            return false;
+        }
+
+        directionX = directionValue;
+        directionY = 0f;
+        if (element.TryGetProperty("directionY", out JsonElement directionYElement))
+        {
+            if (directionYElement.ValueKind != JsonValueKind.Number
+                || !directionYElement.TryGetInt32(out int directionYValue)
+                || directionYValue is not (-1 or 0 or 1))
+            {
+                return false;
+            }
+
+            directionY = directionYValue;
+        }
+
+        if (!TryReadTicks(element, "inflateTicks", out ushort inflateValue))
+        {
+            return false;
+        }
+
+        thrust = thrustValue;
+        inflateTicks = inflateValue;
         return true;
     }
 

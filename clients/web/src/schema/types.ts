@@ -151,7 +151,13 @@ export interface PartCapabilities {
   umbrella?: number;
   gearbox?: boolean;
   detacher?: boolean;
-  bellows?: number;
+  /**
+   * The original's Bellows: the puff ramps `(1 - (1 - num/0.5)^2)` over 0.5 s along the part's own
+   * +X, then the cycle waits 0.3 s plus the skin's inflate before another puff is accepted
+   * (Bellows.cs:92-121,123-142). `thrustPerTick` is `m_boostForce / 60` and `inflateTicks` the
+   * skin's inflate; the two other phase lengths are class constants. Written by tools/bple-bellows.
+   */
+  bellows?: { directionX: -1 | 0 | 1; directionY?: -1 | 0 | 1; thrustPerTick: number; inflateTicks: number };
   light?: number;
   grapple?: { impulse: number; directionX?: number; directionY?: number };
   blaster?: { radius: number; impulse: number; chainRadius?: number };

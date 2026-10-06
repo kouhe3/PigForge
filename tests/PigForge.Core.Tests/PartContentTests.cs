@@ -159,7 +159,9 @@ public sealed class PartContentTests
         Assert.Equal(2.2f, smallMotorWheel.MotorThrustPerTick);
         Assert.Equal(PartActivation.Toggle, smallMotorWheel.Activation);
         Assert.Equal(2.14f, library.Document.Parts.Single(part => part.Name == "metal-box-v11").Capabilities!.LightRadius);
-        Assert.Equal(32f, library.Document.Parts.Single(part => part.Name == "bellows-v07").Capabilities!.BellowsBoostImpulse);
+        PartCapabilities alienBellows = library.Document.Parts.Single(part => part.Name == "bellows-v07").Capabilities!;
+        Assert.Equal(2f, alienBellows.BellowsThrustPerTick!.Value, 6); // m_boostForce 120 / 60
+        Assert.Equal((ushort)9, alienBellows.BellowsInflateTicks);      // the alien's 0.15 s inflate
 
         // The marker kicker (original customPartIndex 3) is inert: no detacher capability.
         // Every mapped part now carries a joint capability, so inertness is asserted on the
@@ -541,6 +543,37 @@ public sealed class PartContentTests
         Assert.Equal(8f, capabilities[228].RocketExplodeRadius);
         Assert.Null(capabilities[13].RocketExplodeRadius);
         Assert.Null(capabilities[30].RocketExplodeRadius);
+    }
+
+    /// <summary>
+    /// G98 (docs/specs/play-part-switches.md §bellows): the puff is the original's 0.5 s ramp, not
+    /// a one-shot impulse -- `(1 - (1 - num/0.5)^2) * m_boostForce` per frame along the part's own
+    /// +X (Bellows.cs:92-121) -- and the cycle it waits out is 0.5 s + 0.3 s + the skin's inflate
+    /// (Bellows.cs:14-20,123-142). Content carries the extracted force per tick and that inflate;
+    /// the other two lengths are class constants. Written by tools/bple-bellows.
+    /// </summary>
+    [Fact]
+    public void TheRealContentCarriesTheExtractedBellowsPuff()
+    {
+        PartContentDocument document = PartContentParser.Parse(File.ReadAllText(FindRepositoryFile("content/parts.json")));
+        Dictionary<uint, PartCapabilities> bellows = document.Parts
+            .Where(part => part.Capabilities?.HasBellows == true)
+            .ToDictionary(part => part.PartTypeId, part => part.Capabilities!);
+
+        Assert.Equal(new uint[] { 40, 88, 89, 90, 91, 92, 93, 94 }, bellows.Keys.OrderBy(id => id).ToArray());
+
+        // Seven skins carry m_boostForce 30 (0.5 N/s per tick) and the 0.3 s inflate; the alien
+        // skin is 120 (2.0) with 0.15 s -- and every prefab's m_direction is (1,0,0).
+        foreach (uint partTypeId in new uint[] { 40, 88, 89, 90, 91, 92, 94 })
+        {
+            Assert.Equal(0.5f, bellows[partTypeId].BellowsThrustPerTick!.Value, 6);
+            Assert.Equal((ushort)18, bellows[partTypeId].BellowsInflateTicks);
+            Assert.Equal(1f, bellows[partTypeId].BellowsDirectionX);
+            Assert.Equal(0f, bellows[partTypeId].BellowsDirectionY);
+        }
+
+        Assert.Equal(2f, bellows[93].BellowsThrustPerTick!.Value, 6);
+        Assert.Equal((ushort)9, bellows[93].BellowsInflateTicks);
     }
 
     [Theory]

@@ -527,7 +527,12 @@ public sealed class GameRoom : IDisposable
 
         if (capabilities.HasBellows)
         {
-            _rules.AddBellows(entity, capabilities.BellowsBoostImpulse!.Value);
+            _rules.AddBellows(
+                entity,
+                capabilities.BellowsThrustPerTick!.Value,
+                capabilities.BellowsDirectionX ?? 1f,
+                capabilities.BellowsDirectionY ?? 0f,
+                capabilities.BellowsInflateTicks!.Value);
         }
 
         if (capabilities.HasGrapple)

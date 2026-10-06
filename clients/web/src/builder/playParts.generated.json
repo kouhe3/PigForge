@@ -1779,7 +1779,12 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "bellows": 8,
+        "bellows": {
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.5,
+          "inflateTicks": 18
+        },
         "activation": "trigger"
       },
       "shapes": [
@@ -3468,7 +3473,12 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "bellows": 8,
+        "bellows": {
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.5,
+          "inflateTicks": 18
+        },
         "activation": "trigger"
       },
       "shapes": [
@@ -3498,7 +3508,12 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "bellows": 8,
+        "bellows": {
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.5,
+          "inflateTicks": 18
+        },
         "activation": "trigger"
       },
       "shapes": [
@@ -3528,7 +3543,12 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "bellows": 8,
+        "bellows": {
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.5,
+          "inflateTicks": 18
+        },
         "activation": "trigger"
       },
       "shapes": [
@@ -3558,7 +3578,12 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "bellows": 8,
+        "bellows": {
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.5,
+          "inflateTicks": 18
+        },
         "activation": "trigger"
       },
       "shapes": [
@@ -3588,7 +3613,12 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "bellows": 8,
+        "bellows": {
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.5,
+          "inflateTicks": 18
+        },
         "activation": "trigger"
       },
       "shapes": [
@@ -3618,7 +3648,12 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "bellows": 32,
+        "bellows": {
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 2,
+          "inflateTicks": 9
+        },
         "activation": "trigger"
       },
       "shapes": [
@@ -3648,7 +3683,12 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "bellows": 8,
+        "bellows": {
+          "directionX": 1,
+          "directionY": 0,
+          "thrustPerTick": 0.5,
+          "inflateTicks": 18
+        },
         "activation": "trigger"
       },
       "shapes": [

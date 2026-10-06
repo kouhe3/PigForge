@@ -11,7 +11,7 @@ const content: PartContentDocument = {
   parts: [
     { partTypeId: 1, name: "block", mode: "dynamic", mass: 1, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
     { partTypeId: 8, name: "engine", mode: "dynamic", mass: 1, capabilities: { motor: { thrustPerTick: 2, directionX: 1 }, activation: "toggle" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
-    { partTypeId: 13, name: "rocket", mode: "dynamic", mass: 1, capabilities: { rocket: { thrustPerTick: 4, directionX: 1, durationTicks: 30 }, activation: "trigger" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
+    { partTypeId: 13, name: "rocket", mode: "dynamic", mass: 1, capabilities: { rocket: { thrustPerTick: 4, directionX: 1, ignitionTicks: 0, boostTicks: 30, endTicks: 0, maxSpeed: 18 }, activation: "trigger" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
     { partTypeId: 47, name: "tnt-nitro", variantOf: 9, variantName: "Nitro TNT", mode: "dynamic", mass: 1, capabilities: { tnt: { fuseTicks: 5 }, activation: "trigger" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
   ],
 };

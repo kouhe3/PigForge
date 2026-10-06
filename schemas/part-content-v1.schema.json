@@ -157,7 +157,7 @@
         "umbrella": { "$ref": "#/$defs/umbrellaCapability" },
         "gearbox": { "type": "boolean" },
         "detacher": { "type": "boolean" },
-        "bellows": { "type": "number" },
+        "bellows": { "$ref": "#/$defs/bellowsCapability" },
         "light": { "type": "number", "minimum": 0 },
         "grapple": { "$ref": "#/$defs/grappleCapability" },
         "blaster": { "$ref": "#/$defs/blasterCapability" },
@@ -265,6 +265,26 @@
       "liftConstant": {
         "description": "Original Wings.m_liftConstant (Wings.cs:6,114): lift = liftConstant * |v|^2 * curve(angle of attack), clamped to 100 N. Extracted by tools/bple-aero from the prefab, never authored.",
         "type": "number"
+      }
+    }
+  },
+  "bellowsCapability": {
+    "description": "The original's Bellows: a puff is a 0.5 s ramp `(1 - (1 - num/0.5)^2) * m_boostForce` along `transform.TransformDirection(m_direction)` at `transform.position + dir * 0.5`, followed by 0.3 s of nothing and an inflate animation; a fresh puff is refused until the cycle ends (Bellows.cs:92-121,123-142). The 0.5 s and 0.3 s are class constants and travel in no skin; only the force and the alien skin's shorter inflate do. Written by tools/bple-bellows.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["directionX", "thrustPerTick", "inflateTicks"],
+    "properties": {
+      "directionX": { "enum": [-1, 0, 1] },
+      "directionY": { "enum": [-1, 0, 1] },
+      "thrustPerTick": {
+        "description": "m_boostForce / 60 (ADR-013 decision 4: ForceMode.Force at 60 Hz), 30 -> 0.5 and the alien skin 120 -> 2.0.",
+        "type": "number"
+      },
+      "inflateTicks": {
+        "description": "0.3 s of inflate for every skin, 0.15 s for the alien one (Bellows.cs:18-20,36-46), at 60 Hz.",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 65535
       }
     }
   },

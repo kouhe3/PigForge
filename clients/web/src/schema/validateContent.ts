@@ -298,8 +298,15 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   if (value.detacher !== undefined && typeof value.detacher !== "boolean") {
     errors.push(`Part ${partTypeId} capabilities.detacher must be a boolean.`);
   }
-  if (value.bellows !== undefined && (typeof value.bellows !== "number" || !Number.isFinite(value.bellows))) {
-    errors.push(`Part ${partTypeId} capabilities.bellows must be a finite boostImpulse number.`);
+  if (value.bellows !== undefined) {
+    const bellows = value.bellows as { directionX?: unknown; directionY?: unknown; thrustPerTick?: unknown; inflateTicks?: unknown } | null;
+    if (typeof bellows !== "object" || bellows === null
+      || bellows.directionX !== -1 && bellows.directionX !== 0 && bellows.directionX !== 1
+      || bellows.directionY !== undefined && bellows.directionY !== -1 && bellows.directionY !== 0 && bellows.directionY !== 1
+      || typeof bellows.thrustPerTick !== "number" || !Number.isFinite(bellows.thrustPerTick)
+      || typeof bellows.inflateTicks !== "number" || !Number.isInteger(bellows.inflateTicks) || bellows.inflateTicks < 0 || bellows.inflateTicks > 65535) {
+      errors.push(`Part ${partTypeId} capabilities.bellows needs a directionX/directionY in -1, 0, 1, a finite thrustPerTick and an inflateTicks integer in [0, 65535].`);
+    }
   }
   if (value.light !== undefined && (typeof value.light !== "number" || !Number.isFinite(value.light) || value.light < 0)) {
     errors.push(`Part ${partTypeId} capabilities.light must be a non-negative radius number.`);
