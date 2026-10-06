@@ -1275,6 +1275,41 @@ public sealed class GameplayRules
         }
     }
 
+    /// <summary>
+    /// Resolves the part's own frame inside its body: where the member sits in world space
+    /// (<c>body.Position + bodyRotation * localOffset</c>) and the rotation its original
+    /// <c>transform</c> carries there (<c>bodyRotation * localRotation</c>).
+    /// </summary>
+    /// <remarks>
+    /// Every rule that reads a content direction goes through this frame, because the original
+    /// hands those values to <c>transform.TransformDirection</c> -- <c>FanPropeller.cs:155</c> and
+    /// <c>:209</c>, <c>Bellows.cs:84-87</c>, <c>Rocket.cs:298-300</c>,
+    /// <c>GrapplingHook.cs:467</c> -- which carries both the build rotation
+    /// (<c>Contraption.SetRotation</c>, a z rotation, so a part built a quarter turn round pushes a
+    /// quarter turn round) and the rig's live rotation. A content direction applied as a world axis
+    /// ignores how the player aimed the part.
+    /// </remarks>
+    private void ResolvePartFrame(
+        EntityId entity,
+        uint body,
+        PhysicsVector3 bodyPosition,
+        out PhysicsVector3 partPosition,
+        out PhysicsQuaternion partRotation)
+    {
+        PhysicsQuaternion bodyRotation = _rotationByBody.TryGetValue(body, out PhysicsQuaternion bodyPose)
+            ? bodyPose
+            : PhysicsQuaternion.Identity;
+        partPosition = bodyPosition;
+        if (_localOffsetByEntity.TryGetValue(entity.Value, out PhysicsVector3 partOffset))
+        {
+            partPosition += bodyRotation.Rotate(partOffset);
+        }
+
+        partRotation = _localRotationByEntity.TryGetValue(entity.Value, out PhysicsQuaternion localRotation)
+            ? bodyRotation * localRotation
+            : bodyRotation;
+    }
+
     private void RunFans(GameplayTickOutput output)
     {
         var fans = _fans.GetEnumerator();
@@ -1294,27 +1329,14 @@ public sealed class GameplayRules
                 continue;
             }
 
-            // The thrust axis is the part's own: FanPropeller.cs:155 reads
-            // `transform.TransformDirection(GetDirectionVector(m_forceDirection))`, so the build
-            // rotation (`Contraption.SetRotation`, a z rotation -- a fan built the other way round
-            // pushes the other way) and the rig's live rotation both aim it. The content value is
-            // part-local; the member's pose inside the body is what the room declares, so
-            // `bodyRotation * localRotation` is the transform the original reads.
-            PhysicsQuaternion bodyRotation = _rotationByBody.TryGetValue(link.Body.Value, out PhysicsQuaternion bodyPose)
-                ? bodyPose
-                : PhysicsQuaternion.Identity;
-            PhysicsVector3 partPosition = _kinematicsByBody[link.Body.Value].Position;
-            if (_localOffsetByEntity.TryGetValue(fans.CurrentId.Value, out PhysicsVector3 partOffset))
-            {
-                partPosition += bodyRotation.Rotate(partOffset);
-            }
-
-            PhysicsQuaternion partRotation = bodyRotation;
-            if (_localRotationByEntity.TryGetValue(fans.CurrentId.Value, out PhysicsQuaternion localRotation))
-            {
-                partRotation = bodyRotation * localRotation;
-            }
-
+            // The thrust axis is the part's own (FanPropeller.cs:155), so the build rotation and the
+            // rig's live rotation both aim it -- see ResolvePartFrame.
+            ResolvePartFrame(
+                fans.CurrentId,
+                link.Body.Value,
+                _kinematicsByBody[link.Body.Value].Position,
+                out PhysicsVector3 partPosition,
+                out PhysicsQuaternion partRotation);
             PhysicsVector3 axis = partRotation.Rotate(contentAxis * (1f / magnitude));
             PhysicsVector3 direction = axis;
 
@@ -1560,18 +1582,7 @@ public sealed class GameplayRules
             // m_direction (1,0,0), so the build rotation aims it -- the same reference frame a
             // fan's m_forceDirection goes through (docs/specs/fan-propeller.md §7.2). The force
             // point is the part's own mount, `transform.position + vector * 0.5` (Bellows.cs:87).
-            PhysicsQuaternion bodyRotation = _rotationByBody.TryGetValue(link.Body.Value, out PhysicsQuaternion bodyPose)
-                ? bodyPose
-                : PhysicsQuaternion.Identity;
-            PhysicsVector3 partPosition = kinematics.Position;
-            if (_localOffsetByEntity.TryGetValue(entity.Value, out PhysicsVector3 partOffset))
-            {
-                partPosition += bodyRotation.Rotate(partOffset);
-            }
-
-            PhysicsQuaternion partRotation = _localRotationByEntity.TryGetValue(entity.Value, out PhysicsQuaternion localRotation)
-                ? bodyRotation * localRotation
-                : bodyRotation;
+            ResolvePartFrame(entity, link.Body.Value, kinematics.Position, out PhysicsVector3 partPosition, out PhysicsQuaternion partRotation);
             PhysicsVector3 axis = partRotation.Rotate(new PhysicsVector3(1f, 0f, 0f));
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
@@ -1624,11 +1635,24 @@ public sealed class GameplayRules
             // A landing (legacy content) or the switch fires the hook toward its
             // direction: one strong pull impulse (cast + drag merged).
             _grapples.Set(grapples.CurrentId, grapple with { FiredRecently = true });
-            PhysicsVector3 direction = new(grapple.DirectionX / magnitude, grapple.DirectionY / magnitude, 0f);
+            // The pull runs along the part's own transform: GrapplingHook.cs:467 hands
+            // `m_direction` to `transform.TransformDirection`, so the build rotation aims it --
+            // the same reference frame the fan family goes through. The original spends that
+            // launch impulse on the hook head's own rigidbody and lets the joint drag the rig;
+            // PigForge approximates cast and drag with this one impulse, so it lands on the
+            // part's own transform too.
+            ResolvePartFrame(
+                grapples.CurrentId,
+                link.Body.Value,
+                kinematics.Position,
+                out PhysicsVector3 partPosition,
+                out PhysicsQuaternion partRotation);
+            PhysicsVector3 direction = partRotation.Rotate(
+                new PhysicsVector3(grapple.DirectionX / magnitude, grapple.DirectionY / magnitude, 0f));
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
                 direction * grapple.Impulse,
-                kinematics.Position));
+                partPosition));
         }
     }
 
@@ -1648,7 +1672,7 @@ public sealed class GameplayRules
 
     private void RunRockets(GameplayTickOutput output)
     {
-        List<(EntityId Entity, float Radius, float Impulse)> spent = null!;
+        List<(EntityId Entity, PhysicsVector3 Origin, float Radius, float Impulse)> spent = null!;
         var rockets = _rockets.GetEnumerator();
         while (rockets.MoveNext())
         {
@@ -1682,7 +1706,17 @@ public sealed class GameplayRules
             }
             if (rocket.DurationTicks == 0)
             {
-                (spent ??= new List<(EntityId, float, float)>()).Add((rockets.CurrentId, rocket.ExplodeRadius, rocket.ExplodeImpulse));
+                // The end-of-burn blast radiates from the charge part, not from the compound's
+                // centre of mass: Rocket.cs:627-634 overlaps a sphere at `transform.position`,
+                // exactly as the TNT charge does.
+                ResolvePartFrame(
+                    rockets.CurrentId,
+                    link.Body.Value,
+                    _kinematicsByBody[link.Body.Value].Position,
+                    out PhysicsVector3 blastOrigin,
+                    out _);
+                (spent ??= new List<(EntityId, PhysicsVector3, float, float)>()).Add(
+                    (rockets.CurrentId, blastOrigin, rocket.ExplodeRadius, rocket.ExplodeImpulse));
                 _rockets.Remove(rockets.CurrentId);
                 continue;
             }
@@ -1695,11 +1729,22 @@ public sealed class GameplayRules
                 continue;
             }
 
-            PhysicsVector3 direction = new(rocket.DirectionX / magnitude, rocket.DirectionY / magnitude, 0f);
+            // Rocket.cs:298-300 reads the axis off the part's own transform
+            // (`transform.TransformDirection(m_direction)`) and pushes there
+            // (`AddForceAtPosition(..., transform.position + zero * 0.5f)`), so a rocket built the
+            // other way round pushes the other way -- the same reference frame a fan goes through.
+            ResolvePartFrame(
+                rockets.CurrentId,
+                link.Body.Value,
+                _kinematicsByBody[link.Body.Value].Position,
+                out PhysicsVector3 partPosition,
+                out PhysicsQuaternion partRotation);
+            PhysicsVector3 direction = partRotation.Rotate(
+                new PhysicsVector3(rocket.DirectionX / magnitude, rocket.DirectionY / magnitude, 0f));
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
                 direction * rocket.ThrustPerTick,
-                _kinematicsByBody[link.Body.Value].Position));
+                partPosition));
         }
 
         if (spent is null)
@@ -1707,13 +1752,13 @@ public sealed class GameplayRules
             return;
         }
 
-        foreach ((EntityId entity, float radius, float impulse) in spent)
+        foreach ((EntityId entity, PhysicsVector3 origin, float radius, float impulse) in spent)
         {
             if (radius > 0f && impulse > 0f
                 && _bodies.TryGet(entity, out PhysicsBodyLink link)
-                && _kinematicsByBody.TryGetValue(link.Body.Value, out var center))
+                && _kinematicsByBody.ContainsKey(link.Body.Value))
             {
-                RadialBlast(center.Position, radius, impulse, link.Body, output);
+                RadialBlast(origin, radius, impulse, link.Body, output);
             }
 
             output.DestroyedEntities.Add(entity);
@@ -1935,12 +1980,7 @@ public sealed class GameplayRules
         // target from TNT.transform.position (TNT.cs:236-252 AddExplosionForce). The charge's own
         // body is included, so the very contraption holding the charge is driven -- and torn --
         // by the blast the way the original's per-part rigidbodies are.
-        PhysicsVector3 origin = center.Position;
-        if (_localOffsetByEntity.TryGetValue(tntEntity.Value, out PhysicsVector3 localOffset)
-            && _rotationByBody.TryGetValue(link.Body.Value, out PhysicsQuaternion rotation))
-        {
-            origin = center.Position + rotation.Rotate(localOffset);
-        }
+        ResolvePartFrame(tntEntity, link.Body.Value, center.Position, out PhysicsVector3 origin, out _);
 
         // Sorted body ids keep the command order deterministic across replays.
         uint[] bodyIds = _kinematicsByBody.Keys.ToArray();

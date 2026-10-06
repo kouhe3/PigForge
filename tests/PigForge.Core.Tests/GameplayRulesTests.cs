@@ -1028,6 +1028,94 @@ public sealed class GameplayRulesTests
     }
 
     [Fact]
+    public void ARocketTurnedAroundPushesTheOtherWay()
+    {
+        // Rocket.cs:298-300 hands `m_direction` to `transform.TransformDirection`, so the build
+        // rotation (`Contraption.SetRotation`, a z rotation) aims the thrust: a rocket built a half
+        // turn round pushes -x, not the +x its content direction names. Applying the content
+        // direction as a world axis makes "turn the part round" do nothing.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        harness.Link(rocket, new PhysicsBodyId(1), localRotation: PhysicsQuaternion.FromZAngle(MathF.PI));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(-4f, command.Impulse.X, 5);
+        Assert.Equal(0f, command.Impulse.Y, 5);
+    }
+
+    [Fact]
+    public void ARocketCarriesTheTiltOfTheBodyItIsWeldedTo()
+    {
+        // The same `TransformDirection`: a rocket welded into a rig that has rolled carries the
+        // roll, so its thrust rolls with it. An axis stated in world space cannot.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        harness.Link(rocket, new PhysicsBodyId(1));
+        harness.IngestBody(
+            new PhysicsBodyId(1),
+            new PhysicsVector3(0, 1, 0),
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.FromZAngle(MathF.PI / 2f));
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(0f, command.Impulse.X, 5);
+        Assert.Equal(4f, command.Impulse.Y, 5);
+    }
+
+    [Fact]
+    public void ARocketPushesAtItsOwnMountNotTheCompoundCentre()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        harness.Rules.AddRocket(rocket, 4f, 1f, 0f, durationTicks: 2);
+        // The member sits one cell to the right of the compound's centre of mass.
+        harness.Link(rocket, new PhysicsBodyId(1), localOffset: new PhysicsVector3(1f, 0f, 0f));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        // Rocket.cs:298-300 applies the force at the part's own transform
+        // (`position = transform.position + zero * 0.5f`), not at the body centre.
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(1f, command.WorldPoint.X, 5);
+        Assert.Equal(1f, command.WorldPoint.Y, 5);
+    }
+
+    [Fact]
+    public void ARocketBlastsFromTheChargeNotTheCompoundCentre()
+    {
+        // Rocket.cs:627-634 overlaps the blast sphere at `transform.position`, so a charge welded
+        // one cell to the right of a target measures the distance from there: a neighbour at
+        // (0.2, 1) with the charge at (1, 1) is thrown toward -x.
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rocket = entities.Create();
+        EntityId neighbour = entities.Create();
+        harness.Rules.AddRocket(rocket, 0f, 1f, 0f, durationTicks: 0, explodeRadius: 3f, explodeImpulse: 10f);
+        harness.Link(rocket, new PhysicsBodyId(1), localOffset: new PhysicsVector3(1f, 0f, 0f));
+        harness.Link(neighbour, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0.2f, 1f, 0f), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        PhysicsCommand blast = Assert.Single(harness.Output.Commands);
+        Assert.Equal(new PhysicsBodyId(2), blast.Body);
+        Assert.True(blast.Impulse.X < 0f);
+        Assert.Contains(rocket, harness.Output.DestroyedEntities);
+    }
+
+    [Fact]
     public void RocketEndsWithRadialBlastAndSelfDestructs()
     {
         EntityStore entities = new();
@@ -1221,6 +1309,43 @@ public sealed class GameplayRulesTests
         harness.Tick(3, Array.Empty<PhysicsEvent>());
         harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         Assert.Single(harness.Output.Commands);
+    }
+
+    [Fact]
+    public void AGrappleTurnedAroundPullsTheOtherWay()
+    {
+        // GrapplingHook.cs:467 hands `m_direction` to `transform.TransformDirection`, so the build
+        // rotation aims the pull: the hook's Right content axis built a quarter turn round becomes
+        // Up ((Right + Deg_90) % 4 == Up).
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId hook = entities.Create();
+        harness.Rules.AddGrapple(hook, 22f, 1f, 0f);
+        harness.Link(hook, new PhysicsBodyId(1), localRotation: PhysicsQuaternion.FromZAngle(MathF.PI / 2f));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(0f, command.Impulse.X, 5);
+        Assert.Equal(22f, command.Impulse.Y, 5);
+    }
+
+    [Fact]
+    public void AGrapplePullsAtItsOwnMountNotTheCompoundCentre()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId hook = entities.Create();
+        harness.Rules.AddGrapple(hook, 22f, 1f, 0f);
+        harness.Link(hook, new PhysicsBodyId(1), localOffset: new PhysicsVector3(1f, 0f, 0f));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(1f, command.WorldPoint.X, 5);
+        Assert.Equal(1f, command.WorldPoint.Y, 5);
     }
 
     [Fact]
