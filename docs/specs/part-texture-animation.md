@@ -24,6 +24,7 @@ Build order: `anim-manifest` → `anim-clock` → (`anim-spin` ∥ `anim-frames`
 2. **动画数据进贴图清单，不进内容文档**：`content/parts.json`（`part-content-v1`）保持不含贴图/动画字段（ADR-003 决策 6）。动画描述符是渲染层可选叠加，干净检出没有贴图时行为与本切片前逐字一致。
 3. **原作语义是唯一权威**：转速、衰减、旋转轴、表情阈值全部照抄 BPLE prefab/脚本常量；badpiggies-editor 只作为交叉验证（它的风扇 600°/s + 2s 惯性停转与原作者约 2.5s 停转同量级；它的 `|cos|` 透视压缩与原作者一致）。
 4. **原作没有的动画不做**：TNT 闪烁、气球帧动画、引擎火焰帧序列在原作中**不存在**（`TNT.cs` 无 Update；`Balloon.cs` 只有物理；`JetEngine` 是程序化缩放抖动）。PigForge 不发明。
+   > 2026-10-06 核实补充（用户报「TNT/火箭/汽水激活时有贴图动画」）：**这句话只说明哪些动画「不存在」，不代表存在的都做了**。存在但本切片未做的三条记在 Open Questions 与差距 `G103`：瓶族的点火抖动 + `BottleContent` 交叉淡变 + 瓶塞飞出（`Rocket.cs:203-226,238-262`）、BlasterTNT 的扩张环（`BlasterTNT.cs:219-226`）。普通 TNT 与普通火箭/红火箭的 prefab 里确实**没有**贴图级激活动画（`TNT.cs` 只有粒子/灯；`Part_Rocket_01_SET` 的 `m_content`/`m_content2` 是 0、无 `BottleVisualization`）。
 5. **时间源**：`requestAnimationFrame` 墙钟差分，单帧 `dt` 上限 0.1s；只有「运行中」推进，建造/暂停/预览件一律冻结（原作 `Time.timeScale = 0` 语义）。
 6. **硬切、无插值**：原作帧动画是 mesh 指针替换（无交叉淡化），旋转是每帧硬写 `localRotation`。PigForge 沿用硬切。
 7. **回退**：清单缺失、`schemaVersion` 不支持、单个部件没有动画描述符 → 该部件静态渲染；解析抛错 → 整个贴图层回退形状渲染（ADR-003 既有路径）。
@@ -389,7 +390,7 @@ export function resetAnimations(state: AnimationState): void;
 ## Open Questions
 
 - **透视压缩中心**：当前以精灵中心近似（原作绕节点原点）。若视觉可见偏差，改为清单里带节点原点。
-- **BlasterTNT 一次性放大淡出**（`BlasterTNT.cs:222-228`）：需要「激活沿」事件；`trigger` 件触发后 `Active` 可能只在一帧快照里为真。是否值得做取决于实测能否稳定观察到边沿。
+- **BlasterTNT 一次性放大淡出**（`BlasterTNT.cs:219-226`）：需要「激活沿」事件；`trigger` 件触发后 `Active` 可能只在一帧快照里为真。是否值得做取决于实测能否稳定观察到边沿。**同族的两条**（差距 `G103`）：瓶族的点火抖动 / `BottleContent` 交叉淡变 / 瓶塞飞出（`Rocket.cs:203-226,238-262` + `Cork.cs:15-33`）。三者都需要清单新增一类「按激活状态的位移 / 透明度 / 缩放」通道——现有精灵描述符只有 `rotates`/`spin`/`clips`/`condition`。
 - **猪 `Fear2` / `Laugh`**：需要接地时间与目标达成事件，v1 不做。
 - **回放相位可复现性**：动画按墙钟推进，暂停/逐帧冻结，但同一回放两次播放的相位不同。若需要确定性，改为按 tick 派生时间——需要先确认这是不是需求。
 - **是否要 PigForge 原创动画**（TNT 闪烁、气球呼吸、引擎火焰）：原作不存在，需要美术与新的内容字段，另开切片。
