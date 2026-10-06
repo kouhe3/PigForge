@@ -15,6 +15,7 @@ import { loadPartTextures, type PartTextureSet } from "./renderer/atlas";
 import { partThumbnailDataUrl } from "./renderer/thumbnails";
 import { drawFrame } from "./renderer/draw";
 import { fitBounds } from "./renderer/camera";
+import { groundTextureNames, loadGroundTextures, type GroundTextureSet } from "./renderer/terrain";
 import { zoneRect } from "./schema/levelContent";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
@@ -50,6 +51,9 @@ let disconnectLive: (() => void) | null = null;
 let sendCommand: ((command: ClientCommand) => void) | null = null;
 // Original-art sprite manifest: optional, absent in a clean checkout.
 const partTextures = shallowRef<PartTextureSet | null>(null);
+// The level's own ground textures: original art too, absent until `build-levels.mjs` ran. A terrain
+// whose texture is missing keeps the flat ground colour (`drawTerrain`), so this is never fatal.
+const groundTextures = shallowRef<GroundTextureSet | null>(null);
 // Animation state and its wall clock; both stay outside Vue reactivity like the view state.
 const animations = createAnimationState();
 const animationClock = createAnimationClock();
@@ -282,6 +286,7 @@ function paint(now: number): void {
     viewState.marquee,
     animations,
     level?.terrain ?? null,
+    groundTextures.value,
   );
   raf = requestAnimationFrame(paint);
 }
@@ -521,6 +526,23 @@ watch(
       return;
     }
     Object.assign(viewState.camera, fitBounds(zoneRect(level.bounds), node.clientWidth, node.clientHeight));
+  },
+);
+
+// The level's ground art, fetched from this origin (original art is extracted locally, never
+// committed). Missing files are dropped by the loader and the ground falls back to its flat colour.
+watch(
+  () => session.level,
+  (level) => {
+    const names = groundTextureNames(level?.terrain ?? []);
+    if (names.length === 0) {
+      groundTextures.value = null;
+      return;
+    }
+
+    void loadGroundTextures(names).then((textures) => {
+      groundTextures.value = textures;
+    });
   },
 );
 

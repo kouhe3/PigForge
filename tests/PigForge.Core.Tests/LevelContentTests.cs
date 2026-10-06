@@ -124,7 +124,7 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 3,
+            "schemaVersion": 4,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
@@ -134,6 +134,139 @@ public sealed class LevelContentTests
 
         LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
         Assert.Contains("schemaVersion", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// v3 describes every `e2dTerrain` the original ships: the collider bit (498 of the 2146 terrains
+    /// are decoration) and the ground's fill -- `fill.shader`'s texture, tint, tile offset and tile
+    /// size (docs/specs/level-terrain-visuals.md).
+    /// </summary>
+    [Fact]
+    public void AVersionThreeLevelCarriesTheGroundsFill()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 3,
+            "contentVersion": "terrain-v3",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "spawns": [],
+            "terrain": [
+                {
+                    "position": [-2.7907727, 9.021405, 0],
+                    "depth": 10,
+                    "collider": false,
+                    "fill": {
+                        "texture": "Ground_Rocks_Texture.png",
+                        "color": [131, 131, 131, 255],
+                        "tileOffset": [0, 6.2],
+                        "tileSize": [5, 5]
+                    },
+                    "loops": [ [ [0, 0], [4, 0], [4, 3] ] ]
+                }
+            ]
+        }
+        """;
+
+        LevelContentDocument level = LevelContentParser.Parse(json);
+
+        LevelTerrainDefinition terrain = Assert.Single(level.Terrain);
+        Assert.False(terrain.Collider);
+        LevelTerrainFillDefinition fill = Assert.IsType<LevelTerrainFillDefinition>(terrain.Fill);
+        Assert.Equal("Ground_Rocks_Texture.png", fill.Texture);
+        Assert.Equal((byte)131, fill.Red);
+        Assert.Equal((byte)131, fill.Green);
+        Assert.Equal((byte)131, fill.Blue);
+        Assert.Equal(byte.MaxValue, fill.Alpha);
+        Assert.Equal(0f, fill.TileOffsetX);
+        Assert.Equal(6.2f, fill.TileOffsetY);
+        Assert.Equal(5f, fill.TileWidth);
+        Assert.Equal(5f, fill.TileHeight);
+    }
+
+    [Fact]
+    public void AVersionTwoTerrainIsCollidingAndFillLess()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 2,
+            "contentVersion": "terrain-v2",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "spawns": [],
+            "terrain": [
+                {
+                    "position": [0, 0, 0],
+                    "depth": 10,
+                    "loops": [ [ [0, 0], [4, 0], [4, 3] ] ]
+                }
+            ]
+        }
+        """;
+
+        LevelTerrainDefinition terrain = Assert.Single(LevelContentParser.Parse(json).Terrain);
+        Assert.True(terrain.Collider);
+        Assert.Null(terrain.Fill);
+    }
+
+    [Theory]
+    // v3 requires both new fields on every terrain, and older versions forbid them.
+    [InlineData("""{ "position": [0, 0, 0], "depth": 10, "collider": true, "loops": [[[0,0],[1,0],[1,1]]] }""", 3, "fill")]
+    [InlineData("""{ "position": [0, 0, 0], "depth": 10, "fill": { "texture": "a.png", "color": [1,2,3,4], "tileOffset": [0,0], "tileSize": [5,5] }, "loops": [[[0,0],[1,0],[1,1]]] }""", 3, "collider")]
+    [InlineData("""{ "position": [0, 0, 0], "depth": 10, "collider": true, "loops": [[[0,0],[1,0],[1,1]]] }""", 2, "collider")]
+    [InlineData("""{ "position": [0, 0, 0], "depth": 10, "fill": { "texture": "a.png", "color": [1,2,3,4], "tileOffset": [0,0], "tileSize": [5,5] }, "loops": [[[0,0],[1,0],[1,1]]] }""", 2, "fill")]
+    public void TheFillAndColliderAreVersionBound(string terrain, int version, string expected)
+    {
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": {{version}},
+            "contentVersion": "versioned-terrain",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "spawns": [],
+            "terrain": [ {{terrain}} ]
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("""{ "texture": "", "color": [1,2,3,4], "tileOffset": [0,0], "tileSize": [5,5] }""", "texture")]
+    [InlineData("""{ "texture": " ground.png", "color": [1,2,3,4], "tileOffset": [0,0], "tileSize": [5,5] }""", "texture")]
+    [InlineData("""{ "texture": "a.png", "color": [1,2,3], "tileOffset": [0,0], "tileSize": [5,5] }""", "color")]
+    [InlineData("""{ "texture": "a.png", "color": [1,2,3,256], "tileOffset": [0,0], "tileSize": [5,5] }""", "color[3]")]
+    [InlineData("""{ "texture": "a.png", "color": [1,2,3,4], "tileOffset": [0], "tileSize": [5,5] }""", "tileOffset")]
+    [InlineData("""{ "texture": "a.png", "color": [1,2,3,4], "tileOffset": [0,0], "tileSize": [5,0] }""", "tileSize")]
+    [InlineData("""{ "texture": "a.png", "color": [1,2,3,4], "tileOffset": [0,0] }""", "tileSize")]
+    public void AMalformedFillIsRejected(string fill, string expected)
+    {
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 3,
+            "contentVersion": "bad-fill",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "spawns": [],
+            "terrain": [
+                {
+                    "position": [0, 0, 0],
+                    "depth": 10,
+                    "collider": true,
+                    "fill": {{fill}},
+                    "loops": [ [ [0, 0], [4, 0], [4, 3] ] ]
+                }
+            ]
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

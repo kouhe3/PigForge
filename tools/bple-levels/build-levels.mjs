@@ -1,6 +1,7 @@
-// Level builder: turns the original's 277 binary level files into PigForge level content v2
-// (`content/levels/original/<area>/<scene>.json`) -- the terrain mesh the original bakes into
-// every `e2dTerrain` collider, the finish trigger, the map bounds and the (rare) placed parts.
+// Level builder: turns the original's 277 binary level files into PigForge level content v3
+// (`content/levels/original/<area>/<scene>.json`) -- every `e2dTerrain` object (its collision outline,
+// whether it carries a MeshCollider, and the fill texture/color/tile that draw its ground), the
+// finish trigger, the map bounds and the (rare) placed parts.
 //
 // It is the write side of the same decoder the extractor reports with (`lib/`), so every emitted
 // number comes out of the pack: the palette resolves a `PrefabIndex` to its prefab, the goal zone
@@ -25,11 +26,18 @@
 // any non-identity terrain transform or unrepresentable spawn rotation, is skipped/reported and
 // makes the run exit non-zero -- drift never passes silently.
 //
+// The fill's three inputs come from three places and all three are read, never written by hand: the
+// texture name and the RGBA color out of the level file's `m_references` / `m_references` index
+// (`LevelLoader.cs:214-230`), the tile offset out of the level file itself, and the tile size out of
+// the terrain prefab (`lib/fill.mjs`). The referenced PNGs are copied to `--textures` (default
+// `clients/web/public/assets/original/levels`, gitignored like the part atlases) so the client can
+// draw them; the level document only ever names a file.
+//
 // Usage:
 //   node tools/bple-levels/build-levels.mjs [--bple <path>] [--out <dir>] [--dry-run]
-//                                          [--json <path>] [--md <path>]
+//                                          [--textures <dir>] [--json <path>] [--md <path>]
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { arg, flag } from "./lib/args.mjs";
 import { buildGuidIndex, loadEpisodes, loadLoaders } from "./lib/unity-yaml.mjs";
@@ -37,11 +45,15 @@ import { readLevel } from "./lib/reader.mjs";
 import { outlineLoops } from "./lib/outline.mjs";
 import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap, readCollisionMeshDepth } from "./lib/pack.mjs";
 import { readBoxCollider } from "./lib/goal.mjs";
+import { assertTerrainFillTileSizes, readE2dTerrainGuid, readTerrainFillTile, readTextureImport } from "./lib/fill.mjs";
 import { formatJson, formatLevelDocument, sha256 } from "./lib/write.mjs";
 
 const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE 2022.1.9")));
 const ASSETS = join(BPLE, "Assets");
 const OUT = resolve(arg("out", join(REPO, "content", "levels", "original")));
+// Original art never enters the repository (see .gitignore): the client reads the fill textures from
+// its own asset tree, exactly as it reads the part atlases.
+const OUT_TEXTURES = resolve(arg("textures", join(REPO, "clients", "web", "public", "assets", "original", "levels")));
 const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "build-report.json")));
 const OUT_MD = resolve(arg("md", join(REPO, "tasks", "build-report.md")));
 const DRY_RUN = flag("dry-run");
@@ -113,6 +125,19 @@ loadEpisodes(BPLE, ASSETS, check);
 const partMap = loadPartMap();
 check(partMap.duplicates.length === 0, `part-map.json maps ${partMap.duplicates.join(", ")} to more than one partTypeId`);
 const DEPTH = readCollisionMeshDepth(BPLE, check);
+const E2D_TERRAIN_GUID = readE2dTerrainGuid(BPLE, check);
+
+// The fill's third input (`lib/fill.mjs`): read lazily per terrain prefab and asserted as a histogram
+// once every level has been walked. `fillTextures` is `file name -> asset path` for the textures the
+// content names; the file name is what the document carries, so two assets sharing one is refused.
+const terrainFillTiles = new Map();
+const fillTextures = new Map();
+const fillTileOf = (prefabPath) => {
+  if (!terrainFillTiles.has(prefabPath)) {
+    terrainFillTiles.set(prefabPath, readTerrainFillTile(BPLE, prefabPath, E2D_TERRAIN_GUID, check));
+  }
+  return terrainFillTiles.get(prefabPath);
+};
 
 const goalBoxCache = new Map();
 const goalBoxOf = (prefabPath) => {
@@ -130,11 +155,14 @@ check(dataFiles.length === 277, `expected 277 level files, found ${dataFiles.len
 const bundleCounts = {};
 const rows = [];
 const skippedTerrains = [];
+const skippedFills = [];
 const totals = {
   terrain: 0,
   loops: 0,
   points: 0,
   colliderTerrains: 0,
+  fillTextures: 0,
+  fillTextureBytes: 0,
   spawns: 0,
   goals: 0,
   levelsWithoutGoal: 0,
@@ -157,17 +185,25 @@ for (const { bundle, file } of dataFiles) {
   for (const index of data.prefabIndexes.keys()) {
     check(index >= 0 && index < palette.length, `${basename(file)}: PrefabIndex ${index} outside palette of ${palette.length}`);
   }
+  // The terrain's texture table. `m_references` holds the fill texture and the curve textures; a
+  // null guid is a legal entry (Unity serialises an empty reference that way) but no fill ever
+  // resolves to one -- measured 0/2146.
+  const references = (loader?.referenceGuids ?? []).map((guid) => {
+    if (!guid) return null;
+    const path = guidToPath.get(guid);
+    check(Boolean(path), `${basename(file)}: reference guid ${guid} resolves to no asset`);
+    return path ?? null;
+  });
 
   // ---------------------------------------------------------------- terrain
   const terrainEntries = [];
   let skippedHere = 0;
   for (const terrain of data.terrain) {
-    if (!terrain.hasCollider) continue;
-    totals.colliderTerrains += 1;
+    if (terrain.hasCollider) totals.colliderTerrains += 1;
     const instance = terrain.instance;
     check(
       instance.name.includes("e2dTerrain"),
-      `${basename(file)}: a collider-carrying terrain data block sits on instance "${instance.name}"`,
+      `${basename(file)}: a terrain data block sits on instance "${instance.name}"`,
     );
     const euler = instance.euler.map((value) => (Math.abs(value) <= ROTATION_EPSILON ? 0 : value));
     const scale = instance.localScale;
@@ -204,9 +240,57 @@ for (const { bundle, file } of dataFiles) {
       instance.position.every(Number.isFinite),
       `${basename(file)}: terrain "${instance.name}" has a non-finite position ${JSON.stringify(instance.position)}`,
     );
-    terrainEntries.push({ position: instance.position.slice(), depth: DEPTH, loops });
+
+    // The ground's look: `fill.shader` = `tex2D(_MainTex, uv) * _Color` with
+    // `uv = (world - tileOffset) / tileSize`. Two of the three inputs are in the level file (the
+    // texture through its `m_references` index, the color and the tile offset directly), the tile size
+    // is on the prefab (`lib/fill.mjs`). A terrain whose fill cannot be assembled is skipped like one
+    // whose outline does not walk: the document never carries a half-filled entry.
+    const prefabPath = palette[instance.prefabIndex];
+    const fillTexturePath = typeof prefabPath === "string" ? references[terrain.fillTextureIndex] : null;
+    const fillTextureName = typeof fillTexturePath === "string" && fillTexturePath.endsWith(".png")
+      ? basename(fillTexturePath)
+      : null;
+    const tile = typeof prefabPath === "string" ? fillTileOf(prefabPath) : null;
+    const takenBy = fillTextureName === null ? undefined : fillTextures.get(fillTextureName);
+    if (tile === null || fillTextureName === null || (takenBy !== undefined && takenBy !== fillTexturePath)) {
+      skippedHere += 1;
+      skippedFills.push({
+        level: sceneName,
+        bundle,
+        instance: instance.name,
+        prefab: prefabPath ?? null,
+        textureIndex: terrain.fillTextureIndex,
+        texture: fillTexturePath ?? null,
+        tile,
+        reason: tile === null
+          ? "the terrain prefab declares no positive FillTextureTileWidth/Height"
+          : fillTextureName === null
+            ? `fill texture index ${terrain.fillTextureIndex} resolves to no PNG`
+            : `two fill texture assets share the file name ${fillTextureName}: ${takenBy} and ${fillTexturePath}`,
+      });
+      continue;
+    }
+    fillTextures.set(fillTextureName, fillTexturePath);
+    terrainEntries.push({
+      position: instance.position.slice(),
+      depth: DEPTH,
+      collider: terrain.hasCollider,
+      fill: {
+        texture: fillTextureName,
+        color: [
+          (terrain.fillColor >>> 24) & 0xff,
+          (terrain.fillColor >>> 16) & 0xff,
+          (terrain.fillColor >>> 8) & 0xff,
+          terrain.fillColor & 0xff,
+        ],
+        tileOffset: terrain.fillOffset.map((value) => Math.fround(value)),
+        tileSize: [tile.tileWidth, tile.tileHeight],
+      },
+      loops,
+    });
   }
-  check(terrainEntries.length > 0, `${basename(file)}: no collider-carrying terrain with a closed outline`);
+  check(terrainEntries.length > 0, `${basename(file)}: no terrain with a closed outline`);
 
   // ---------------------------------------------------------------- bounds
   const bounds = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
@@ -305,7 +389,7 @@ for (const { bundle, file } of dataFiles) {
   const relativePath = `content/levels/original/${area}/${contentVersion}.json`;
   const document = {
     format: "pigforge.level-content",
-    schemaVersion: 2,
+    schemaVersion: 3,
     contentVersion,
     goalZone,
     bounds: levelBounds,
@@ -359,6 +443,43 @@ for (const [bundle, expected] of Object.entries(BUNDLE_EXPECT)) {
 }
 check(skippedTerrains.length === 0, `${skippedTerrains.length} terrain(s) have no closed outline and were skipped`);
 
+// ---------------------------------------------------------------- fill textures
+
+// The tile size histogram is asserted over every terrain prefab the levels place (21 of them, all
+// 5 x 5 today), and the fill textures are copied next to the part atlases -- the original art never
+// enters the repository, so the document only names a file and the client reads it from its own tree.
+assertTerrainFillTileSizes(new Map([...terrainFillTiles].filter(([, tile]) => tile !== null)), check);
+check(skippedFills.length === 0, `${skippedFills.length} terrain(s) have no usable fill and were skipped`);
+
+const textureRows = [];
+let textureBytes = 0;
+for (const [name, source] of [...fillTextures.entries()].sort((left, right) => left[0].localeCompare(right[0]))) {
+  readTextureImport(BPLE, source, check);
+  const bytes = readFileSync(join(BPLE, source));
+  const target = join(OUT_TEXTURES, name);
+  const changed = !existsSync(target) || !bytes.equals(readFileSync(target));
+  if (changed && !DRY_RUN) {
+    mkdirSync(OUT_TEXTURES, { recursive: true });
+    writeFileSync(target, bytes);
+  }
+  textureBytes += bytes.length;
+  textureRows.push({ name, source, bytes: bytes.length, changed });
+}
+totals.fillTextures = textureRows.length;
+totals.fillTextureBytes = textureBytes;
+
+// The directory belongs to this tool alone (it sits inside the gitignored original-art tree), so a
+// texture that is no longer referenced is removed instead of left behind.
+const staleTextures = existsSync(OUT_TEXTURES)
+  ? readdirSync(OUT_TEXTURES, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && !fillTextures.has(entry.name))
+      .map((entry) => entry.name)
+      .sort()
+  : [];
+for (const name of staleTextures) {
+  if (!DRY_RUN) rmSync(join(OUT_TEXTURES, name), { force: true });
+}
+
 rows.sort((left, right) => left.bundle.localeCompare(right.bundle) || left.sceneName.localeCompare(right.sceneName));
 const changed = rows.filter((row) => row.changed).length;
 const unchanged = rows.length - changed;
@@ -379,14 +500,23 @@ const report = {
     bytes: totals.bytes,
     terrain: totals.terrain,
     colliderTerrains: totals.colliderTerrains,
+    visualTerrains: totals.terrain - totals.colliderTerrains,
     loops: totals.loops,
     points: totals.points,
     spawns: totals.spawns,
     goals: totals.goals,
     levelsWithoutGoal: totals.levelsWithoutGoal,
     terrainSkipped: skippedTerrains.length,
+    terrainSkippedForFill: skippedFills.length,
+    fillTextures: textureRows.length,
+    fillTextureBytes: textureBytes,
+    fillTexturesChanged: textureRows.filter((row) => row.changed).length,
+    fillTexturesRemoved: staleTextures.length,
+    textureRoot: OUT_TEXTURES,
   },
   skipped: skippedTerrains,
+  skippedFills,
+  textures: textureRows,
   levels: rows,
   failures,
 };
@@ -395,22 +525,32 @@ writeFileSync(OUT_JSON, formatJson(report));
 
 const md = [];
 md.push("# 原版关卡构建报告", "");
-md.push("来源：`node tools/bple-levels/build-levels.mjs`（默认读 pristine `BPLE 2022.1.9`，写 `content/levels/original/**`）。");
+md.push("来源：`node tools/bple-levels/build-levels.mjs`（默认读 pristine `BPLE 2022.1.9`，写 `content/levels/original/**` 与贴图目录）。");
 md.push("每个数字都来自原版：调色板解析 prefab，终点区读该 prefab 自己的触发 `BoxCollider`，挤出深度读 `e2dConstants.COLLISION_MESH_Z_DEPTH`，");
-md.push("地形轮廓走 fill 网格的真实边界环（`lib/outline.mjs`；顶点表在 5/1648 个地形上不是轮廓）。", "");
-md.push(`- 关卡 **${rows.length}**，地形条目 **${totals.terrain}**（带碰撞体的地形对象 ${totals.colliderTerrains}），环 ${totals.loops}，轮廓点 ${totals.points}`);
+md.push("地形轮廓走 fill 网格的真实边界环（`lib/outline.mjs`；顶点表在 5/1648 个地形上不是轮廓），");
+md.push("地面的样子读 `fill.shader` 的三个输入（贴图/颜色来自关卡文件，tile 尺寸来自地形 prefab，见 `docs/specs/level-terrain-visuals.md`）。", "");
+md.push(`- 关卡 **${rows.length}**，地形条目 **${totals.terrain}**（每个 \`e2dTerrain\` 对象一条：带碰撞体 ${totals.colliderTerrains} / 纯视觉 ${totals.terrain - totals.colliderTerrains}），环 ${totals.loops}，轮廓点 ${totals.points}`);
+md.push(`- fill 贴图 **${textureRows.length}** 张 / ${textureBytes} 字节（Repeat + Bilinear 已断言），复制到 \`${OUT_TEXTURES}\``);
 md.push(`- 零件实例 **${totals.spawns}**，有终点的关卡 **${totals.goals}**，无终点（沙盒/MM）**${totals.levelsWithoutGoal}**`);
 md.push(`- 深度 **${DEPTH}**（\`e2dConstants.cs\`），bounds 外扩 **${BOUNDS_MARGIN}** m`);
-md.push(`- 跳过地形 **${skippedTerrains.length}**，失败 **${failures.length}**`);
+md.push(`- 跳过地形 **${skippedTerrains.length}**（轮廓不可走）+ **${skippedFills.length}**（fill 不可组装），失败 **${failures.length}**`);
 md.push("", `**${changed} changed / ${unchanged} unchanged**${DRY_RUN ? " (dry-run，未写盘)" : ""}，合计 ${totals.bytes} 字节。`, "");
 md.push("## 跳过与失败", "");
-if (skippedTerrains.length === 0 && failures.length === 0) {
-  md.push("无。每个带碰撞体的地形都有闭环轮廓，每条调色板下标都能解析。", "");
+if (skippedTerrains.length === 0 && skippedFills.length === 0 && failures.length === 0) {
+  md.push("无。每个地形都有闭环轮廓与可组装的 fill，每条调色板下标都能解析。", "");
 } else {
   for (const skipped of skippedTerrains) md.push(`- SKIP \`${skipped.level}\` / \`${skipped.instance}\`：${skipped.reason}（${skipped.links}）`);
+  for (const skipped of skippedFills) md.push(`- SKIP-FILL \`${skipped.level}\` / \`${skipped.instance}\`：${skipped.reason}`);
   for (const failure of failures) md.push(`- FAIL ${failure}`);
   md.push("");
 }
+md.push("## fill 贴图", "");
+md.push("| 文件 | 源资产 | 字节 | 本次 |", "|---|---|---|---|");
+for (const texture of textureRows) {
+  md.push(`| \`${texture.name}\` | \`${texture.source}\` | ${texture.bytes} | ${texture.changed ? "写入" : "相同"} |`);
+}
+if (staleTextures.length > 0) md.push("", `已删除不再被引用的：${staleTextures.map((name) => `\`${name}\``).join("、")}`);
+md.push("");
 md.push("## 每关", "");
 md.push("| area | scene | contentVersion | 地形 | 环 | 点 | 零件 | 字节 | 终点来源 | hash |", "|---|---|---|---|---|---|---|---|---|---|");
 for (const row of rows) {
@@ -429,7 +569,15 @@ console.log(
     : `build: wrote ${changed} file(s) (${changed} changed, ${unchanged} unchanged), ${totals.bytes} bytes total`,
 );
 console.log(`levels: ${rows.length}  terrain: ${totals.terrain}  loops: ${totals.loops}  points: ${totals.points}  spawns: ${totals.spawns}`);
-console.log(`goal: ${totals.goals}  no-goal: ${totals.levelsWithoutGoal}  skipped terrains: ${skippedTerrains.length}  depth: ${DEPTH}  bounds margin: ${BOUNDS_MARGIN}`);
+console.log(`goal: ${totals.goals}  no-goal: ${totals.levelsWithoutGoal}  depth: ${DEPTH}  bounds margin: ${BOUNDS_MARGIN}`);
+console.log(
+  `terrain collider/visual: ${totals.colliderTerrains}/${totals.terrain - totals.colliderTerrains}` +
+    `  skipped: ${skippedTerrains.length} outline + ${skippedFills.length} fill`,
+);
+console.log(
+  `fill textures: ${textureRows.length} (${textureBytes} bytes, ${textureRows.filter((row) => row.changed).length} changed, ` +
+    `${staleTextures.length} removed) -> ${OUT_TEXTURES}`,
+);
 console.log(`report: ${OUT_JSON}\n        ${OUT_MD}`);
 if (failures.length > 0) {
   console.error(`\n${failures.length} invariant failure(s):`);

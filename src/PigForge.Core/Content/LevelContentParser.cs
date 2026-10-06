@@ -68,9 +68,21 @@ public static class LevelContentParser
             errors.Add($"root.format: must be '{LevelContentDocument.Format}'.");
         }
 
+        // The terrain walk below is version-gated (v3 requires a `fill` and a `collider` on every
+        // terrain entry; v1/v2 forbid both), so the claimed version is kept. A document that names an
+        // unsupported version is already an error, so the walk continues as the current version.
+        int schemaVersion = LevelContentDocument.SchemaVersion;
         if (seen.Contains("schemaVersion")
-            && (!root.TryGetProperty("schemaVersion", out JsonElement schemaVersion)
-                || !schemaVersion.TryGetInt32(out int version)
+            && root.TryGetProperty("schemaVersion", out JsonElement schemaVersionElement)
+            && schemaVersionElement.TryGetInt32(out int claimed)
+            && claimed is >= LevelContentDocument.LegacySchemaVersion and <= LevelContentDocument.SchemaVersion)
+        {
+            schemaVersion = claimed;
+        }
+
+        if (seen.Contains("schemaVersion")
+            && (!root.TryGetProperty("schemaVersion", out JsonElement schemaVersionProperty)
+                || !schemaVersionProperty.TryGetInt32(out int version)
                 || version is < LevelContentDocument.LegacySchemaVersion or > LevelContentDocument.SchemaVersion))
         {
             errors.Add(
@@ -125,7 +137,7 @@ public static class LevelContentParser
                 int index = 0;
                 foreach (JsonElement terrainObject in terrainElement.EnumerateArray())
                 {
-                    ParseTerrain(terrainObject, $"root.terrain[{index}]", terrain, errors);
+                    ParseTerrain(terrainObject, $"root.terrain[{index}]", schemaVersion, terrain, errors);
                     index++;
                 }
             }
@@ -143,11 +155,18 @@ public static class LevelContentParser
     }
 
     /// <summary>
-    /// One terrain entry: `{ "position": [x,y,z], "depth": 10, "loops": [[[x,y], ...], ...] }`. The
-    /// loops are the terrain's boundary polygons in the terrain's own local frame and the points are
-    /// 2D (the extrusion supplies z), so each point is exactly two numbers.
+    /// One terrain entry. A v1/v2 document has `{ "position": [x,y,z], "depth": 10,
+    /// "loops": [[[x,y], ...], ...] }` and is treated as colliding with no fill; a v3 document adds
+    /// `"collider": true|false` and a required `fill` block. The loops are the terrain's boundary
+    /// polygons in the terrain's own local frame and the points are 2D (the extrusion supplies z), so
+    /// each point is exactly two numbers.
     /// </summary>
-    private static void ParseTerrain(JsonElement element, string path, List<LevelTerrainDefinition> terrain, List<string> errors)
+    private static void ParseTerrain(
+        JsonElement element,
+        string path,
+        int schemaVersion,
+        List<LevelTerrainDefinition> terrain,
+        List<string> errors)
     {
         if (element.ValueKind != JsonValueKind.Object)
         {
@@ -155,6 +174,10 @@ public static class LevelContentParser
             return;
         }
 
+        // v3 is the version that describes every `e2dTerrain` the original ships: a collider bit and
+        // the ground's fill. Older documents carry neither, and a stray one is a drift error rather
+        // than a field to ignore.
+        bool modern = schemaVersion >= 3;
         HashSet<string> seen = new();
         foreach (JsonProperty property in element.EnumerateObject())
         {
@@ -164,17 +187,47 @@ public static class LevelContentParser
             }
         }
 
-        string[] allowed = { "position", "depth", "loops" };
-        RequireExactly(seen, new[] { "position", "depth", "loops" }, path, errors);
+        string[] required = modern
+            ? ["position", "depth", "collider", "fill", "loops"]
+            : ["position", "depth", "loops"];
+        RequireExactly(seen, required, path, errors);
         foreach (string property in seen)
         {
-            if (!allowed.Contains(property))
+            if (required.Contains(property))
+            {
+                continue;
+            }
+
+            if (property is "collider" or "fill")
+            {
+                errors.Add($"{path}.{property}: only a schemaVersion 3 terrain carries a collider bit or a fill.");
+            }
+            else
             {
                 errors.Add($"{path}: unknown property '{property}'.");
             }
         }
 
         PhysicsVector3? position = ReadVector3(element, path, "position", errors, required: true);
+
+        bool collider = true;
+        if (seen.Contains("collider") && element.TryGetProperty("collider", out JsonElement colliderElement))
+        {
+            if (colliderElement.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                errors.Add($"{path}.collider: must be true or false.");
+            }
+            else
+            {
+                collider = colliderElement.GetBoolean();
+            }
+        }
+
+        LevelTerrainFillDefinition? fill = null;
+        if (seen.Contains("fill") && element.TryGetProperty("fill", out JsonElement fillElement))
+        {
+            fill = ParseFill(fillElement, $"{path}.fill", errors);
+        }
 
         float depth = 0f;
         if (seen.Contains("depth") && element.TryGetProperty("depth", out JsonElement depthElement))
@@ -217,10 +270,139 @@ public static class LevelContentParser
             errors.Add($"{path}.loops: a terrain needs at least one outline loop.");
         }
 
-        if (position is not null && depth > 0f && loops.Count > 0)
+        if (position is not null && depth > 0f && loops.Count > 0 && (!modern || fill is not null))
         {
-            terrain.Add(new LevelTerrainDefinition(position.Value, depth, loops));
+            terrain.Add(new LevelTerrainDefinition(position.Value, depth, loops, collider, fill));
         }
+    }
+
+    /// <summary>
+    /// A v3 `fill` block: `{ "texture": "Ground_Rocks_Texture.png", "color": [255, 255, 255, 255],
+    /// "tileOffset": [0, 6.2], "tileSize": [5, 5] }` -- the original's `e2d/Fill` inputs that the
+    /// level names (`LevelLoader.cs:214-230`, `:279-290`), with the tile size read out of the terrain
+    /// prefab by the converter.
+    /// </summary>
+    private static LevelTerrainFillDefinition? ParseFill(JsonElement element, string path, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be a JSON object.");
+            return null;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        string[] keys = ["texture", "color", "tileOffset", "tileSize"];
+        RequireExactly(seen, keys, path, errors);
+        foreach (string property in seen)
+        {
+            if (!keys.Contains(property))
+            {
+                errors.Add($"{path}: unknown property '{property}'.");
+            }
+        }
+
+        string? texture = null;
+        if (seen.Contains("texture") && element.TryGetProperty("texture", out JsonElement textureElement))
+        {
+            if (textureElement.ValueKind != JsonValueKind.String)
+            {
+                errors.Add($"{path}.texture: must be a file name.");
+            }
+            else
+            {
+                string value = textureElement.GetString()!;
+                if (value.Length is 0 or > 128 || value.Trim().Length != value.Length)
+                {
+                    errors.Add($"{path}.texture: must be 1 to 128 non-whitespace-padded characters.");
+                }
+                else
+                {
+                    texture = value;
+                }
+            }
+        }
+
+        byte[]? color = null;
+        if (seen.Contains("color") && element.TryGetProperty("color", out JsonElement colorElement))
+        {
+            if (colorElement.ValueKind != JsonValueKind.Array || colorElement.GetArrayLength() != 4)
+            {
+                errors.Add($"{path}.color: must be four bytes [r, g, b, a].");
+            }
+            else
+            {
+                byte[] channels = new byte[4];
+                bool valid = true;
+                for (int channel = 0; channel < channels.Length; channel++)
+                {
+                    if (colorElement[channel].ValueKind != JsonValueKind.Number
+                        || !colorElement[channel].TryGetByte(out channels[channel]))
+                    {
+                        errors.Add($"{path}.color[{channel}]: must be an integer 0 to 255.");
+                        valid = false;
+                    }
+                }
+
+                if (valid)
+                {
+                    color = channels;
+                }
+            }
+        }
+
+        PhysicsVector3? tileOffset = ReadPoint2(element, path, "tileOffset", seen, errors);
+        PhysicsVector3? tileSize = ReadPoint2(element, path, "tileSize", seen, errors);
+        if (tileSize is not null && (tileSize.Value.X <= 0f || tileSize.Value.Y <= 0f))
+        {
+            errors.Add($"{path}.tileSize: both sides must be positive.");
+            tileSize = null;
+        }
+
+        if (texture is null || color is null || tileOffset is null || tileSize is null)
+        {
+            return null;
+        }
+
+        return new LevelTerrainFillDefinition(
+            texture,
+            color[0],
+            color[1],
+            color[2],
+            color[3],
+            tileOffset.Value.X,
+            tileOffset.Value.Y,
+            tileSize.Value.X,
+            tileSize.Value.Y);
+    }
+
+    /// <summary>An `[x, y]` pair of finite numbers, kept like a loop point (z is always zero).</summary>
+    private static PhysicsVector3? ReadPoint2(
+        JsonElement element,
+        string path,
+        string property,
+        HashSet<string> seen,
+        List<string> errors)
+    {
+        if (!seen.Contains(property) || !element.TryGetProperty(property, out JsonElement pair))
+        {
+            return null;
+        }
+
+        if (pair.ValueKind != JsonValueKind.Array || pair.GetArrayLength() != 2 || !IsFinite(pair[0]) || !IsFinite(pair[1]))
+        {
+            errors.Add($"{path}.{property}: must be [x, y] with finite numbers.");
+            return null;
+        }
+
+        return new PhysicsVector3(pair[0].GetSingle(), pair[1].GetSingle(), 0f);
     }
 
     /// <summary>One outline loop: at least three `[x, y]` points, each finite.</summary>

@@ -65,6 +65,7 @@ import { arg } from "./lib/args.mjs";
 import { buildGuidIndex, episodeIndex, loadEpisodes, loadLoaders } from "./lib/unity-yaml.mjs";
 import { readLevel } from "./lib/reader.mjs";
 import { OUTLINE_LOOP, classifyOutline } from "./lib/outline.mjs";
+import { loadTerrainFillTiles, readTextureImport } from "./lib/fill.mjs";
 import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap } from "./lib/pack.mjs";
 import { formatJson } from "./lib/write.mjs";
 
@@ -101,6 +102,10 @@ const terrainEulerHistogram = new Map();
 const terrainScaleHistogram = new Map();
 const goalNameHistogram = new Map();
 const outlineHistogram = new Map();
+const fillTextureUsage = new Map();
+const fillColorHistogram = new Map();
+const fillOffsetHistogram = new Map();
+const terrainPrefabs = new Set();
 let levelsWithGoal = 0;
 
 for (const { bundle, file } of dataFiles) {
@@ -145,16 +150,51 @@ for (const { bundle, file } of dataFiles) {
     terrainScaleHistogram.set(scale, (terrainScaleHistogram.get(scale) ?? 0) + 1);
   }
 
+  // Every terrain object becomes a content entry (v3 carries all 2146, not only the collider ones),
+  // so its outline is walked for the collider *and* for the visual fill. The fill's other two inputs
+  // are the level file's own: the texture index into `m_references`, the RGBA color and the tile
+  // offset (`LevelLoader.cs:214-230`); the tile size lives on the terrain prefab (`lib/fill.mjs`).
+  const levelFillTextures = new Set();
   for (const terrain of data.terrain) {
-    if (!terrain.hasCollider) continue;
     const outline = classifyOutline(terrain.fill);
-    outlineHistogram.set(outline.label, (outlineHistogram.get(outline.label) ?? 0) + 1);
+    const kind = terrain.hasCollider ? "collider" : "visual";
+    const label = `${kind}: ${outline.label}`;
+    outlineHistogram.set(label, (outlineHistogram.get(label) ?? 0) + 1);
     check(
       outline.label === OUTLINE_LOOP || outline.label.includes("closed loop"),
-      `${basename(file)}: a terrain with a collider has no closed outline to extrude (${outline.label}; ` +
+      `${basename(file)}: a ${kind} terrain has no closed outline to walk (${outline.label}; ` +
         `${outline.vertices} vertices, ${outline.boundaryEdges} boundary edges over ${outline.boundaryVertices} of them, ` +
         `edge count per vertex ${outline.links})`,
     );
+
+    const prefab = palette[terrain.instance.prefabIndex];
+    check(
+      typeof prefab === "string" && !prefab.startsWith("<"),
+      `${basename(file)}: terrain "${terrain.instance.name}" prefab ${prefab} does not resolve`,
+    );
+    if (typeof prefab === "string" && !prefab.startsWith("<")) terrainPrefabs.add(prefab);
+
+    const fillTexture = referencePaths[terrain.fillTextureIndex];
+    check(
+      terrain.fillTextureIndex >= 0 && typeof fillTexture === "string" && !fillTexture.startsWith("<"),
+      `${basename(file)}: terrain "${terrain.instance.name}" fill texture index ${terrain.fillTextureIndex} resolves to ${fillTexture ?? "<out of range>"}`,
+    );
+    if (typeof fillTexture === "string" && !fillTexture.startsWith("<")) {
+      const usage = fillTextureUsage.get(fillTexture) ?? { path: fillTexture, terrains: 0, levels: 0 };
+      usage.terrains += 1;
+      fillTextureUsage.set(fillTexture, usage);
+      levelFillTextures.add(fillTexture);
+    }
+
+    const color = `0x${terrain.fillColor.toString(16).padStart(8, "0")}`;
+    fillColorHistogram.set(color, (fillColorHistogram.get(color) ?? 0) + 1);
+    // Grouped at 1e-3: the file's floats are float32 (`6.199999809265137`), and 3 decimals is
+    // already finer than any hand-set offset in the pack.
+    const offset = terrain.fillOffset.map((value) => (Math.round(value * 1000) / 1000).toString()).join(",");
+    fillOffsetHistogram.set(offset, (fillOffsetHistogram.get(offset) ?? 0) + 1);
+  }
+  for (const path of levelFillTextures) {
+    fillTextureUsage.get(path).levels += 1;
   }
 
   for (const goal of data.goalInstances) {
@@ -204,6 +244,22 @@ for (const [bundle, expected] of Object.entries(BUNDLE_EXPECT)) {
   check(bundleCounts[bundle] === expected, `${bundle}: ${bundleCounts[bundle] ?? 0} files, expected ${expected}`);
 }
 
+// ---------------------------------------------------------------- fill (the ground's look)
+
+// The tile size is the one fill input the level file does not carry, so it is read from every terrain
+// prefab the levels place (and its histogram asserted); the texture import state is asserted too,
+// because tiling UVs need Repeat (`lib/fill.mjs`).
+const terrainFillTiles = loadTerrainFillTiles(BPLE, terrainPrefabs, check);
+const fillTextures = [...fillTextureUsage.values()]
+  .sort((left, right) => right.terrains - left.terrains || left.path.localeCompare(right.path));
+for (const texture of fillTextures) readTextureImport(BPLE, texture.path, check);
+
+const fillTileHistogram = new Map();
+for (const { tileWidth, tileHeight } of terrainFillTiles.values()) {
+  const key = `${tileWidth}x${tileHeight}`;
+  fillTileHistogram.set(key, (fillTileHistogram.get(key) ?? 0) + 1);
+}
+
 // ---------------------------------------------------------------- part coverage
 
 const partMap = loadPartMap();
@@ -249,6 +305,7 @@ const report = {
     overrideBytes: sum("overrideBytes"),
     terrain: sum("terrain"),
     terrainWithCollider: sum("terrainWithCollider"),
+    terrainVisualOnly: sum("terrain") - sum("terrainWithCollider"),
     fillVertices: sum("fillVertices"),
     fillTriangles: sum("fillTriangles"),
     curveVertices: sum("curveVertices"),
@@ -264,6 +321,15 @@ const report = {
     localScale: sortedHistogram(terrainScaleHistogram),
   },
   collisionOutlines: sortedHistogram(outlineHistogram),
+  fill: {
+    textures: fillTextures,
+    tileSizes: sortedHistogram(fillTileHistogram),
+    terrainPrefabs: [...terrainFillTiles.entries()]
+      .map(([path, tile]) => ({ path, tileWidth: tile.tileWidth, tileHeight: tile.tileHeight }))
+      .sort((left, right) => left.path.localeCompare(right.path)),
+    colors: sortedHistogram(fillColorHistogram),
+    offsets: sortedHistogram(fillOffsetHistogram),
+  },
   goals: {
     levelsWithGoal,
     names: sortedHistogram(goalNameHistogram),
@@ -311,10 +377,24 @@ md.push(`- ${report.terrainTransforms.eulerDegrees.slice(0, 6).map((entry) => `\
 md.push(`- \`localScale\` 直方图：${report.terrainTransforms.localScale.slice(0, 6).map((entry) => `\`(${entry.key})\` ${entry.count}`).join("、")}`);
 md.push("", `终点类实例（名字以 \`Goal\` 开头）出现在 **${report.goals.levelsWithGoal}** 关里，共 ${report.goals.names.reduce((total, entry) => total + entry.count, 0)} 个：`, "");
 md.push(`- ${report.goals.names.slice(0, 10).map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")}`);
-md.push("", `### 碰撞轮廓（\`hasCollider\` 的 ${report.totals.terrainWithCollider} 个地形）`, "");
-md.push("原版 `CreateCollider` 把 fill 网格的**顶点表按顺序**当作轮廓挤出（`LevelLoader.cs:339-380`）。实测：", "");
+md.push("", `### 轮廓（全部 ${report.totals.terrain} 个地形：collider ${report.totals.terrainWithCollider} / visual ${report.totals.terrain - report.totals.terrainWithCollider}）`, "");
+md.push("原版 `CreateCollider` 把 fill 网格的**顶点表按顺序**当作轮廓挤出（`LevelLoader.cs:339-380`）；");
+md.push("内容 v3 把每个地形对象都写进关卡（`collider` 位决定房间建不建刚体），所以两种地形都要有闭环。实测：", "");
 for (const entry of report.collisionOutlines) md.push(`- ${entry.key}：**${entry.count}**`);
 md.push("", "⇒ 转换器必须**走边界环**（甚至度数顶点：4 度 = 两个环在一点相接），不能直接信任顶点表顺序。", "");
+md.push("", "## 地形 fill（地面的样子：贴图 / 颜色 / tile）", "");
+md.push("`Assets/Resources/fill.shader` 是 `tex2D(_MainTex, uv) * _Color`，uv 由 `LevelLoader.ReadMesh` 逐顶点算：");
+md.push("`uv = (世界坐标 − tile 偏移) / tile 尺寸`（`LevelLoader.cs:279-290`）；贴图取 `m_references[fillTextureIndex]`");
+md.push("（`:229-230`），`_Color` 取关卡文件里的 `uint32`（R 在高字节，`:172-181` 的 `byte * 0.003921569f`）。");
+md.push("**tile 尺寸不在关卡文件里**，只有地形 prefab 有（`:217-218` 只写偏移）。实测：", "");
+md.push(`- tile 尺寸直方图：${report.fill.tileSizes.map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")}（${report.fill.terrainPrefabs.length} 个地形 prefab）`);
+md.push(`- 颜色直方图（RGBA 字节）：${report.fill.colors.map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")}`);
+md.push(`- tile 偏移直方图（按 1e-3 归并）：${report.fill.offsets.slice(0, 6).map((entry) => `\`(${entry.key})\` ${entry.count}`).join("、")}`);
+md.push(`- 用到的 fill 贴图 **${report.fill.textures.length}** 张，全部 Repeat + Bilinear（工具硬断言，见 \`lib/fill.mjs\`）：`, "");
+md.push("| 贴图 | 地形数 | 关卡数 |", "|---|---|---|");
+for (const texture of report.fill.textures) md.push(`| \`${texture.path}\` | ${texture.terrains} | ${texture.levels} |`);
+md.push("", "⇒ 内容 v3 写 `fill { texture, color, tileOffset, tileSize }`。贴图本体**不入库**（原版美术，`.gitignore` 里那条），");
+md.push("由 `build-levels.mjs` 复制到 `clients/web/public/assets/original/levels/`。见 `docs/specs/level-terrain-visuals.md`。", "");
 md.push("", "## 地形贴图表（`m_references`）", "");
 md.push(`去重后 **${report.textures.length}** 个资源，被 loader 引用；每个地形还有一张**嵌在关卡文件里**的控制贴图（PNG，合计 ${report.totals.controlTextures} 张）。`, "");
 md.push("| 资源 | 被多少关卡的 loader 引用 |", "|---|---|");
@@ -336,6 +416,11 @@ writeFileSync(OUT_MD, `${md.join("\n")}\n`);
 console.log(`files: ${report.counts.files}  bundles: ${histogramLine(new Map(Object.entries(bundleCounts)))}`);
 console.log(`instances: ${report.totals.prefabInstances}  groups: ${report.totals.groups}  terrain: ${report.totals.terrain}`);
 console.log(`palette prefabs: ${report.counts.palettePrefabs} (parts ${report.counts.partPrefabs} / props ${report.counts.nonPartPrefabs})`);
+console.log(
+  `fill: ${report.fill.textures.length} texture(s) over ${report.totals.terrain} terrain(s) ` +
+    `(collider ${report.totals.terrainWithCollider} / visual ${report.totals.terrainVisualOnly}), ` +
+    `tile ${report.fill.tileSizes.map((entry) => entry.key).join("/")}, ${report.fill.colors.length} color(s)`,
+);
 console.log(`name mismatches: ${nameMismatches.length}`);
 if (failures.length > 0) {
   console.error(`\n${failures.length} invariant failure(s):`);

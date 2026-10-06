@@ -319,12 +319,14 @@ public sealed class GameRoom : IDisposable
     }
 
     /// <summary>
-    /// Creates the level's static terrain (schemaVersion 2 <c>terrain</c>), one mesh body per
-    /// <c>e2dTerrain</c> object the original ships, extruded exactly as <c>LevelLoader</c> extrudes
-    /// it (ADR-032). Terrain is collision only: it has no entity, so it never enters a snapshot, the
-    /// rules layer skips contact events whose body has no entity, and it is not part of any player's
-    /// build, RESET or out-of-bounds cleanup. Built once per room -- <see cref="SetupFromLevel"/> also
-    /// runs on every return to the building phase, and a level's terrain does not change.
+    /// Creates the level's static terrain (schemaVersion 2+ <c>terrain</c>), one mesh body per
+    /// <c>e2dTerrain</c> object that collides, extruded exactly as <c>LevelLoader</c> extrudes it
+    /// (ADR-032). A v3 terrain carries the original's own <c>hasCollider</c>, and the 498 decoration
+    /// terrains of the 2146 are skipped -- they draw, but the original gives them no MeshCollider.
+    /// Terrain is collision only: it has no entity, so it never enters a snapshot, the rules layer
+    /// skips contact events whose body has no entity, and it is not part of any player's build, RESET
+    /// or out-of-bounds cleanup. Built once per room -- <see cref="SetupFromLevel"/> also runs on every
+    /// return to the building phase, and a level's terrain does not change.
     /// </summary>
     private void EnsureTerrainBodies(LevelContentDocument level)
     {
@@ -335,6 +337,11 @@ public sealed class GameRoom : IDisposable
 
         foreach (LevelTerrainDefinition terrain in level.Terrain)
         {
+            if (!terrain.Collider)
+            {
+                continue;
+            }
+
             BodyDefinition definition = new(
                 PhysicsBodyMode.Static,
                 terrain.Position,

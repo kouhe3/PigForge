@@ -4,11 +4,11 @@ import { activationOverlayFor, poseFor, type ActivationOverlay, type AnimationSt
 import { layoutSprites, subEntityTexture, type PartTexture, type PartTextureSet } from "./atlas";
 import { type Camera, worldToScreen } from "./camera";
 import { conditionalSpriteVisible, connectableSides } from "./connectionVisuals";
+import { drawTerrain, GROUND_FILL, type GroundTextureSet } from "./terrain";
 
-const STATIC_FILL = "#5c6b52";
+/** A static part is drawn in the ground's own green; the terrain painter owns that colour. */
+const STATIC_FILL = GROUND_FILL;
 const DYNAMIC_FILL = "#c4a574";
-/** The ground is the static-part green; its outline is that same shade, darkened. */
-const GROUND_STROKE = "#3e4a37";
 const SELECT_STROKE = "#f0d090";
 const PREVIEW_ALPHA = 0.45;
 const ACTIVE_STROKE = "#ffd166";
@@ -181,53 +181,10 @@ function turningSprites(texture: PartTexture, part: PartDefinition): boolean[] {
 }
 
 /**
- * A loop's points in world metres: the terrain's own frame is only translated (`position`), so
- * each local `[x, y]` is offset by it. The loop is closed implicitly by the painter.
- */
-export function loopToWorld(
-  terrain: LevelTerrain,
-  loop: readonly (readonly [number, number])[],
-): Array<{ x: number; y: number }> {
-  return loop.map(([x, y]) => ({ x: terrain.position[0] + x, y: terrain.position[1] + y }));
-}
-
-/**
- * The ground: every terrain loop filled (the visual body of the collision shell the server
- * extrudes along z) and outlined in a darker shade, in the order the level declares them.
- */
-function drawTerrain(
-  ctx: CanvasRenderingContext2D,
-  camera: Camera,
-  terrains: readonly LevelTerrain[],
-  width: number,
-  height: number,
-): void {
-  ctx.fillStyle = STATIC_FILL;
-  ctx.strokeStyle = GROUND_STROKE;
-  ctx.lineWidth = 1.5;
-  for (const terrain of terrains) {
-    for (const loop of terrain.loops) {
-      const points = loopToWorld(terrain, loop);
-      ctx.beginPath();
-      points.forEach((point, index) => {
-        const screen = worldToScreen(camera, point.x, point.y, width, height);
-        if (index === 0) {
-          ctx.moveTo(screen.x, screen.y);
-        } else {
-          ctx.lineTo(screen.x, screen.y);
-        }
-      });
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
-  }
-}
-
-/**
  * Paints one frame. The level's terrain (`terrains`) is drawn straight after the background grid
  * and before every entity -- the ground lies behind everything -- which is why it is appended to
- * the parameter list instead of changing the existing argument order.
+ * the parameter list instead of changing the existing argument order, and `groundTextures` (the
+ * level's own fill art, see `./terrain`) right behind it.
  */
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -241,6 +198,7 @@ export function drawFrame(
   marquee?: MarqueeRect | null,
   animations?: AnimationState | null,
   terrains?: readonly LevelTerrain[] | null,
+  groundTextures?: GroundTextureSet | null,
 ): void {
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
@@ -248,7 +206,7 @@ export function drawFrame(
   ctx.fillRect(0, 0, width, height);
   drawGrid(ctx, camera, width, height);
   if (terrains && terrains.length > 0) {
-    drawTerrain(ctx, camera, terrains, width, height);
+    drawTerrain(ctx, camera, terrains, groundTextures ?? null, width, height);
   }
   if (goal) {
     const a = worldToScreen(camera, goal.minX, goal.maxY, width, height);

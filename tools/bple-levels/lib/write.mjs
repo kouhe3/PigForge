@@ -75,25 +75,38 @@ function pretty(value, indent) {
   return scalarText(value);
 }
 
-/// One `terrain` entry: `position` and `depth` on one line each, and one line per outline loop.
-function terrainText(terrains) {
+/// One `terrain` entry: `position`, `depth`, `collider` and the `fill` block on one line each, then
+/// one line per outline loop. `fill` is one line because it is four scalars and two short vectors
+/// (`fill.shader`'s own inputs); a document without one (v2 and older) omits the line entirely.
+function terrainText(terrains, schemaVersion) {
   if (terrains.length === 0) return "[]";
   const entries = terrains.map((terrain) => {
+    // v3 is the version that carries the ground's look and the collider bit, so an entry missing one
+    // is a converter bug rather than a document to write.
+    if (schemaVersion >= 3 && (terrain.fill === undefined || typeof terrain.collider !== "boolean")) {
+      throw new Error("a v3 terrain entry needs both a collider flag and a fill block");
+    }
+    if (schemaVersion < 3 && (terrain.fill !== undefined || terrain.collider !== undefined)) {
+      throw new Error("a terrain fill block and collider flag are v3-only");
+    }
+
     const loops = terrain.loops.map((loop) => `        ${compact(loop)}`).join(",\n");
-    return [
+    const lines = [
       "    {",
       `      "position": ${compact(terrain.position)},`,
       `      "depth": ${numberText(terrain.depth)},`,
-      '      "loops": [',
-      loops,
-      "      ]",
-      "    }",
-    ].join("\n");
+      `      "collider": ${scalarText(terrain.collider)},`,
+    ];
+    if (terrain.fill !== undefined) {
+      lines.push(`      "fill": ${compact(terrain.fill)},`);
+    }
+    lines.push('      "loops": [', loops, "      ]", "    }");
+    return lines.join("\n");
   });
   return `[\n${entries.join(",\n")}\n  ]`;
 }
 
-/// A PigForge level-content v2 document, in the schema's own key order: `format`, `schemaVersion`,
+/// A PigForge level-content v3 document, in the schema's own key order: `format`, `schemaVersion`,
 /// `contentVersion`, `goalZone`, `bounds`, `spawns`, `terrain`.
 export function formatLevelDocument(document) {
   return `${[
@@ -104,7 +117,7 @@ export function formatLevelDocument(document) {
     `  "goalZone": ${pretty(document.goalZone, 2)},`,
     `  "bounds": ${pretty(document.bounds, 2)},`,
     `  "spawns": ${pretty(document.spawns, 2)},`,
-    `  "terrain": ${terrainText(document.terrain)}`,
+    `  "terrain": ${terrainText(document.terrain, document.schemaVersion)}`,
     "}",
   ].join("\n")}\n`;
 }

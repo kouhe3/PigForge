@@ -49,10 +49,12 @@ public sealed class OriginalLevelTests
         Assert.Equal(277, files.Length);
 
         int terrainEntries = 0;
+        int colliderEntries = 0;
         int loops = 0;
         int spawns = 0;
         int levelsWithoutTerrain = 0;
         int levelsWithoutGoal = 0;
+        HashSet<string> fillTextures = new(StringComparer.Ordinal);
         foreach (string file in files)
         {
             LevelContentDocument document = LevelContentLibrary.Load(file).Document;
@@ -74,6 +76,20 @@ public sealed class OriginalLevelTests
             {
                 Assert.True(terrain.Depth > 0f, $"{file}: depth {terrain.Depth}");
                 Assert.NotEmpty(terrain.Loops);
+                if (terrain.Collider)
+                {
+                    colliderEntries++;
+                }
+
+                // Every terrain of a v3 document draws: the fill is the original's own `e2d/Fill`
+                // inputs, and the tile size is the terrain prefab's (5 x 5 on all 21 of them).
+                LevelTerrainFillDefinition? fill = terrain.Fill;
+                Assert.NotNull(fill);
+                Assert.False(string.IsNullOrWhiteSpace(fill.Texture), $"{file}: empty fill texture");
+                Assert.Equal(5f, fill.TileWidth);
+                Assert.Equal(5f, fill.TileHeight);
+                Assert.Equal(byte.MaxValue, fill.Alpha);
+                fillTextures.Add(fill.Texture);
                 loops += terrain.Loops.Count;
                 foreach (IReadOnlyList<PhysicsVector3> loop in terrain.Loops)
                 {
@@ -95,13 +111,18 @@ public sealed class OriginalLevelTests
             }
         }
 
-        // Measured 2026-10-06 over the pristine pack (docs/specs/original-level-pack.md §6):
-        // 2146 terrain objects, 1648 with a collider; the boundary walk splits the 4 pinch terrains,
-        // so those 1648 become 1652 loops; 8 part prefabs are placed 20 times; 14 sandbox/MM levels
-        // have no Goal* instance (the builder parks their goal zone outside the map bounds).
+        // Measured 2026-10-06 over the pristine pack (docs/specs/original-level-pack.md §6 and
+        // docs/specs/level-terrain-visuals.md §3): 2146 terrain objects, 1648 of them colliding and
+        // 498 decoration; the boundary walk splits the pinch terrains, so the 2146 become 2154 loops;
+        // those terrains draw 17 distinct ground textures, every one tiled 5 x 5; 8 part prefabs are
+        // placed 20 times; 14 sandbox/MM levels have no Goal* instance (the builder parks their goal
+        // zone outside the map bounds).
         Assert.Equal(0, levelsWithoutTerrain);
-        Assert.Equal(1648, terrainEntries);
-        Assert.Equal(1652, loops);
+        Assert.Equal(2146, terrainEntries);
+        Assert.Equal(1648, colliderEntries);
+        Assert.Equal(498, terrainEntries - colliderEntries);
+        Assert.Equal(2154, loops);
+        Assert.Equal(17, fillTextures.Count);
         Assert.Equal(20, spawns);
         Assert.Equal(14, levelsWithoutGoal);
     }
@@ -154,7 +175,9 @@ public sealed class OriginalLevelTests
     private static FallResult Fall(LevelContentDocument level, PhysicsVector3 drop)
     {
         using GameRoom room = CreateRoom(level);
-        Assert.Equal(level.Terrain.Count, room.TerrainBodyCount);
+        // The room builds a body per *colliding* terrain: a v3 decoration terrain draws but has no
+        // MeshCollider in the original either (`hasCollider`).
+        Assert.Equal(level.Terrain.Count(terrain => terrain.Collider), room.TerrainBodyCount);
 
         CommandOutcome placed = room.Submit(PlayHost.BindPlayer(
             new PlacePartCommand(0, SequencePlace, 0, PartPig, drop.X, drop.Y, Angle: 0f, Scale: 1f),
@@ -179,13 +202,19 @@ public sealed class OriginalLevelTests
     }
 
     /// <summary>The y-range of a document's collider terrain, in level coordinates: every loop point
-    /// moved by its terrain's own position.</summary>
+    /// moved by its terrain's own position. Decoration terrain is left out -- the pig can rest on a
+    /// collider, not on a picture.</summary>
     private static (float Min, float Max) TerrainYRange(LevelContentDocument document)
     {
         float min = float.PositiveInfinity;
         float max = float.NegativeInfinity;
         foreach (LevelTerrainDefinition terrain in document.Terrain)
         {
+            if (!terrain.Collider)
+            {
+                continue;
+            }
+
             foreach (IReadOnlyList<PhysicsVector3> loop in terrain.Loops)
             {
                 foreach (PhysicsVector3 point in loop)
@@ -212,7 +241,7 @@ public sealed class OriginalLevelTests
         foreach (string file in LevelFiles(root))
         {
             LevelContentDocument document = LevelContentLibrary.Load(file).Document;
-            if (document.Spawns.Count != 0 || document.Terrain.Count < 2)
+            if (document.Spawns.Count != 0 || document.Terrain.Count(terrain => terrain.Collider) < 2)
             {
                 continue;
             }
@@ -229,6 +258,12 @@ public sealed class OriginalLevelTests
             int bestPoints = 0;
             foreach (LevelTerrainDefinition terrain in document.Terrain)
             {
+                // Only colliding terrain can catch the pig; a decoration terrain must never win.
+                if (!terrain.Collider)
+                {
+                    continue;
+                }
+
                 float top = float.NegativeInfinity;
                 int points = 0;
                 foreach (IReadOnlyList<PhysicsVector3> loop in terrain.Loops)

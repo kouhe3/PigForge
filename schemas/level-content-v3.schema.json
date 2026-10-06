@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigforge.invalid/schemas/level-content-v3.schema.json",
+  "title": "PigForge Level Content v3",
+  "description": "Engine-agnostic level definition. v3 makes `terrain` describe every `e2dTerrain` object the original ships -- `collider` says whether the room builds a static mesh body for it, and `fill` is the ground's look and tiling (`fill.shader`: `tex2D(_MainTex, uv) * _Color`, `uv = (world - tileOffset) / tileSize`). v2 documents (no fill, no collider bit) and v1 documents keep parsing. Per ADR-002 the level carries position triggers only; there is no damage or health data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns"],
+  "properties": {
+    "format": { "const": "pigforge.level-content" },
+    "schemaVersion": { "const": 3 },
+    "contentVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
+    "goalZone": { "$ref": "#/$defs/zone" },
+    "bounds": { "$ref": "#/$defs/zone" },
+    "spawns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/spawn" }
+    },
+    "terrain": {
+      "description": "One entry per `e2dTerrain` object. `position` is the object's own transform (the original never rotates or scales these), `depth` is the extrusion along z the collision shell uses (e2dConstants.COLLISION_MESH_Z_DEPTH = 10), `collider` is the original's `hasCollider` (498 of 2146 terrains are decoration and get no body), `fill` is the ground's texture, tint and tiling, and `loops` are the terrain's boundary polygons in its local frame, each point being [x, y] because the extrusion supplies z.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/terrain" }
+    }
+  },
+  "$defs": {
+    "positiveUInt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "finiteNumber": { "type": "number" },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "point2": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "$ref": "#/$defs/vector3" },
+        "max": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "spawn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partTypeId", "position"],
+      "properties": {
+        "partTypeId": { "$ref": "#/$defs/positiveUInt" },
+        "position": { "$ref": "#/$defs/vector3" },
+        "angle": { "$ref": "#/$defs/finiteNumber" },
+        "role": { "enum": ["part", "pig", "tnt"] },
+        "tntFuseTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "motorImpulsePerTick": { "$ref": "#/$defs/finiteNumber" },
+        "motorDirectionX": { "enum": [-1, 0, 1] },
+        "wheel": { "type": "boolean" }
+      }
+    },
+    "fill": {
+      "description": "The original's `e2d/Fill` inputs that the level names: `texture` is a file name in the client's level-texture directory (the art itself is never committed), `color` is the level file's own RGBA quad in bytes (`LevelLoader.ReadColor` multiplies each by 0.003921569f), `tileOffset` is the level file's fill texture tile offset and `tileSize` is the terrain prefab's `FillTextureTileWidth/Height`, both in world metres.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["texture", "color", "tileOffset", "tileSize"],
+      "properties": {
+        "texture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "color": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "type": "integer", "minimum": 0, "maximum": 255 }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "tileOffset": { "$ref": "#/$defs/point2" },
+        "tileSize": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "number", "exclusiveMinimum": 0 },
+            { "type": "number", "exclusiveMinimum": 0 }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "terrain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "depth", "collider", "fill", "loops"],
+      "properties": {
+        "position": { "$ref": "#/$defs/vector3" },
+        "depth": { "type": "number", "exclusiveMinimum": 0 },
+        "collider": { "type": "boolean" },
+        "fill": { "$ref": "#/$defs/fill" },
+        "loops": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "items": { "$ref": "#/$defs/point2" }
+          }
+        }
+      }
+    }
+  }
+}

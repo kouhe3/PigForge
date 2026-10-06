@@ -65,7 +65,7 @@ describe("validateLevelContent root", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expectRejected({ schemaVersion: 3 }, "versions 1 to 2");
+    expectRejected({ schemaVersion: 4 }, "versions 1 to 3");
   });
 
   it("rejects an empty, padded or non-string contentVersion", () => {
@@ -167,6 +167,57 @@ describe("validateLevelContent terrain", () => {
         { position: [5, 5, 0], depth: 2.5, loops: [[[0, 0], [1, 0], [0, 1]]] },
       ],
     })).toEqual([]);
+  });
+
+  /**
+   * v3 is the version that describes every `e2dTerrain` the original ships: the `hasCollider` bit
+   * (498 of the 2146 terrains are decoration) and the ground's fill (docs/specs/level-terrain-
+   * visuals.md). The two shapes are not interchangeable: the same document is rejected either way.
+   */
+  it("accepts a v3 terrain with its collider bit and fill", () => {
+    expect(validateLevelContent({
+      ...structuredClone(v2),
+      schemaVersion: 3,
+      terrain: [{
+        position: [-2.79, 9.02, 0],
+        depth: 10,
+        collider: false,
+        fill: { texture: "Ground_Rocks_Texture.png", color: [131, 131, 131, 255], tileOffset: [0, 6.2], tileSize: [5, 5] },
+        loops: [[[0, 0], [4, 0], [0, 3]]],
+      }],
+    })).toEqual([]);
+  });
+
+  it("rejects a v3 terrain without its collider bit or fill", () => {
+    const fill = { texture: "Ground_Rocks_Texture.png", color: [255, 255, 255, 255], tileOffset: [0, 6.2], tileSize: [5, 5] };
+    const loops = [[[0, 0], [4, 0], [0, 3]]];
+    expect(validateLevelContent({ ...structuredClone(v2), schemaVersion: 3, terrain: [{ position: [0, 0, 0], depth: 10, collider: true, loops }] }))
+      .toContain("root.terrain[0]: missing required property 'fill'.");
+    expect(validateLevelContent({ ...structuredClone(v2), schemaVersion: 3, terrain: [{ position: [0, 0, 0], depth: 10, fill, loops }] }))
+      .toContain("root.terrain[0]: missing required property 'collider'.");
+    expect(validateLevelContent({ ...structuredClone(v2), schemaVersion: 3, terrain: [{ position: [0, 0, 0], depth: 10, collider: "yes", fill, loops }] }))
+      .toContain("root.terrain[0].collider: must be a boolean.");
+  });
+
+  it("rejects the v3 fields on an older document", () => {
+    expectRejected({ terrain: [{ ...v2.terrain[0], collider: true }] }, "collider bit and a fill are v3-only");
+    expectRejected({ terrain: [{ ...v2.terrain[0], fill: { texture: "a.png", color: [1, 2, 3, 4], tileOffset: [0, 0], tileSize: [5, 5] } }] }, "v3-only");
+  });
+
+  it("rejects a malformed fill", () => {
+    const withFill = (fill: unknown): Record<string, unknown> => ({
+      ...structuredClone(v2),
+      schemaVersion: 3,
+      terrain: [{ position: [0, 0, 0], depth: 10, collider: true, fill, loops: [[[0, 0], [4, 0], [0, 3]]] }],
+    });
+    const good = { texture: "a.png", color: [1, 2, 3, 4], tileOffset: [0, 0], tileSize: [5, 5] };
+    expect(validateLevelContent(withFill("a.png"))).toContain("root.terrain[0].fill: must be a JSON object.");
+    expect(validateLevelContent(withFill({ ...good, texture: " padded.png" }))).toContain("root.terrain[0].fill.texture: must be 1 to 128 non-whitespace-padded characters.");
+    expect(validateLevelContent(withFill({ ...good, color: [1, 2, 3] }))).toContain("root.terrain[0].fill.color: must be four bytes [r, g, b, a].");
+    expect(validateLevelContent(withFill({ ...good, color: [1, 2, 3, 256] }))).toContain("root.terrain[0].fill.color: must be four bytes [r, g, b, a].");
+    expect(validateLevelContent(withFill({ ...good, tileOffset: [0] }))).toContain("root.terrain[0].fill.tileOffset: must be [x, y] with finite numbers.");
+    expect(validateLevelContent(withFill({ ...good, tileSize: [5, 0] }))).toContain("root.terrain[0].fill.tileSize: must be [w, h] with positive finite numbers.");
+    expect(validateLevelContent(withFill({ ...good, extra: 1 }))).toContain("root.terrain[0].fill: unknown property 'extra'.");
   });
 });
 
