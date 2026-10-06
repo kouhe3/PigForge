@@ -148,9 +148,20 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             shapeIndex = BuildCompoundShape(compound, definition.Mass, out inertia);
             activity = new BodyActivityDescription(0.01f);
         }
+        else if (definition.Shapes.Count == 1 && definition.Shapes[0] is TriangleMeshShapeDefinition mesh)
+        {
+            if (definition.Mode != PhysicsBodyMode.Static)
+            {
+                throw new NotSupportedException("BepuPhysics backend supports a triangle mesh shape on static bodies only.");
+            }
+
+            shapeIndex = AddTriangleMesh(mesh);
+            inertia = default;
+            activity = default;
+        }
         else
         {
-            throw new NotSupportedException("BepuPhysics backend supports exactly one box, sphere, or compound shape per body.");
+            throw new NotSupportedException("BepuPhysics backend supports exactly one box, sphere, compound, or triangle mesh shape per body.");
         }
 
         if (definition.Mode == PhysicsBodyMode.Static)
@@ -1162,6 +1173,45 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         }
 
         return new PhysicsBodyId(_nextBodyId++);
+    }
+
+    /// <summary>
+    /// Builds the static triangle mesh the original bakes its level terrain into. Bepu's
+    /// <c>Mesh</c> carries its vertices per triangle (there is no index buffer), so the triples are
+    /// flattened here; the mesh takes ownership of the pooled buffer and
+    /// <c>Shapes.RemoveAndDispose</c> hands it back through <c>Mesh.Dispose</c>. A triangle carries
+    /// no ordinal of its own (<c>Triangle.Id</c> is Bepu's const shape-type id): the mesh addresses
+    /// its triangles by their index in the buffer.
+    /// Every triangle is emitted twice, once per winding, because Bepu's narrow phase drops a contact
+    /// whose triangle normal points away from the other body
+    /// (<c>TriangleWide.BackfaceNormalDotRejectionThreshold</c> is -0.01) while the contract's meshes
+    /// are surfaces that collide from either face. Measured 2026-10-06: with a single winding a box
+    /// falls straight through the mesh on one backend and lands on it on the other, depending on
+    /// which way the triangles are wound.
+    /// </summary>
+    private TypedIndex AddTriangleMesh(TriangleMeshShapeDefinition definition)
+    {
+        int sourceCount = definition.Triangles.Count / 3;
+        _bufferPool.Take<Triangle>(sourceCount * 2, out Buffer<Triangle> triangles);
+        for (int index = 0; index < sourceCount; index++)
+        {
+            int first = definition.Triangles[index * 3];
+            int second = definition.Triangles[index * 3 + 1];
+            int third = definition.Triangles[index * 3 + 2];
+            triangles[index * 2] = new Triangle(
+                ToNumerics(definition.Vertices[first]),
+                ToNumerics(definition.Vertices[second]),
+                ToNumerics(definition.Vertices[third]));
+            triangles[(index * 2) + 1] = new Triangle(
+                ToNumerics(definition.Vertices[first]),
+                ToNumerics(definition.Vertices[third]),
+                ToNumerics(definition.Vertices[second]));
+        }
+
+        // A mesh's scale must keep the tree's bounds valid, so it is always the identity here;
+        // a level instance's own scale travels on the body pose instead.
+        Vector3 scale = Vector3.One;
+        return _simulation.Shapes.Add(new Mesh(triangles, scale, _bufferPool));
     }
 
     /// <summary>

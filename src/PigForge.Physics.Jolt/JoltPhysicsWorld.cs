@@ -123,12 +123,24 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
             throw new NotSupportedException("JoltPhysicsSharp backend does not implement per-body constraint masks yet.");
         }
 
-        BoxShapeDefinition shape = GetSingleBoxShape(definition);
+        Shape joltShape;
+        if (definition.Shapes.Count == 1 && definition.Shapes[0] is TriangleMeshShapeDefinition mesh)
+        {
+            if (definition.Mode != PhysicsBodyMode.Static)
+            {
+                throw new NotSupportedException("JoltPhysicsSharp backend supports a triangle mesh shape on static bodies only.");
+            }
 
-        float minHalfExtent = Math.Min(shape.HalfExtentX, Math.Min(shape.HalfExtentY, shape.HalfExtentZ));
-        var joltShape = new BoxShape(
-            new Vector3(shape.HalfExtentX, shape.HalfExtentY, shape.HalfExtentZ),
-            Math.Min(0.05f, minHalfExtent * 0.5f));
+            joltShape = CreateMeshShape(mesh);
+        }
+        else
+        {
+            BoxShapeDefinition shape = GetSingleBoxShape(definition);
+            float minHalfExtent = Math.Min(shape.HalfExtentX, Math.Min(shape.HalfExtentY, shape.HalfExtentZ));
+            joltShape = new BoxShape(
+                new Vector3(shape.HalfExtentX, shape.HalfExtentY, shape.HalfExtentZ),
+                Math.Min(0.05f, minHalfExtent * 0.5f));
+        }
 
         bool isStatic = definition.Mode == PhysicsBodyMode.Static;
         var creationSettings = new BodyCreationSettings(
@@ -644,6 +656,38 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         }
 
         return new PhysicsBodyId(_nextBodyId++);
+    }
+
+    /// <summary>
+    /// Builds the static triangle mesh the original bakes its level terrain into.
+    /// <c>MeshShapeSettings</c> takes the vertex list plus <c>IndexedTriangle</c> triples and builds
+    /// its own bounding-volume hierarchy; Jolt's mesh shape is documented static-only, which is why
+    /// the caller rejects a dynamic body before getting here. Every triangle is emitted twice, once
+    /// per winding, because Jolt's mesh is one-sided while the contract's meshes collide from either
+    /// face (measured 2026-10-06: a box falls through a wrongly-wound mesh on Jolt and lands on the
+    /// same mesh on Bepu, which winds triangles the other way round).
+    /// </summary>
+    private static MeshShape CreateMeshShape(TriangleMeshShapeDefinition definition)
+    {
+        Vector3[] vertices = new Vector3[definition.Vertices.Count];
+        for (int index = 0; index < vertices.Length; index++)
+        {
+            vertices[index] = ToVector3(definition.Vertices[index]);
+        }
+
+        IndexedTriangle[] triangles = new IndexedTriangle[(definition.Triangles.Count / 3) * 2];
+        for (int index = 0; index < triangles.Length; index++)
+        {
+            int source = index / 2;
+            bool flipped = index % 2 != 0;
+            uint first = (uint)definition.Triangles[source * 3];
+            uint second = (uint)definition.Triangles[(source * 3) + (flipped ? 2 : 1)];
+            uint third = (uint)definition.Triangles[(source * 3) + (flipped ? 1 : 2)];
+            triangles[index] = new IndexedTriangle(first, second, third, 0u, 0u);
+        }
+
+        MeshShapeSettings settings = new(vertices, triangles);
+        return new MeshShape(settings);
     }
 
     private static BoxShapeDefinition GetSingleBoxShape(BodyDefinition definition)

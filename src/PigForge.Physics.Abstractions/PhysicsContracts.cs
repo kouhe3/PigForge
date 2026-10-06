@@ -262,6 +262,63 @@ public sealed record SphereShapeDefinition : ShapeDefinition
 	public float Radius { get; }
 }
 
+/// <summary>
+/// A static triangle mesh: the original's baked level terrain is one (a 2D fill polygon extruded
+/// along z, <c>LevelLoader.cs:339-380</c>), and nothing else in the original is. Vertices are in
+/// the body's local frame, triangles are flat triples of indices into them, and the shape is
+/// <b>static-only</b>: neither backend computes a mesh body's inertia or moves one, so a
+/// <see cref="PhysicsBodyMode.Dynamic"/> body carrying this shape is rejected by the backend with
+/// <see cref="NotSupportedException"/>.
+/// A mesh is a <b>double-sided surface</b>, not a solid: it generates contacts from either face, the
+/// way the original's own collider does (a non-convex Unity <c>MeshCollider</c> over PhysX, whose
+/// <c>eDOUBLE_SIDED</c> flag only affects raycasts and sweeps, never contact generation). Both
+/// PigForge backends build one-sided native meshes -- and they wind triangles <i>opposite</i> ways
+/// from each other (<c>cross(B - A, C - A)</c> is the front face in Jolt, the back face in Bepu 2.4,
+/// measured 2026-10-06) -- so each backend emits both windings of every triangle.
+/// </summary>
+public sealed record TriangleMeshShapeDefinition : ShapeDefinition
+{
+	public TriangleMeshShapeDefinition(IReadOnlyList<PhysicsVector3> vertices, IReadOnlyList<int> triangles)
+		: base(PhysicsShapeKind.TriangleMesh)
+	{
+		ArgumentNullException.ThrowIfNull(vertices);
+		ArgumentNullException.ThrowIfNull(triangles);
+
+		if (vertices.Count < 3)
+		{
+			throw new ArgumentException("A triangle mesh needs at least three vertices.", nameof(vertices));
+		}
+
+		if (triangles.Count == 0 || triangles.Count % 3 != 0)
+		{
+			throw new ArgumentException("A triangle mesh's indices must be a non-empty multiple of three.", nameof(triangles));
+		}
+
+		for (int index = 0; index < vertices.Count; index++)
+		{
+			if (!vertices[index].IsFinite)
+			{
+				throw new ArgumentOutOfRangeException(nameof(vertices), "A triangle mesh vertex must contain only finite values.");
+			}
+		}
+
+		for (int index = 0; index < triangles.Count; index++)
+		{
+			if (triangles[index] < 0 || triangles[index] >= vertices.Count)
+			{
+				throw new ArgumentOutOfRangeException(nameof(triangles), triangles[index], "A triangle mesh index must address one of its vertices.");
+			}
+		}
+
+		Vertices = vertices;
+		Triangles = triangles;
+	}
+
+	public IReadOnlyList<PhysicsVector3> Vertices { get; }
+
+	public IReadOnlyList<int> Triangles { get; }
+}
+
 
 /// <summary>One child of a compound shape: a leaf shape at a fixed offset from the body origin.</summary>
 public sealed record CompoundChild(ShapeDefinition Shape, PhysicsVector3 Offset, PhysicsQuaternion Rotation)
