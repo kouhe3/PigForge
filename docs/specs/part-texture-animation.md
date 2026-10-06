@@ -80,11 +80,20 @@ Fear        ⇔ num > expression.speedFearRatio    × vRef   (默认 0.50)
 
 默认比例等价于「满推约 0.15 / 0.30 / 0.50 s 后依次换表情」，与载具轻重无关。原作绝对阈值 8/14 只有在补上原作限速（见 Open Questions）后才有意义。
 
-## 内容契约：`part-textures.json` v3
+## 内容契约：`part-textures.json`（当前 v6）
 
-`tools/bple-textures/extract.mjs` 生成，格式 `pigforge.part-textures`、`schemaVersion: 3`（当前 v2）。文件仍是本机生成物、进 `.gitignore`（ADR-003 决策 1）。
+`tools/bple-textures/extract.mjs` 生成，格式 `pigforge.part-textures`、`schemaVersion: 6`。文件仍是本机生成物、进 `.gitignore`（ADR-003 决策 1）。
 
-新增的都是**可选**字段；v2 清单仍可解析（按无动画处理）：
+版本历史（每一版只**追加可选字段**，因此旧清单都能被新解析器读成「少那一层」）：
+
+| 版本 | 追加 |
+|---|---|
+| 3 | 动画描述符：精灵 `spin`/`clips`，部件 `expression` |
+| 4 | 条件形状：精灵 `condition`，部件 `connectionVisual` |
+| 5 | 运行期子实体的美术：部件 `subSprites` |
+| 6 | 激活期动画：部件 `activation`（瓶族的抖动/交叉淡变/瓶塞、BlasterTNT 的扩张环） |
+
+下面是 v3 起的示例，v6 的 `activation` 见其后一节：
 
 ```jsonc
 {
@@ -146,6 +155,33 @@ Fear        ⇔ num > expression.speedFearRatio    × vRef   (默认 0.50)
 
 字段语义：
 
+- `activation`（**v6，部件级**）：原作自己在开关边沿之后对**已放置**部件的美术做的事。只写在真有这件事的 11 件上（瓶族 10 件 + `52 tnt-blaster`）；描述符里的 `sprite` 是**本部件 `sprites` 数组的下标**（绘制顺序，见下）。
+
+```jsonc
+// 25 soda-bottle-black / 26 soda-bottle-green（+ 8 个皮肤）：瓶族
+"activation": {
+  "seconds": 2,                                        // 整个运行期（各通道的最大结束时间）
+  "jitter": { "sprites": [0, 1, 2, 7], "radius": 0.1, "seconds": 1 },   // 整颗 BottleVisualization 子树
+  "fade": [ { "sprite": 1, "from": 1, "to": 0, "start": 0, "seconds": 1 },   // m_content
+            { "sprite": 0, "from": 0, "to": 1, "start": 0, "seconds": 1 },   // m_content2
+            { "sprite": 0, "from": 1, "to": 0, "start": 1, "seconds": 1 } ], // m_content2 的后半段
+  "launch": { "sprite": 7, "start": 1, "speed": 20, "spinDegreesPerSecond": 200, "lifetime": 0.75 }
+}
+
+// 52 tnt-blaster：扩张环（不是精灵：BlasterSprite 节点只有一个 Quad + 独立材质）
+"activation": {
+  "seconds": 2,
+  "ring": { "atlas": "Blaster_Texture.png", "x": 0, "y": 0, "w": 2048, "h": 2048,
+            "startRadius": 0.5, "radiusVelocity": 160, "radiusDrag": 0.2, "stepSeconds": 0.02,
+            "alphaNumerator": 64, "alphaCap": 0.25 }
+}
+```
+
+- `jitter.sprites` 是**同一个节点**上的精灵：原作把 `BottleVisualization` 的 `localPosition` 写成一个圆内随机点，所以它们共享同一个偏移；`seconds` 是抖动窗口（`m_ignitionTime`），窗口结束即归零（`Rocket.cs:238-240,250-252`）。
+- `fade` 是一条条**线性 alpha 段**：`elapsed >= start` 时 `alpha = from + (to − from)·min(1, (elapsed − start)/seconds)`；同一精灵的后一条段覆盖前一条（原作按 `Rocket.Update` 的书写顺序写 `material.color`），未开始的段不参与（`Rocket.cs:202-226`，每段 1 s 因为 alpha 每帧减 `Time.deltaTime`）。
+- `launch`：`start` 秒后瓶塞离开部件**自己的 −X**（`-20 × transform.right`），以 `spinDegreesPerSecond` 自转，`lifetime` 秒后消失；重力按原作的写法 `p += dt·(v + dt·9.81·down)`（速度**不**积分，`Cork.cs:24-26`）。
+- `ring`：整张图（quad 的 UV 覆盖全图）按 `2 × radius` 世界尺寸画在爆心，alpha = `min(alphaNumerator / radius², alphaCap)`；半径从 `startRadius` 起、以 `radiusVelocity` 增长并受 `radiusDrag` 阻尼，按**固定** `stepSeconds` 步进（原作 `BlasterInfo.DeltaTime = 0.02`，`BlasterTNT.cs:45-51,123-140`），整段 `seconds` 秒后隐藏（`FixedUpdate:163-169`）。爆心与漂移速度取触发瞬间的部件位姿与速度（`Center = transform.position`、`CenterVelocity = rigidbody.velocity`）。
+
 - `spin`：每帧 `scale` 沿压缩轴乘 `|cos(angle)|`，精灵本身不旋转。`axis: "x"` → 压缩 **y**（风扇/螺旋桨）；`axis: "y"` → 压缩 **x**（旋翼）。
 - `clips`：命名帧表。每帧是**完整精灵描述符**（`atlas/x/y/w/h/cx/cy/sx/sy/rot`）+ `seconds`（本帧时长）。`loop: false` 播完停在最后一帧。
 - `expression`：只有带此块的部件才跑表情状态机；缺省 = 不跑。`*Ratio` 是相对 `vRef` 的比例，`speedReference` 是载具无激活电机时的绝对兜底速度（m/s），`hitDeltaV` 是撞击判定阈值（m/s，默认 5），`fallFearThreshold` 是坠落判定阈值（m/s，默认 3）。
@@ -159,10 +195,11 @@ Fear        ⇔ num > expression.speedFearRatio    × vRef   (默认 0.50)
 校验（`renderer/atlas.ts`，沿用严格风格：坏数据抛错 → 加载器回退 `null`）：
 
 - `pivot` 为可选的两元有限数数组；缺失或长度不为 2 视为无旋转轴（不抛错）。它是**同坐标系**（同一锚点）下的轴心，因此只对网格渲染的兜底与调色板缩略图有意义，不能与零件内容里的轴心混算（见 ADR-009 决策 12）。
-- `schemaVersion` 接受 `2` 与 `3`；其他值抛错。v2 视为「无任何动画描述符」。
+- `schemaVersion` 接受 `2`…`6`；其他值抛错。低版本视为「没有那一层描述符」。
 - `rotates` 为可选布尔（缺省 `false`）；非布尔值按 `false` 处理，不影响版本门。
 - 帧表非空；每帧 `seconds > 0`；`loop` 为布尔；clip 名非空字符串。
 - `expression`：三个比例、`speedReference`、`hitDeltaV`、`fallFearThreshold` 均为有限正数。
+- `activation`：`seconds` 正有限数；至少要有一条通道（`jitter`/`fade`/`launch`/`ring`）；`sprite`/`jitter.sprites` 必须是非负整数下标；`fade` 的 `from`/`to` 落在 `[0,1]`、`seconds > 0`；其余数值（半径、速度、阻尼、`stepSeconds`、`alphaNumerator`、`alphaCap`）为正有限数；`ring.atlas` 非空字符串，且加载器会**连它一起加载**（它不是任何精灵的图集）。
 
 ## 运行时契约
 
@@ -170,8 +207,9 @@ Fear        ⇔ num > expression.speedFearRatio    × vRef   (默认 0.50)
 clients/web/src/renderer/animation/clock.ts    # 墙钟差分 + 运行态门控
 clients/web/src/renderer/animation/spin.ts     # 旋转状态机（风扇/螺旋桨/旋翼）
 clients/web/src/renderer/animation/frames.ts   # 帧表播放器 + 表情状态机
+clients/web/src/renderer/animation/activation.ts  # 激活期动画（抖动/淡变/瓶塞/扩张环）
 clients/web/src/renderer/animation/index.ts    # 组合入口（updateAnimations / poseFor / reset）
-clients/web/src/renderer/atlas.ts              # v3 解析
+clients/web/src/renderer/atlas.ts              # 清单解析（v2…v6）
 clients/web/src/renderer/draw.ts               # 应用 pose（唯一 canvas 写入点不变）
 clients/web/src/App.vue                        # 时钟接线与 running 判定
 ```
@@ -273,6 +311,28 @@ step(dt):   elapsed += dt
 | 收集星星盒子 / 达成目标（Laugh 3s） | `GoalBox.cs:104`、`OneTimeCollectable.cs:184` → `ObjectiveAchieved` → `Pig.cs:602-605` | ❌ 沙盒 `ObjectivesEnabled = false`、内容里没有收集物、协议没有目标事件 |
 | 建造期随机表情（拖放零件 fun/fear、每 5–9s 随机 Laugh） | `UpdateBuildModeAnimations`（`Pig.cs:440-504`） | ❌ 建造期整体冻结（偏差 6） |
 
+### 激活期运行时（`animation/activation.ts`）
+
+驱动器只有一个：**快照的开关位**（`active`，PGFS `flags` bit0）。带 `activation` 的部件全是 `trigger` 件，而 `trigger` 的按下在服务端**当 tick 就被消费**（`GameplayRules.TryConsumeButtonPress`）——实机量到的是**恰好一帧快照**（瓶族按下那一 tick = 186、BlasterTNT = 311，其后一直是 false；方法见 `tasks/HANDOFF.md` §0.6 的实机探针）。因此边沿必须**按快照流**采集（`noteActivationEdges`，由 `App.vue` 的 socket 回调调用），不能按渲染帧读：两个快照落在两次绘制之间就会把那一帧吃掉。**零协议改动**——用的是本来就有的开关位。
+
+```ts
+export function noteActivationEdges(state: AnimationState, entities: readonly DrawEntity[], textures: PartTextureSet | null): void;
+export function activationOverlayFor(state: AnimationState, entityId: number): ActivationOverlay | null;
+
+interface ActivationSpriteOverride { alpha: number; offsetX: number; offsetY: number; visible: boolean }
+interface ActivationOverlay { atlas: string; x: number; y: number; w: number; h: number;
+                              worldX: number; worldY: number; worldW: number; worldH: number;
+                              rotation: number; alpha: number; behind: boolean }
+```
+
+- 时间基是 `AnimationState.now`（`updateAnimations` 每帧按 `dtSeconds` 累加，冻结时不推进）——所以建造/暂停时激活期动画跟着冻结，与原作 `Time.timeScale = 0` 一致；`resetAnimations` 同时清掉所有运行记录（RESET → 再 Start 后瓶子回到未点火的样子）。
+- **运行记录不随窗口过期**：原作从不还原交叉淡变的结果（点火结束后两颗 `BottleContent` 的 alpha 都是 0、瓶塞对象被销毁），所以烧完的瓶子就该是「空瓶」样；客户端保留钳到终值的段与隐藏的瓶塞精灵。唯一会被关掉的是扩张环（`elapsed >= seconds` 后不再画，对应 `FixedUpdate:163-169` 的 `SetActive(false)`）。
+- 抖动每**渲染帧**重掷一次圆内均匀点（对应原作每 FixedUpdate 重掷），用注入的 `random`（测试可钉死）；窗口结束后严格归零。
+- 扩张环按固定 `stepSeconds`（0.02 s）积分，帧自身的 `dt` 只喂余数：`radiusVelocity *= max(1 − drag·step, 0)` → `radius += radiusVelocity·step`，位置用同一 drag 漂移；因此高/低帧率下半径曲线一致（余数留到下一帧，长帧不会少走一步以上）。
+- 扩张环画在**部件美术之下**（原作 `BlasterSprite` 与 `Visualization` 同 z，透明队列顺序不定义；压在下面读起来更像冲击波）。瓶塞飞出时画在部件**之上**，且会真实穿过画面——它已经是世界坐标里的独立物体（原作把它 `transform.parent` 移出部件）。
+- 只对 `bodyId !== 0`（非预览）建记录；实体离开快照即回收（与旋转/帧表同一处 mark-and-sweep）。
+- 已知偏差：①原作 `ToGray` 把 BlasterTNT 爆炸后的本体美术变灰，本切片未做；②粒子的点火/发射特效（`m_particlesIgnition`/`m_particlesFiring`）不是精灵动画，不在本切片。
+
 ### `draw.ts` 接入
 
 ```ts
@@ -284,11 +344,18 @@ export interface SpritePose {
   /** 以精灵中心为原点的缩放（透视压缩用；1 = 不变）。 */
   scaleX: number;
   scaleY: number;
+  /** 部件自身坐标系里的额外偏移（世界单位）：点火抖动（整个节点一起动）。 */
+  offsetX: number;
+  offsetY: number;
+  /** alpha 乘数（1 = 不透明）：瓶族的交叉淡变。 */
+  alpha: number;
+  /** false = 这一件不再由部件自己画（飞出的瓶塞改由世界坐标的 overlay 画）。 */
+  visible: boolean;
 }
 export function poseFor(state: AnimationState, entity: DrawEntity, spriteIndex: number, sprite: PartSprite): SpritePose;
 ```
 
-`draw.ts` 的精灵分支改为：`pose = poseFor(state, entity, spriteIndex, sprite)` → 用 `pose.sprite` 的 `x/y/w/h` 作源矩形、`cx/cy/sx/sy` 作放置、`rot + pose.sprite.rot` 作旋转、`sx·scaleX / sy·scaleY` 作尺寸。无动画状态或该精灵没有动画描述符时返回 `{ sprite, rot: 0, scaleX: 1, scaleY: 1 }`，调用方零分支。缩略图（`renderer/thumbnails.ts`）**不**接动画：始终用清单里的静态精灵（第一帧）。
+`draw.ts` 的精灵分支改为：`pose = poseFor(state, entity, spriteIndex, sprite)` → 用 `pose.sprite` 的 `x/y/w/h` 作源矩形、`cx/cy/sx/sy` 作放置、`rot + pose.sprite.rot` 作旋转、`sx·scaleX / sy·scaleY` 作尺寸、`pose.alpha` 乘到 `globalAlpha`、`pose.offsetX/offsetY` 加进精灵中心、`visible === false` 直接跳过。无动画状态或该精灵没有动画描述符时返回恒等 pose，调用方零分支；`activationOverlayFor(state, entityId)` 给出世界坐标的那一张（扩张环 `behind: true` 在部件美术之前画，飞出的瓶塞在其后画）。缩略图（`renderer/thumbnails.ts`）**不**接动画：始终用清单里的静态精灵（第一帧）。
 
 `animation/index.ts` 组合入口：
 
@@ -302,10 +369,13 @@ export function updateAnimations(
   dtSeconds: number,          // 0 = 冻结
 ): void;
 export function poseFor(state: AnimationState, entity: DrawEntity, spriteIndex: number, sprite: PartSprite): SpritePose;
+export function noteActivationEdges(state: AnimationState, entities: readonly DrawEntity[], textures: PartTextureSet | null): void;
+export function activationOverlayFor(state: AnimationState, entityId: number): ActivationOverlay | null;
 export function resetAnimations(state: AnimationState): void;
 ```
 
 - 状态放普通对象（Vue 响应式系统之外，`web-client-spec.md` §3.1 约束 2）。
+- `noteActivationEdges` 由 `App.vue` 的 socket 回调按**每条快照**调用（不是绘制循环），时间取 `state.now`。
 - 每个 `updateAnimations` 末做 mark-and-sweep：快照里已消失的 `entityId` 立即回收状态。
 - 预览件（`bodyId === 0`）不建状态、不推进。
 
@@ -319,7 +389,11 @@ export function resetAnimations(state: AnimationState): void;
 2. **轮子**（`Part_{CartWheel,MotorWheel,OffRoadWheel,StickyWheel,SmallWheel,NormalWheel}_*`）：**不产动画描述符**——滚动角来自物理刚体（ADR-008/009：轮体只带轮胎并绕轮胎中心自转）。
 3. **SpriteAnimation**：遍历 prefab 内的 `SpriteAnimation` 组件（脚本 guid `b724b453dd61eb03a1d123fa87323918`），把 `m_animations` 的每个 `FrameTiming.id` 解析成精灵矩形（复用现有 `extractSprite` 的 id → 图集矩形逻辑），生成 `clips`；`m_childAnimations` 只用于确认同名 clip 的同步语义，不额外产出。
 4. **Pig/KingPig**：读 `speedFunThreshold` / `speedFearThreshold` / `fallFearThreshold` 生成 `expression`。
-5. 找不到任何动画组件 → 该部件不带动画字段（现状不变）；prefab 解析失败沿用现有 `warnings` 累加。
+5. **Rocket（瓶族）/ BlasterTNT（激活期动画，v6）**：
+   - 瓶族：`m_visualization` 是运行时 `transform.Find("BottleVisualization")` 拿的（prefab 里不序列化），所以按**节点名**找；子树里的精灵 = 抖动集；`m_content`/`m_content2` 是**组件引用**（指向两颗 `BottleContent` 的 MeshRenderer，不是 Sprite 组件）→ 先解析到节点再找该节点上的精灵；`Cork` 节点上的精灵 = 瓶塞；窗口取 prefab 的 `m_ignitionTime`，每段淡变 1 s（`Rocket.Update` 每帧减 `Time.deltaTime`）。
+   - BlasterTNT：`BlasterSprite` 节点**没有** Sprite 组件，它的美术是一张独立贴图（`Blaster_Texture.mat → Blaster_Texture.png`，全图即整环）——提取器把这张图**也登记成一张 atlas**（客户端会连它一起加载），环的常量（半径/速度/阻尼/固定步长/alpha 公式）按 `BlasterTNT.cs` 的类常量写入并注明出处。
+   - 描述符里的 `sprite` 一律是**最终绘制顺序里的下标**：激活描述符在 `sprites.sort`（z 降序）**之后**生成；若某个引用被去重丢掉，整条描述符丢弃并发警告（不让下标静默错位）。
+6. 找不到任何动画组件 → 该部件不带动画字段（现状不变）；prefab 解析失败沿用现有 `warnings` 累加。
 
 `tools/bple-textures/part-map.json` 不变（映射表只做 partTypeId → prefab 名）。
 
@@ -334,7 +408,8 @@ export function resetAnimations(state: AnimationState): void;
 
 ### Web（vitest，`pnpm test`）
 
-- `renderer/atlas.test.ts`：v3 清单解析（`spin`/`clips`/`expression` 合法）；`schemaVersion` 2 仍可解析且无动画；`axis` 非法、空帧表、`seconds ≤ 0`、阈值非有限数 → 抛错；v1/未知版本 → 抛错。
+- `renderer/atlas.test.ts`：v3 清单解析（`spin`/`clips`/`expression` 合法）；`schemaVersion` 2 仍可解析且无动画；`axis` 非法、空帧表、`seconds ≤ 0`、阈值非有限数 → 抛错；v1/未知版本 → 抛错；v6 的 `activation`（瓶族三通道 + `ring`）逐字段解析成类型化结构，`fade` 的 alpha 越界、`sprite` 非整数下标、一条通道都没有 → 抛错。
+- `renderer/animation/activation.test.ts`：边沿与生命周期（上升沿建记录、按住不重启、落下再升重启、预览件与无描述符不建、`dt = 0` 冻结、实体消失回收、`resetAnimations` 清空、烧完的空瓶保持 alpha 0 与隐藏瓶塞）；淡变在 0.25/0.5/1/1.5 s 的取值与「后段覆盖前段、未开始的段不参与」；抖动在窗口内是圆内点且**同一节点共用一个偏移**、窗口后严格 0；瓶塞在 `start` 前留在件内、之后隐藏并作为 overlay 沿部件 −X 飞（`yaw = π/2` → −Y）、超出 `lifetime` 消失；扩张环按固定 0.02 s 步进（含余数跨帧）算出的半径/尺寸/alpha、`behind: true`、窗口后为 null。
 - `renderer/animation/index.test.ts`：组合层——开关驱动压缩、关闭沿抖动角、`dt = 0` 冻结、预览件不建状态、实体消失即回收、`resetAnimations` 清空、无清单（干净检出）不做事、眨眼每 1.5–4 s 重播第 0 帧、`Hit` 一秒后交回表情、按 body 的 Σ推力/Σ质量定 vRef、无激活电机用兜底速度。
 - `renderer/animation/spin.test.ts`：
   - 激活 → 满速；关闭沿 → `speed = 800`、`angle = 292.3`；
@@ -342,7 +417,7 @@ export function resetAnimations(state: AnimationState): void;
   - 压缩：`axis "x"` 只改 `scaleY`、`axis "y"` 只改 `scaleX`，`|cos|` 在 90° 为 0；
 - `renderer/animation/frames.test.ts`：帧时长推进、`loop` 回卷、非循环停在末帧、缺 clip 忽略、同名 clip 跨精灵同步；表情：眨眼计时落在 1.5–4.0s 且仅 `Normal` 时触发；`vRef` 计算（2 电机 × 2.2 thrust / 3.6 kg → 73.3 m/s）与 0.15 / 0.30 / 0.50 比例边界；无激活电机 → 用 `speedReference`；撞击：相邻帧 `Δ|v|` 跨 5 的边界、速度不变的重复帧不触发、触发后 1.0s 内不重选；坠落：`−vy` 跨过 `fallFearThreshold` 播 `Fear_2`。
 - `renderer/animation/clock.test.ts`：`dt` 上限 0.1s；`running = false` 返回 0 且不推进；`false → true` 触发复位。
-- `renderer/draw.test.ts`：带 `spin` 的精灵按 `scaleY` 缩放；带帧表的精灵绘制帧矩形；无动画描述符 → 与既有断言逐字一致（既有用例不改）。
+- `renderer/draw.test.ts`：带 `spin` 的精灵按 `scaleY` 缩放；带帧表的精灵绘制帧矩形；淡变中的瓶子按 `pose.alpha` 降低 `globalAlpha`；爆炸中的 BlasterTNT **先**画环（自己的源矩形 + `2·radius` 尺寸）再画本体；无动画描述符 → 与既有断言逐字一致。
 - `pnpm build`（`vue-tsc --noEmit` + vite build）。
 
 ### .NET
@@ -351,7 +426,7 @@ export function resetAnimations(state: AnimationState): void;
 
 ### 手验（Success Criteria）
 
-`--play` 房间 + 两个浏览器标签（或单标签自测）：放风扇/螺旋桨/轮子/猪 → Start → 观察；开关切换 → 停转；RESET → 再 Start → 相位复位。回放页加载一个回放，播放/暂停/逐帧各看一次。
+`--play` 房间 + 两个浏览器标签（或单标签自测）：放风扇/螺旋桨/轮子/猪 → Start → 观察；开关切换 → 停转；RESET → 再 Start → 相位复位。回放页加载一个回放，播放/暂停/逐帧各看一次。激活期三条：放木框 + 黑汽水 → Start → 点开关条 → 看到点火抖动、汽水贴图交叉淡变、瓶塞沿 −X 飞出后消失；放 `52 tnt-blaster`（只能用 WS 探针，调色板没有这一件）→ 触发 → 看到白色扩张环从爆心张开并在 2 s 内淡出消失。
 
 ## Boundaries
 
@@ -364,7 +439,7 @@ export function resetAnimations(state: AnimationState): void;
 
 **Ask first**
 
-- 改 `part-textures.json` 的版本或字段语义（本切片 v2 → v3，且必须向后兼容 v2 读取）。
+- 改 `part-textures.json` 的版本或字段语义（现行 v6；每次只追加**可选**字段，旧清单必须仍可解析——见上面的版本表）。
 - 给快照/PGFC 新增字段（本切片明确不加）。
 - 引入第三方动画库或替换 Canvas 2D 渲染器。
 - 把动画相位写进回放、快照或状态哈希。
@@ -390,7 +465,7 @@ export function resetAnimations(state: AnimationState): void;
 ## Open Questions
 
 - **透视压缩中心**：当前以精灵中心近似（原作绕节点原点）。若视觉可见偏差，改为清单里带节点原点。
-- **BlasterTNT 一次性放大淡出**（`BlasterTNT.cs:219-226`）：需要「激活沿」事件；`trigger` 件触发后 `Active` 可能只在一帧快照里为真。是否值得做取决于实测能否稳定观察到边沿。**同族的两条**（差距 `G103`）：瓶族的点火抖动 / `BottleContent` 交叉淡变 / 瓶塞飞出（`Rocket.cs:203-226,238-262` + `Cork.cs:15-33`）。三者都需要清单新增一类「按激活状态的位移 / 透明度 / 缩放」通道——现有精灵描述符只有 `rotates`/`spin`/`clips`/`condition`。
+- ~~**BlasterTNT 一次性放大淡出 + 瓶族点火抖动/交叉淡变/瓶塞**（差距 `G103`）~~ —— **已交付**（清单 v6 `activation` + `animation/activation.ts`，见上）。实测确认「激活沿」确实只在一帧快照里为真（瓶族 tick 186 / blaster tick 311），所以边沿按快照流采集而不是按帧读。仍**未做**且不在本切片：BlasterTNT 爆炸后的 `ToGray` 本体变灰、`m_particles*` 粒子、瓶族点火期的音效。
 - **猪 `Fear2` / `Laugh`**：需要接地时间与目标达成事件，v1 不做。
 - **回放相位可复现性**：动画按墙钟推进，暂停/逐帧冻结，但同一回放两次播放的相位不同。若需要确定性，改为按 tick 派生时间——需要先确认这是不是需求。
 - **是否要 PigForge 原创动画**（TNT 闪烁、气球呼吸、引擎火焰）：原作不存在，需要美术与新的内容字段，另开切片。
