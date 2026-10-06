@@ -31,10 +31,62 @@ describe("gadgetGroups", () => {
 
     const groups = gadgetGroups(entities, new Set([1, 2, 3, 4]), content);
 
+    // Every entity here has yaw 0, so each part type is one direction bucket (Right, the arrow the
+    // bar shows). The group carries the entities it drives so the bar can command them one by one.
     expect(groups).toEqual([
-      { partTypeId: 8, kind: "toggle", label: "发动机", count: 2, active: true, hotkey: "1" },
-      { partTypeId: 13, kind: "trigger", label: "火箭", count: 1, active: false, hotkey: "2" },
+      { partTypeId: 8, kind: "toggle", label: "发动机 ▶", count: 2, active: true, hotkey: "1", direction: 0, entityIds: [1, 2] },
+      { partTypeId: 13, kind: "trigger", label: "火箭 ▶", count: 1, active: false, hotkey: "2", direction: 0, entityIds: [3] },
     ]);
+  });
+
+  it("splits one part type into a group per effect direction", () => {
+    // The original's bar key is (part type, `EffectDirection()`) -- `Rotate(localDirection,
+    // gridRotation)` -- so a rocket built a half turn round belongs to a different button, exactly
+    // as `UIPartButtonList` makes one button per distinct `UIPartButtonInfo` (UIPartButtonList.cs:539-575).
+    const entities = [
+      entity(1, 13, false),
+      { ...entity(2, 13, true), yaw: Math.PI },
+      { ...entity(3, 13, false), yaw: Math.PI / 2 },
+    ];
+
+    const groups = gadgetGroups(entities, new Set([1, 2, 3]), content);
+
+    expect(groups.map((group) => [group.direction, group.entityIds, group.active])).toEqual([
+      [0, [1], false],   // built at 0: pushes right
+      [2, [3], false],   // built a quarter turn round: pushes up
+      [4, [2], true],    // built a half turn round: pushes left
+    ]);
+    expect(groups.map((group) => group.label)).toEqual(["火箭 ▶", "火箭 ▲", "火箭 ◀"]);
+    expect(groups.map((group) => group.hotkey)).toEqual(["1", "2", "3"]);
+  });
+
+  it("puts a part built at an in-between angle in the nearest bucket", () => {
+    // Our free yaw (the original's grid rotation is a multiple of 90 degrees) still has to be
+    // reachable from the bar: the nearest 45 degree bucket is the same rule the build grid's
+    // occupancy uses for an arbitrary angle.
+    const groups = gadgetGroups([{ ...entity(1, 13, false), yaw: Math.PI / 8 }], new Set([1]), content);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].direction).toBe(1); // just past right, the first diagonal
+    expect(groups[0].label).toBe("火箭 ◥");
+  });
+
+  it("takes the effect direction from the content, not the part type", () => {
+    // A fan's `m_forceDirection` (FanPropeller.cs:59-62) is its own content value; two fans of the
+    // same type built the same way stay one group whatever the rest of the catalogue does.
+    const fanContent: PartContentDocument = {
+      ...content,
+      parts: [
+        ...content.parts,
+        { partTypeId: 11, name: "fan", mode: "dynamic", mass: 0.25, capabilities: { fan: { thrustPerTick: 0.12, directionX: -1, directionY: 0 }, activation: "toggle" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
+      ],
+    };
+
+    const groups = gadgetGroups([entity(1, 11, false), entity(2, 11, false)], new Set([1, 2]), fanContent);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].direction).toBe(4); // Left, the fan's own m_forceDirection
+    expect(groups[0].entityIds).toEqual([1, 2]);
   });
 
   it("drops other players, previews and switchless parts", () => {
@@ -50,7 +102,9 @@ describe("gadgetGroups", () => {
   it("falls back to the variant name when the palette has no entry", () => {
     const groups = gadgetGroups([entity(1, 47, false)], new Set([1]), content);
 
-    expect(groups[0].label).toBe("Nitro TNT");
+    // A TNT's own effect direction is `Rotate(Right, gridRotation)` (TNT.cs:63-70), so its label
+    // carries the arrow like every other group's.
+    expect(groups[0].label).toBe("Nitro TNT ▶");
   });
 
   it("returns nothing without content", () => {

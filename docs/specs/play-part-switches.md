@@ -340,3 +340,26 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 
 **行为**：按下 → 该 tick 起 puff（**第一帧的斜坡是 0**，所以旧模型「一按就是满冲量」的手感变了）；
 30 个 tick 里按 `1 - (1 - t)²` 出力，随后静默到周期结束（无开关的旧内容是「触地触发」，见 Assumption 4）。
+
+## 开关条的分组：`(零件类型, 有效方向)`（2026-10-06）
+
+原版的批量开关不是「一个类型一个按钮」，而是 **`(零件类型, `EffectDirection()`, 连接分量)`**：
+
+| # | 规则 | 出处 |
+|---|---|---|
+| 1 | 每个可触发件产出一组 `UIPartButtonInfo(buttonType, buttonIndex, partType, partIndex = (int)EffectDirection(), componentIndex)`；条上一个按钮挂同键的**全部零件**（`UIPartTriggerButton.Parts`） | `BasePart.cs:1418-1421`、`UIPartButtonList.cs:539-575` |
+| 2 | 按钮点击 → `LevelManager.cs:886` → `Contraption.ActivatePartType(type, direction)`：先数「该类型 + 该方向里当前**关着**的件」，`startAll = num > 0`，再把这组里 `startAll != IsEnabled()` 的全部切过去 | `Contraption.cs:955-978` |
+| 3 | `EffectDirection()` = `Rotate(类自己的本地方向, m_gridRotation)`：风扇/旋翼 = `m_forceDirection`、火箭/风箱/TNT/Kicker = Right、伞/聚光灯 = Up、拳套 = Down、抓钩 = `RotateWithEightDirections` | `FanPropeller.cs:59-62`、`Rocket.cs:97-100`、`Bellows.cs:65-68`、`TNT.cs:63-70`、`Umbrella.cs:74-77`、`SpringBoxingGlove.cs:86-89`、`GrapplingHook.cs:156-159` |
+| 4 | 另有**整类**渠道（`UIEvent.ActivateRockets` / `ActivateEngines`，`GameMode.cs:155-175`）与气球/沙袋的「一次只切一个」（`Contraption.ActivateOnePartOfType`，`:989-1021`） | 同左 |
+
+**PigForge**：`clients/web/src/live/gadgets.ts` 现在按 `(partTypeId, direction)` 分组，`direction` = 类本地方向
+（内容里有方向的件取内容值，其余取上表里的类默认）**转过建造 yaw 后**量化到最近的 45°（`Direction` 枚举的
+4 正 + 4 斜；我们允许任意 yaw，规则与占格的 `QuarterTurns` 同源）。组的标题带方向箭头（`▶◥▲◤◀◣▼◢`），
+热键按 `(partTypeId, direction)` 升序发放。
+
+**与协议无关**：原版是把 `(type, direction)` 发给服务器，PigForge 的按钮**逐件发 PGFC kind 8（SetPartActive）**，
+组的成员由客户端算（`group.entityIds`），服务器依旧逐件校验归属与可开关性——这样不必再动线格式，
+且 `kind 9`（按类型整类切换）仍保留给「整类渠道」。
+
+**非对齐件**：任意 yaw 的件落进最近的桶，不会从条上消失（原版没有这种建造角，这是我们的自由角偏差的延伸）；
+玩家仍可点零件本体（kind 8）单独切它。

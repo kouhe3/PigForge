@@ -200,7 +200,13 @@ function editableSelectedEntities(): DrawEntity[] {
 /** PGFC kind 9: toggles every switchable part of one type this player owns. */
 function toggleGadget(group: GadgetGroup): void {
   const active = group.kind === "trigger" ? true : !group.active;
-  dispatch((sequence) => ({ kind: 9, sequence, playerId: 0, tick: 0, partTypeId: group.partTypeId, active }), 9);
+  // One command per part of the group, not one per part type: the bar's group is (type, effect
+  // direction), the original's own key (`Contraption.ActivatePartType(type, direction)`,
+  // Contraption.cs:955-1021), so two fans aimed opposite ways are two buttons. The server still
+  // validates each part's ownership and switchability on its own.
+  for (const entityId of group.entityIds) {
+    dispatch((sequence) => ({ kind: 8, sequence, playerId: 0, tick: 0, entityId, active }), 8, entityId);
+  }
 }
 
 /** PGFC kind 8: in play mode a tap on an own switchable part flips its switch. */
