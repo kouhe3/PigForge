@@ -45,6 +45,8 @@
    - **驱动轮集合由提取器判定**（后续补丁）：原版「是不是驱动轮」看脚本有没有 override `InitializeEngine()`——`MotorWheel`/`OffRoadWheel`/`StickyWheel` 有（`MotorWheel.cs:99-104`、`OffRoadWheel.cs:172-180`、`StickyWheel.cs:117-122`），只会滚的 `CartWheel` 没有（`CartWheel.cs:129-149`）。`tools/bple-power/extract-power.mjs` 用 `m_Script` guid → 类名 → 基类链推出这个集合，再从 prefab 读 `m_force`，按马达轮的标定锚（`m_force` 50 → 冲量 2.2）比例换算，写进 `motor` + `activation:"toggle"`。因此粘轮（`m_force` 100）得到 4.4，与马达轮共用同一条门控路径。
 5. 不改协议：因子是服务端规则态。
 
+补充（2026-10-06 第二十一轮，`G102`）：**动力轮的出力方向与门控轴**见 `docs/specs/motor-wheel-drive.md` —— 出力沿**脚下地面的切线**（`MotorWheel.cs:288`）、门控读**轮子自己的右轴**（`:287`）、无接触即不出力；它的前置条件是 `ADR-031`（接触法线 = 表面几何法线，取代 `ADR-010` 决策 3）。原版那 1 秒的 `m_thrust` 斜坡仍是差距 `G110`。
+
 ## 5. 实施分期与验收
 
 | 阶段 | 内容 | 验收 |
