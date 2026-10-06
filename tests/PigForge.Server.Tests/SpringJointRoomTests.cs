@@ -22,10 +22,11 @@ public sealed class SpringJointRoomTests
     private const uint PartHeavy = 18;
     private const uint PartTarget = 25;
 
-    /// <summary>The original's own 1 kg reading: 0.064478 m of sag at a 9.68 N joint force
-    /// (tasks/spring-probe.json, cell <c>bungee_auto_mass1</c>, Unity 2021.3.45f2). The acceptance
+    /// <summary>The vanilla probe cell <c>limit_auto_mass0p6</c> (tasks/spring-probe.json,
+    /// Unity 2021.3.45f2): a 0.6 kg body — this content's own spring mass — hanging under the
+    /// original's y soft limit reads 0.123418 m of sag at a 5.863 N joint force. The acceptance
     /// band is ±25% (docs/specs/spring-joint.md §6).</summary>
-    private const float ProbeSag = 0.064478f;
+    private const float ProbeSag = 0.123418f;
 
     private const float Tolerance = 0.25f;
 
@@ -192,21 +193,22 @@ public sealed class SpringJointRoomTests
     }
 
     /// <summary>
-    /// The calibration acceptance (docs/specs/spring-joint.md §6): a 1 kg load hangs under a fixed end
+    /// The calibration acceptance (docs/specs/spring-joint.md §6): a 0.6 kg load hangs under a fixed end
     /// through the slackless distance link, and the room's own numbers — the declared content stiffness
-    /// scaled by <see cref="CompoundAssembler.SpringEffectiveStiffnessScale"/> and converted by
+    /// and damper scaled by <see cref="CompoundAssembler.SpringEffectiveStiffnessScale"/> /
+    /// <see cref="CompoundAssembler.SpringEffectiveDampingScale"/> and converted by
     /// <see cref="GameRoom.TrySpringResponse"/> — put the sag inside ±25% of the original's measured
-    /// 0.064478 m. This is a real Bepu world rather than a room body because the physics contract has
+    /// 0.123418 m at that same load. This is a real Bepu world rather than a room body because the physics contract has
     /// no static↔dynamic joint: the original's kinematic anchor is a dynamic body with every degree of
     /// freedom locked, the same stand-in WeldComplianceTests uses.
     /// </summary>
     [Fact]
     public void TheCalibratedSpringHangsTheLoadAtTheOriginalsSag()
     {
-        const float load = 1f;
+        const float load = 0.6f;
         const float anchorMass = 1000f;
         const float restDistance = 1f;
-        CompoundSpring spring = new(default, default, default, default, "bungee", 250f, 20f, 0.1f, 1f, 1200f);
+        CompoundSpring spring = new(default, default, default, default, 250f, 20f, 0.1f, 1f, 250f);
         float stiffness = CompoundAssembler.EffectiveStiffness(spring);
 
         using BepuPhysicsWorld world = new(new PhysicsVector3(0f, -Gravity, 0f));
@@ -226,7 +228,7 @@ public sealed class SpringJointRoomTests
             anchorMass,
             load,
             stiffness,
-            spring.Damper,
+            CompoundAssembler.EffectiveDamping(spring),
             out float frequency,
             out float dampingRatio));
         world.CreateJoint(new JointDefinition(
@@ -250,7 +252,7 @@ public sealed class SpringJointRoomTests
 
         float sag = Distance(world, anchor, hanging) - restDistance;
         // The acceptance is the deviation from the original's own reading: the calibrated rate puts
-        // Bepu's slackless link 1.3% above the probe's 0.064478 m (0.065330 m, = 9.81 N / 150.16 N/m).
+        // Bepu's slackless link ~0.4% above the probe's 0.123418 m (0.123896 m = 5.886 N / 47.5077 N/m).
         Assert.InRange((sag - ProbeSag) / ProbeSag, -Tolerance, Tolerance);
     }
 

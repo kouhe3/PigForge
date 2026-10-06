@@ -38,6 +38,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadVanillaSettings, VANILLA_SETTINGS_NAME } from "../in-settings/vanilla-settings.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "..", "..");
@@ -282,37 +283,30 @@ function cite(className, regex) {
 }
 
 // ------------------------------------------------------------- IN feature settings
-// `INSettingsBExp.json` holds the experiment-mode overrides; a feature missing there falls
-// back to its declaration default in `INDeclarationSettingsExp.json` (INSettings.cs:301-324
-// loads declarations, `INSettings.cs:404-414` resolves value-or-declaration). Every entry
-// carries the file it was read from, so `BoxingGloveLength` is reported as a declaration
-// default when the experiment file does not override it.
-const inFeatures = (() => {
-  const load = (fileName) => {
-    const path = join(TEXTEXT, fileName);
-    if (!existsSync(path)) return { file: fileName, text: "", items: [] };
-    const text = readFileSync(path, "utf8");
-    return { file: fileName, text, items: JSON.parse(text).items ?? [] };
-  };
-  const experiments = load("INSettingsBExp.json");
-  const declarations = load("INDeclarationSettingsExp.json");
-  const feature = (name) => {
-    for (const table of [experiments, declarations]) {
-      const item = table.items.find((entry) => entry.name === name);
-      if (!item) continue;
-      const offset = table.text.indexOf(`"name": "${name}"`);
-      return { value: item.value, file: table.file, line: offset < 0 ? null : lineOfIndex(table.text, offset), override: table === experiments };
-    }
-    return { value: null, file: null, line: null, override: false };
-  };
+// PigForge's baseline is the *declaration* defaults (`INDeclarationSettingsExp.json`, read
+// through `tools/in-settings/vanilla-settings.mjs`): `INSettingsBExp.json` is the "everything
+// on" mod profile (130 overrides) and it is what turns `StableSpringConnection` and
+// `StrongSpringConnection` on -- which would make every spring skin a 1 kg `SpringJoint`
+// bungee with a 1200 N break force instead of the declaration default's own prefab mass, y
+// soft limit and 250 N. No original part's numbers may come from a mod profile, so nothing
+// here reads the experiment file any more (docs/specs/in-settings-profiles.md, gaps G105/G107).
+const vanilla = loadVanillaSettings(BPLE);
+const declarationText = readFileSync(join(TEXTEXT, VANILLA_SETTINGS_NAME), "utf8");
+const feature = (name) => {
+  const offset = declarationText.indexOf(`"name": "${name}"`);
   return {
-    StrongSpringConnection: feature("StrongSpringConnection"),
-    StableSpringConnection: feature("StableSpringConnection"),
-    BoxingGloveLength: feature("BoxingGloveLength"),
-    SwitchableBoxingGlove: feature("SwitchableBoxingGlove"),
-    OffRoadWheel: feature("OffRoadWheel"),
+    value: vanilla.get(name),
+    file: VANILLA_SETTINGS_NAME,
+    line: offset < 0 ? null : lineOfIndex(declarationText, offset),
   };
-})();
+};
+const inFeatures = {
+  StrongSpringConnection: feature("StrongSpringConnection"),
+  StableSpringConnection: feature("StableSpringConnection"),
+  BoxingGloveLength: feature("BoxingGloveLength"),
+  SwitchableBoxingGlove: feature("SwitchableBoxingGlove"),
+  OffRoadWheel: feature("OffRoadWheel"),
+};
 
 const springBody = readCustomConnectBody(SPRING_CLASS);
 if (springBody === null) fail(`${SPRING_CLASS}.cs no longer overrides CustomConnectToPart`);
@@ -804,13 +798,15 @@ check("SpringBoxingGlove family customPartIndex", boxingGloveFamily.map((entry) 
 
 const springPathHistogram = histogram(springFamily.map((entry) => entry.jointPath.route));
 const boxingGlovePathHistogram = histogram(boxingGloveFamily.map((entry) => entry.jointPath.route));
-check("Spring joint-path histogram", springPathHistogram, { SpringJoint: 2, ConfigurableJointYLimit: 2 });
+// Declaration defaults: StableSpringConnection is false, so the SpringJoint (bungee) arm of
+// CustomConnectToPart never runs and every skin takes the ConfigurableJoint y-soft-limit branch.
+check("Spring joint-path histogram", springPathHistogram, { ConfigurableJointYLimit: 4 });
 check("SpringBoxingGlove joint-path histogram", boxingGlovePathHistogram, { Weld: 5 });
 check("SpringBoxingGlove glove prefab family", boxingGloveFamily.map((entry) => entry.glove?.prefab),
   ["BoxingGlove.prefab", "BoxingGlove_2.prefab", "BoxingGlove_3.prefab", "BoxingGlove_4.prefab", "BoxingGlove_5.prefab"]);
 check("Spring endpoint prefab", [...new Set(springFamily.map((entry) => entry.references.endPointPrefab?.prefab))], ["SpringEndpoint.prefab"]);
-check("INSettingsBExp StrongSpringConnection", inFeatures.StrongSpringConnection.value, true);
-check("INSettingsBExp StableSpringConnection", inFeatures.StableSpringConnection.value, true);
+check(`INDeclarationSettingsExp StrongSpringConnection (${inFeatures.StrongSpringConnection.file})`, inFeatures.StrongSpringConnection.value, false);
+check(`INDeclarationSettingsExp StableSpringConnection (${inFeatures.StableSpringConnection.file})`, inFeatures.StableSpringConnection.value, false);
 
 const springConstants = springDeclaration.constants;
 check("Spring.SPRING_LIMIT_SPRING", springConstants.SPRING_LIMIT_SPRING.value, 250);
@@ -839,7 +835,7 @@ check("SpringBoxingGlove glove shape radii", boxingGloveFamily.map((entry) => en
 check("SpringBoxingGlove glove shape centres", boxingGloveFamily.map((entry) => entry.glove?.shapes.map((shape) => shape.center)), Array.from({ length: 5 }, () => [{ x: 0, y: 0, z: 0 }]));
 check("SpringBoxingGlove glove excluded colliders", boxingGloveFamily.map((entry) => entry.glove?.excluded.length), [0, 0, 0, 0, 0]);
 check("SpringBoxingGlove glove mass == Initialize mass", boxingGloveFamily.every((entry) => entry.glove?.serializedMass === boxingGloveDeclaration.gloveMass.value), true);
-check("INSettingsBExp SwitchableBoxingGlove", inFeatures.SwitchableBoxingGlove.value, true);
+check(`INDeclarationSettingsExp SwitchableBoxingGlove (${inFeatures.SwitchableBoxingGlove.file})`, inFeatures.SwitchableBoxingGlove.value, false);
 check("IN BoxingGloveLength", inFeatures.BoxingGloveLength.value, 1);
 
 const failures = checks.filter((entry) => !entry.pass);
@@ -853,11 +849,15 @@ if (failures.length > 0) {
 }
 
 // StrongSpringConnection retunes the constants at Awake; StableSpringConnection overrides the
-// part's mass. Both are on in `INSettingsBExp.json`, so the report states both spellings.
+// part's mass. Both are false in the declaration defaults, so a vanilla spring keeps
+// `SPRING_BREAK_FORCE` (250 N), its prefab `m_jointConnectionStrength` (Normal) and its own
+// `m_mass`; the report still names the profile-B spelling it would take.
+const strongSpringConnection = inFeatures.StrongSpringConnection.value === true;
+const stableSpringConnection = inFeatures.StableSpringConnection.value === true;
 const springRuntime = {
-  strongSpringConnection: inFeatures.StrongSpringConnection.value,
-  stableSpringConnection: inFeatures.StableSpringConnection.value,
-  breakForce: inFeatures.StrongSpringConnection.value
+  strongSpringConnection,
+  stableSpringConnection,
+  breakForce: strongSpringConnection
     ? {
         value: springDeclaration.strongSpringOverride.factor * frameFacts.jointConnectionStrengthValues[springDeclaration.strongSpringOverride.strengthField],
         expression: `${springDeclaration.strongSpringOverride.strengthField} * ${springDeclaration.strongSpringOverride.factor}`,
@@ -866,8 +866,14 @@ const springRuntime = {
         line: springDeclaration.strongSpringOverride.line,
       }
     : { value: springConstants.SPRING_BREAK_FORCE.value, expression: "SPRING_BREAK_FORCE", declared: springConstants.SPRING_BREAK_FORCE.value },
-  jointConnectionStrength: springDeclaration.strongSpringOverride.setsStrengthTo,
-  mass: { value: springDeclaration.ensureRigidbodyMass.value, requires: "StableSpringConnection", file: springDeclaration.ensureRigidbodyMass.file, line: springDeclaration.ensureRigidbodyMass.line },
+  jointConnectionStrength: strongSpringConnection ? springDeclaration.strongSpringOverride.setsStrengthTo : null,
+  mass: {
+    value: springDeclaration.ensureRigidbodyMass.value,
+    override: stableSpringConnection,
+    requires: "StableSpringConnection",
+    file: springDeclaration.ensureRigidbodyMass.file,
+    line: springDeclaration.ensureRigidbodyMass.line,
+  },
   breakDistance: springDeclaration.breakDistance,
 };
 
@@ -968,13 +974,14 @@ md.push(`分叉（\`${SPRING_CLASS}.cs\`）：\`StableSpringConnection && (custo
   + `否则 \`ConfigurableJoint\`：角 ${springDeclaration.configurableJoint.angular.join("/")}，线 ${springDeclaration.configurableJoint.linear.join("/")}，linearLimit ${springConstants.SPRING_LIMIT.value} 处 bounciness ${springConstants.SPRING_BOUNCINESS.value}，`
   + `linearLimitSpring ${springConstants.SPRING_LIMIT_SPRING.value}/${springConstants.SPRING_DAMPING.value}，configuredInWorldSpace ${springDeclaration.configurableJoint.configuredInWorldSpace}，enablePreprocessing ${springDeclaration.configurableJoint.enablePreprocessing}`
   + `（${springDeclaration.configurableJoint.file}:${springDeclaration.configurableJoint.line}）。`);
-md.push(`运行时改写：\`StrongSpringConnection\` = ${springRuntime.strongSpringConnection} → breakForce = \`${springRuntime.breakForce.expression}\` = ${springRuntime.breakForce.value}`
-  + `（${springRuntime.breakForce.file}:${springRuntime.breakForce.line}；GameData \`m_jointConnectionStrengthHigh\` = ${frameFacts.jointConnectionStrengthValues.m_jointConnectionStrengthHigh}），\`m_jointConnectionStrength\` 强制为 ${springRuntime.jointConnectionStrength}；`
-  + `\`StableSpringConnection\` = ${springRuntime.stableSpringConnection} → \`EnsureRigidbody\` mass = ${springRuntime.mass.value}（${springRuntime.mass.file}:${springRuntime.mass.line}）。`
+md.push(`运行时改写：\`StrongSpringConnection\` = ${springRuntime.strongSpringConnection}（声明默认）→ breakForce = \`${springRuntime.breakForce.expression}\` = ${springRuntime.breakForce.value}`
+  + `（${springRuntime.breakForce.file ?? springRuntime.breakForce.declared}；GameData \`m_jointConnectionStrengthHigh\` = ${frameFacts.jointConnectionStrengthValues.m_jointConnectionStrengthHigh}），\`m_jointConnectionStrength\` = ${springRuntime.jointConnectionStrength ?? "prefab 的 Normal（未被改写）"}；`
+  + `\`StableSpringConnection\` = ${springRuntime.stableSpringConnection} → \`EnsureRigidbody\` ${springRuntime.mass.override ? `mass = ${springRuntime.mass.value}（${springRuntime.mass.file}:${springRuntime.mass.line}）` : "不改写，取 prefab 自己的 `m_mass`（表内每行）"}。`
+  + ` B 档（\`INSettingsBExp.json\`，mod）才是 true/true → 1 kg bungee + 1200 N。`
   + `断裂阈值 ${springRuntime.breakDistance.value} m（${springRuntime.breakDistance.file}:${springRuntime.breakDistance.line}），仅在无 SuperGlue 时判定。`, "");
 md.push("| prefab | partTypeId | `customPartIndex` | `m_mass`（序列化） | 有效 mass | `m_jointConnectionType`/`Strength`/`Direction` | `m_customJointConnectionDirection` | 碰撞体 | 关节路径 |", "|---|---|---|---|---|---|---|---|---|");
 for (const entry of springFamily) {
-  md.push(`| \`${entry.prefab}\` | ${entry.partTypeId ?? "未映射"} | ${entry.customPartIndex} | ${entry.mass} | ${springRuntime.mass.value} | ${entry.jointConnectionType}/${entry.jointConnectionStrength}/${entry.jointConnectionDirection} | ${entry.customJointConnectionDirection} | ${entry.colliders.map(colliderText).join("；")} | ${entry.jointPath.route === "SpringJoint" ? "`SpringJoint`（弹力绳）" : "`ConfigurableJoint`（y 限位）"} |`);
+  md.push(`| \`${entry.prefab}\` | ${entry.partTypeId ?? "未映射"} | ${entry.customPartIndex} | ${entry.mass} | ${springRuntime.mass.override ? springRuntime.mass.value : entry.mass} | ${entry.jointConnectionType}/${entry.jointConnectionStrength}/${entry.jointConnectionDirection} | ${entry.customJointConnectionDirection} | ${entry.colliders.map(colliderText).join("；")} | ${entry.jointPath.route === "SpringJoint" ? "`SpringJoint`（弹力绳）" : "`ConfigurableJoint`（y 限位）"} |`);
 }
 md.push("", `端点半成品：${[...new Set(springFamily.map((entry) => `\`${entry.references.endPointPrefab?.prefab}\``))].join("、")}（断裂后 \`CreateSpringBody\` 实例化）。`);
 

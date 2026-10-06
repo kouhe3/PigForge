@@ -65,11 +65,12 @@ public readonly record struct CompoundWeld(
 /// (docs/specs/spring-joint.md §7).
 /// </para>
 /// <para>
-/// <see cref="Joint"/> is the per-skin route the extractor found (<c>"bungee"</c> for the
-/// <c>SpringJoint</c> skins, <c>"limit"</c> for the <c>ConfigurableJoint</c> ones); it selects the
-/// PigForge calibration scale, not a different constraint. <see cref="Stiffness"/>/<see cref="Damper"/>
-/// /<see cref="Limit"/>/<see cref="Bounciness"/>/<see cref="BreakForce"/> are the declared content
-/// values in the original's own units (N/m, N·s/m, m, -, N).
+/// The declaration defaults leave <c>StableSpringConnection</c> off, so every skin takes the
+/// original's <c>ConfigurableJoint</c> y-soft-limit branch (the bungee <c>SpringJoint</c> arm is a
+/// profile-B value, gaps G105/G107) — the seam carries no route discriminator.
+/// <see cref="Stiffness"/>/<see cref="Damper"/>/<see cref="Limit"/>/<see cref="Bounciness"/>/
+/// <see cref="BreakForce"/> are the declared content values in the original's own units
+/// (N/m, N·s/m, m, -, N).
 /// </para>
 /// </summary>
 public readonly record struct CompoundSpring(
@@ -77,7 +78,6 @@ public readonly record struct CompoundSpring(
     EntityId Right,
     PhysicsVector3 AnchorInLeft,
     PhysicsVector3 AnchorInRight,
-    string Joint,
     float Stiffness,
     float Damper,
     float Limit,
@@ -410,32 +410,30 @@ public static class CompoundAssembler
 
     /// <summary>
     /// The fraction of the declared <c>SPRING_LIMIT_SPRING</c> (250 N/m) the original's PhysX
-    /// actually delivers on the bungee skins (the <c>SpringJoint</c> route, content
-    /// <c>joint: "bungee"</c>). The declared 250 is <b>not</b> the stiffness the solver applies:
-    /// the original probe hangs a 1 kg load and reads a 0.0645 m sag at a 9.68 N joint force —
-    /// an effective stiffness of <b>150.16 N/m</b> (<c>tasks/spring-probe.json</c> cell
-    /// <c>bungee_auto_mass1</c>, Unity 2021.3.45f2 with the original's own physics settings; the
-    /// 2 kg cell reads 190.54 N/m, i.e. the delivered rate is load-dependent). Bepu's
-    /// <c>Distance(min == max)</c> is an exact spring, so copying the declared 250 would make
-    /// PigForge 39% stiffer than the original — outside the ±25% band of
-    /// docs/specs/spring-joint.md §6. This is a PigForge calibration like
-    /// <see cref="FrameWeldSpringFrequency"/>: it takes the probe's 1 kg cell (the shipped IN has
-    /// <c>StrongSpringConnection</c>/<c>StableSpringConnection</c> both true, so every spring part
-    /// is a 1 kg bungee), and the residual 0.0654 vs 0.0645 m is the 2 kg cell's load dependence
-    /// the linear spring cannot express (spec §7).
+    /// actually delivers on the y-soft-limit route — the only route the declaration defaults take
+    /// (<c>StableSpringConnection</c> off, gaps G105/G107). The declared 250 is <b>not</b> the rate
+    /// the solver applies: the original probe hangs a body of the spring part's own content mass
+    /// (0.6 kg) and reads a 0.123418 m sag at a 5.863 N joint force — an effective stiffness of
+    /// <b>47.50768 N/m</b> (<c>tasks/spring-probe.json</c> cell <c>limit_auto_mass0p6</c>, Unity
+    /// 2021.3.45f2 with the original's own physics settings; the same configuration at the
+    /// original's own 0.3 kg reads 26.198 N/m and at 1 kg 70.484 N/m, i.e. the delivered rate is
+    /// load-dependent). Bepu's <c>Distance(min == max)</c> is an exact spring, so copying the
+    /// declared 250 would make PigForge 5x stiffer than the original. This is a PigForge
+    /// calibration like <see cref="FrameWeldSpringFrequency"/>; the residual +10.8% (0.1239 m
+    /// against the original's own-mass cell 0.1118 m) is the load dependence a linear spring cannot
+    /// express (docs/specs/spring-joint.md §7).
     /// </summary>
-    public const float SpringEffectiveStiffnessScale = 0.6006452f;
+    public const float SpringEffectiveStiffnessScale = 0.1900307f;
 
     /// <summary>
-    /// The same calibration for the y-soft-limit skins (content <c>joint: "limit"</c>, the original
-    /// <c>ConfigurableJoint</c> route). Its 1 kg probe cell
-    /// (<c>tasks/spring-probe.json</c> <c>limit_auto_mass1</c>) reads a 0.1385 m sag at 9.76 N —
-    /// an effective stiffness of <b>70.48 N/m</b>, i.e. the limit path is roughly half as stiff as
-    /// the bungee one. PigForge does not open a new single-axis competence for it (ADR-012's
-    /// <c>LinearAxisServo</c> stays with the wheel suspension); the difference is this calibration
-    /// (spec §7).
+    /// The same calibration for the damper. The probe's free-oscillation fit on that cell reads
+    /// ζ = 0.539356, while the declared 20 N·s/m against the calibrated rate would be overdamped
+    /// (ζ = 20 / (2 √(47.50768 · 0.6)) = 1.87, i.e. no visible release bounce at all). The
+    /// delivered damper is 2 ζ √(k m) = 5.759212 N·s/m, this fraction of the declared value; the
+    /// room feeds it to the shared <c>GameRoom.TrySpringResponse</c> so the frequency/damping maths
+    /// stays in one place.
     /// </summary>
-    public const float SpringLimitEffectiveStiffnessScale = 0.28192f;
+    public const float SpringEffectiveDampingScale = 0.2879606f;
 
     /// <summary>
     /// Separation of the two spring anchors past which the room tears the spring down: the
@@ -1081,7 +1079,6 @@ public static class CompoundAssembler
             right,
             SpringAnchor,
             SpringAnchor,
-            spring.Joint,
             spring.Stiffness,
             spring.Damper,
             spring.Limit,
@@ -1091,14 +1088,17 @@ public static class CompoundAssembler
 
     /// <summary>
     /// The stiffness the solver applies for one registered spring, in N/m: the declared content
-    /// value scaled by the route's PigForge calibration. This is the only place the calibration is
-    /// applied; the room then converts it with the shared <c>GameRoom.TrySpringResponse</c>, so the
+    /// value scaled by the probe calibration. This is the only place the calibration is applied;
+    /// the room then converts it with the shared <c>GameRoom.TrySpringResponse</c>, so the
     /// frequency/damping-ratio maths is not duplicated (docs/specs/spring-joint.md §3).
     /// </summary>
     public static float EffectiveStiffness(in CompoundSpring spring) =>
-        spring.Stiffness * (string.Equals(spring.Joint, "limit", StringComparison.Ordinal)
-            ? SpringLimitEffectiveStiffnessScale
-            : SpringEffectiveStiffnessScale);
+        spring.Stiffness * SpringEffectiveStiffnessScale;
+
+    /// <summary>The damping the solver applies for one registered spring, in N·s/m (see
+    /// <see cref="SpringEffectiveDampingScale"/>).</summary>
+    public static float EffectiveDamping(in CompoundSpring spring) =>
+        spring.Damper * SpringEffectiveDampingScale;
 
     /// <summary>The spring capability of one part, or <c>null</c> when it has none.</summary>
     private static PartSpring? SpringOf(EntityId entity, ConstructionRules construction, PartContentLibrary content) =>

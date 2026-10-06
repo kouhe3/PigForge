@@ -47,16 +47,15 @@ public sealed class PartContentLibrary
 
     /// <summary>
     /// The mass the original's rigidbody actually carries for this part at this scale (scale cubes
-    /// the mass, like every other body here). One capability overrides the extracted prefab value:
-    /// under the shipped <c>StableSpringConnection</c> a spring part forces <c>rigidbody.mass = 1</c>
-    /// (<c>Spring.cs:69-75</c>), which the extractor publishes as <c>capabilities.spring.mass</c>
-    /// (<c>tools/bple-springs</c>). Everything else keeps its own extracted mass.
+    /// the mass, like every other body here). Every part keeps its own extracted prefab mass: the
+    /// only override in the original is the spring's <c>rigidbody.mass = 1</c> under
+    /// <c>StableSpringConnection</c> (<c>Spring.cs:69-75</c>), and that gate is off in the
+    /// declaration defaults (gaps G105/G107).
     /// </summary>
     public float MassOf(PartDefinition part, float scale = 1f)
     {
         ArgumentNullException.ThrowIfNull(part);
-        float mass = part.Capabilities?.Spring is PartSpring spring && spring.Mass > 0f ? spring.Mass : part.Mass;
-        return mass * scale * scale * scale;
+        return part.Mass * scale * scale * scale;
     }
 
     public PartDefinition GetPart(uint partTypeId)

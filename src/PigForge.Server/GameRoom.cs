@@ -1945,7 +1945,7 @@ public sealed class GameRoom : IDisposable
                 BodyMass(leftLink.Body),
                 BodyMass(rightLink.Body),
                 CompoundAssembler.EffectiveStiffness(spring),
-                spring.Damper,
+                CompoundAssembler.EffectiveDamping(spring),
                 out float frequency,
                 out float dampingRatio))
         {
@@ -1957,8 +1957,8 @@ public sealed class GameRoom : IDisposable
             leftLink.Body,
             rightLink.Body,
             PhysicsConstraintMask.None,
-            // The extractor's published break force (1200 N under StrongSpringConnection,
-            // Spring.cs:38). The Bepu backend enforces it for Distance joints exactly as Unity's
+            // The extractor's published break force (250 N; profile B's StrongSpringConnection is
+            // what doubles it to 1200, Spring.cs:38). The Bepu backend enforces it exactly as Unity's
             // SpringJoint does, so a spring that carries too much snaps and hands over to its
             // endpoint body; the 3 m pull below is the other break path (Spring.cs:78-92).
             breakForce: spring.BreakForce,
@@ -2175,7 +2175,7 @@ public sealed class GameRoom : IDisposable
                 BodyMass(hostLink.Body),
                 SpringEndpointMass,
                 CompoundAssembler.EffectiveStiffness(spring),
-                spring.Damper,
+                CompoundAssembler.EffectiveDamping(spring),
                 out float frequency,
                 out float dampingRatio))
         {

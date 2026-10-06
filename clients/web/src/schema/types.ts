@@ -34,20 +34,19 @@ export interface PartShape {
  * from the class constants and the published IN switches; never authored.
  */
 export interface PartSpring {
-  /** Which joint the original builds; the two paths differ only in how the distance is limited. */
-  joint: "bungee" | "limit";
   /** SPRING_LIMIT_SPRING, 250 N/m (Spring.cs:7). */
   stiffness: number;
   /** SPRING_DAMPING, 20 N*s/m (Spring.cs:9). */
   damper: number;
-  /** SPRING_LIMIT, 0.1 m; the `limit` path's linear limit (Spring.cs:11). */
+  /** SPRING_LIMIT, 0.1 m; the joint's y linear limit (Spring.cs:11). */
   limit: number;
-  /** SPRING_BOUNCINESS, 1; the `limit` path's linear-limit bounciness (Spring.cs:13). */
+  /** SPRING_BOUNCINESS, 1; the linear-limit bounciness (Spring.cs:13). */
   bounciness: number;
-  /** The published breaking force: 250 doubled to 1200 by IN StrongSpringConnection (Spring.cs:15,38). */
+  /**
+   * The published breaking force: SPRING_BREAK_FORCE, 250 N in the declaration defaults
+   * (Spring.cs:15). Profile B's IN StrongSpringConnection is what doubles it to 1200.
+   */
   breakForce: number;
-  /** The published rigidbody mass: IN StableSpringConnection forces 1 (Spring.cs:69-75). */
-  mass: number;
 }
 
 /** One axis of the glove joint's position drive (spring N/m, damper N*s/m). */

@@ -43,12 +43,13 @@ public sealed class SpringJointAssemblyTests
         Assert.Equal(new PhysicsVector3(0f, -0.5f, 0f), seam.AnchorInRight);
 
         // The declared content numbers, in the original's own units (extracted, never authored).
-        Assert.Equal("bungee", seam.Joint);
+        // No route discriminator: the declaration defaults leave StableSpringConnection off, so every
+        // skin is the ConfigurableJoint y soft limit (gaps G105/G107).
         Assert.Equal(250f, seam.Stiffness);
         Assert.Equal(20f, seam.Damper);
         Assert.Equal(0.1f, seam.Limit);
         Assert.Equal(1f, seam.Bounciness);
-        Assert.Equal(1200f, seam.BreakForce);
+        Assert.Equal(250f, seam.BreakForce);
     }
 
     [Fact]
@@ -104,29 +105,36 @@ public sealed class SpringJointAssemblyTests
     public void TheSpringCalibrationIsTheProbeFittedRate()
     {
         // The declared SPRING_LIMIT_SPRING (250 N/m) is not what the original's PhysX delivers:
-        // tasks/spring-probe.json measures 0.064478 m of sag at a 9.68 N load, i.e. 150.16 N/m on
-        // the bungee skins and 70.48 N/m on the limit skins. These scales are how Bepu reproduces
-        // the measured link instead of the declared number (docs/specs/spring-joint.md §3/§7).
-        Assert.Equal(0.6006452f, CompoundAssembler.SpringEffectiveStiffnessScale);
-        Assert.Equal(0.28192f, CompoundAssembler.SpringLimitEffectiveStiffnessScale);
+        // tasks/spring-probe.json measures 0.123418 m of sag at a 5.863 N load on the cell that
+        // matches this content's own spring mass (0.6 kg), i.e. 47.50768 N/m against the declared
+        // 250, and a free-oscillation damping ratio of 0.539356 where the declared 20 N*s/m would
+        // be overdamped (1.87). These scales are how Bepu reproduces the measured link instead of
+        // the declared numbers (docs/specs/spring-joint.md §3/§7).
+        Assert.Equal(0.1900307f, CompoundAssembler.SpringEffectiveStiffnessScale);
+        Assert.Equal(0.2879606f, CompoundAssembler.SpringEffectiveDampingScale);
         Assert.Equal(3f, CompoundAssembler.SpringBreakDistance);
 
-        CompoundSpring bungee = new(default, default, default, default, "bungee", 250f, 20f, 0.1f, 1f, 1200f);
-        Assert.Equal(150.1613f, CompoundAssembler.EffectiveStiffness(bungee), precision: 2);
-        CompoundSpring limit = bungee with { Joint = "limit" };
-        Assert.Equal(70.48f, CompoundAssembler.EffectiveStiffness(limit), precision: 2);
+        const float contentMass = 0.6f;
+        CompoundSpring spring = new(default, default, default, default, 250f, 20f, 0.1f, 1f, 250f);
+        Assert.Equal(47.5077f, CompoundAssembler.EffectiveStiffness(spring), precision: 2);
+        Assert.Equal(5.7592f, CompoundAssembler.EffectiveDamping(spring), precision: 3);
 
-        // The 1 kg probe load at the calibrated rate, against the original's measured 0.064478 m.
-        float sag = 9.81f / CompoundAssembler.EffectiveStiffness(bungee);
-        Assert.InRange(sag, 0.064478f * 0.75f, 0.064478f * 1.25f);
+        // The probe cell's own load at the calibrated rate, against its measured 0.123418 m.
+        float sag = contentMass * 9.81f / CompoundAssembler.EffectiveStiffness(spring);
+        Assert.InRange(sag, 0.123418f * 0.75f, 0.123418f * 1.25f);
 
-        // Non-vacuous: the declared 250 N/m misses the ±25% band by a wide margin (0.0392 m), which
-        // is exactly the -39% the spec records.
-        Assert.True(9.81f / 250f < 0.064478f * 0.75f);
+        // Non-vacuous: the declared 250 N/m misses the ±25% band by a wide margin (0.0235 m), which
+        // is the 5x-too-stiff reading the spec records.
+        Assert.True(contentMass * 9.81f / 250f < 0.123418f * 0.75f);
+
+        // And the damping non-vacuously: the declared 20 N*s/m gives the solver's zeta = 1.87,
+        // where the original's own free oscillation reads 0.54.
+        float zeta = 20f / (2f * MathF.Sqrt(CompoundAssembler.EffectiveStiffness(spring) * contentMass));
+        Assert.True(zeta > 1.5f);
     }
 
     [Fact]
-    public void TheLimitSkinsUseTheSofterCalibration()
+    public void EverySkinTakesTheOneVanillaCalibration()
     {
         PartContentLibrary content = LoadContent();
         (ConstructionRules rules, EntityId spring, EntityId frame) = PlacePair(content, PartSpringLimit, PartFrame);
@@ -134,8 +142,9 @@ public sealed class SpringJointAssemblyTests
         CompoundAssembly assembly = CompoundAssembler.Assemble(new[] { spring, frame }, rules, content);
 
         CompoundSpring seam = Assert.Single(assembly.Springs);
-        Assert.Equal("limit", seam.Joint);
-        Assert.Equal(70.48f, CompoundAssembler.EffectiveStiffness(seam), precision: 2);
+        // The other historical skin (205) is the same configuration in the declaration defaults.
+        Assert.Equal(47.5077f, CompoundAssembler.EffectiveStiffness(seam), precision: 2);
+        Assert.Equal(5.7592f, CompoundAssembler.EffectiveDamping(seam), precision: 3);
     }
 
     [Fact]
@@ -165,7 +174,6 @@ public sealed class SpringJointAssemblyTests
             hash = unchecked((hash * 31) + spring.Right.Value.GetHashCode());
             hash = unchecked((hash * 31) + spring.AnchorInLeft.GetHashCode());
             hash = unchecked((hash * 31) + spring.AnchorInRight.GetHashCode());
-            hash = unchecked((hash * 31) + spring.Joint.GetHashCode());
             hash = unchecked((hash * 31) + spring.Stiffness.GetHashCode());
             hash = unchecked((hash * 31) + spring.BreakForce.GetHashCode());
         }

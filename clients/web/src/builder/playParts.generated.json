@@ -321,13 +321,11 @@
         "enginePower": 0,
         "jointConnectionType": "source",
         "spring": {
-          "joint": "bungee",
           "stiffness": 250,
           "damper": 20,
           "limit": 0.1,
           "bounciness": 1,
-          "breakForce": 1200,
-          "mass": 1
+          "breakForce": 250
         }
       },
       "shapes": [
@@ -8354,13 +8352,11 @@
         "enginePower": 0,
         "jointConnectionType": "source",
         "spring": {
-          "joint": "limit",
           "stiffness": 250,
           "damper": 20,
           "limit": 0.1,
           "bounciness": 1,
-          "breakForce": 1200,
-          "mass": 1
+          "breakForce": 250
         }
       },
       "shapes": [
@@ -8396,13 +8392,11 @@
         "enginePower": 0,
         "jointConnectionType": "source",
         "spring": {
-          "joint": "bungee",
           "stiffness": 250,
           "damper": 20,
           "limit": 0.1,
           "bounciness": 1,
-          "breakForce": 1200,
-          "mass": 1
+          "breakForce": 250
         }
       },
       "shapes": [
@@ -8438,13 +8432,11 @@
         "enginePower": 0,
         "jointConnectionType": "source",
         "spring": {
-          "joint": "limit",
           "stiffness": 250,
           "damper": 20,
           "limit": 0.1,
           "bounciness": 1,
-          "breakForce": 1200,
-          "mass": 1
+          "breakForce": 250
         }
       },
       "shapes": [

@@ -73,6 +73,13 @@ public static class SpringProbe
             new Cell { Id = "bungee_explicit_mass1",  Bungee = true,  ExplicitAnchor = true, Mass = 1f, BreakForce = 1200f },
             new Cell { Id = "limit_auto_mass1",       Bungee = false, Mass = 1f,   BreakForce = 1200f },
             new Cell { Id = "limit_explicit_mass1",   Bungee = false, ExplicitAnchor = true, Mass = 1f, BreakForce = 1200f },
+            // The vanilla declaration defaults (`INDeclarationSettingsExp.json`): Stable and Strong
+            // are both false, so every skin takes the limit path, the part keeps its own prefab mass
+            // (0.3 kg, `Part_Spring_01_SET.prefab:72`) and the break force is the static default 250.
+            new Cell { Id = "limit_auto_mass0p3",     Bungee = false, Mass = 0.3f, BreakForce = 250f },
+            // PigForge's content mass for the same part (0.6 = the pipeline's 2x calibration of the
+            // original's 0.3) — the load dependence the spec 7 note is about.
+            new Cell { Id = "limit_auto_mass0p6",     Bungee = false, Mass = 0.6f, BreakForce = 250f },
         };
 
         foreach (Cell cell in cells)

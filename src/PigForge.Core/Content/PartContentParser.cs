@@ -1160,23 +1160,13 @@ public static class PartContentParser
 
         foreach (string key in keys)
         {
-            if (key is not ("joint" or "stiffness" or "damper" or "limit" or "bounciness" or "breakForce" or "mass"))
+            if (key is not ("stiffness" or "damper" or "limit" or "bounciness" or "breakForce"))
             {
                 errors.Add($"{field}: unknown property '{key}'.");
             }
         }
 
         bool ok = true;
-        string joint = string.Empty;
-        if (!keys.Contains("joint")
-            || !element.TryGetProperty("joint", out JsonElement jointElement)
-            || jointElement.ValueKind != JsonValueKind.String
-            || (joint = jointElement.GetString() ?? string.Empty) is not ("bungee" or "limit"))
-        {
-            errors.Add($"{field}.joint: must be \"bungee\" (SpringJoint rope) or \"limit\" (y linear limit).");
-            ok = false;
-        }
-
         float stiffness = 0f;
         if (!keys.Contains("stiffness") || !TryReadFinite(element, "stiffness", out stiffness) || stiffness <= 0f)
         {
@@ -1212,19 +1202,12 @@ public static class PartContentParser
             ok = false;
         }
 
-        float mass = 0f;
-        if (!keys.Contains("mass") || !TryReadFinite(element, "mass", out mass) || mass <= 0f)
-        {
-            errors.Add($"{field}.mass: must be a finite positive number.");
-            ok = false;
-        }
-
         if (!ok)
         {
             return false;
         }
 
-        spring = new PartSpring(joint, stiffness, damper, limit, bounciness, breakForce, mass);
+        spring = new PartSpring(stiffness, damper, limit, bounciness, breakForce);
         return true;
     }
 

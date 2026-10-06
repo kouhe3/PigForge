@@ -139,7 +139,7 @@
         "balloon": { "$ref": "#/$defs/balloonCapability" },
         "fan": { "$ref": "#/$defs/fanCapability" },
         "spring": {
-          "description": "The original Spring's own joint (Spring.cs:100-134): a breakable bungee rope (SpringJoint) or a y soft limit (ConfigurableJoint) holding the two neighbours at their assembly distance. It never applies an impulse -- the old bounce-pad reading is gone. Extracted per skin by tools/bple-springs, never authored.",
+          "description": "The original Spring's own joint (Spring.cs:100-134): a breakable y soft limit (the ConfigurableJoint branch the declaration defaults always take) holding the two neighbours at their assembly distance. It never applies an impulse -- the old bounce-pad reading is gone. Extracted per skin by tools/bple-springs, never authored.",
           "$ref": "#/$defs/springCapability"
         },
         "glove": {
@@ -298,18 +298,13 @@
   "springCapability": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["joint", "stiffness", "damper", "limit", "bounciness", "breakForce", "mass"],
+    "required": ["stiffness", "damper", "limit", "bounciness", "breakForce"],
     "properties": {
-      "joint": {
-        "enum": ["bungee", "limit"],
-        "description": "'bungee' = the original takes the SpringJoint rope branch (StableSpringConnection and customPartIndex 0 or 2, Spring.cs:104); 'limit' = the y linear-limit ConfigurableJoint branch (Spring.cs:120). Extracted per skin by tools/bple-springs, never authored."
-      },
       "stiffness": { "type": "number", "exclusiveMinimum": 0, "description": "SPRING_LIMIT_SPRING, 250 N/m (Spring.cs:7)." },
       "damper": { "type": "number", "minimum": 0, "description": "SPRING_DAMPING, 20 N*s/m (Spring.cs:9)." },
-      "limit": { "type": "number", "minimum": 0, "description": "SPRING_LIMIT, 0.1 m; the 'limit' path's linear limit (Spring.cs:11)." },
-      "bounciness": { "type": "number", "minimum": 0, "description": "SPRING_BOUNCINESS, 1; the 'limit' path's linear-limit bounciness (Spring.cs:13)." },
-      "breakForce": { "type": "number", "exclusiveMinimum": 0, "description": "The published breaking force: SPRING_BREAK_FORCE 250 doubled to 1200 by IN StrongSpringConnection (Spring.cs:15,38)." },
-      "mass": { "type": "number", "exclusiveMinimum": 0, "description": "The published rigidbody mass: IN StableSpringConnection forces 1 (Spring.cs:69-75)." }
+      "limit": { "type": "number", "minimum": 0, "description": "SPRING_LIMIT, 0.1 m; the joint's y linear limit (Spring.cs:11)." },
+      "bounciness": { "type": "number", "minimum": 0, "description": "SPRING_BOUNCINESS, 1; the linear-limit bounciness (Spring.cs:13)." },
+      "breakForce": { "type": "number", "exclusiveMinimum": 0, "description": "SPRING_BREAK_FORCE, 250 N in the declaration defaults (Spring.cs:15). Profile B's IN StrongSpringConnection is what doubles it to 1200." }
     }
   },
   "gloveCapability": {

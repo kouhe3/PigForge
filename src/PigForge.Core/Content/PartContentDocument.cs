@@ -218,23 +218,22 @@ public sealed record PartSuspension(
 
 /// <summary>
 /// The original <c>Spring</c>'s own joint (Spring.cs:100-134): the part does not weld its
-/// neighbours, it holds them at their assembly distance with either a bungee rope
-/// (<c>SpringJoint</c>: <c>minDistance == maxDistance == 0</c>, i.e. no slack) or a one-axis
-/// soft limit (the remaining skins). Every number is extracted per prefab by
+/// neighbours, it holds them at their assembly distance with the one-axis soft limit of the
+/// <c>ConfigurableJoint</c> branch. That is the only branch the declaration defaults ever take:
+/// the bungee <c>SpringJoint</c> arm needs <c>StableSpringConnection</c>, and the 1200 N break
+/// force needs <c>StrongSpringConnection</c> — both are profile-B (mod) values, so a vanilla
+/// spring is a y soft limit with the class's own 250 N break force (gaps G105/G107).
+/// Every number is extracted per prefab by
 /// <c>tools/bple-springs</c>, never authored: <c>Stiffness</c>/<c>Damper</c> are the declared
-/// N/m and N·s/m, <c>Limit</c>/<c>Bounciness</c> the linear limit of the <c>limit</c> path,
-/// <c>BreakForce</c> the published breaking force (<c>StrongSpringConnection = true</c>
-/// doubles it, Spring.cs:38) and <c>Mass</c> the published rigidbody mass
-/// (<c>StableSpringConnection = true</c> forces 1, Spring.cs:74).
+/// N/m and N·s/m, <c>Limit</c>/<c>Bounciness</c> the linear limit and the published
+/// <c>BreakForce</c> (Spring.cs:15).
 /// </summary>
 public sealed record PartSpring(
-    string Joint,
     float Stiffness,
     float Damper,
     float Limit,
     float Bounciness,
-    float BreakForce,
-    float Mass);
+    float BreakForce);
 
 /// <summary>One axis of the glove joint's position drive (spring N/m, damper N·s/m).</summary>
 public sealed record PartGloveDrive(

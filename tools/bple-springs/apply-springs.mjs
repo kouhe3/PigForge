@@ -15,12 +15,11 @@
 //     CustomConnectToPart, so Contraption.AddFixedJoint welds them rigidly) is what makes
 //     their axles stay rigid.
 //
-//   - spring: the original `Spring`'s own connection (docs/specs/spring-joint.md §2), per
-//     skin: `joint` = the report's joint path (`bungee` rope when customPartIndex is 0/2
-//     under StableSpringConnection, the `limit` y soft-limit otherwise), the parsed class
-//     constants, and the *published* `breakForce`/`mass` (StrongSpringConnection doubles
-//     the declared 250 to 1200; StableSpringConnection forces the mass to 1) -- never the
-//     declared 250, never the prefab's 0.3.
+//   - spring: the original `Spring`'s own connection (docs/specs/spring-joint.md §2): the
+//     declared class constants and the *declaration-default* `breakForce` (250; profile B's
+//     StrongSpringConnection is what doubles it to 1200). No route key and no mass override:
+//     the declaration defaults leave StableSpringConnection false, so every skin takes the
+//     ConfigurableJoint y-soft-limit branch and keeps its own content mass -- never authored.
 //
 //   - glove: the interactive `SpringBoxingGlove` (docs/specs/boxing-glove.md §2): the glove
 //     body (`mass` + `shapes` from the referenced BoxingGlove*.prefab), the host-glove
@@ -212,18 +211,20 @@ function deepSame(left, right) {
 /** The `spring` the report derives for one Spring-family prefab (docs/specs/spring-joint.md §2). */
 function renderSpring(entry) {
   const route = entry.jointPath?.route;
-  const joint = route === "SpringJoint" ? "bungee" : route === "ConfigurableJointYLimit" ? "limit" : null;
-  if (joint === null) throw new Error(`${entry.prefab}: unknown spring joint path ${JSON.stringify(route)}`);
+  // The declaration defaults (StableSpringConnection false) put every skin on the
+  // ConfigurableJoint y-soft-limit branch, so the capability carries no route discriminator and
+  // it carries no mass override either -- the part keeps its own content mass (gaps G107).
+  if (route !== "ConfigurableJointYLimit") {
+    throw new Error(`${entry.prefab}: the spring joint path changed to ${JSON.stringify(route)}; the declaration defaults only ever take the y-limit branch`);
+  }
   const constants = report.classConstants.Spring;
   const runtime = report.spring.runtime;
   const fields = [
-    `"joint": "${joint}"`,
     `"stiffness": ${plain(constants.SPRING_LIMIT_SPRING.value)}`,
     `"damper": ${plain(constants.SPRING_DAMPING.value)}`,
     `"limit": ${plain(constants.SPRING_LIMIT.value)}`,
     `"bounciness": ${plain(constants.SPRING_BOUNCINESS.value)}`,
     `"breakForce": ${plain(runtime.breakForce.value)}`,
-    `"mass": ${plain(runtime.mass.value)}`,
   ];
   return `{ ${fields.join(", ")} }`;
 }

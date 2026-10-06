@@ -246,7 +246,7 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
   }
   if (value.spring !== undefined) {
     if (!isSpring(value.spring)) {
-      errors.push(`Part ${partTypeId} capabilities.spring must be { joint: 'bungee' | 'limit', stiffness, damper, limit, bounciness, breakForce, mass }, with a positive stiffness/breakForce/mass and non-negative damper/limit/bounciness.`);
+      errors.push(`Part ${partTypeId} capabilities.spring must be { stiffness, damper, limit, bounciness, breakForce }, with a positive stiffness/breakForce and non-negative damper/limit/bounciness.`);
     }
   }
   if (value.glove !== undefined) {
@@ -349,7 +349,7 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
 
 // The server parser rejects unknown properties inside these objects, so the client checks the same
 // exact key sets instead of accepting a typo the server would refuse.
-const SPRING_KEYS = ["joint", "stiffness", "damper", "limit", "bounciness", "breakForce", "mass"];
+const SPRING_KEYS = ["stiffness", "damper", "limit", "bounciness", "breakForce"];
 const GLOVE_KEYS = ["mass", "shapes", "limit", "yDrive", "xDrive", "projectionDistance", "shoot", "wind", "solverIterationScale"];
 const GLOVE_DRIVE_KEYS = ["spring", "damper"];
 const GLOVE_SHOOT_KEYS = ["distanceY", "deviationX", "time", "limitSpring"];
@@ -368,20 +368,18 @@ function isNonNegativeNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
-/** The original Spring's own joint: a bungee rope or a y soft limit, all values extracted. */
+/** The original Spring's own joint: the declaration defaults' y soft limit, all values extracted. */
 function isSpring(value: unknown): value is PartSpring {
   if (value === null || typeof value !== "object") {
     return false;
   }
   const spring = value as Record<string, unknown>;
   return hasExactKeys(spring, SPRING_KEYS)
-    && (spring.joint === "bungee" || spring.joint === "limit")
     && isPositiveNumber(spring.stiffness)
     && isNonNegativeNumber(spring.damper)
     && isNonNegativeNumber(spring.limit)
     && isNonNegativeNumber(spring.bounciness)
-    && isPositiveNumber(spring.breakForce)
-    && isPositiveNumber(spring.mass);
+    && isPositiveNumber(spring.breakForce);
 }
 
 function isGloveDrive(value: unknown): value is PartGloveDrive {
