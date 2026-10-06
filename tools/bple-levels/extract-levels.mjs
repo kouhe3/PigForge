@@ -276,15 +276,105 @@ class Reader {
   vector3() {
     return [this.float(), this.float(), this.float()];
   }
-  mesh() {
+  /// Reads a mesh block. `collectIndices` keeps the triangle indices, which are `int16` -- a detail
+  /// that matters: a version of this tool that read them as `int32` desynchronised the whole stream.
+  mesh(collectIndices = false) {
     const vertexCount = this.int32();
     check(vertexCount >= 0, `negative vertex count ${vertexCount}`);
     this.offset += vertexCount * 8;
     const indexCount = this.int32();
     check(indexCount >= 0, `negative index count ${indexCount}`);
-    this.offset += indexCount * 2;
-    return { vertexCount, indexCount };
+    const indices = collectIndices ? new Array(indexCount) : null;
+    if (indices) {
+      for (let index = 0; index < indexCount; index += 1) {
+        indices[index] = this.int16();
+      }
+    } else {
+      this.offset += indexCount * 2;
+    }
+
+    return { vertexCount, indexCount, indices };
   }
+}
+
+/// The collision outline of a terrain is the fill mesh's boundary: `LevelLoader.CreateCollider`
+/// (`LevelLoader.cs:339-380`) walks the vertex list IN ORDER -- vertex i connects to vertex i + 1,
+/// both duplicated at z = +-depth/2 -- so it silently assumes the list is one closed loop. This
+/// measures what the boundary really is, from the triangles themselves: the edges used by exactly
+/// one triangle must decompose into closed loops (every vertex touching an even number of boundary
+/// edges), and the common case is that the loops are the vertex list itself.
+///
+/// A terrain whose boundary is NOT a single loop cannot be extruded by trusting the vertex order;
+/// the converter has to walk the boundary loops instead. Measured 2026-10-06 across the 1648
+/// collider-carrying terrains: **1643** are the vertex list exactly, **4** are loops that pinch at
+/// one vertex (one vertex carries four boundary edges: two regions meeting at a point, so the
+/// vertex order passes through it twice), and **1** is a single loop over 549 of its 550 vertices
+/// (one vertex is not on the boundary at all, and extruding the list in order would spike out to
+/// it). The hard invariant is the even-degree one below -- every boundary vertex carries an even
+/// number of boundary edges, so the outline always decomposes into closed loops.
+const OUTLINE_LOOP = "vertex list is the boundary loop";
+/// Returns the outline's shape as `{ label, vertices, boundaryEdges, boundaryVertices, links }`:
+/// `links` is the boundary's edge count per vertex, which is 2 for every vertex of a clean
+/// triangulation and something else where the triangulation only touches itself at a point.
+function classifyOutline(fill) {
+  const indices = fill.indices;
+  if (!indices || indices.length === 0 || indices.length % 3 !== 0) {
+    return { label: "no triangles", vertices: fill.vertexCount, boundaryEdges: 0, boundaryVertices: 0, links: [] };
+  }
+
+  const edges = new Map();
+  const bump = (a, b) => {
+    const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+    edges.set(key, (edges.get(key) ?? 0) + 1);
+  };
+  for (let index = 0; index < indices.length; index += 3) {
+    bump(indices[index], indices[index + 1]);
+    bump(indices[index + 1], indices[index + 2]);
+    bump(indices[index + 2], indices[index]);
+  }
+
+  const boundary = new Set();
+  for (const [key, count] of edges) if (count === 1) boundary.add(key);
+  if (boundary.size === 0) {
+    return { label: "no boundary edges", vertices: fill.vertexCount, boundaryEdges: 0, boundaryVertices: 0, links: [] };
+  }
+
+  const neighbours = new Map();
+  for (const key of boundary) {
+    const [a, b] = key.split(":").map(Number);
+    neighbours.set(a, (neighbours.get(a) ?? 0) + 1);
+    neighbours.set(b, (neighbours.get(b) ?? 0) + 1);
+  }
+  const degrees = new Map();
+  for (const degree of neighbours.values()) degrees.set(degree, (degrees.get(degree) ?? 0) + 1);
+  const links = [...degrees.entries()].sort((left, right) => left[0] - right[0]).map(([degree, vertices]) => `${degree}:${vertices}`).join(" ");
+  // A boundary whose vertices all have an EVEN number of boundary edges decomposes into closed
+  // loops -- a degree-4 vertex is a pinch, where two loops touch at one point. An odd degree means
+  // the outline is an open chain, which no extrusion can close.
+  const highestDegree = Math.max(...degrees.keys());
+  if (highestDegree % 2 !== 0) {
+    return { label: "open boundary chain", vertices: fill.vertexCount, boundaryEdges: boundary.size, boundaryVertices: neighbours.size, links };
+  }
+
+  const loop = new Set();
+  for (let index = 0; index < fill.vertexCount; index += 1) {
+    const next = (index + 1) % fill.vertexCount;
+    loop.add(index < next ? `${index}:${next}` : `${next}:${index}`);
+  }
+  const same = boundary.size === loop.size && [...boundary].every((key) => loop.has(key));
+  if (same) {
+    return { label: OUTLINE_LOOP, vertices: fill.vertexCount, boundaryEdges: boundary.size, boundaryVertices: neighbours.size, links };
+  }
+
+  return {
+    label:
+      `closed loops over ${neighbours.size} of ${fill.vertexCount} vertices` +
+      (highestDegree > 2 ? ` (pinched at degree ${highestDegree})` : ""),
+    vertices: fill.vertexCount,
+    boundaryEdges: boundary.size,
+    boundaryVertices: neighbours.size,
+    links,
+  };
 }
 
 const readLevel = (buffer) => {
@@ -297,6 +387,8 @@ const readLevel = (buffer) => {
     overrideBytes: [],
     prefabIndexes: new Map(),
     instanceNames: new Map(),
+    terrainTransforms: [],
+    goalInstances: [],
     maxDepth: 0,
   };
   const readData = (node) => {
@@ -304,7 +396,11 @@ const readLevel = (buffer) => {
     node.dataType = type;
     if (type === 1) {
       const fillOffset = reader.vector2();
-      const fill = reader.mesh();
+      // The fill mesh's indices are kept: `LevelLoader.CreateCollider` treats the fill MESH VERTEX
+      // LIST, in order, as the terrain's collision outline (it connects vertex i to vertex i + 1 and
+      // extrudes the loop along z at `LevelLoader.cs:339-380`). `outlineLoopOf` below checks that
+      // assumption against the triangles themselves.
+      const fill = reader.mesh(true);
       const fillColor = reader.uint32();
       const fillTextureIndex = reader.int32();
       const curve = reader.mesh();
@@ -343,6 +439,11 @@ const readLevel = (buffer) => {
       level.instances += 1;
       level.prefabIndexes.set(prefabIndex, (level.prefabIndexes.get(prefabIndex) ?? 0) + 1);
       level.instanceNames.set(name, (level.instanceNames.get(name) ?? 0) + 1);
+      // Level props are placed by their own transform, so the converter needs to know whether an
+      // instance ever rotates or scales. `e2dTerrain` instances are the level's collision surface
+      // and the `Goal*` prefabs are where a level's finish trigger sits.
+      if (name.includes("e2dTerrain")) level.terrainTransforms.push({ euler, localScale });
+      if (/^Goal/i.test(name)) level.goalInstances.push({ name, position, euler, localScale });
       readData({ name, prefabIndex, position, euler, localScale });
     } else {
       reader.string();
@@ -373,6 +474,11 @@ const levels = [];
 const paletteUsage = new Map();
 const referenceUsage = new Map();
 const nameMismatches = [];
+const terrainEulerHistogram = new Map();
+const terrainScaleHistogram = new Map();
+const goalNameHistogram = new Map();
+const outlineHistogram = new Map();
+let levelsWithGoal = 0;
 
 for (const { bundle, file } of dataFiles) {
   const sceneName = basename(file).replace(/_data\.bytes$/, "");
@@ -409,6 +515,30 @@ for (const { bundle, file } of dataFiles) {
     return path ?? `<unresolved:${guid}>`;
   });
   for (const path of referencePaths) referenceUsage.set(path, (referenceUsage.get(path) ?? 0) + 1);
+  for (const transform of data.terrainTransforms) {
+    const euler = transform.euler.map((value) => (Math.round(value * 57.29578 * 10) / 10).toFixed(1)).join(",");
+    const scale = transform.localScale.map((value) => (Math.round(value * 10000) / 10000).toString()).join(",");
+    terrainEulerHistogram.set(euler, (terrainEulerHistogram.get(euler) ?? 0) + 1);
+    terrainScaleHistogram.set(scale, (terrainScaleHistogram.get(scale) ?? 0) + 1);
+  }
+
+  for (const terrain of data.terrain) {
+    if (!terrain.hasCollider) continue;
+    const outline = classifyOutline(terrain.fill);
+    outlineHistogram.set(outline.label, (outlineHistogram.get(outline.label) ?? 0) + 1);
+    check(
+      outline.label === OUTLINE_LOOP || outline.label.includes("closed loop"),
+      `${basename(file)}: a terrain with a collider has no closed outline to extrude (${outline.label}; ` +
+        `${outline.vertices} vertices, ${outline.boundaryEdges} boundary edges over ${outline.boundaryVertices} of them, ` +
+        `edge count per vertex ${outline.links})`,
+    );
+  }
+
+  for (const goal of data.goalInstances) {
+    goalNameHistogram.set(goal.name, (goalNameHistogram.get(goal.name) ?? 0) + 1);
+  }
+
+  if (data.goalInstances.length > 0) levelsWithGoal += 1;
   for (const [index, count] of data.prefabIndexes) {
     const path = palette[index] ?? `<missing:${index}>`;
     const usage = paletteUsage.get(path) ?? { path, instances: 0, levels: 0 };
@@ -434,6 +564,8 @@ for (const { bundle, file } of dataFiles) {
     paletteSize: palette.length,
     references: loader?.referenceCount ?? null,
     terrain: data.terrain.length,
+    terrainInstances: data.terrainTransforms.length,
+    goalInstances: data.goalInstances.length,
     terrainWithCollider: data.terrain.filter((entry) => entry.hasCollider).length,
     fillVertices: data.terrain.reduce((sum, entry) => sum + entry.fill.vertexCount, 0),
     fillTriangles: data.terrain.reduce((sum, entry) => sum + entry.fill.indexCount, 0),
@@ -469,6 +601,10 @@ for (const usage of [...paletteUsage.values()].sort((left, right) => right.insta
 // ---------------------------------------------------------------- report
 
 const sum = (key) => levels.reduce((total, level) => total + level[key], 0);
+const sortedHistogram = (histogram) => [...histogram.entries()]
+  .map(([key, count]) => ({ key, count }))
+  .sort((left, right) => right.count - left.count || left.key.localeCompare(right.key));
+
 const report = {
   format: "pigforge.bple-levels",
   schemaVersion: 1,
@@ -501,6 +637,15 @@ const report = {
   episodes,
   levels: levels.sort((left, right) => left.bundle.localeCompare(right.bundle) || left.sceneName.localeCompare(right.sceneName)),
   palette: { parts, props },
+  terrainTransforms: {
+    eulerDegrees: sortedHistogram(terrainEulerHistogram),
+    localScale: sortedHistogram(terrainScaleHistogram),
+  },
+  collisionOutlines: sortedHistogram(outlineHistogram),
+  goals: {
+    levelsWithGoal,
+    names: sortedHistogram(goalNameHistogram),
+  },
   textures: [...referenceUsage.entries()]
     .map(([path, count]) => ({ path, levels: count }))
     .sort((left, right) => right.levels - left.levels || left.path.localeCompare(right.path)),
@@ -538,6 +683,16 @@ md.push("| PigForge id | prefab | 实例数 | 出现关卡数 |", "|---|---|---|
 for (const part of parts.sort((left, right) => left.partTypeId - right.partTypeId)) {
   md.push(`| \`${part.partTypeId}\` | \`${part.name}\` | ${part.instances} | ${part.levels} |`);
 }
+md.push("", "## 地形实例的变换与终点", "");
+md.push(`地形实例（名字含 \`e2dTerrain\`）**${sum("terrainInstances")}** 个，\`euler\` 直方图（度）：`, "");
+md.push(`- ${report.terrainTransforms.eulerDegrees.slice(0, 6).map((entry) => `\`(${entry.key})\` ${entry.count}`).join("、")}`);
+md.push(`- \`localScale\` 直方图：${report.terrainTransforms.localScale.slice(0, 6).map((entry) => `\`(${entry.key})\` ${entry.count}`).join("、")}`);
+md.push("", `终点类实例（名字以 \`Goal\` 开头）出现在 **${report.goals.levelsWithGoal}** 关里，共 ${report.goals.names.reduce((total, entry) => total + entry.count, 0)} 个：`, "");
+md.push(`- ${report.goals.names.slice(0, 10).map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")}`);
+md.push("", `### 碰撞轮廓（\`hasCollider\` 的 ${report.totals.terrainWithCollider} 个地形）`, "");
+md.push("原版 `CreateCollider` 把 fill 网格的**顶点表按顺序**当作轮廓挤出（`LevelLoader.cs:339-380`）。实测：", "");
+for (const entry of report.collisionOutlines) md.push(`- ${entry.key}：**${entry.count}**`);
+md.push("", "⇒ 转换器必须**走边界环**（甚至度数顶点：4 度 = 两个环在一点相接），不能直接信任顶点表顺序。", "");
 md.push("", "## 地形贴图表（`m_references`）", "");
 md.push(`去重后 **${report.textures.length}** 个资源，被 loader 引用；每个地形还有一张**嵌在关卡文件里**的控制贴图（PNG，合计 ${report.totals.controlTextures} 张）。`, "");
 md.push("| 资源 | 被多少关卡的 loader 引用 |", "|---|---|");
