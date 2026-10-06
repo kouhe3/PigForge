@@ -11,7 +11,8 @@
 + 一个把它翻译成 prefab 的**调色板**（同目录的 `Resources/levels/**/<scene>_loader.prefab` 的 `LevelLoader.m_prefabs`），
 播放顺序与星关门限在 `GameObject/Episode*Levels.prefab` 的 `m_levelInfos` / `m_starLimits` 里。
 
-工具：`node tools/bple-levels/extract-levels.mjs`（默认读 `../BPLE 2022.1.9`，报告写 `tasks/bple-levels-report.{json,md}`）。
+工具：`node tools/bple-levels/extract-levels.mjs`（默认读 `../BPLE 2022.1.9`；报告位置由 `--json`/`--md` 决定，
+默认落在未入库的本地工作目录）。
 它**硬失败**于：文件数不是 277、任一文件解码后剩字节、关卡没有对应 loader、`PrefabIndex` 越出调色板、
 调色板 guid 解析不到资产、某关没有任何地形对象。漂移不会静默通过。
 
@@ -143,7 +144,7 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 | 片 | 内容 | 依赖 |
 |---|---|---|
 | P1 ✅ | 解码工具 + 报告（本文档的证据面） | — |
-| P2 | 关卡内容格式 v2：地形（fill 多边形 + 曲线 + 控制贴图）、道具实例（prefab → PigForge 内容）、`PrefabOverrides` 的最小语义集 | 格式已定（§3） |
+| P2 ◐ | 关卡内容格式 v2 + 搬运：契约（`terrain`: position/depth/**边界环**）、房间侧的静态网格体（无实体）、转换器 `tools/bple-levels/build-levels.mjs`、客户端 `GET /level` 侧通道与地形绘制 —— 见 `ADR-033`。**未做**：fill/curve 贴图与 2146 张控制贴图、道具实例、`PrefabOverrides` | 格式已定（§3） |
 | P3 ✅ | 地形进物理：契约 `TriangleMeshShapeDefinition` + 两个后端的静态网格形状（`ADR-032`） | 独立于 P2，已先行 |
 | P4 | 道具件：先做每关都需要的（`LevelStart`、`DessertPlace`、`StarBox`、`BoxChallenge`、`e2dTerrainBase`） | P2 |
 | P5 | 目标/挑战/收集：星级 3 条（过关 + 两个 Challenge）、计时、收集计数 | P4 |
@@ -169,6 +170,14 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 node tools/bple-levels/extract-levels.mjs                     # 默认 pristine；期望 0 失败
 node tools/bple-levels/extract-levels.mjs --bple "C:/tmp/BAD_PIGGIES/BPLE_Unity6"
 #   → 期望 4 条失败：episode_6_level_12 / episode_6_level_ii / MMSandbox 的越界下标（§2 的迁移漂移）
+```
+
+搬运之后（P2 起）：
+
+```powershell
+node tools/bple-levels/build-levels.mjs            # 写 content/levels/original/**，第二次 0 改动
+dotnet run --project src/PigForge.Server -c Release -- --play --level original/<area>/<scene>.json
+curl http://127.0.0.1:5088/level                   # 与服务器解析的同一份 JSON（带 CORS）
 ```
 
 报告里必须复核的数字：`counts.files = 277`、每 bundle 45/45/45/45/30/45/8/10/4、`totals.terrain = 2146`、
