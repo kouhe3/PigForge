@@ -1,0 +1,110 @@
+// Deterministic file writing: the repo's shape (2-space indent, LF, trailing newline), hashed over
+// exactly the bytes that are written, so a re-run that changes nothing writes nothing.
+//
+// Level content is three quarters outline points, so its writer is one level dumber than
+// `JSON.stringify`: each boundary loop stays on a single line (`[[x,y],[x,y],...]`) and each
+// number is printed as the *shortest decimal that still reads back as the same float32*. That is
+// lossless: every value the pack defines reaches us through `BinaryReader.ReadSingle`
+// (`lib/reader.mjs`), and PigForge stores every content number as `float` too, so every number in a
+// content file is exactly a float32 -- a guarantee the writer enforces (it throws on anything
+// else), which also keeps the file self-consistent: a consumer that reads `bounds` and adds 1 gets
+// exactly the `goalZone` a level without a Goal* instance was given.
+
+import { createHash } from "node:crypto";
+
+/// `JSON.stringify(value, null, 2)` plus a trailing newline; used by the extractor's report, whose
+/// numbers are counts (exact integers) and whose shape is unchanged.
+export function formatJson(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+export function sha256(text) {
+  return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+/// A finite float32 shortened to the shortest decimal that parses back to the same float32. Values
+/// that are not exactly a float32 are a caller bug (a derived value that skipped its rounding) and
+/// are refused rather than silently widened.
+function formatNumber(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`level content must be finite numbers, got ${JSON.stringify(value)}`);
+  }
+  if (Math.fround(value) !== value) {
+    throw new Error(`level content must be float32-exact, got ${value}`);
+  }
+  for (let precision = 1; precision <= 9; precision += 1) {
+    const candidate = Number(value.toPrecision(precision));
+    if (Math.fround(candidate) === value) return candidate;
+  }
+  return value;
+}
+
+const numberText = (value) => String(formatNumber(value));
+
+const scalarText = (value) => {
+  if (typeof value === "number") return numberText(value);
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (value === null) return "null";
+  throw new Error(`cannot serialise ${typeof value}`);
+};
+
+/// No whitespace at all: a loop (`[[x,y],[x,y],...]`) and a vector (`[x,y,z]`) both fit one line.
+function compact(value) {
+  if (Array.isArray(value)) return `[${value.map(compact).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value).map((key) => `${JSON.stringify(key)}:${compact(value[key])}`).join(",")}}`;
+  }
+  return scalarText(value);
+}
+
+/// The readable 2-space layout, with float32-shortest numbers, for the small header objects
+/// (`goalZone`, `bounds`, `spawns`). `indent` is the indentation of the line the value hangs off.
+function pretty(value, indent) {
+  const pad = " ".repeat(indent);
+  const child = " ".repeat(indent + 2);
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    return `[\n${value.map((item) => child + pretty(item, indent + 2)).join(",\n")}\n${pad}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    const keys = Object.keys(value);
+    if (keys.length === 0) return "{}";
+    return `{\n${keys.map((key) => `${child}${JSON.stringify(key)}: ${pretty(value[key], indent + 2)}`).join(",\n")}\n${pad}}`;
+  }
+  return scalarText(value);
+}
+
+/// One `terrain` entry: `position` and `depth` on one line each, and one line per outline loop.
+function terrainText(terrains) {
+  if (terrains.length === 0) return "[]";
+  const entries = terrains.map((terrain) => {
+    const loops = terrain.loops.map((loop) => `        ${compact(loop)}`).join(",\n");
+    return [
+      "    {",
+      `      "position": ${compact(terrain.position)},`,
+      `      "depth": ${numberText(terrain.depth)},`,
+      '      "loops": [',
+      loops,
+      "      ]",
+      "    }",
+    ].join("\n");
+  });
+  return `[\n${entries.join(",\n")}\n  ]`;
+}
+
+/// A PigForge level-content v2 document, in the schema's own key order: `format`, `schemaVersion`,
+/// `contentVersion`, `goalZone`, `bounds`, `spawns`, `terrain`.
+export function formatLevelDocument(document) {
+  return `${[
+    "{",
+    `  "format": ${JSON.stringify(document.format)},`,
+    `  "schemaVersion": ${numberText(document.schemaVersion)},`,
+    `  "contentVersion": ${JSON.stringify(document.contentVersion)},`,
+    `  "goalZone": ${pretty(document.goalZone, 2)},`,
+    `  "bounds": ${pretty(document.bounds, 2)},`,
+    `  "spawns": ${pretty(document.spawns, 2)},`,
+    `  "terrain": ${terrainText(document.terrain)}`,
+    "}",
+  ].join("\n")}\n`;
+}

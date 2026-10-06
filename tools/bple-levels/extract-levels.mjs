@@ -55,18 +55,18 @@
 //   - every `PrefabIndex` is inside that palette and every palette guid resolves to a real asset;
 //   - every level places at least one terrain object.
 //
+// The decoder itself lives in `lib/` and is shared with `build-levels.mjs`; this file is the CLI
+// that reports on it. See `docs/specs/original-level-pack.md` for the measured totals.
+//
 // Usage: node tools/bple-levels/extract-levels.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+import { arg } from "./lib/args.mjs";
+import { buildGuidIndex, episodeIndex, loadEpisodes, loadLoaders } from "./lib/unity-yaml.mjs";
+import { readLevel } from "./lib/reader.mjs";
+import { OUTLINE_LOOP, classifyOutline } from "./lib/outline.mjs";
+import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap } from "./lib/pack.mjs";
+import { formatJson } from "./lib/write.mjs";
 
 const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE 2022.1.9")));
 const ASSETS = join(BPLE, "Assets");
@@ -78,396 +78,19 @@ if (!existsSync(ASSETS)) {
   process.exit(2);
 }
 
-const BUNDLE_EXPECT = {
-  "episode_1_levels.unity3d": 45,
-  "episode_2_levels.unity3d": 45,
-  "episode_3_levels.unity3d": 45,
-  "episode_4_levels.unity3d": 45,
-  "episode_5_levels.unity3d": 30,
-  "episode_6_levels.unity3d": 45,
-  "episode_race_levels.unity3d": 8,
-  "episode_sandbox_levels.unity3d": 10,
-  "episode_sandbox_levels_2.unity3d": 4,
-};
-
 const failures = [];
 const check = (condition, message) => {
   if (!condition) failures.push(message);
 };
 
-// ---------------------------------------------------------------- filesystem walk
-
-function* walk(directory) {
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) yield* walk(path);
-    else yield path;
-  }
-}
-
-// Unity YAML is regular enough for a line scanner, with one quirk: list entries sit at the SAME
-// indentation as their key (Unity writes `  m_prefabs:` then `  - {fileID: ..., guid: ...}`), so
-// the block ends at the first non-list line at or above the key's indentation. An entry is its
-// `- ` line plus every deeper line under it (a level info spans four lines).
-function collectList(text, key) {
-  const lines = text.split("\n");
-  const header = lines.findIndex((line) => new RegExp(`^\\s*${key}:\\s*$`).test(line));
-  if (header < 0) return [];
-  const indent = lines[header].length - lines[header].trimStart().length;
-  const entries = [];
-  let current = null;
-  for (let index = header + 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line.trim() === "") continue;
-    const lineIndent = line.length - line.trimStart().length;
-    if (line.trimStart().startsWith("- ")) {
-      if (lineIndent < indent) break;
-      if (current) entries.push(current.join("\n"));
-      current = [line.trim()];
-      continue;
-    }
-    if (lineIndent <= indent) break;
-    if (current) current.push(line.trim());
-  }
-  if (current) entries.push(current.join("\n"));
-  return entries;
-}
-
-const guidToPath = new Map();
-for (const file of walk(ASSETS)) {
-  if (!file.endsWith(".meta")) continue;
-  const text = readFileSync(file, "utf8");
-  const match = /^guid: ([0-9a-f]{32})\s*$/m.exec(text);
-  if (match) guidToPath.set(match[1], relative(BPLE, file.slice(0, -".meta".length)).replaceAll("\\", "/"));
-}
-
-// ---------------------------------------------------------------- loader prefabs (palettes)
-
-const loadersByScene = new Map();
-const LOADER_ROOT = join(ASSETS, "Resources", "levels");
-for (const file of walk(LOADER_ROOT)) {
-  if (!file.endsWith("_loader.prefab")) continue;
-  const text = readFileSync(file, "utf8");
-  const sceneName = /^\s*m_sceneName: (.+)$/m.exec(text)?.[1]?.trim();
-  const referenceCount = collectList(text, "m_references").length;
-  const guids = collectList(text, "m_prefabs").map((entry) => /guid: ([0-9a-f]{32})/.exec(entry)?.[1]);
-  if (!sceneName) {
-    check(false, `loader without m_sceneName: ${relative(BPLE, file)}`);
-    continue;
-  }
-  for (const [index, guid] of guids.entries()) {
-    check(Boolean(guid), `${relative(BPLE, file)}: m_prefabs[${index}] has no guid`);
-  }
-  const referenceGuids = collectList(text, "m_references").map((entry) => /guid: ([0-9a-f]{32})/.exec(entry)?.[1] ?? null);
-  loadersByScene.set(sceneName.toLowerCase(), {
-    sceneName,
-    loaderPath: relative(BPLE, file).replaceAll("\\", "/"),
-    paletteGuids: guids,
-    referenceGuids,
-    referenceCount,
-  });
-}
-
-// ---------------------------------------------------------------- episode manifests (play order)
-
-const episodes = [];
-for (const file of walk(join(ASSETS, "GameObject"))) {
-  if (!/Episode.*Levels\.prefab$/.test(file)) continue;
-  const text = readFileSync(file, "utf8");
-  const name = /^\s*m_name: (.+)$/m.exec(text)?.[1]?.trim();
-  const label = /^\s*m_label: (.+)$/m.exec(text)?.[1]?.trim();
-  const totalLevelCountRaw = /^\s*totalLevelCount: (-?\d+)$/m.exec(text)?.[1];
-  const totalLevelCount = totalLevelCountRaw === undefined ? null : Number(totalLevelCountRaw);
-  const starLimitsHex = /^\s*m_starLimits: ([0-9a-f]+)$/m.exec(text)?.[1];
-  const starLimits = [];
-  if (starLimitsHex) {
-    const bytes = Buffer.from(starLimitsHex, "hex");
-    for (let offset = 0; offset + 4 <= bytes.length; offset += 4) starLimits.push(bytes.readInt32LE(offset));
-  }
-  check(starLimits.length === 0 || starLimits.length === 9, `${basename(file)}: m_starLimits decoded to ${starLimits.length} int32, expected 9`);
-  // Episode manifests list `- sceneName: X` followed by the loader guid/path; the race and sandbox
-  // manifests use a different class that lists `- m_levelLoaderPath: .../<scene>_loader.prefab`
-  // only, so the scene name comes off that path.
-  const levelInfos = [...collectList(text, "m_levelInfos"), ...collectList(text, "m_levels")].map((entry) => {
-    const explicit = /sceneName: (.+)$/.exec(entry)?.[1]?.trim();
-    const path = /([^/\\]+)_loader\.prefab/.exec(entry)?.[1];
-    const loaderGuid = /levelLoaderGUID: ([0-9a-f]{32})/.exec(entry)?.[1] ?? null;
-    return { sceneName: explicit ?? path ?? null, loaderGuid };
-  });
-  check(levelInfos.length > 0, `${basename(file)}: no m_levelInfos entries`);
-  for (const info of levelInfos) check(Boolean(info.sceneName), `${basename(file)}: level info without a scene name`);
-  episodes.push({
-    file: relative(BPLE, file).replaceAll("\\", "/"),
-    name,
-    label,
-    totalLevelCount,
-    starLimits,
-    levelInfos,
-  });
-}
-check(episodes.length >= 8, `expected at least 8 Episode*Levels manifests, found ${episodes.length}`);
-for (const episode of episodes) {
-  check(
-    episode.totalLevelCount === null || episode.totalLevelCount === episode.levelInfos.length,
-    `${basename(episode.file)}: totalLevelCount ${episode.totalLevelCount} != ${episode.levelInfos.length} level infos`,
-  );
-}
-check(
-  episodes.reduce((total, episode) => total + episode.levelInfos.length, 0) === 277,
-  `manifests list ${episodes.reduce((total, episode) => total + episode.levelInfos.length, 0)} levels, expected 277`,
-);
-
-const episodeByScene = new Map();
-for (const episode of episodes) {
-  episode.levelInfos.forEach((info, index) => {
-    episodeByScene.set(info.sceneName.toLowerCase(), { episode: episode.name, index });
-  });
-}
-
-// ---------------------------------------------------------------- the binary level format
-
-class Reader {
-  constructor(buffer) {
-    this.buffer = buffer;
-    this.offset = 0;
-  }
-  int16() {
-    const value = this.buffer.readInt16LE(this.offset);
-    this.offset += 2;
-    return value;
-  }
-  int32() {
-    const value = this.buffer.readInt32LE(this.offset);
-    this.offset += 4;
-    return value;
-  }
-  uint32() {
-    const value = this.buffer.readUInt32LE(this.offset);
-    this.offset += 4;
-    return value;
-  }
-  float() {
-    const value = this.buffer.readFloatLE(this.offset);
-    this.offset += 4;
-    return value;
-  }
-  byte() {
-    return this.buffer[this.offset++];
-  }
-  bool() {
-    return this.byte() !== 0;
-  }
-  string() {
-    let length = 0;
-    let shift = 0;
-    for (;;) {
-      const byte = this.byte();
-      length |= (byte & 0x7f) << shift;
-      if ((byte & 0x80) === 0) break;
-      shift += 7;
-    }
-    const value = this.buffer.toString("utf8", this.offset, this.offset + length);
-    this.offset += length;
-    return value;
-  }
-  vector2() {
-    return [this.float(), this.float()];
-  }
-  vector3() {
-    return [this.float(), this.float(), this.float()];
-  }
-  /// Reads a mesh block. `collectIndices` keeps the triangle indices, which are `int16` -- a detail
-  /// that matters: a version of this tool that read them as `int32` desynchronised the whole stream.
-  mesh(collectIndices = false) {
-    const vertexCount = this.int32();
-    check(vertexCount >= 0, `negative vertex count ${vertexCount}`);
-    this.offset += vertexCount * 8;
-    const indexCount = this.int32();
-    check(indexCount >= 0, `negative index count ${indexCount}`);
-    const indices = collectIndices ? new Array(indexCount) : null;
-    if (indices) {
-      for (let index = 0; index < indexCount; index += 1) {
-        indices[index] = this.int16();
-      }
-    } else {
-      this.offset += indexCount * 2;
-    }
-
-    return { vertexCount, indexCount, indices };
-  }
-}
-
-/// The collision outline of a terrain is the fill mesh's boundary: `LevelLoader.CreateCollider`
-/// (`LevelLoader.cs:339-380`) walks the vertex list IN ORDER -- vertex i connects to vertex i + 1,
-/// both duplicated at z = +-depth/2 -- so it silently assumes the list is one closed loop. This
-/// measures what the boundary really is, from the triangles themselves: the edges used by exactly
-/// one triangle must decompose into closed loops (every vertex touching an even number of boundary
-/// edges), and the common case is that the loops are the vertex list itself.
-///
-/// A terrain whose boundary is NOT a single loop cannot be extruded by trusting the vertex order;
-/// the converter has to walk the boundary loops instead. Measured 2026-10-06 across the 1648
-/// collider-carrying terrains: **1643** are the vertex list exactly, **4** are loops that pinch at
-/// one vertex (one vertex carries four boundary edges: two regions meeting at a point, so the
-/// vertex order passes through it twice), and **1** is a single loop over 549 of its 550 vertices
-/// (one vertex is not on the boundary at all, and extruding the list in order would spike out to
-/// it). The hard invariant is the even-degree one below -- every boundary vertex carries an even
-/// number of boundary edges, so the outline always decomposes into closed loops.
-const OUTLINE_LOOP = "vertex list is the boundary loop";
-/// Returns the outline's shape as `{ label, vertices, boundaryEdges, boundaryVertices, links }`:
-/// `links` is the boundary's edge count per vertex, which is 2 for every vertex of a clean
-/// triangulation and something else where the triangulation only touches itself at a point.
-function classifyOutline(fill) {
-  const indices = fill.indices;
-  if (!indices || indices.length === 0 || indices.length % 3 !== 0) {
-    return { label: "no triangles", vertices: fill.vertexCount, boundaryEdges: 0, boundaryVertices: 0, links: [] };
-  }
-
-  const edges = new Map();
-  const bump = (a, b) => {
-    const key = a < b ? `${a}:${b}` : `${b}:${a}`;
-    edges.set(key, (edges.get(key) ?? 0) + 1);
-  };
-  for (let index = 0; index < indices.length; index += 3) {
-    bump(indices[index], indices[index + 1]);
-    bump(indices[index + 1], indices[index + 2]);
-    bump(indices[index + 2], indices[index]);
-  }
-
-  const boundary = new Set();
-  for (const [key, count] of edges) if (count === 1) boundary.add(key);
-  if (boundary.size === 0) {
-    return { label: "no boundary edges", vertices: fill.vertexCount, boundaryEdges: 0, boundaryVertices: 0, links: [] };
-  }
-
-  const neighbours = new Map();
-  for (const key of boundary) {
-    const [a, b] = key.split(":").map(Number);
-    neighbours.set(a, (neighbours.get(a) ?? 0) + 1);
-    neighbours.set(b, (neighbours.get(b) ?? 0) + 1);
-  }
-  const degrees = new Map();
-  for (const degree of neighbours.values()) degrees.set(degree, (degrees.get(degree) ?? 0) + 1);
-  const links = [...degrees.entries()].sort((left, right) => left[0] - right[0]).map(([degree, vertices]) => `${degree}:${vertices}`).join(" ");
-  // A boundary whose vertices all have an EVEN number of boundary edges decomposes into closed
-  // loops -- a degree-4 vertex is a pinch, where two loops touch at one point. An odd degree means
-  // the outline is an open chain, which no extrusion can close.
-  const highestDegree = Math.max(...degrees.keys());
-  if (highestDegree % 2 !== 0) {
-    return { label: "open boundary chain", vertices: fill.vertexCount, boundaryEdges: boundary.size, boundaryVertices: neighbours.size, links };
-  }
-
-  const loop = new Set();
-  for (let index = 0; index < fill.vertexCount; index += 1) {
-    const next = (index + 1) % fill.vertexCount;
-    loop.add(index < next ? `${index}:${next}` : `${next}:${index}`);
-  }
-  const same = boundary.size === loop.size && [...boundary].every((key) => loop.has(key));
-  if (same) {
-    return { label: OUTLINE_LOOP, vertices: fill.vertexCount, boundaryEdges: boundary.size, boundaryVertices: neighbours.size, links };
-  }
-
-  return {
-    label:
-      `closed loops over ${neighbours.size} of ${fill.vertexCount} vertices` +
-      (highestDegree > 2 ? ` (pinched at degree ${highestDegree})` : ""),
-    vertices: fill.vertexCount,
-    boundaryEdges: boundary.size,
-    boundaryVertices: neighbours.size,
-    links,
-  };
-}
-
-const readLevel = (buffer) => {
-  const reader = new Reader(buffer);
-  const level = {
-    rootCount: 0,
-    groups: 0,
-    instances: 0,
-    terrain: [],
-    overrideBytes: [],
-    prefabIndexes: new Map(),
-    instanceNames: new Map(),
-    terrainTransforms: [],
-    goalInstances: [],
-    maxDepth: 0,
-  };
-  const readData = (node) => {
-    const type = reader.byte();
-    node.dataType = type;
-    if (type === 1) {
-      const fillOffset = reader.vector2();
-      // The fill mesh's indices are kept: `LevelLoader.CreateCollider` treats the fill MESH VERTEX
-      // LIST, in order, as the terrain's collision outline (it connects vertex i to vertex i + 1 and
-      // extrudes the loop along z at `LevelLoader.cs:339-380`). `outlineLoopOf` below checks that
-      // assumption against the triangles themselves.
-      const fill = reader.mesh(true);
-      const fillColor = reader.uint32();
-      const fillTextureIndex = reader.int32();
-      const curve = reader.mesh();
-      const curveTextureCount = reader.int32();
-      const curveTextures = [];
-      for (let index = 0; index < curveTextureCount; index += 1) {
-        curveTextures.push({
-          textureIndex: reader.int32(),
-          size: reader.vector2(),
-          fixedAngle: reader.bool(),
-          fadeThreshold: reader.float(),
-        });
-      }
-      let controlTextureBytes = 0;
-      if (reader.int32() > 0) {
-        controlTextureBytes = reader.int32();
-        reader.offset += controlTextureBytes;
-      }
-      const hasCollider = reader.bool();
-      level.terrain.push({ fillOffset, fill, fillColor, fillTextureIndex, curve, curveTextureCount, controlTextureBytes, hasCollider });
-    } else if (type === 2) {
-      const length = reader.int32();
-      reader.offset += length;
-      level.overrideBytes.push(length);
-    }
-  };
-  const readObject = (depth) => {
-    const childCount = reader.int16();
-    level.maxDepth = Math.max(level.maxDepth, depth);
-    if (childCount === 0) {
-      const name = reader.string();
-      const prefabIndex = reader.int16();
-      const position = reader.vector3();
-      const euler = reader.vector3();
-      const localScale = reader.vector3();
-      level.instances += 1;
-      level.prefabIndexes.set(prefabIndex, (level.prefabIndexes.get(prefabIndex) ?? 0) + 1);
-      level.instanceNames.set(name, (level.instanceNames.get(name) ?? 0) + 1);
-      // Level props are placed by their own transform, so the converter needs to know whether an
-      // instance ever rotates or scales. `e2dTerrain` instances are the level's collision surface
-      // and the `Goal*` prefabs are where a level's finish trigger sits.
-      if (name.includes("e2dTerrain")) level.terrainTransforms.push({ euler, localScale });
-      if (/^Goal/i.test(name)) level.goalInstances.push({ name, position, euler, localScale });
-      readData({ name, prefabIndex, position, euler, localScale });
-    } else {
-      reader.string();
-      reader.vector3();
-      level.groups += 1;
-      for (let index = 0; index < childCount; index += 1) readObject(depth + 1);
-    }
-  };
-  level.rootCount = reader.int32();
-  for (let index = 0; index < level.rootCount; index += 1) readObject(0);
-  level.trailingBytes = buffer.length - reader.offset;
-  return level;
-};
+const guidToPath = buildGuidIndex(BPLE, ASSETS);
+const loadersByScene = loadLoaders(BPLE, ASSETS, check);
+const episodes = loadEpisodes(BPLE, ASSETS, check);
+const episodeByScene = episodeIndex(episodes);
 
 // ---------------------------------------------------------------- scan + decode every level
 
-const dataFiles = [];
-for (const bundleDirectory of readdirSync(join(ASSETS, "assetbundles"), { withFileTypes: true })) {
-  if (!bundleDirectory.isDirectory() || !bundleDirectory.name.includes("levels")) continue;
-  const directory = join(ASSETS, "assetbundles", bundleDirectory.name);
-  for (const entry of readdirSync(directory)) {
-    if (entry.endsWith("_data.bytes")) dataFiles.push({ bundle: bundleDirectory.name, file: join(directory, entry) });
-  }
-}
+const dataFiles = discoverDataFiles(ASSETS);
 
 const bundleCounts = {};
 const levels = [];
@@ -484,7 +107,7 @@ for (const { bundle, file } of dataFiles) {
   const sceneName = basename(file).replace(/_data\.bytes$/, "");
   bundleCounts[bundle] = (bundleCounts[bundle] ?? 0) + 1;
   const buffer = readFileSync(file);
-  const data = readLevel(buffer);
+  const data = readLevel(buffer, check);
   check(data.trailingBytes === 0, `${basename(file)}: ${data.trailingBytes} trailing bytes`);
   check(data.terrain.length > 0, `${basename(file)}: no terrain object`);
 
@@ -537,7 +160,6 @@ for (const { bundle, file } of dataFiles) {
   for (const goal of data.goalInstances) {
     goalNameHistogram.set(goal.name, (goalNameHistogram.get(goal.name) ?? 0) + 1);
   }
-
   if (data.goalInstances.length > 0) levelsWithGoal += 1;
   for (const [index, count] of data.prefabIndexes) {
     const path = palette[index] ?? `<missing:${index}>`;
@@ -584,9 +206,9 @@ for (const [bundle, expected] of Object.entries(BUNDLE_EXPECT)) {
 
 // ---------------------------------------------------------------- part coverage
 
-const partMap = JSON.parse(readFileSync(join(HERE, "..", "bple-textures", "part-map.json"), "utf8")).parts;
+const partMap = loadPartMap();
 const prefabToPartTypeId = new Map();
-for (const [partTypeId, prefab] of Object.entries(partMap)) if (prefab) prefabToPartTypeId.set(prefab, Number(partTypeId));
+for (const [partTypeId, prefab] of partMap.partsByType) prefabToPartTypeId.set(prefab, partTypeId);
 
 const props = [];
 const parts = [];
@@ -654,7 +276,7 @@ const report = {
 };
 
 mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeFileSync(OUT_JSON, formatJson(report));
 
 const histogramLine = (values) =>
   [...values.entries()].sort((left, right) => right[1] - left[1]).slice(0, 8).map(([key, count]) => `${key}:${count}`).join(" ");
