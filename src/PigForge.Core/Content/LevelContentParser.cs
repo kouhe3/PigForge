@@ -21,6 +21,11 @@ public sealed class LevelContentException : Exception
 /// </summary>
 public static class LevelContentParser
 {
+    private static readonly string[] RequiredRootProperties = { "format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns" };
+
+    /// <summary>v2 additions; a v1 document simply omits them.</summary>
+    private static readonly string[] OptionalRootProperties = { "terrain" };
+
     public static LevelContentDocument Parse(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
@@ -49,16 +54,27 @@ public static class LevelContentParser
             }
         }
 
-        RequireExactly(seen, new[] { "format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns" }, "root", errors);
+        RequireExactly(seen, RequiredRootProperties, "root", errors);
+        foreach (string property in seen)
+        {
+            if (!RequiredRootProperties.Contains(property) && !OptionalRootProperties.Contains(property))
+            {
+                errors.Add($"root: unknown property '{property}'.");
+            }
+        }
 
         if (seen.Contains("format") && (!root.TryGetProperty("format", out JsonElement format) || format.GetString() != LevelContentDocument.Format))
         {
             errors.Add($"root.format: must be '{LevelContentDocument.Format}'.");
         }
 
-        if (seen.Contains("schemaVersion") && (!root.TryGetProperty("schemaVersion", out JsonElement schemaVersion) || !schemaVersion.TryGetInt32(out int version) || version != LevelContentDocument.SchemaVersion))
+        if (seen.Contains("schemaVersion")
+            && (!root.TryGetProperty("schemaVersion", out JsonElement schemaVersion)
+                || !schemaVersion.TryGetInt32(out int version)
+                || version is < LevelContentDocument.LegacySchemaVersion or > LevelContentDocument.SchemaVersion))
         {
-            errors.Add($"root.schemaVersion: only version {LevelContentDocument.SchemaVersion} is supported.");
+            errors.Add(
+                $"root.schemaVersion: versions {LevelContentDocument.LegacySchemaVersion} to {LevelContentDocument.SchemaVersion} are supported.");
         }
 
         string? contentVersion = null;
@@ -97,12 +113,150 @@ public static class LevelContentParser
             }
         }
 
+        List<LevelTerrainDefinition> terrain = new();
+        if (seen.Contains("terrain") && root.TryGetProperty("terrain", out JsonElement terrainElement))
+        {
+            if (terrainElement.ValueKind != JsonValueKind.Array)
+            {
+                errors.Add("root.terrain: must be an array.");
+            }
+            else
+            {
+                int index = 0;
+                foreach (JsonElement terrainObject in terrainElement.EnumerateArray())
+                {
+                    ParseTerrain(terrainObject, $"root.terrain[{index}]", terrain, errors);
+                    index++;
+                }
+            }
+        }
+
         if (errors.Count > 0)
         {
             throw new LevelContentException(errors);
         }
 
-        return new LevelContentDocument(contentVersion!, goalZone!.Value, mapBounds!.Value, spawns);
+        return new LevelContentDocument(contentVersion!, goalZone!.Value, mapBounds!.Value, spawns)
+        {
+            Terrain = terrain,
+        };
+    }
+
+    /// <summary>
+    /// One terrain entry: `{ "position": [x,y,z], "depth": 10, "loops": [[[x,y], ...], ...] }`. The
+    /// loops are the terrain's boundary polygons in the terrain's own local frame and the points are
+    /// 2D (the extrusion supplies z), so each point is exactly two numbers.
+    /// </summary>
+    private static void ParseTerrain(JsonElement element, string path, List<LevelTerrainDefinition> terrain, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: terrain must be a JSON object.");
+            return;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        string[] allowed = { "position", "depth", "loops" };
+        RequireExactly(seen, new[] { "position", "depth", "loops" }, path, errors);
+        foreach (string property in seen)
+        {
+            if (!allowed.Contains(property))
+            {
+                errors.Add($"{path}: unknown property '{property}'.");
+            }
+        }
+
+        PhysicsVector3? position = ReadVector3(element, path, "position", errors, required: true);
+
+        float depth = 0f;
+        if (seen.Contains("depth") && element.TryGetProperty("depth", out JsonElement depthElement))
+        {
+            if (depthElement.ValueKind != JsonValueKind.Number || !IsFinite(depthElement) || depthElement.GetSingle() <= 0f)
+            {
+                errors.Add($"{path}.depth: must be a finite positive number.");
+            }
+            else
+            {
+                depth = depthElement.GetSingle();
+            }
+        }
+
+        List<IReadOnlyList<PhysicsVector3>> loops = new();
+        if (seen.Contains("loops") && element.TryGetProperty("loops", out JsonElement loopsElement))
+        {
+            if (loopsElement.ValueKind != JsonValueKind.Array)
+            {
+                errors.Add($"{path}.loops: must be an array of polygons.");
+            }
+            else
+            {
+                int loopIndex = 0;
+                foreach (JsonElement loopElement in loopsElement.EnumerateArray())
+                {
+                    IReadOnlyList<PhysicsVector3>? loop = ReadLoop(loopElement, $"{path}.loops[{loopIndex}]", errors);
+                    if (loop is not null)
+                    {
+                        loops.Add(loop);
+                    }
+
+                    loopIndex++;
+                }
+            }
+        }
+
+        if (loops.Count == 0)
+        {
+            errors.Add($"{path}.loops: a terrain needs at least one outline loop.");
+        }
+
+        if (position is not null && depth > 0f && loops.Count > 0)
+        {
+            terrain.Add(new LevelTerrainDefinition(position.Value, depth, loops));
+        }
+    }
+
+    /// <summary>One outline loop: at least three `[x, y]` points, each finite.</summary>
+    private static IReadOnlyList<PhysicsVector3>? ReadLoop(JsonElement element, string path, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add($"{path}: an outline loop must be an array of points.");
+            return null;
+        }
+
+        List<PhysicsVector3> points = new();
+        int index = 0;
+        foreach (JsonElement pointElement in element.EnumerateArray())
+        {
+            string pointPath = $"{path}[{index}]";
+            index++;
+            if (pointElement.ValueKind != JsonValueKind.Array
+                || pointElement.GetArrayLength() != 2
+                || !IsFinite(pointElement[0])
+                || !IsFinite(pointElement[1]))
+            {
+                errors.Add($"{pointPath}: an outline point must be [x, y] with finite numbers.");
+                continue;
+            }
+
+            points.Add(new PhysicsVector3(pointElement[0].GetSingle(), pointElement[1].GetSingle(), 0f));
+        }
+
+        if (points.Count < 3)
+        {
+            errors.Add($"{path}: an outline loop needs at least three points.");
+            return null;
+        }
+
+        return points;
     }
 
     private static void ParseSpawn(JsonElement element, string path, List<LevelSpawnDefinition> spawns, List<string> errors)

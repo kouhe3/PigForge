@@ -128,6 +128,10 @@ public sealed class GameRoom : IDisposable
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
     private readonly List<uint> _entityOrder = new();
     private LevelContentDocument? _level;
+    private readonly List<PhysicsBodyId> _terrainBodies = new();
+
+    /// <summary>How many static terrain bodies the level brought (test-visible).</summary>
+    internal int TerrainBodyCount => _terrainBodies.Count;
     private readonly List<CapturedPart> _retryLayout = new();
     private readonly Dictionary<uint, List<CapturedPart>> _startLayoutByPlayer = new();
     private bool _disposed;
@@ -287,6 +291,7 @@ public sealed class GameRoom : IDisposable
     {
         ArgumentNullException.ThrowIfNull(level);
         _level = level;
+        EnsureTerrainBodies(level);
         foreach (LevelSpawnDefinition spawn in level.Spawns)
         {
             Spawn(new RoomSpawnSpec(
@@ -310,6 +315,33 @@ public sealed class GameRoom : IDisposable
             // The sandbox world runs from tick zero: level actors become bodies
             // immediately and the room never enters the Building phase.
             MaterializeLevelActors();
+        }
+    }
+
+    /// <summary>
+    /// Creates the level's static terrain (schemaVersion 2 <c>terrain</c>), one mesh body per
+    /// <c>e2dTerrain</c> object the original ships, extruded exactly as <c>LevelLoader</c> extrudes
+    /// it (ADR-032). Terrain is collision only: it has no entity, so it never enters a snapshot, the
+    /// rules layer skips contact events whose body has no entity, and it is not part of any player's
+    /// build, RESET or out-of-bounds cleanup. Built once per room -- <see cref="SetupFromLevel"/> also
+    /// runs on every return to the building phase, and a level's terrain does not change.
+    /// </summary>
+    private void EnsureTerrainBodies(LevelContentDocument level)
+    {
+        if (_terrainBodies.Count > 0 || level.Terrain.Count == 0)
+        {
+            return;
+        }
+
+        foreach (LevelTerrainDefinition terrain in level.Terrain)
+        {
+            BodyDefinition definition = new(
+                PhysicsBodyMode.Static,
+                terrain.Position,
+                PhysicsQuaternion.Identity,
+                mass: 0f,
+                new ShapeDefinition[] { LevelTerrainMesh.Build(terrain) });
+            _terrainBodies.Add(_world.CreateBody(definition));
         }
     }
 
@@ -3679,7 +3711,9 @@ public sealed class GameRoom : IDisposable
 
     private void EnsureBuffers()
     {
-        int bodyCount = Math.Max(1, _entitiesByBody.Count);
+        // A level's terrain bodies carry no entity, but `CopySnapshots` reports every body in the
+        // world, so the snapshot buffer has to have room for them too.
+        int bodyCount = Math.Max(1, _entitiesByBody.Count + _terrainBodies.Count);
         int entityCapacity = Math.Max(bodyCount, MaxSnapshotEntityCount);
         if (_snapshotBuffer.Length < entityCapacity)
         {

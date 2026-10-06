@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
+using System.Text;
 using PigForge.Core;
 using PigForge.Core.Content;
 using PigForge.Physics.Abstractions;
@@ -40,17 +41,23 @@ public static class PlayHost
         public SemaphoreSlim SendLock { get; } = new(1, 1);
     }
 
-    public static async Task<int> RunAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Runs the play host. <paramref name="levelFile"/> names a level under <c>content/levels</c>
+    /// (an original level converted by <c>tools/bple-levels/build-levels.mjs</c> lives under
+    /// <c>original/</c>); without it the sandbox room keeps its own <c>terrain-v1.json</c>.
+    /// </summary>
+    public static async Task<int> RunAsync(CancellationToken cancellationToken = default, string? levelFile = null)
     {
-        using GameRoom room = CreateSandboxRoom();
+        using GameRoom room = CreateRoom(levelFile ?? "terrain-v1.json", sandboxMode: levelFile is null, out string levelJson);
         using HttpListener listener = new();
         listener.Prefixes.Add(Prefix);
         listener.Start();
         Console.WriteLine($"PigForge play host on {Prefix}play");
+        Console.WriteLine($"PigForge level on {Prefix}level");
 
         ConcurrentDictionary<Guid, PlayClient> clients = new();
         SnapshotBroadcaster broadcaster = new();
-        Task accept = AcceptAsync(listener, clients, room, broadcaster, cancellationToken);
+        Task accept = AcceptAsync(listener, clients, room, levelJson, broadcaster, cancellationToken);
         Task ticks = TickAsync(room, clients, broadcaster, cancellationToken);
         await Task.WhenAny(accept, ticks);
         listener.Stop();
@@ -61,13 +68,13 @@ public static class PlayHost
 
     public static GameRoom CreateTerrainRoom() => CreateLevelRoom("terrain-v1.json");
 
-    public static GameRoom CreateLevelRoom(string levelFile) => CreateRoom(levelFile, sandboxMode: false);
+    public static GameRoom CreateLevelRoom(string levelFile) => CreateRoom(levelFile, sandboxMode: false, out _);
 
     /// <summary>
     /// Persistent sandbox room: the level world is materialized during setup, objectives
     /// are disabled, and the room runs at 60 Hz without ever returning to Building.
     /// </summary>
-    public static GameRoom CreateSandboxRoom() => CreateRoom("terrain-v1.json", sandboxMode: true);
+    public static GameRoom CreateSandboxRoom() => CreateRoom("terrain-v1.json", sandboxMode: true, out _);
 
     /// <summary>Allocates the next process-unique player id (starts at 1, never reused).</summary>
     internal static uint NextPlayerId() => (uint)Interlocked.Increment(ref _nextPlayerId);
@@ -76,11 +83,12 @@ public static class PlayHost
     internal static ReplayCommand BindPlayer(ReplayCommand command, uint playerId) =>
         command with { PlayerId = playerId };
 
-    private static GameRoom CreateRoom(string levelFile, bool sandboxMode)
+    private static GameRoom CreateRoom(string levelFile, bool sandboxMode, out string levelJson)
     {
         string root = FindRepositoryRoot();
         PartContentLibrary parts = PartContentLibrary.Load(Path.Combine(root, "content", "parts.json"));
-        LevelContentDocument level = LevelContentLibrary.Parse(File.ReadAllText(Path.Combine(root, "content", "levels", levelFile)));
+        levelJson = File.ReadAllText(Path.Combine(root, "content", "levels", levelFile));
+        LevelContentDocument level = LevelContentLibrary.Parse(levelJson);
         GameplayConfig config = new(
             level.GoalZone,
             level.MapBounds,
@@ -102,12 +110,29 @@ public static class PlayHost
         HttpListener listener,
         ConcurrentDictionary<Guid, PlayClient> clients,
         GameRoom room,
+        string levelJson,
         SnapshotBroadcaster broadcaster,
         CancellationToken cancellationToken)
     {
+        byte[] levelPayload = Encoding.UTF8.GetBytes(levelJson);
         while (!cancellationToken.IsCancellationRequested)
         {
             HttpListenerContext context = await listener.GetContextAsync().WaitAsync(cancellationToken);
+            if (context.Request.Url?.AbsolutePath == "/level")
+            {
+                // The client cannot infer level geometry from snapshots -- a terrain mesh is not a
+                // part, and the goal zone and bounds are level data. It fetches this document
+                // instead, which is the exact JSON the server parsed. CORS keeps the dev client on
+                // its own origin (vite serves :5173, this host owns :5088).
+                context.Response.StatusCode = 200;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+                context.Response.ContentLength64 = levelPayload.Length;
+                await context.Response.OutputStream.WriteAsync(levelPayload, cancellationToken);
+                context.Response.Close();
+                continue;
+            }
+
             if (!context.Request.IsWebSocketRequest || context.Request.Url?.AbsolutePath != "/play")
             {
                 context.Response.StatusCode = 400;
