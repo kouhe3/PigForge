@@ -64,6 +64,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -176,6 +177,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -205,6 +207,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -882,6 +885,7 @@
         "angular": 1
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -1150,6 +1154,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -1206,6 +1211,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "highlyExtreme",
         "powerConsumption": 0,
@@ -1743,6 +1749,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -1833,6 +1840,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "down",
         "jointConnectionStrength": "highlyExtreme",
         "powerConsumption": 0,
@@ -1916,6 +1924,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "none",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -2010,6 +2019,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -2044,6 +2054,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -2078,6 +2089,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -2112,6 +2124,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -4361,6 +4374,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4391,6 +4405,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4421,6 +4436,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4451,6 +4467,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4481,6 +4498,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4511,6 +4529,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4541,6 +4560,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4571,6 +4591,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4601,6 +4622,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4631,6 +4653,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4661,6 +4684,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4691,6 +4715,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4721,6 +4746,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4751,6 +4777,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4776,6 +4803,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4806,6 +4834,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4831,6 +4860,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4861,6 +4891,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -4891,6 +4922,7 @@
         "friction": 0.3
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "normal",
         "powerConsumption": 0,
@@ -5882,6 +5914,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -5911,6 +5944,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -5940,6 +5974,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -5969,6 +6004,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -5998,6 +6034,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -6027,6 +6064,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -8049,6 +8087,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -9294,6 +9333,7 @@
         "angular": 1
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -9343,6 +9383,7 @@
         "angular": 1
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -9392,6 +9433,7 @@
         "angular": 1
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -9441,6 +9483,7 @@
         "angular": 1
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -9490,6 +9533,7 @@
         "angular": 1
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -9539,6 +9583,7 @@
         "angular": 1
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -10518,6 +10563,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -10575,6 +10621,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -10632,6 +10679,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -10689,6 +10737,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -10747,6 +10796,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -10805,6 +10855,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "highlyExtreme",
         "powerConsumption": 0,
@@ -10866,6 +10917,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "highlyExtreme",
         "powerConsumption": 0,
@@ -10927,6 +10979,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "highlyExtreme",
         "powerConsumption": 0,
@@ -10988,6 +11041,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "highlyExtreme",
         "powerConsumption": 0,
@@ -11561,6 +11615,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11591,6 +11646,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11621,6 +11677,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11651,6 +11708,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11681,6 +11739,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11711,6 +11770,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "none",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11740,6 +11800,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "none",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11769,6 +11830,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "none",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11798,6 +11860,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "none",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11919,6 +11982,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "weak",
         "powerConsumption": 0,
@@ -11952,6 +12016,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -11985,6 +12050,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12019,6 +12085,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12053,6 +12120,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12087,6 +12155,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12121,6 +12190,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12155,6 +12225,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12189,6 +12260,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12223,6 +12295,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12257,6 +12330,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12291,6 +12365,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12325,6 +12400,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12359,6 +12435,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12393,6 +12470,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12427,6 +12505,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12461,6 +12540,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,
@@ -12495,6 +12575,7 @@
         "friction": 0.7
       },
       "capabilities": {
+        "canBeEnclosed": true,
         "jointConnectionDirection": "any",
         "jointConnectionStrength": "high",
         "powerConsumption": 0,

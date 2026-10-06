@@ -748,7 +748,9 @@ public sealed class ConstructionRules
     /// <summary>
     /// Resolves a footprint that overlaps existing parts to the frame that will enclose the
     /// candidate, or rejects it. Original rules: only a frame encloses (Frame.cs:32 /
-    /// BasePart.cs:1143), the candidate must be enclosable (BasePart.cs:1148-1166), a frame
+    /// BasePart.cs:1143), the candidate's own class must override <c>CanBeEnclosed()</c> — the
+    /// vanilla declaration defaults leave the base implementation false for everything else
+    /// (BasePart.cs:1148-1165; the content flag comes from that override table, gaps G108) —, a frame
     /// holds one part at a time and never a same-type second one (Contraption.cs:1729-1749,
     /// ConstructionUI.cs:1212). Anything else — a pig against a pig, a free overlap with a
     /// non-frame, a frame against a frame — stays a plain occupancy conflict.
@@ -757,7 +759,7 @@ public sealed class ConstructionRules
     private bool TryResolveEnclosure(PartDefinition candidate, uint owner, List<uint> overlaps, uint self, out uint frame)
     {
         frame = 0;
-        if (candidate.Capabilities?.CanEnclose == true)
+        if (candidate.Capabilities?.CanBeEnclosed != true)
         {
             return false;
         }

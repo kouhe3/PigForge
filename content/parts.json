@@ -36,7 +36,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -97,7 +97,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -112,7 +112,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -384,7 +384,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 0.5, "angular": 1.0 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
       "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
@@ -485,7 +485,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -515,7 +515,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -720,7 +720,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -762,7 +762,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "down", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 1 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "down", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 1 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -797,7 +797,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -844,7 +844,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -861,7 +861,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -878,7 +878,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -895,7 +895,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -1861,7 +1861,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1877,7 +1877,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1893,7 +1893,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1909,7 +1909,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1925,7 +1925,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1941,7 +1941,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1957,7 +1957,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1973,7 +1973,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -1989,7 +1989,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2005,7 +2005,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2021,7 +2021,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2037,7 +2037,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2053,7 +2053,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2069,7 +2069,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2084,7 +2084,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2100,7 +2100,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2115,7 +2115,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2131,7 +2131,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2147,7 +2147,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0.5, "friction": 0.3 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 20, "jointConnectionType": "none", "pig": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -2556,7 +2556,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2571,7 +2571,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2586,7 +2586,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2601,7 +2601,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2616,7 +2616,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -2631,7 +2631,7 @@
       "mode": "dynamic",
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 150, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -3513,7 +3513,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "igniteOnImpact": false }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "igniteOnImpact": false }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4038,7 +4038,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 0.5, "angular": 1.0 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
       "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
@@ -4061,7 +4061,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 0.5, "angular": 1.0 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
       "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
@@ -4084,7 +4084,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 0.5, "angular": 1.0 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
       "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
@@ -4107,7 +4107,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 0.5, "angular": 1.0 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
       "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
@@ -4130,7 +4130,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 0.5, "angular": 1.0 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
       "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
@@ -4153,7 +4153,7 @@
       "mass": 1.2,
       "material": { "restitution": 0, "friction": 0.6 },
       "damping": { "linear": 0.5, "angular": 1.0 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pig": true },
       "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
       "shapes": [
         {
@@ -4525,7 +4525,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -4556,7 +4556,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -4587,7 +4587,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -4618,7 +4618,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -4650,7 +4650,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true, "glue": true },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "egg": true, "glue": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -4681,7 +4681,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4696,7 +4696,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4711,7 +4711,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 2.5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 25, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4726,7 +4726,7 @@
       "mode": "dynamic",
       "mass": 0.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 50, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "glove": { "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.3 } ], "limit": 1, "yDrive": { "spring": 380, "damper": 3.5 }, "xDrive": { "spring": 1000, "damper": 5 }, "projectionDistance": 0.1, "shoot": { "distanceY": 5, "deviationX": 0, "time": 0.4, "limitSpring": 0.1 }, "wind": { "time": 1, "mass": 0.01, "driveSpring": 50, "driveDamper": 2.5 }, "solverIterationScale": 1.6 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -4968,7 +4968,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4983,7 +4983,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -4998,7 +4998,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5013,7 +5013,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5028,7 +5028,7 @@
       "mode": "dynamic",
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "gearbox": true, "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5043,7 +5043,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -5058,7 +5058,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -5073,7 +5073,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -5088,7 +5088,7 @@
       "mode": "dynamic",
       "mass": 0.4,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "none", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "light": 3.0 },
       "shapes": [
         {
           "kind": "box",
@@ -5153,7 +5153,7 @@
       "mode": "dynamic",
       "mass": 2.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "blaster": { "radius": 3.5, "impulse": 30.0, "chainRadius": 8.0 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "blaster": { "radius": 3.5, "impulse": 30.0, "chainRadius": 8.0 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -5167,7 +5167,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5182,7 +5182,7 @@
       "mode": "dynamic",
       "mass": 1.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5198,7 +5198,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5214,7 +5214,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5230,7 +5230,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5246,7 +5246,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 5000, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 5000, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5262,7 +5262,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5278,7 +5278,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5294,7 +5294,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5310,7 +5310,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5326,7 +5326,7 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 50, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5342,7 +5342,7 @@
       "mode": "dynamic",
       "mass": 1.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5358,7 +5358,7 @@
       "mode": "dynamic",
       "mass": 1.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5374,7 +5374,7 @@
       "mode": "dynamic",
       "mass": 1.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5390,7 +5390,7 @@
       "mode": "dynamic",
       "mass": 1.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5406,7 +5406,7 @@
       "mode": "dynamic",
       "mass": 1.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",
@@ -5422,7 +5422,7 @@
       "mode": "dynamic",
       "mass": 1.8,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 250, "jointConnectionType": "none", "activation": "toggle" },
       "shapes": [
         {
           "kind": "box",

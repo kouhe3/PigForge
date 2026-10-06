@@ -20,7 +20,7 @@ public sealed class SpringJointRoomTests
     private const uint PartTnt = 9;
     private const uint PartSpring = 12;
     private const uint PartHeavy = 18;
-    private const uint PartTarget = 25;
+    private const uint PartEgg = 27;
 
     /// <summary>The vanilla probe cell <c>limit_auto_mass0p6</c> (tasks/spring-probe.json,
     /// Unity 2021.3.45f2): a 0.6 kg body — this content's own spring mass — hanging under the
@@ -132,11 +132,13 @@ public sealed class SpringJointRoomTests
         uint player = PlayHost.NextPlayerId();
         uint sequence = 0;
 
-        // A wooden frame enclosing a soda bottle is one merged compound whose internal seam is the
-        // unmodified threshold (both ends are Normal strength), so the shipped blast can split it.
+        // A wooden frame enclosing an egg is one merged compound whose internal seam is the
+        // unmodified threshold (weak 125 + normal 125 is the same 250 pair as normal + normal), so
+        // the shipped blast can split it. The egg is one of the classes vanilla lets into a frame
+        // (its jointConnectionType is `none`, so only the enclosure welds it at all).
         uint spring = Place(room, ref sequence, player, PartSpring, 0f, 4f);
         uint near = Place(room, ref sequence, player, PartFrame, 1f, 4f);
-        uint far = Place(room, ref sequence, player, PartTarget, 1f, 4f);
+        uint far = Place(room, ref sequence, player, PartEgg, 1f, 4f);
         uint charge = Place(room, ref sequence, player, PartTnt, 1f, 6f);
 
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);

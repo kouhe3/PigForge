@@ -298,7 +298,7 @@ public sealed class PartContentTests
             "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "source", "canEnclose": true }, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ] },
-                { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "none", "pig": true }, "shapes": [ { "kind": "sphere", "radius": 0.42 } ] },
+                { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "capabilities": { "jointConnectionType": "none", "pig": true, "canBeEnclosed": true }, "shapes": [ { "kind": "sphere", "radius": 0.42 } ] },
                 { "partTypeId": 3, "name": "sandbag", "mode": "dynamic", "mass": 3, "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] } }, "shapes": [ { "kind": "sphere", "radius": 0.13 } ] },
                 { "partTypeId": 4, "name": "balloon", "mode": "dynamic", "mass": 0.3, "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "down", "offset": [0, 0.5, 0], "distanceFactor": 1, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 } }, "shapes": [ { "kind": "sphere", "radius": 0.5 } ] },
                 { "partTypeId": 5, "name": "offroad-wheel", "mode": "dynamic", "mass": 1, "capabilities": { "wheel": true, "suspension": { "stiffness": 50, "damper": 5, "restOffset": 0 } }, "shapes": [ { "kind": "sphere", "radius": 0.9 } ] }
@@ -312,7 +312,9 @@ public sealed class PartContentTests
         Assert.False(frame.CanBeEnclosed);
         Assert.Null(frame.Attachment);
 
-        // Absence of a joint capability key defaults to none, and CanBeEnclosed is derived.
+        // Absence of a joint capability key defaults to none; canBeEnclosed is authored content
+        // (the class override table, tools/bple-joints), so an absent key means "cannot be
+        // enclosed" and this fixture declares it on the pig.
         PartCapabilities pig = document.Parts[1].Capabilities!;
         Assert.Equal(JointConnectionType.None, pig.JointConnectionType);
         Assert.True(pig.CanBeEnclosed);
@@ -355,6 +357,7 @@ public sealed class PartContentTests
     [InlineData("{ \"jointConnectionType\": \"both\" }", "jointConnectionType")]
     [InlineData("{ \"jointConnectionType\": true }", "jointConnectionType")]
     [InlineData("{ \"canEnclose\": \"yes\" }", "canEnclose")]
+    [InlineData("{ \"canBeEnclosed\": \"yes\" }", "canBeEnclosed")]
     [InlineData("{ \"attachment\": \"up\" }", "attachment")]
     [InlineData("{ \"attachment\": { \"maxDistance\": 0.5 } }", "direction")]
     [InlineData("{ \"attachment\": { \"direction\": \"sideways\" } }", "direction")]
@@ -392,6 +395,47 @@ public sealed class PartContentTests
         Assert.False(frame.CanBeEnclosed);
         Assert.Equal(PartActivation.None, frame.Activation);
         Assert.Null(library.GetPart(2).Capabilities);
+    }
+
+    [Fact]
+    public void TheRealContentOnlyLetsTheEnclosableClassesIntoAFrame()
+    {
+        // Vanilla: BasePart.CanBeEnclosed() returns false while the IN feature EnclosableParts is
+        // off (the declaration default), and only the classes that override it return true -- pigs,
+        // the golden pig, egg, engine, gearbox, TNT, point light, pumpkin, boxing glove, time bomb,
+        // hinge plate and CustomPart (BasePart.cs:1148-1165). tools/bple-joints reads that table
+        // from the classes themselves; the content flag is never derived from canEnclose (G108).
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+        Assert.Equal(81, library.Document.Parts.Count(part => part.Capabilities?.CanBeEnclosed == true));
+
+        foreach (uint partTypeId in new uint[] { 4, 8, 9, 24, 27, 28, 39, 42, 52, 270, 271 })
+        {
+            Assert.True(library.GetPart(partTypeId).Capabilities?.CanBeEnclosed == true, $"part {partTypeId} must be enclosable");
+        }
+
+        foreach (uint partTypeId in new uint[] { 1, 7, 10, 11, 12, 13, 14, 17, 18, 21 })
+        {
+            Assert.False(library.GetPart(partTypeId).Capabilities?.CanBeEnclosed ?? false, $"part {partTypeId} must not be enclosable");
+        }
+
+        // Structural: no part that encloses (a frame) or that the original drives/attaches with its
+        // own class (wheel, fan, rocket, balloon, sandbag, spring) is in the enclosable set -- none
+        // of those classes overrides the method, so a frame can never hold one.
+        Assert.DoesNotContain(library.Document.Parts, part => part.Capabilities is PartCapabilities capabilities
+            && capabilities.CanBeEnclosed
+            && (capabilities.CanEnclose
+                || capabilities.HasMotor
+                || capabilities.HasFan
+                || capabilities.HasRocket
+                || capabilities.HasBalloon
+                || capabilities.HasWing
+                || capabilities.HasTail
+                || capabilities.HasBellows
+                || capabilities.HasUmbrella
+                || capabilities.HasGrapple
+                || capabilities.HasSuspension
+                || capabilities.Attachment is not null
+                || capabilities.Spring is not null));
     }
 
     [Fact]

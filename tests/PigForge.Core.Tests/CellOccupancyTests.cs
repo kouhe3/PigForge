@@ -132,11 +132,12 @@ public sealed class CellOccupancyTests
         // Its cell is taken: nothing else fits at 2.4.
         Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartFrame, 2.4f, 0f, 0f, 1f, 0).Error);
 
-        // Dropped on the frame's own cell instead, it is enclosed by the frame (Frame.cs:44-50) --
-        // proof that the cell box is what the frame's cell test sees, not the 1.9-wide collider.
-        ConstructionResult enclosed = rules.Place(PartGlider, 1f, 0f, 0f, 1f, 0);
-        Assert.True(enclosed.IsSuccess);
-        Assert.Equal(frame.Entity, rules.EnclosedBy(enclosed.Entity));
+        // Dropped on the frame's own cell instead it is *rejected*: vanilla only lets the classes
+        // that override CanBeEnclosed() into a frame, and a wing is not one of them
+        // (BasePart.cs:1148-1165, tools/bple-joints; gaps G108), so the overlap stays a plain
+        // occupancy conflict. The wide 1.9 collider still only touches -- the frame's cell test
+        // sees the wing's own cell box, which the rejected pose does not change.
+        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartGlider, 1f, 0f, 0f, 1f, 0).Error);
     }
 
     [Fact]

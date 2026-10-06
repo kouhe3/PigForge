@@ -163,8 +163,14 @@ export interface PartCapabilities {
   glue?: boolean;
   /** "toggle" keeps a persistent effect on/off; "trigger" is a one-shot action. */
   activation?: "toggle" | "trigger";
-  /** True only for frames: their cell hosts one enclosed part. Enclosable is derived as !canEnclose. */
+  /** True for the frame classes: their cell hosts one enclosed part (Frame.cs:32-35). */
   canEnclose?: boolean;
+  /**
+   * True when the part's own class overrides `BasePart.CanBeEnclosed()` — the only parts the
+   * vanilla declaration defaults let a frame hold (BasePart.cs:1148-1165). Written by
+   * tools/bple-joints from the override table, never derived from `canEnclose`.
+   */
+  canBeEnclosed?: boolean;
   /** The weld role of the pair predicate: both ends non-`none` and at least one `source` (ADR-011). */
   jointConnectionType?: "none" | "source" | "target";
   /** The original's per-part weld strength, which scales the seam threshold (ADR-015). */

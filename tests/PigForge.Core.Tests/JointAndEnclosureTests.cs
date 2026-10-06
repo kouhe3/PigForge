@@ -362,8 +362,8 @@ public sealed class JointAndEnclosureTests
             "physics": { "maximumAngularSpeed": 7.0, "damping": { "linear": 0.2, "angular": 0.05 } },
             "parts": [
                 { "partTypeId": 1, "name": "frame", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.5, 0.5, 0.5] } ], "capabilities": { "jointConnectionType": "source", "canEnclose": true } },
-                { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "sphere", "radius": 0.42 } ], "capabilities": { "jointConnectionType": "none", "pig": true } },
-                { "partTypeId": 3, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.475, 0.475, 0.475] } ], "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" } },
+                { "partTypeId": 2, "name": "pig", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "sphere", "radius": 0.42 } ], "capabilities": { "jointConnectionType": "none", "pig": true, "canBeEnclosed": true } },
+                { "partTypeId": 3, "name": "tnt", "mode": "dynamic", "mass": 1, "shapes": [ { "kind": "box", "halfExtents": [0.475, 0.475, 0.475] } ], "capabilities": { "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger", "canBeEnclosed": true } },
                 { "partTypeId": 4, "name": "wheel", "mode": "dynamic", "mass": 0.5, "shapes": [ { "kind": "sphere", "radius": 0.33 } ], "capabilities": { "jointConnectionType": "target", "wheel": true } },
                 { "partTypeId": 5, "name": "sandbag", "mode": "dynamic", "mass": 3, "shapes": [ { "kind": "sphere", "radius": 0.13 } ], "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "up", "maxDistance": 0.5, "offset": [-0.15, -0.15, -0.01] } } },
                 { "partTypeId": 6, "name": "balloon", "mode": "dynamic", "mass": 0.3, "shapes": [ { "kind": "sphere", "radius": 0.5 } ], "capabilities": { "jointConnectionType": "none", "attachment": { "direction": "down", "offset": [0, 0.5, 0], "distanceFactor": 1, "distanceOffset": -0.5, "pigDistanceBonus": 0.3 } } }

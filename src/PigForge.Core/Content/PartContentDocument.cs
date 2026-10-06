@@ -355,6 +355,11 @@ public sealed record PartCapabilities(
     JointConnectionStrength JointConnectionStrength = JointConnectionStrength.None,
     JointConnectionDirection JointConnectionDirection = JointConnectionDirection.Any,
     bool CanEnclose = false,
+    // Whether this part may sit *inside* a frame. The original's base `BasePart.CanBeEnclosed()`
+    // returns false while the IN feature `EnclosableParts` is off (the declaration default), and
+    // only the classes that override it return true — so belonging in a frame is a per-class fact,
+    // written by `tools/bple-joints` from the override table, never derived here (gaps G108).
+    bool CanBeEnclosed = false,
     PartAttachment? Attachment = null,
     PartSuspension? Suspension = null,
     PartGlove? Glove = null,
@@ -407,12 +412,6 @@ public sealed record PartCapabilities(
     /// </summary>
     public bool IsEngine => EnginePower > 0f;
 
-    /// <summary>
-    /// The original derives this: <c>BasePart.CanBeEnclosed()</c> is true for every part
-    /// except a frame, and only a frame's <c>CanEncloseParts()</c> returns true
-    /// (BasePart.cs:1143-1166, Frame.cs:32). Derived here, never authored in content.
-    /// </summary>
-    public bool CanBeEnclosed => !CanEnclose;
 }
 
 public sealed record PartShapeDefinition(

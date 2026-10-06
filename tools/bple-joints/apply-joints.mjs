@@ -7,8 +7,15 @@
 //   - jointConnectionType: the report's `jointType` (none/source/target). The original's
 //     Contraption.cs:690 merges two adjacent parts only when neither is `none` and at
 //     least one is `source`.
-//   - canEnclose: true only for the frame prefabs (Part_WoodenFrame_* / Part_MetalFrame_*,
-//     Frame.cs:32). `canBeEnclosed` is derived in code as `!canEnclose`, never authored.
+//   - canEnclose: the report's `canEncloseParts` -- true when the part's class or an ancestor
+//     overrides `CanEncloseParts()` to return true (Frame.cs:32, corrected back to false by
+//     BoxFrame.cs:3). Since 2026-10-06 this is read from the report; a report without the field
+//     is a hard error instead of a fallback to the prefab-name rule used before.
+//   - canBeEnclosed: the report's `canBeEnclosed` -- true when the class or an ancestor overrides
+//     `CanBeEnclosed()` to return true (Pig.cs:170, Egg.cs:14, ...), which is exactly the set the
+//     original lets a frame enclose under the vanilla `EnclosableParts = false` profile. Written
+//     as `true` when the report says so and REMOVED when it does not; until 2026-10-06 the key was
+//     never authored and the runtime derived `!canEnclose`, which is strictly wider.
 //   - attachment: the runtime rope attachment of the balloon/sandbag families. `none` means
 //     "no design-time joint", not "attaches to nothing": both families build a SpringJoint
 //     to a released chassis at start of simulation (Sandbag.cs:136-164, Balloon.cs:143-166),
@@ -39,8 +46,17 @@ const DRY_RUN = process.argv.includes("--dry-run");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8")).parts;
 
-/** The original only frames enclose (Frame.cs:32). */
-const isFramePrefab = (prefab) => /^Part_(WoodenFrame|MetalFrame)_/.test(prefab ?? "");
+/** The report's enclosure flags, resolved by extract-joints.mjs from the part's class chain. The
+ * report is the only admissible source, so a missing field is a hard error -- this tool must never
+ * fall back to the prefab-name rule it used before 2026-10-06. */
+function enclosureFlagOf(entry, partTypeId, field) {
+  const value = entry[field];
+  if (typeof value !== "boolean") {
+    throw new Error(`part ${partTypeId}: report has no boolean ${field} (re-run extract-joints.mjs)`);
+  }
+
+  return value;
+}
 
 const JOINT_VALUES = new Set(["none", "source", "target"]);
 const STRENGTH_VALUES = new Set(["weak", "normal", "high", "extreme", "highlyExtreme"]);
@@ -169,6 +185,21 @@ function upsert(capabilities, desired) {
   return cap;
 }
 
+/**
+ * Removes one property (and the separator that joins it to its neighbour) from the inline
+ * capabilities text, leaving every other byte alone. The leading separator is preferred, so a
+ * trailing comma can never be left behind; a property that is absent is left absent.
+ */
+function removeProperty(capabilities, key) {
+  const value = propertyPattern(key).source;
+  const leading = new RegExp(`\\s*,\\s*(?:${value})`);
+  if (leading.test(capabilities)) {
+    return capabilities.replace(leading, "");
+  }
+
+  return capabilities.replace(new RegExp(`(?:${value})\\s*,\\s*`), "");
+}
+
 let text = readFileSync(CONTENT, "utf8");
 const document = JSON.parse(text);
 let updated = 0;
@@ -176,6 +207,8 @@ const written = { none: 0, source: 0, target: 0 };
 const strengthWritten = { weak: 0, normal: 0, high: 0, extreme: 0, highlyExtreme: 0 };
 const directionWritten = {};
 let frames = 0;
+let enclosedParts = 0;
+let canBeEnclosedRemoved = 0;
 let attachments = 0;
 
 for (const part of document.parts) {
@@ -189,7 +222,8 @@ for (const part of document.parts) {
     throw new Error(`part ${part.partTypeId}: unknown jointType ${JSON.stringify(jointType)}`);
   }
 
-  const encloses = isFramePrefab(entry.prefab);
+  const encloses = enclosureFlagOf(entry, part.partTypeId, "canEncloseParts");
+  const enclosed = enclosureFlagOf(entry, part.partTypeId, "canBeEnclosed");
   const attachment = attachmentFor(entry.prefab);
   const strengthName = strengthNameOf(entry, part.partTypeId);
   const directionName = directionNameOf(entry, part.partTypeId);
@@ -200,6 +234,10 @@ for (const part of document.parts) {
   ];
   if (encloses) {
     desired.push(["canEnclose", `"canEnclose": true`]);
+  }
+
+  if (enclosed) {
+    desired.push(["canBeEnclosed", `"canBeEnclosed": true`]);
   }
 
   if (attachment) {
@@ -226,13 +264,20 @@ for (const part of document.parts) {
       throw new Error(`part ${part.partTypeId}: expected a single-line capabilities object`);
     }
 
-    text = text.slice(0, open) + upsert(text.slice(open, close + 1), desired) + text.slice(close + 1);
+    let capabilities = upsert(text.slice(open, close + 1), desired);
+    if (!enclosed && propertyPattern("canBeEnclosed").test(capabilities)) {
+      capabilities = removeProperty(capabilities, "canBeEnclosed");
+      canBeEnclosedRemoved += 1;
+    }
+
+    text = text.slice(0, open) + capabilities + text.slice(close + 1);
   }
 
   written[jointType] += 1;
   strengthWritten[strengthName] += 1;
   directionWritten[directionName] = (directionWritten[directionName] ?? 0) + 1;
   if (encloses) frames += 1;
+  if (enclosed) enclosedParts += 1;
   if (attachment) attachments += 1;
   updated += 1;
 }
@@ -256,9 +301,12 @@ for (const part of check.parts) {
     throw new Error(`part ${part.partTypeId}: jointConnectionDirection mismatch`);
   }
 
-  const encloses = isFramePrefab(entry.prefab);
-  if (encloses !== (capabilities.canEnclose === true)) {
+  if (enclosureFlagOf(entry, part.partTypeId, "canEncloseParts") !== (capabilities.canEnclose === true)) {
     throw new Error(`part ${part.partTypeId}: canEnclose mismatch`);
+  }
+
+  if (enclosureFlagOf(entry, part.partTypeId, "canBeEnclosed") !== (capabilities.canBeEnclosed === true)) {
+    throw new Error(`part ${part.partTypeId}: canBeEnclosed mismatch`);
   }
 
   const expected = attachmentFor(entry.prefab);
@@ -282,4 +330,4 @@ console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTE
 console.log(`jointConnectionType: none ${written.none} / source ${written.source} / target ${written.target}`);
 console.log(`jointConnectionStrength: ${JSON.stringify(strengthWritten)}`);
 console.log(`jointConnectionDirection: ${JSON.stringify(directionWritten)}`);
-console.log(`canEnclose: ${frames} frames; attachment: ${attachments} parts`);
+console.log(`canEnclose: ${frames} frames; canBeEnclosed: ${enclosedParts} parts (removed ${canBeEnclosedRemoved}); attachment: ${attachments} parts`);

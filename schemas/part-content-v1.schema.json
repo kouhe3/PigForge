@@ -176,7 +176,11 @@
           "enum": ["any", "right", "up", "left", "down", "leftAndRight", "upAndDown", "none"]
         },
         "canEnclose": {
-          "description": "True only for frames (WoodenFrame/MetalFrame prefabs). CanBeEnclosed is derived as !canEnclose in code, never authored.",
+          "description": "True for the frame classes whose CanEncloseParts() returns true (Frame.cs:32-35, i.e. the WoodenFrame/MetalFrame prefabs; BoxFrame returns false). Extracted by tools/bple-joints, never authored.",
+          "type": "boolean"
+        },
+        "canBeEnclosed": {
+          "description": "True when the part's own class (or an ancestor) overrides BasePart.CanBeEnclosed(); the base implementation returns false while the IN feature EnclosableParts is off, which is the vanilla declaration default, so only those classes may sit inside a frame (BasePart.cs:1148-1165, Frame.cs:42-56). Extracted by tools/bple-joints from the override table, never authored.",
           "type": "boolean"
         },
         "attachment": {

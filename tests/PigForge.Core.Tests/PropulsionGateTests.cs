@@ -19,6 +19,7 @@ public sealed class PropulsionGateTests
     private const uint PartFrame = 1;
     private const uint PartFan = 2;
     private const uint PartRocket = 3;
+    private const uint PartPig = 4;
 
     [Fact]
     public void OnlyAFrameNeighbourMakesAChassisAnchor()
@@ -50,7 +51,7 @@ public sealed class PropulsionGateTests
         (ConstructionRules rules, _) = CreateRules();
 
         ConstructionResult frame = rules.Place(PartFrame, 0.5f, 0.5f, 0f, 1f, 0);
-        ConstructionResult enclosed = rules.Place(PartFan, 0.5f, 0.5f, 0f, 1f, 0);
+        ConstructionResult enclosed = rules.Place(PartPig, 0.5f, 0.5f, 0f, 1f, 0);
 
         Assert.True(enclosed.IsSuccess, enclosed.Error.ToString());
         Assert.Equal(frame.Entity, rules.EnclosedBy(enclosed.Entity));
@@ -58,6 +59,13 @@ public sealed class PropulsionGateTests
         // Frame.cs:44-50 bolts the enclosed part to the frame with a FixedJoint, so it is attached
         // to the chassis even though it shares the frame's cell rather than sitting beside it.
         Assert.True(rules.HasChassisNeighbor(enclosed.Entity));
+
+        // Vanilla only encloses the classes that override CanBeEnclosed(), and no propulsion class
+        // does (BasePart.cs:1148-1165, tools/bple-joints; gaps G108) -- so a fan cannot be put into
+        // a frame's cell at all: the overlap stays a plain occupancy conflict.
+        ConstructionResult other = rules.Place(PartFrame, 3.5f, 0.5f, 0f, 1f, 0);
+        Assert.True(other.IsSuccess);
+        Assert.Equal(ConstructionError.CellsOccupied, rules.Place(PartFan, 3.5f, 0.5f, 0f, 1f, 0).Error);
     }
 
     [Fact]
@@ -201,7 +209,10 @@ public sealed class PropulsionGateTests
                   "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.5] } ] },
                 { "partTypeId": 3, "name": "rocket", "mode": "dynamic", "mass": 1,
                   "capabilities": { "jointConnectionType": "target" },
-                  "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.5] } ] }
+                  "shapes": [ { "kind": "box", "halfExtents": [0.4, 0.4, 0.5] } ] },
+                { "partTypeId": 4, "name": "pig", "mode": "dynamic", "mass": 1,
+                  "capabilities": { "jointConnectionType": "none", "pig": true, "canBeEnclosed": true },
+                  "shapes": [ { "kind": "sphere", "radius": 0.42 } ] }
             ]
         }
         """));
