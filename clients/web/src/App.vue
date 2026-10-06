@@ -14,6 +14,8 @@ import { createAnimationClock } from "./renderer/animation/clock";
 import { loadPartTextures, type PartTextureSet } from "./renderer/atlas";
 import { partThumbnailDataUrl } from "./renderer/thumbnails";
 import { drawFrame } from "./renderer/draw";
+import { fitBounds } from "./renderer/camera";
+import { zoneRect } from "./schema/levelContent";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
 import { viewState } from "./viewState";
@@ -265,18 +267,21 @@ function paint(now: number): void {
 }
   animationsRunning = running;
   updateAnimations(animations, entities, session.content, partTextures.value, dt);
-  // The sandbox has no goal semantics, so the live view omits the local GOAL_ZONE.
+  // The loaded level owns the goal zone and the bounds; the builder's constants are only the
+  // fallback before a level arrives (and the replay viewer's goal marker, which no level feeds).
+  const level = session.level;
   drawFrame(
     ctx,
     viewState.camera,
     entities,
     session.content,
     viewState.selectedIds,
-    activeTab.value === "live" ? undefined : GOAL_ZONE,
-    MAP_BOUNDS,
+    level ? zoneRect(level.goalZone) : activeTab.value === "live" ? undefined : GOAL_ZONE,
+    level ? zoneRect(level.bounds) : MAP_BOUNDS,
     partTextures.value,
     viewState.marquee,
     animations,
+    level?.terrain ?? null,
   );
   raf = requestAnimationFrame(paint);
 }
@@ -342,6 +347,9 @@ function connectLive(): void {
   sendCommand = null;
   session.setErrors([]);
   session.loadContent(PLAY_PARTS);
+  // The level document lives on the same server as the socket: re-read it on every (re)connect,
+  // and let a missing one fall back to the builder's own zone and bounds.
+  void session.loadLiveLevel();
   // A player's life is its socket: the server drops a departed player's parts, so every
   // connection starts from an empty building plane and the local identity goes with it.
   player.reset();
@@ -502,6 +510,19 @@ watch(canEdit, (editable) => {
     tool.value = "select";
   }
 });
+
+// A level frames the view on its own bounds. `viewState.camera` is the module singleton the
+// gesture handlers hold by reference, so the fit copies its fields instead of replacing the object.
+watch(
+  () => session.level,
+  (level) => {
+    const node = canvas.value;
+    if (level === null || node === null) {
+      return;
+    }
+    Object.assign(viewState.camera, fitBounds(zoneRect(level.bounds), node.clientWidth, node.clientHeight));
+  },
+);
 
 onMounted(() => {
   session.loadContent(PLAY_PARTS);

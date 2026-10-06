@@ -20,6 +20,11 @@ export default defineConfig({
         target: "ws://127.0.0.1:5088",
         ws: true,
       },
+      // The level document the client fetches next to the socket; an absolute socket URL reaches
+      // the server directly (it answers with CORS), a relative one shares this origin.
+      "/level": {
+        target: "http://127.0.0.1:5088",
+      },
     },
   },
 });

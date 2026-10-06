@@ -3,8 +3,10 @@ import { ref } from "vue";
 import type { DrawEntity, PartContentDocument, ReplayDocument, ReplayEvent } from "@/schema/types";
 import { validatePartContent } from "@/schema/validateContent";
 import { validateReplay } from "@/schema/validateReplay";
+import { decodeLevelContent, type LevelContentDocument } from "@/schema/levelContent";
 import { toDrawEntities } from "@/schema/toDrawEntities";
 import { SNAPSHOT_BUILDING_PHASE } from "@/schema/decodeSnapshot";
+import { fetchLevel } from "@/live/levelEndpoint";
 import { createRestYawTracker } from "@/live/restYaw";
 import { viewState } from "@/viewState";
 
@@ -15,6 +17,7 @@ export const useSessionStore = defineStore("session", () => {
   const errors = ref<string[]>([]);
   const content = ref<PartContentDocument | null>(null);
   const replay = ref<ReplayDocument | null>(null);
+  const level = ref<LevelContentDocument | null>(null);
   const tick = ref(1);
   const playing = ref(false);
   const speed = ref(1);
@@ -53,6 +56,31 @@ export const useSessionStore = defineStore("session", () => {
     return true;
   }
 
+  /**
+   * Decodes the level the server hosts. A rejected document clears the level and reports false
+   * without touching the session's errors: an unusable level degrades to the previous behaviour
+   * (the builder's own goal zone and bounds, no terrain) instead of failing the view.
+   */
+  function loadLevel(value: unknown): boolean {
+    const decoded = decodeLevelContent(value).level;
+    level.value = decoded;
+    return decoded !== null;
+  }
+
+  /**
+   * Fetches the level served next to the live socket. Called on every connect/reconnect; an
+   * unreachable or malformed document clears the level so the fallback takes over.
+   */
+  async function loadLiveLevel(): Promise<boolean> {
+    const url = liveUrl.value;
+    const decoded = await fetchLevel(url);
+    if (url !== liveUrl.value) {
+      return false;
+    }
+    level.value = decoded;
+    return decoded !== null;
+  }
+
   function applyReplayTick(next: number): void {
     const document = replay.value;
     if (!document) {
@@ -82,6 +110,7 @@ export const useSessionStore = defineStore("session", () => {
     errors,
     content,
     replay,
+    level,
     tick,
     playing,
     speed,
@@ -91,6 +120,8 @@ export const useSessionStore = defineStore("session", () => {
     events,
     loadContent,
     loadReplay,
+    loadLevel,
+    loadLiveLevel,
     applyReplayTick,
     applyLiveEntities,
     setErrors,
