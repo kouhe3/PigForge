@@ -126,9 +126,10 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 - 目标：`goalZone` 矩形 = 过关（`G77` 缺「同载具零件代猪到达 2.5 单位连通」那条）；失败 = 出界或 1200 tick 超时（`G78`，原版两者皆无）。
 - 没有星级/挑战/计时/收集/存档/关卡选择/结算页（`G79`–`G84` 全部未实现）。
 - 物理契约已有 `PhysicsShapeKind.ConvexMesh` / `TriangleMesh` 两个枚举值、`PartContentParser` 也认得
-  `convexMesh`/`triangleMesh` 的 `vertices`/`triangles` 键，但**两个后端都不实现**：
-  `BepuPhysicsWorld.cs:153` 明说「exactly one box, sphere, or compound shape per body」，
-  compound 子件也只允许 box/sphere（`:1242`）。Bepu 2.4.0 自带 `BepuPhysics.Collidables.Mesh`（三角网格）形状。
+  `convexMesh`/`triangleMesh` 的 `vertices`/`triangles` 键。**网格形状已落地**（2026-10-06，`ADR-032`）：
+  `TriangleMeshShapeDefinition`（静态专用、双面语义）由两个后端各自实现（Bepu `Collidables.Mesh`、
+  Jolt `MeshShapeSettings`/`MeshShape`），测试 `tests/PigForge.Physics.Tests/TriangleMeshTests.cs`。
+  `ConvexMesh` 仍是空枚举值（无人构造、无后端分支）。
 
 ## 8. 搬运分解（建议顺序）
 
@@ -136,17 +137,19 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 |---|---|---|
 | P1 ✅ | 解码工具 + 报告（本文档的证据面） | — |
 | P2 | 关卡内容格式 v2：地形（fill 多边形 + 曲线 + 控制贴图）、道具实例（prefab → PigForge 内容）、`PrefabOverrides` 的最小语义集 | 格式已定（§3） |
-| P3 | 地形进物理：新增网格形状的契约 + 两个后端（或按 §9 A2 的近似路线） | P2 |
+| P3 ✅ | 地形进物理：契约 `TriangleMeshShapeDefinition` + 两个后端的静态网格形状（`ADR-032`） | 独立于 P2，已先行 |
 | P4 | 道具件：先做每关都需要的（`LevelStart`、`DessertPlace`、`StarBox`、`BoxChallenge`、`e2dTerrainBase`） | P2 |
 | P5 | 目标/挑战/收集：星级 3 条（过关 + 两个 Challenge）、计时、收集计数 | P4 |
 | P6 | 进度持久化 + 关卡选择 + 结算页 | P5 |
 
 ## 9. 开放问题（A = 需要拍板，B = 按默认落文档）
 
-- **A1 搬运范围**：① 只做格式与地形（能加载任意官方关卡、但不做进度/星级）；② 先搬一个 episode（45 关）
-  打通「选择 → 玩 → 结算 → 存进度」；③ 全 277 关（含 368 个道具 prefab 与全部挑战类型）。工作量差一个数量级。
-- **A2 地形物理**：① 真三角网格形状（两个后端都要新增；最接近原版）；② 离线把 fill 多边形转成静态凸体/盒子拼接
-  （用现有契约，零后端改动，但与原版地形表面不一致）。③ 只做视觉网格、碰撞仍用包围体（最省，手感最差）。
+- **A1 搬运范围**：**已拍板**（2026-10-06，玩家选 ①）——**只做格式 + 地形：任意官方关卡能加载能玩，
+  不做进度/星级**。② 先搬一个 episode（45 关）+ 星级/计时/收集 + 存档 + 选择/结算 UI；
+  ③ 全 277 关（含 368 个道具 prefab 与全部挑战类型）留待后续。
+- **A2 地形物理**：**已拍板**（2026-10-06，玩家选 ①）——**真三角网格形状**，契约为静态专用、
+  双面语义，两个后端各自实现；见 `ADR-032`（含双面与绕向的实测）。② 离线拆成静态凸体/盒子拼接、
+  ③ 只做视觉网格两条不再考虑。
 - **A3 进度存哪**：服务器侧文件（多人一致、可做排名）还是客户端 localStorage（单机、零后端）。
 - **A4 是否保留原版失败条件**：搬关后 `MaxTicks` 超时与出界判负是 PigForge 自定（`G78`），原版两者皆无。
 - **B1 关卡 JSON**：新增 `schemaVersion 2`（地形 + 道具 + 目标扩展），现有两张关卡保持可解析。
