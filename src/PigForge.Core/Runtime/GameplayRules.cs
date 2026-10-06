@@ -148,6 +148,16 @@ public sealed class GameplayRules
     // them; a part with no explicit host sits in its own physics body's cluster.
     private readonly Dictionary<uint, float> _powerFactorByCluster = new();
     private readonly Dictionary<uint, uint> _powerHostByEntity = new();
+    // The vanilla declaration defaults leave IN DynamicPowerSystem off, so the original runs its
+    // legacy power branch, whose denominator depends on whether a motor wheel is off the ground
+    // (Contraption.cs:556-582). That makes the factor change with contact state, so every cluster is
+    // recomputed once per tick, and the reusable key list keeps that path allocation-free.
+    private readonly List<uint> _powerClusterKeys = new();
+    // `MotorWheel.m_hasContact` starts TRUE (MotorWheel.cs:34) and is only overwritten by the
+    // wheel's own ground raycast, i.e. a wheel counts as grounded until a step says otherwise. The
+    // event stream is the same proxy RunMotors gates its drive on, so a motor wheel is "airborne"
+    // only once a processed tick failed to report a contact for its body.
+    private bool _hasProcessedTick;
     // Propulsion parts the placement layer found WITHOUT a chassis neighbour (see
     // ConstructionRules.HasChassisNeighbor). The original rejects such a part in ValidatePart
     // (BasePropulsion.cs:13-20, Wings.cs:14-31, Tail.cs:12-29), so it never fires; PigForge lets
@@ -744,6 +754,9 @@ public sealed class GameplayRules
         IngestSnapshots(snapshots);
         ProcessEvents(events, output);
         ReArmBounces();
+        // The legacy power denominator depends on which motor wheels are off the ground, so the
+        // factor is refreshed every tick before any consumer reads it (Contraption.cs:556-582).
+        RecomputePowerClusters();
         RunMotors(output);
         RunBalloons(output);
         RunFans(output);
@@ -757,6 +770,7 @@ public sealed class GameplayRules
         DropCommandsForDestroyedBodies(output);
         CheckObjectives(tick);
         StorePreviousVelocities();
+        _hasProcessedTick = true;
     }
 
     private void StorePreviousVelocities()
@@ -1039,7 +1053,8 @@ public sealed class GameplayRules
     }
 
     /// <summary>Recomputes the power factor of the cluster a part belongs to (membership, switch
-    /// and enclosure changes all funnel through here; never the per-tick path).</summary>
+    /// and enclosure changes all funnel through here; the per-tick path is
+    /// <see cref="RecomputePowerClusters"/>).</summary>
     private void RecomputePowerCluster(EntityId entity) => RecomputePowerCluster(PowerClusterKey(entity));
 
     /// <summary>Recomputes the cluster of the body this member just joined or left.</summary>
@@ -1092,9 +1107,19 @@ public sealed class GameplayRules
     }
 
     /// <summary>
-    /// Recomputes one cluster's factor from its members: the engine power of every enclosed engine
-    /// plus the consumption of every enabled consumer (Contraption.cs:1378-1379 sums the engines
-    /// over the component, Contraption.cs:2633-2644 re-sums only the enabled consumers every step).
+    /// Recomputes one cluster's factor from its members, on the vanilla declaration defaults:
+    /// <c>DynamicPowerSystem</c> is off, so the original runs its *legacy* branch
+    /// (Contraption.cs:556-582). Two consequences, both verbatim:
+    /// <list type="bullet">
+    /// <item>the denominator is the **assembly-time** sum of every member's
+    /// <c>m_powerConsumption</c> (Contraption.cs:1378-1379). The per-step re-sum that filters on
+    /// <c>IsEnabled</c> (:2633-2644) only runs when the switch is on, so a switched-off consumer
+    /// still consumes;</item>
+    /// <item>it then subtracts <c>0.9 * m_powerConsumption</c> for every motor wheel of the
+    /// cluster whose <c>HasContact</c> is false, i.e. a wheel off the ground frees 90% of its
+    /// draw.</item>
+    /// </list>
+    /// The engine side is unchanged: only an enclosed engine is a valid part at all (Engine.cs:61).
     /// </summary>
     private void RecomputePowerCluster(uint key)
     {
@@ -1115,13 +1140,61 @@ public sealed class GameplayRules
                 enginePower += power.EnginePower;
             }
 
-            if (power.PowerConsumption > 0f && IsDriven(powers.CurrentId))
+            if (power.PowerConsumption > 0f)
             {
                 consumption += power.PowerConsumption;
             }
         }
 
+        var motors = _motors.GetEnumerator();
+        while (motors.MoveNext())
+        {
+            if (PowerClusterKey(motors.CurrentId) != key
+                || !_powers.TryGet(motors.CurrentId, out PowerState motor)
+                || motor.PowerConsumption <= 0f
+                || !_bodies.TryGet(motors.CurrentId, out PhysicsBodyLink link)
+                || IsMotorWheelGrounded(link.Body))
+            {
+                continue;
+            }
+
+            consumption -= 0.9f * motor.PowerConsumption;
+        }
+
         _powerFactorByCluster[key] = ComputePowerFactor(enginePower, consumption);
+    }
+
+    /// <summary>
+    /// Whether a motor wheel's body counts as on the ground (the original's
+    /// <c>MotorWheel.HasContact</c>): true until a processed tick has failed to report a contact
+    /// for it, which is the same proxy <c>RunMotors</c> gates its drive on.
+    /// </summary>
+    private bool IsMotorWheelGrounded(PhysicsBodyId body) =>
+        !_hasProcessedTick || _touchedBodies.Contains(body.Value);
+
+    /// <summary>
+    /// Recomputes every cluster's factor. The legacy denominator depends on which motor wheels are
+    /// off the ground, and that changes with the physics, so the per-tick path has to refresh it
+    /// (membership and switch changes still recompute eagerly through
+    /// <see cref="RecomputePowerCluster(EntityId)"/>).
+    /// </summary>
+    private void RecomputePowerClusters()
+    {
+        _powerClusterKeys.Clear();
+        var powers = _powers.GetEnumerator();
+        while (powers.MoveNext())
+        {
+            uint key = PowerClusterKey(powers.CurrentId);
+            if (!_powerClusterKeys.Contains(key))
+            {
+                _powerClusterKeys.Add(key);
+            }
+        }
+
+        foreach (uint key in _powerClusterKeys)
+        {
+            RecomputePowerCluster(key);
+        }
     }
 
     /// <summary>Deterministic hash over every power-bearing part's cluster factor, in slot order:

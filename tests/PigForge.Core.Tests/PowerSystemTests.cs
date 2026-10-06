@@ -205,8 +205,14 @@ public sealed class PowerSystemTests
     }
 
     [Fact]
-    public void TogglingAConsumerSwitchChangesTheClusterConsumption()
+    public void ConsumerSwitchesChangeWhoDrivesButNotTheClusterConsumption()
     {
+        // Vanilla runs the legacy power branch (the declaration defaults leave DynamicPowerSystem
+        // off), and its denominator is the ASSEMBLY-TIME sum of every member's consumption
+        // (Contraption.cs:1378-1379; the IsEnabled-filtered re-sum at :2633-2644 only runs when the
+        // switch is on). So two motor wheels at 100 each keep the factor at 150 / 200 = 0.80593
+        // whether or not their switches are on -- the switch only decides who emits a command,
+        // because a motor's own drive is gated by its switch.
         EntityStore entities = new();
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
@@ -227,33 +233,70 @@ public sealed class PowerSystemTests
         harness.Link(second, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1));
 
-        // Both switches off: nothing consumes, so the cluster's factor is 1 but no command is
-        // emitted (Contraption.cs:2633-2644 sums only the enabled consumers).
+        // Both switches off: the factor is already the two-consumer one, but no command is emitted.
         harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         Assert.Empty(harness.Output.Commands);
+        Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
 
-        // One wheel on: 150 / 100 = 1.5 -> 1.5^0.585.
+        // One wheel on: the factor does not move, the survivor drives at 0.80593.
         harness.Rules.SetActive(first, true);
-        Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(first), 3);
+        Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
         harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         PhysicsCommand single = Assert.Single(harness.Output.Commands);
-        Assert.Equal(2f * 1.2676f, single.Impulse.X, 3);
+        Assert.Equal(2f * 0.80593f, single.Impulse.X, 3);
 
-        // Both on: 150 / 200 = 0.75 -> 0.75^0.75, both wheels drive weaker.
+        // Both on: both wheels drive at the same factor.
         harness.Rules.SetActive(second, true);
         Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
         harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         Assert.Equal(2, harness.Output.Commands.Count);
         Assert.All(harness.Output.Commands, command => Assert.Equal(2f * 0.80593f, command.Impulse.X, 3));
 
-        // Switching one off restores the stronger factor for the survivor, and the switched-off
-        // wheel stops driving entirely (its own motor is gated by its switch).
+        // Switching one off leaves the factor alone; the switched-off wheel stops driving entirely
+        // (its own motor is gated by its switch).
         harness.Rules.SetActive(second, false);
-        Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(first), 3);
+        Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
         harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
         PhysicsCommand survivor = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), survivor.Body);
-        Assert.Equal(2f * 1.2676f, survivor.Impulse.X, 3);
+        Assert.Equal(2f * 0.80593f, survivor.Impulse.X, 3);
+    }
+
+    [Fact]
+    public void AnAirborneMotorWheelFreesNinetyPercentOfItsDraw()
+    {
+        // Contraption.cs:556-582, the vanilla legacy branch: the denominator subtracts
+        // 0.9 * m_powerConsumption for every motor wheel whose HasContact is false, so a wheel off
+        // the ground revs the engine -- 150 / (100 - 90) = 15, capped at 10 * EnginePowerLimit = 10
+        // -> 10^0.585 = 3.8459, against 1.2676 while it touches the ground.
+        EntityStore entities = new();
+        PowerHarness harness = new(entities);
+        EntityId engine = entities.Create();
+        EntityId wheel = entities.Create();
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddWheel(wheel);
+        harness.Rules.AddPower(engine, 0f, EnginePower);
+        harness.Rules.AddPower(wheel, WheelConsumption, 0f);
+        harness.Rules.SetEngineEnclosed(engine, enclosed: true);
+        harness.Link(engine, new PhysicsBodyId(1));
+        harness.Link(wheel, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1));
+
+        // Before any step the wheel counts as grounded: MotorWheel.m_hasContact starts true
+        // (MotorWheel.cs:34) and only the wheel's own ground raycast overwrites it.
+        Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
+
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
+
+        // A processed tick with no contact for that body: the wheel is off the ground.
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Equal(3.8459f, harness.Rules.ClusterPowerFactor(wheel), 3);
+        Assert.Empty(harness.Output.Commands);
+
+        // The grounded rate returns with the next contact.
+        harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
     }
 
     [Fact]

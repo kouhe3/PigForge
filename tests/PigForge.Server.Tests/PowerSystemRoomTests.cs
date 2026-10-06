@@ -105,11 +105,14 @@ public sealed class PowerSystemRoomTests
         room.RunTicks(180);
         Assert.True(room.Submit(PlayHost.BindPlayer(SetTypeActive(++sequence, PartMotorWheel, active: true), player)).IsAccepted);
 
-        // Two motor wheels draw 200 against the engine's 150, so the cluster factor is
-        // 0.75^0.75 = 0.80593 and MotorWheel.cs:101-103 caps the cart at 15 * factor = 12.09 m/s.
-        // Measured: the cart levels off at 11.35 m/s (the sqrt taper approaches the cap without
-        // touching it); with the cap removed the same fixture passes 14.59 m/s and keeps climbing.
-        float cap = 15f * 0.80593f;
+        // Two motor wheels draw 200 against the engine's 150. On the vanilla declaration defaults
+        // the original runs its legacy power branch (Contraption.cs:556-582), so the denominator
+        // frees 90% of an airborne wheel's draw and the cap is not constant:
+        //   both wheels grounded  150 / 200 -> 0.80593, MotorWheel.cs:101-103 caps 15 * factor;
+        //   one wheel in the air  150 / 110 -> the cart may exceed the grounded cap.
+        // Measured peaks: 11.35 m/s while both wheels roll, 13.69 m/s on the sandbox floor's bumps.
+        float groundedCap = 15f * 0.80593f;
+        float oneAirborneCap = 15f * MathF.Pow(150f / 110f, 0.585f);
         float fastest = 0f;
         for (int tick = 0; tick < 150; tick++)
         {
@@ -119,7 +122,10 @@ public sealed class PowerSystemRoomTests
         }
 
         Assert.True(fastest > 5f, $"the powered cart must actually drive: {fastest} m/s");
-        Assert.True(fastest <= cap + 0.5f, $"the cart must stay at or below its cap {cap}: {fastest} m/s");
+        Assert.True(fastest <= oneAirborneCap + 0.5f, $"the cart must stay at or below the one-wheel-airborne cap {oneAirborneCap}: {fastest} m/s");
+        // Non-vacuous for the legacy branch: without the airborne discount the cart could not pass
+        // the all-grounded cap at all.
+        Assert.True(fastest > groundedCap, $"the airborne discount must lift the cap above {groundedCap}: {fastest} m/s");
     }
 
     private enum EnginePlacement
