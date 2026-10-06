@@ -57,7 +57,14 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     private readonly HashSet<ContactPair> _currentContacts = new();
     // Pre-solve impact data per contact pair, filled by the narrow phase and consumed when
     // the contact events are emitted. Cleared at the start of every step.
-    private readonly Dictionary<ContactPair, ContactImpact> _contactImpacts = new();
+    private readonly Dictionary<ContactPair, float> _contactImpacts = new();
+    // The manifold normal of every touch, oriented against the pair's own key order. Bepu's
+    // manifold normal already pushes `pair.A` away from `pair.B` (verified against the engine: a
+    // dynamic body resting on a static floor reports (0, 1, 0) for pair.A = the dynamic body), so
+    // only the key-order swap is left to do. This is the surface's geometry, which an impact
+    // direction is not: it exists for a resting or separating touch too, and it does not flip with
+    // the relative velocity -- the rules layer reads it as the ground a wheel stands on.
+    private readonly Dictionary<ContactPair, PhysicsVector3> _contactNormals = new();
     private readonly List<ContactPair> _orderedContacts = new();
     // One PigForge joint may own several solver constraints: a sprung wheel is an angular
     // hinge plus a rigid line lock plus the spring itself (see CreateJoint).
@@ -902,6 +909,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         ThrowIfDisposed();
         _currentContacts.Clear();
         _contactImpacts.Clear();
+        _contactNormals.Clear();
         _simulation.Timestep(timeStep.Seconds);
         ApplyFrozenDegreesOfFreedom();
         BreakOverloadedJoints(timeStep.Seconds);
@@ -911,10 +919,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _orderedContacts.Sort(ContactPairComparer.Instance);
         foreach (ContactPair contact in _orderedContacts)
         {
-            ContactImpact impact = _contactImpacts.GetValueOrDefault(contact);
+            PhysicsVector3 normal = _contactNormals.GetValueOrDefault(contact);
+            float approachSpeed = _contactImpacts.GetValueOrDefault(contact);
             _events.Add(_activeContacts.Contains(contact)
-                ? PhysicsEvent.ContactPersisted(contact.A, contact.B, impact.Normal, impact.ApproachSpeed)
-                : PhysicsEvent.ContactStarted(contact.A, contact.B, impact.Normal, impact.ApproachSpeed));
+                ? PhysicsEvent.ContactPersisted(contact.A, contact.B, normal, approachSpeed)
+                : PhysicsEvent.ContactStarted(contact.A, contact.B, normal, approachSpeed));
         }
 
         _orderedContacts.Clear();
@@ -1013,6 +1022,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _activeContacts.Clear();
         _currentContacts.Clear();
         _contactImpacts.Clear();
+        _contactNormals.Clear();
         _orderedContacts.Clear();
     }
 
@@ -1027,12 +1037,38 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     }
 
     /// <summary>
-    /// Records the pre-solve impact of one contact manifold for the pair's key order. The
-    /// normal is oriented against the pre-solve relative velocity instead of trusting the
-    /// engine's manifold convention: <c>+Normal</c> always pushes <see cref="ContactPair.A"/>
-    /// away from <see cref="ContactPair.B"/>. A resting or sliding manifold records nothing,
-    /// and the reduction below keeps the strongest approach, so the emitted event cannot
-    /// depend on manifold iteration order.
+    /// Records the manifold normal of one touch for the pair's key order. Bepu's manifold normal
+    /// already pushes <c>pair.A</c> away from <c>pair.B</c> -- which is exactly what
+    /// <see cref="PhysicsEvent.ContactNormal"/> promises -- so the only correction is
+    /// <see cref="ContactPair"/>'s id ordering, which may have swapped the two. The smaller of two
+    /// candidates wins so the stored normal never depends on manifold iteration order.
+    /// </summary>
+    private void RecordContactNormal(CollidablePair pair, Vector3 normal)
+    {
+        if (!TryGetBodyId(pair.A, out PhysicsBodyId bodyA)
+            || !TryGetBodyId(pair.B, out PhysicsBodyId bodyB)
+            || bodyA == bodyB)
+        {
+            return;
+        }
+
+        ContactPair key = ContactPair.Create(bodyA, bodyB);
+        PhysicsVector3 candidate = key.A == bodyA
+            ? new PhysicsVector3(normal.X, normal.Y, normal.Z)
+            : new PhysicsVector3(-normal.X, -normal.Y, -normal.Z);
+        if (_contactNormals.TryGetValue(key, out PhysicsVector3 existing) && CompareContactNormals(existing, candidate) <= 0)
+        {
+            return;
+        }
+
+        _contactNormals[key] = candidate;
+    }
+
+    /// <summary>
+    /// Records how fast the pair approached along its contact normal before the solver ran, which
+    /// is what the rules layer synthesizes restitution from (Bepu 2.4.0 has no restitution term).
+    /// A resting or separating touch approaches at zero and records nothing; the reduction keeps
+    /// the strongest approach, so the emitted speed cannot depend on manifold iteration order.
     /// </summary>
     private void RecordContactImpact(CollidablePair pair, Vector3 normal)
     {
@@ -1044,26 +1080,13 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         }
 
         ContactPair key = ContactPair.Create(bodyA, bodyB);
-        Vector3 velocityA = GetPreSolveLinearVelocity(pair.A);
-        Vector3 velocityB = GetPreSolveLinearVelocity(pair.B);
-        Vector3 relative = key.A == bodyA ? velocityA - velocityB : velocityB - velocityA;
-        float along = Vector3.Dot(relative, normal);
-        float approachSpeed = MathF.Abs(along);
-        if (approachSpeed <= 0f)
+        float approachSpeed = MathF.Abs(Vector3.Dot(GetPreSolveLinearVelocity(pair.A) - GetPreSolveLinearVelocity(pair.B), normal));
+        if (approachSpeed <= 0f || (_contactImpacts.TryGetValue(key, out float existing) && existing >= approachSpeed))
         {
             return;
         }
 
-        Vector3 oriented = along < 0f ? normal : -normal;
-        PhysicsVector3 candidate = new(oriented.X, oriented.Y, oriented.Z);
-        if (_contactImpacts.TryGetValue(key, out ContactImpact existing)
-            && (existing.ApproachSpeed > approachSpeed
-                || (existing.ApproachSpeed == approachSpeed && CompareContactNormals(existing.Normal, candidate) >= 0)))
-        {
-            return;
-        }
-
-        _contactImpacts[key] = new ContactImpact(candidate, approachSpeed);
+        _contactImpacts[key] = approachSpeed;
     }
 
     private static int CompareContactNormals(PhysicsVector3 left, PhysicsVector3 right)
@@ -1227,11 +1250,6 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             : new(second, first);
     }
 
-    /// <summary>Contact normal oriented so that pushing <see cref="ContactPair.A"/> along
-    /// <c>+Normal</c> separates the pair, plus the relative approach speed measured before
-    /// the solver ran.</summary>
-    private readonly record struct ContactImpact(PhysicsVector3 Normal, float ApproachSpeed);
-
     private sealed class ContactPairComparer : IComparer<ContactPair>
     {
         public static ContactPairComparer Instance { get; } = new();
@@ -1285,8 +1303,10 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
             {
                 if (manifold.GetDepth(ref manifold, contactIndex) >= 0)
                 {
+                    Vector3 normal = manifold.GetNormal(ref manifold, contactIndex);
                     _world.RecordContact(pair);
-                    _world.RecordContactImpact(pair, manifold.GetNormal(ref manifold, contactIndex));
+                    _world.RecordContactNormal(pair, normal);
+                    _world.RecordContactImpact(pair, normal);
                     break;
                 }
             }

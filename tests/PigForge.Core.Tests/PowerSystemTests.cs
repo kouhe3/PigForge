@@ -25,6 +25,11 @@ public sealed class PowerSystemTests
     private const float StickyWheelImpulse = 4.4f;
     private const float StickyWheelFactor = 1.44446f;
 
+    /// <summary>The normal a wheel resting on flat ground reports. A driven wheel needs it: its
+    /// drive follows the ground's tangent (MotorWheel.cs:288), and a real backend always sends a
+    /// normal with a contact.</summary>
+    private static readonly PhysicsVector3 GroundNormal = new(0f, 1f, 0f);
+
     [Fact]
     public void PowerFactorFollowsTheOriginalFormulaIncludingCapAndBothExponents()
     {
@@ -69,7 +74,7 @@ public sealed class PowerSystemTests
 
         Assert.Equal(0f, harness.Rules.ClusterPowerFactor(wheel));
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
 
         Assert.Empty(harness.Output.Commands);
     }
@@ -94,7 +99,7 @@ public sealed class PowerSystemTests
         // takes; the drive is the extracted 4.4 times that factor.
         Assert.Equal(StickyWheelFactor, harness.Rules.ClusterPowerFactor(sticky), 5);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
 
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(StickyWheelImpulse * StickyWheelFactor, command.Impulse.X, 3);
@@ -115,7 +120,7 @@ public sealed class PowerSystemTests
         // The gate is the power factor, not the wheel: no engine -> 0 -> no impulse.
         Assert.Equal(0f, harness.Rules.ClusterPowerFactor(sticky));
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
 
         Assert.Empty(harness.Output.Commands);
     }
@@ -138,7 +143,7 @@ public sealed class PowerSystemTests
 
         Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
 
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(WheelImpulse * 1.2676f, command.Impulse.X, 3);
@@ -166,12 +171,12 @@ public sealed class PowerSystemTests
         float maximumSpeed = 15f * factor;
 
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(maximumSpeed * 0.5f, 0f, 0f));
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         PhysicsCommand tapered = Assert.Single(harness.Output.Commands);
         Assert.Equal(WheelImpulse * factor * MathF.Sqrt(0.5f), tapered.Impulse.X, 3);
 
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), new PhysicsVector3(maximumSpeed, 0f, 0f));
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Empty(harness.Output.Commands);
     }
 
@@ -193,13 +198,13 @@ public sealed class PowerSystemTests
         // Engine.ValidatePart() => m_enclosedInto != null (Engine.cs:61): the engine sits on its
         // own cluster, so it supplies nothing and the wheel stays put.
         Assert.Equal(0f, harness.Rules.ClusterPowerFactor(wheel));
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Empty(harness.Output.Commands);
 
         harness.Rules.SetEngineEnclosed(engine, enclosed: true);
 
         Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(WheelImpulse * 1.2676f, command.Impulse.X, 3);
     }
@@ -234,21 +239,21 @@ public sealed class PowerSystemTests
         harness.IngestBody(new PhysicsBodyId(1));
 
         // Both switches off: the factor is already the two-consumer one, but no command is emitted.
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Empty(harness.Output.Commands);
         Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
 
         // One wheel on: the factor does not move, the survivor drives at 0.80593.
         harness.Rules.SetActive(first, true);
         Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         PhysicsCommand single = Assert.Single(harness.Output.Commands);
         Assert.Equal(2f * 0.80593f, single.Impulse.X, 3);
 
         // Both on: both wheels drive at the same factor.
         harness.Rules.SetActive(second, true);
         Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
-        harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Equal(2, harness.Output.Commands.Count);
         Assert.All(harness.Output.Commands, command => Assert.Equal(2f * 0.80593f, command.Impulse.X, 3));
 
@@ -256,7 +261,7 @@ public sealed class PowerSystemTests
         // (its own motor is gated by its switch).
         harness.Rules.SetActive(second, false);
         Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
-        harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         PhysicsCommand survivor = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), survivor.Body);
         Assert.Equal(2f * 0.80593f, survivor.Impulse.X, 3);
@@ -286,7 +291,7 @@ public sealed class PowerSystemTests
         // (MotorWheel.cs:34) and only the wheel's own ground raycast overwrites it.
         Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
 
         // A processed tick with no contact for that body: the wheel is off the ground.
@@ -295,7 +300,7 @@ public sealed class PowerSystemTests
         Assert.Empty(harness.Output.Commands);
 
         // The grounded rate returns with the next contact.
-        harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
     }
 
@@ -316,7 +321,7 @@ public sealed class PowerSystemTests
         Assert.Equal(1f, harness.Rules.ClusterPowerFactor(engine));
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
 
         Assert.Empty(harness.Output.Commands);
     }
@@ -341,7 +346,7 @@ public sealed class PowerSystemTests
         // A wheel keeps its own body (ADR-009), so without the assembled hinge the chassis's
         // engine does not reach it.
         Assert.Equal(0f, harness.Rules.ClusterPowerFactor(wheel));
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(2), new PhysicsBodyId(3)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(2), new PhysicsBodyId(3), GroundNormal) });
         Assert.Empty(harness.Output.Commands);
 
         // The assembler hinges the wheel to the chassis: one cluster, so one factor.
@@ -349,7 +354,7 @@ public sealed class PowerSystemTests
 
         Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(wheel), 3);
         Assert.Equal(1.2676f, harness.Rules.ClusterPowerFactor(engine), 3);
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(2), new PhysicsBodyId(3)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(2), new PhysicsBodyId(3), GroundNormal) });
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(2), command.Body);
         Assert.Equal(WheelImpulse * 1.2676f, command.Impulse.X, 3);
@@ -390,7 +395,7 @@ public sealed class PowerSystemTests
         for (uint tick = 1; tick <= 3; tick++)
         {
             harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(tick, 0f, 0f), new PhysicsVector3(tick, 0f, 0f));
-            harness.Tick(tick, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+            harness.Tick(tick, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         }
 
         PhysicsCommand command = Assert.Single(harness.Output.Commands);

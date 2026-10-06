@@ -128,6 +128,15 @@ public sealed class GameplayRules
     // following every tilt of the rig.
     private readonly Dictionary<uint, PhysicsVector3> _fanSpawnDirectionByEntity = new();
     private readonly HashSet<uint> _touchedBodies = new();
+    // The surface a body is standing on, oriented away from the other body of the contact and
+    // kept only if it is the most upward one this tick. MotorWheel.FixedUpdate needs it: its drive
+    // direction is the tangent of the ground it rests on (MotorWheel.cs:288), not a world axis.
+    private readonly Dictionary<uint, PhysicsVector3> _groundNormalByBody = new();
+    // The frame a hinged wheel's non-spinning transform belongs to (its chassis's live rotation
+    // times the wheel's build rotation inside it). A wheel body spins about its own axle, so its
+    // pose can never answer `transform.right` -- which is the axis MotorWheel.FixedUpdate gates its
+    // drive on (MotorWheel.cs:287). Declared by the placement layer where the hinge is bound.
+    private readonly Dictionary<uint, WheelAttach> _wheelAttachByEntity = new();
     private readonly HashSet<uint> _brokenJoints = new();
     private readonly HashSet<uint> _dynamicBodies = new();
     private readonly Dictionary<uint, PhysicsVector3> _previousVelocities = new();
@@ -231,6 +240,10 @@ public sealed class GameplayRules
     /// <summary>The strongest speed a body has carried recently, tagged with the tick that set it,
     /// so a stale peak can be discarded instead of bouncing a gentle later touch.</summary>
     private readonly record struct PeakApproachSample(PhysicsVector3 Velocity, uint Tick);
+
+    /// <summary>The entity whose body carries a hinged wheel's non-spinning frame, and the wheel's
+    /// own build rotation inside that entity's body.</summary>
+    private readonly record struct WheelAttach(EntityId Parent, PhysicsQuaternion LocalRotation);
 
     private readonly Dictionary<uint, PeakApproachSample> _peakApproachByBody = new();
     private uint _tick;
@@ -741,6 +754,21 @@ public sealed class GameplayRules
     }
 
     public void AddWheel(EntityId entity) => _wheels.Set(entity, default);
+
+    /// <summary>
+    /// Declares the frame a hinged wheel's non-spinning transform belongs to: its chassis's live
+    /// rotation times the wheel's build rotation inside it (<paramref name="localRotation"/>).
+    /// The original's wheel part root is welded to the rig, so <c>base.transform.right</c> is the
+    /// rig's own right axis -- but a PigForge wheel body spins about its axle (ADR-009), and a spin
+    /// about the same Z axis the build rotation uses cannot be told apart from it afterwards.
+    /// The placement layer therefore hands the frame over where it binds the hinge.
+    /// </summary>
+    public void LinkWheelAttach(EntityId wheel, EntityId parent, PhysicsQuaternion localRotation) =>
+        _wheelAttachByEntity[wheel.Value] = new WheelAttach(parent, localRotation);
+
+    /// <summary>Forgets the frame a wheel's non-spinning transform was rigid to (its chassis is
+    /// gone, or the wheel became free): the wheel is then rigid to its own body again.</summary>
+    public void UnlinkWheelAttach(EntityId wheel) => _wheelAttachByEntity.Remove(wheel.Value);
     public void Tick(uint tick, ReadOnlySpan<PhysicsEvent> events, ReadOnlySpan<PhysicsBodySnapshot> snapshots, GameplayTickOutput output)
     {
         if (Phase != GameplayPhase.Playing)
@@ -751,6 +779,7 @@ public sealed class GameplayRules
         output.Clear();
         _tick = tick;
         _touchedBodies.Clear();
+        _groundNormalByBody.Clear();
         IngestSnapshots(snapshots);
         ProcessEvents(events, output);
         ReArmBounces();
@@ -817,6 +846,16 @@ public sealed class GameplayRules
                 case PhysicsEventKind.ContactPersisted:
                     _touchedBodies.Add(physicsEvent.BodyA.Value);
                     _touchedBodies.Add(physicsEvent.BodyB.Value);
+                    // `+ContactNormal` separates BodyA, so each body sees the normal pointing away
+                    // from the other one. Keep the most upward of a body's contacts: that is the
+                    // surface it stands on, which is what the original's wheel raycast finds.
+                    RecordGroundNormal(physicsEvent.BodyA.Value, physicsEvent.ContactNormal);
+                    RecordGroundNormal(
+                        physicsEvent.BodyB.Value,
+                        new PhysicsVector3(
+                            -physicsEvent.ContactNormal.X,
+                            -physicsEvent.ContactNormal.Y,
+                            -physicsEvent.ContactNormal.Z));
                     if (physicsEvent.Kind == PhysicsEventKind.ContactStarted)
                     {
                         // Per ADR-002 the original game ignites TNT on strong impact only;
@@ -851,6 +890,24 @@ public sealed class GameplayRules
         }
 
         return PhysicsVector3.Distance(current.Velocity, previous);
+    }
+
+    /// <summary>
+    /// Keeps the most upward contact normal a body reported this tick. The original's wheel does not
+    /// pick a contact at all: it raycasts along the direction of the last contact it had
+    /// (MotorWheel.cs:112-123 records it, :285-287 casts it), so "the surface it stands on" is its
+    /// own answer. Picking the most upward normal of the wheel's contacts gives the same answer
+    /// wherever the wheel rests on ground, and it stays deterministic where the original's
+    /// first-in-array contact would not be.
+    /// </summary>
+    private void RecordGroundNormal(uint body, PhysicsVector3 outwardNormal)
+    {
+        if (_groundNormalByBody.TryGetValue(body, out PhysicsVector3 existing) && existing.Y >= outwardNormal.Y)
+        {
+            return;
+        }
+
+        _groundNormalByBody[body] = outwardNormal;
     }
 
     private void IgniteTntOnBody(PhysicsBodyId body, float impactSpeed)
@@ -1294,9 +1351,23 @@ public sealed class GameplayRules
                 continue;
             }
 
-            // Wheel-driven motors only push while their wheel touches something this tick.
-            if (_wheels.TryGet(motors.CurrentId, out _) && !_touchedBodies.Contains(link.Body.Value))
+            // MotorWheel.FixedUpdate drives off the surface the wheel stands on: it raycasts from
+            // the wheel pivot and returns without driving when it finds nothing (MotorWheel.cs:285-286).
+            // No contact normal this tick is that same "no ground".
+            if (!_groundNormalByBody.TryGetValue(link.Body.Value, out PhysicsVector3 groundNormal))
             {
+                continue;
+            }
+
+            // `Vector3.Cross(hitInfo.normal, Vector3.forward)` (MotorWheel.cs:288): the ground's
+            // tangent, not a world axis. On flat ground that is +X; on a ramp it is the slope,
+            // so a driven rig climbs it. Measured on the original's editor (MotorWheelProbe,
+            // Unity 2021.3.45f2): a 30 degree ramp turns it to (0.866, 0.5) and the rig travels
+            // (7.23, 4.18); a 45 degree one to (0.7071, 0.7071).
+            PhysicsVector3 tangent = new(groundNormal.Y, -groundNormal.X, 0f);
+            if (PhysicsVector3.Distance(tangent, PhysicsVector3.Zero) <= float.Epsilon)
+            {
+                // A vertical surface has no tangent in the plane.
                 continue;
             }
 
@@ -1316,12 +1387,20 @@ public sealed class GameplayRules
                 directionX = -directionX;
             }
 
-            // MotorWheel.cs:292-299 gates the drive on the speed along the wheel's own axis --
-            // `num2 < m_maximumSpeed && num2 > -m_maximumSpeed` -- and tapers it as
-            // sqrt(1 - |num2| / m_maximumSpeed), so the rig approaches the cap asymptotically and
-            // never passes it. The cap itself is 15 * powerFactor (MotorWheel.cs:101-103).
+            // `SpeedInDirection(base.transform.right)` (MotorWheel.cs:287): the gate reads the speed
+            // along the WHEEL's own right axis, which is the chassis's live rotation this wheel was
+            // built into (a wheel body spins about its axle, so its own pose cannot answer that --
+            // see LinkWheelAttach). The original's direction formula never looks at the part, which
+            // the probe confirmed the other way round too: a wheel rotated 90 degrees still drove
+            // along the ground tangent while its gate read the perpendicular axis.
+            ResolveWheelRight(motors.CurrentId, link.Body.Value, out PhysicsVector3 wheelRight);
+
+            // MotorWheel.cs:292-299 gates the drive on that reading -- `num2 < m_maximumSpeed &&
+            // num2 > -m_maximumSpeed` -- and tapers it as sqrt(1 - |num2| / m_maximumSpeed), so the
+            // rig approaches the cap asymptotically and never passes it. The cap itself is
+            // 15 * powerFactor (MotorWheel.cs:101-103).
             float maximumSpeed = MotorWheelMaximumSpeed * powerFactor;
-            float axialSpeed = _kinematicsByBody[link.Body.Value].Velocity.X;
+            float axialSpeed = PhysicsVector3.Dot(_kinematicsByBody[link.Body.Value].Velocity, wheelRight);
             if (MathF.Abs(axialSpeed) >= maximumSpeed)
             {
                 continue;
@@ -1332,9 +1411,33 @@ public sealed class GameplayRules
 
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 link.Body,
-                new PhysicsVector3(thrust, 0f, 0f),
+                new PhysicsVector3(tangent.X * thrust, tangent.Y * thrust, 0f),
                 _kinematicsByBody[link.Body.Value].Position));
         }
+    }
+
+    /// <summary>
+    /// The world direction of a wheel's own <c>transform.right</c>. A hinged wheel's frame belongs
+    /// to its chassis (LinkWheelAttach); without that declaration the wheel is rigid to its own body,
+    /// which is what a wheel welded into a compound is.
+    /// </summary>
+    private void ResolveWheelRight(EntityId entity, uint body, out PhysicsVector3 right)
+    {
+        if (_wheelAttachByEntity.TryGetValue(entity.Value, out WheelAttach attach)
+            && _bodies.TryGet(attach.Parent, out PhysicsBodyLink parentLink)
+            && _rotationByBody.TryGetValue(parentLink.Body.Value, out PhysicsQuaternion parentRotation))
+        {
+            right = (parentRotation * attach.LocalRotation).Rotate(new PhysicsVector3(1f, 0f, 0f));
+            return;
+        }
+
+        ResolvePartFrame(
+            entity,
+            body,
+            _kinematicsByBody.TryGetValue(body, out var kinematics) ? kinematics.Position : PhysicsVector3.Zero,
+            out _,
+            out PhysicsQuaternion partRotation);
+        right = partRotation.Rotate(new PhysicsVector3(1f, 0f, 0f));
     }
 
     private HashSet<uint> CollectGearboxBodies()
@@ -2373,7 +2476,9 @@ public sealed class GameplayRules
         _kinematicsByBody.Clear();
         _previousVelocities.Clear();
         _touchedBodies.Clear();
+        _groundNormalByBody.Clear();
         _brokenJoints.Clear();
+        _wheelAttachByEntity.Clear();
         var tntComponents = _tnt.GetEnumerator();
         while (tntComponents.MoveNext())
         {
@@ -2435,7 +2540,9 @@ public sealed class GameplayRules
         _kinematicsByBody.Clear();
         _previousVelocities.Clear();
         _touchedBodies.Clear();
+        _groundNormalByBody.Clear();
         _brokenJoints.Clear();
+        _wheelAttachByEntity.Clear();
         _motors.Clear();
         _balloons.Clear();
         _fans.Clear();

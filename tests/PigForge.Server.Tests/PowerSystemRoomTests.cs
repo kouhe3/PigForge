@@ -110,7 +110,10 @@ public sealed class PowerSystemRoomTests
         // frees 90% of an airborne wheel's draw and the cap is not constant:
         //   both wheels grounded  150 / 200 -> 0.80593, MotorWheel.cs:101-103 caps 15 * factor;
         //   one wheel in the air  150 / 110 -> the cart may exceed the grounded cap.
-        // Measured peaks: 11.35 m/s while both wheels roll, 13.69 m/s on the sandbox floor's bumps.
+        // Measured peak: 15.62 m/s (this fixture, 2026-10-06 round 21). The drive now follows the
+        // ground tangent and gates on the wheel's own right axis (docs/specs/motor-wheel-drive.md),
+        // which is what pushed the old 11-13 m/s reading up: the earlier axis let the wheel's own
+        // spin pollute the gate (the same fixture peaked at 5.99 m/s while LinkWheelAttach was missing).
         float groundedCap = 15f * 0.80593f;
         float oneAirborneCap = 15f * MathF.Pow(150f / 110f, 0.585f);
         float fastest = 0f;

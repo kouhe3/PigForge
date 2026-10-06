@@ -24,13 +24,69 @@ public sealed class GameplayRulesTests
         harness.Link(axle, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
+        // MotorWheel.FixedUpdate raycasts the surface under the wheel and drives nothing when the
+        // ray finds none (MotorWheel.cs:285-286), so a tick with no contact emits no impulse.
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         Assert.Empty(harness.Output.Commands);
 
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        // Flat ground: the tangent of a (0, 1, 0) surface is +X, so a wheel on the floor drives
+        // the same way the old world-axis code did.
+        harness.Tick(2, Grounded());
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), command.Body);
-        Assert.Equal(2f, command.Impulse.X);
+        Assert.Equal(2f, command.Impulse.X, 5);
+        Assert.Equal(0f, command.Impulse.Y, 5);
+    }
+
+    /// <summary>
+    /// A driven wheel pushes along the ground it stands on, not along a world axis: the original
+    /// takes <c>Vector3.Cross(hitInfo.normal, Vector3.forward)</c> (MotorWheel.cs:288). Measured on
+    /// the original's editor (unity/PigForge.WeldProbe MotorWheelProbe, Unity 2021.3.45f2): a 30
+    /// degree ramp turns the force to (0.866, 0.5) and the rig climbs it.
+    /// </summary>
+    [Fact]
+    public void AMotorDrivesAlongTheTangentOfTheGroundItStandsOn()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId axle = entities.Create();
+        harness.Rules.AddMotor(axle, 2f, 1f);
+        harness.Rules.AddWheel(axle);
+        harness.Link(axle, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        // A ramp rising to the right at 30 degrees: its surface normal tilts towards -X.
+        PhysicsVector3 slopeNormal = new(-MathF.Sin(MathF.PI / 6f), MathF.Cos(MathF.PI / 6f), 0f);
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), slopeNormal) });
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(2f * (MathF.Sqrt(3f) / 2f), command.Impulse.X, 5);
+        Assert.Equal(1f, command.Impulse.Y, 5);
+        Assert.Equal(0f, command.Impulse.Z, 5);
+    }
+
+    /// <summary>
+    /// The gate reads the speed along the wheel's own right axis (MotorWheel.cs:287), not along
+    /// world X. A wheel built a quarter turn round reads the perpendicular axis instead, so a rig
+    /// already past the world-X cap still receives the full drive -- the quirk the probe measured
+    /// on the original (gate 0.000007 while world X read 19.99, so the drive never tapered).
+    /// </summary>
+    [Fact]
+    public void AMotorGatesOnTheWheelsOwnRightAxis()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId axle = entities.Create();
+        harness.Rules.AddMotor(axle, 2f, 1f);
+        harness.Rules.AddWheel(axle);
+        harness.Link(axle, new PhysicsBodyId(1), localRotation: PhysicsQuaternion.FromZAngle(MathF.PI / 2f));
+        // Already past the 15 m/s cap, but along world X -- not along the wheel's own right axis.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(16f, 0f, 0f));
+
+        harness.Tick(1, Grounded());
+
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(2f, command.Impulse.X, 5);
     }
 
     [Fact]
@@ -131,12 +187,12 @@ public sealed class GameplayRulesTests
         harness.Link(survivor, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.Tick(1, Grounded());
         PhysicsCommand motor = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), motor.Body);
 
         harness.Rules.CleanupEntityStores(removed);
-        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        harness.Tick(2, Grounded());
 
         motor = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), motor.Body);
@@ -838,12 +894,12 @@ public sealed class GameplayRulesTests
         // force as sqrt(1 - |v| / max). Half the cap (no power data -> factor 1) still drives at
         // sqrt(0.5); the cap is symmetric, so the same holds driving backwards.
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(-7.5f, 0f, 0f));
-        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.Tick(1, Grounded());
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(2f * MathF.Sqrt(0.5f), command.Impulse.X, 5);
 
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(15f, 0f, 0f));
-        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        harness.Tick(2, Grounded());
         Assert.Empty(harness.Output.Commands);
     }
 
@@ -1502,7 +1558,7 @@ public sealed class GameplayRulesTests
         harness.Link(gearbox, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.Tick(1, Grounded());
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(-2f, command.Impulse.X, 5); // reversed
     }
@@ -1551,9 +1607,13 @@ public sealed class GameplayRulesTests
         }
     }
 
-    /// <summary>One grounded contact, the shape a landing arrives in.</summary>
+    /// <summary>One grounded contact, the shape a landing arrives in. MotorWheel.FixedUpdate drives
+    /// along the tangent of the surface the wheel stands on (MotorWheel.cs:288), and a real backend
+    /// always reports a normal with a contact, so a fixture that wants a driven wheel reports one.</summary>
     private static PhysicsEvent[] Grounded() =>
-        [PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2))];
+        [PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal)];
+
+    private static readonly PhysicsVector3 GroundNormal = new(0f, 1f, 0f);
 
     [Fact]
     public void BellowsPuffsOnItsButtonAndAgainAfterItsOwnCycle()
@@ -1658,19 +1718,19 @@ public sealed class GameplayRulesTests
         harness.Link(hook, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         float normalization = MathF.Sqrt(2f);
         Assert.Equal(22f / normalization, command.Impulse.X, 5);
         Assert.Equal(22f / normalization, command.Impulse.Y, 5);
 
         // Still grounded: no second pull until airborne.
-        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Empty(harness.Output.Commands);
 
         // Airborne resets; next touchdown fires again.
         harness.Tick(3, Array.Empty<PhysicsEvent>());
-        harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Single(harness.Output.Commands);
     }
 
@@ -1687,7 +1747,7 @@ public sealed class GameplayRulesTests
         harness.Link(hook, new PhysicsBodyId(1), localRotation: PhysicsQuaternion.FromZAngle(MathF.PI / 2f));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
 
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(0f, command.Impulse.X, 5);
@@ -1704,7 +1764,7 @@ public sealed class GameplayRulesTests
         harness.Link(hook, new PhysicsBodyId(1), localOffset: new PhysicsVector3(1f, 0f, 0f));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
 
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(1f, command.WorldPoint.X, 5);
@@ -1722,16 +1782,16 @@ public sealed class GameplayRulesTests
         harness.Link(motor, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.Tick(1, Grounded());
         Assert.Empty(harness.Output.Commands);
 
         harness.Rules.SetActive(motor, true);
-        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        harness.Tick(2, Grounded());
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(2f, command.Impulse.X, 5);
 
         harness.Rules.SetActive(motor, false);
-        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        harness.Tick(3, Grounded());
         Assert.Empty(harness.Output.Commands);
     }
 
@@ -1749,12 +1809,12 @@ public sealed class GameplayRulesTests
         harness.Link(gearbox, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.Tick(1, Grounded());
         PhysicsCommand forward = Assert.Single(harness.Output.Commands);
         Assert.Equal(2f, forward.Impulse.X, 5);
 
         harness.Rules.SetActive(gearbox, true);
-        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        harness.Tick(2, Grounded());
         PhysicsCommand reverse = Assert.Single(harness.Output.Commands);
         Assert.Equal(-2f, reverse.Impulse.X, 5);
     }
@@ -1841,7 +1901,7 @@ public sealed class GameplayRulesTests
         harness.Link(hook, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(1, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Empty(harness.Output.Commands);
 
         harness.Rules.SetActive(hook, true);
@@ -1882,7 +1942,7 @@ public sealed class GameplayRulesTests
 
         harness.Rules.SetActive(motor, true);
         harness.Rules.ResetForRebuild();
-        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.Tick(1, Grounded());
         Assert.Empty(harness.Output.Commands);
     }
 }

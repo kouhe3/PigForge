@@ -1704,6 +1704,10 @@ public sealed class GameRoom : IDisposable
             // local rotation — published as `AttachYaw` so the client draws the axle (and any
             // other non-spinning sprite) rigid to the chassis instead of freezing it.
             _attachByEntity[hinge.Wheel.Value] = (parentLink.Body, parentPose.Rotation.Inverse * transform.Rotation);
+            // The same frame is what the wheel's drive gates on: MotorWheel.FixedUpdate reads the
+            // speed along `base.transform.right` (MotorWheel.cs:287), and the wheel's own body
+            // cannot answer that because it spins about its axle (ADR-009).
+            _rules.LinkWheelAttach(hinge.Wheel, hinge.Parent, parentPose.Rotation.Inverse * transform.Rotation);
         }
     }
 
@@ -3093,6 +3097,7 @@ public sealed class GameRoom : IDisposable
             if (_entityByBody.TryGetValue(wheel.Value, out EntityId wheelEntity))
             {
                 _attachByEntity.Remove(wheelEntity.Value);
+                _rules.UnlinkWheelAttach(wheelEntity);
             }
         }
 

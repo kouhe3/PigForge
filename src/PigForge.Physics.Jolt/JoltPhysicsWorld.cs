@@ -28,6 +28,11 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
     private readonly List<PhysicsEvent> _events = new();
     private readonly HashSet<ContactPair> _activeContacts = new();
     private readonly HashSet<ContactPair> _currentContacts = new();
+    // The manifold normal of every touch, in the key order the events are emitted in. Jolt reports
+    // it in world space with its own pair order, so it is re-oriented (and re-anchored) here once:
+    // the rules layer reads the normal as the surface a part stands on (a driven wheel's tangent,
+    // MotorWheel.cs:288), which has to survive a resting contact.
+    private readonly Dictionary<ContactPair, PhysicsVector3> _contactNormals = new();
     private readonly List<ContactPair> _orderedContacts = new();
     private readonly Dictionary<PhysicsJointId, TwoBodyConstraint> _joints = new();
     // Reused scratch list so destroying a body with joints stays allocation-free.
@@ -383,6 +388,7 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
     {
         ThrowIfDisposed();
         _currentContacts.Clear();
+        _contactNormals.Clear();
         PhysicsUpdateError error = _physicsSystem.Update(timeStep.Seconds, collisionSteps: 1, _jobSystem);
         if (error != PhysicsUpdateError.None)
         {
@@ -394,9 +400,10 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         _orderedContacts.Sort(ContactPairComparer.Instance);
         foreach (ContactPair contact in _orderedContacts)
         {
+            PhysicsVector3 normal = _contactNormals.GetValueOrDefault(contact);
             _events.Add(_activeContacts.Contains(contact)
-                ? PhysicsEvent.ContactPersisted(contact.A, contact.B)
-                : PhysicsEvent.ContactStarted(contact.A, contact.B));
+                ? PhysicsEvent.ContactPersisted(contact.A, contact.B, normal)
+                : PhysicsEvent.ContactStarted(contact.A, contact.B, normal));
         }
 
         _orderedContacts.Clear();
@@ -483,17 +490,18 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         _events.Clear();
         _activeContacts.Clear();
         _currentContacts.Clear();
+        _contactNormals.Clear();
         _orderedContacts.Clear();
         ReleaseNativeRuntime();
     }
 
     private void OnContactAdded(PhysicsSystem system, in Body body1, in Body body2, in ContactManifold manifold, ref ContactSettings settings)
-        => RecordContact(body1, body2);
+        => RecordContact(body1, body2, manifold);
 
     private void OnContactPersisted(PhysicsSystem system, in Body body1, in Body body2, in ContactManifold manifold, ref ContactSettings settings)
-        => RecordContact(body1, body2);
+        => RecordContact(body1, body2, manifold);
 
-    private void RecordContact(Body body1, Body body2)
+    private void RecordContact(Body body1, Body body2, in ContactManifold manifold)
     {
         BodyID ridA = body1.ID;
         BodyID ridB = body2.ID;
@@ -504,7 +512,36 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
             return;
         }
 
-        _currentContacts.Add(ContactPair.Create(idA, idB));
+        ContactPair key = ContactPair.Create(idA, idB);
+        _currentContacts.Add(key);
+        // Jolt's `mWorldSpaceNormal` separates SECOND body of its own callback pair (measured by
+        // JoltWorldReportsTheSurfaceNormalABodyRestsOn: a box resting on static ground reports
+        // (0, -1, 0) for a pair whose first body is the ground, i.e. pointing down into the ground,
+        // away from the box). The contract wants the normal that separates the KEY's first body, so
+        // the sense flips whenever the key's first body is the callback's first. Keeping the smaller
+        // of two candidates makes the pick independent of manifold iteration order, like Bepu.
+        Vector3 normal = manifold.WorldSpaceNormal;
+        PhysicsVector3 candidate = key.A == idA
+            ? new PhysicsVector3(-normal.X, -normal.Y, -normal.Z)
+            : new PhysicsVector3(normal.X, normal.Y, normal.Z);
+        if (_contactNormals.TryGetValue(key, out PhysicsVector3 existing) && CompareContactNormals(existing, candidate) <= 0)
+        {
+            return;
+        }
+
+        _contactNormals[key] = candidate;
+    }
+
+    private static int CompareContactNormals(PhysicsVector3 left, PhysicsVector3 right)
+    {
+        int x = left.X.CompareTo(right.X);
+        if (x != 0)
+        {
+            return x;
+        }
+
+        int y = left.Y.CompareTo(right.Y);
+        return y != 0 ? y : left.Z.CompareTo(right.Z);
     }
 
     private static void AcquireNativeRuntime()

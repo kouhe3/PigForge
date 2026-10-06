@@ -916,7 +916,9 @@ public readonly record struct PhysicsEvent
 
 	/// <summary>Unit contact normal oriented so that pushing <see cref="BodyA"/> along
 	/// <c>+ContactNormal</c> and <see cref="BodyB"/> along <c>-ContactNormal</c> separates the
-	/// pair. Only contact events carry it; other kinds report <see cref="PhysicsVector3.Zero"/>.</summary>
+	/// pair. It is the surface's own normal, so a body resting or sliding on something keeps
+	/// reporting it (a driven wheel reads it as the ground it stands on, MotorWheel.cs:288).
+	/// Only contact events carry it; other kinds report <see cref="PhysicsVector3.Zero"/>.</summary>
 	public PhysicsVector3 ContactNormal { get; }
 
 	/// <summary>Relative approach speed along <see cref="ContactNormal"/>, measured before the

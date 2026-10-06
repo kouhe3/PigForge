@@ -66,11 +66,11 @@ public sealed class GameRoomTests
     [Fact]
     public void GluePartPreventsSeamSplitUnderAnOverThresholdImpulse()
     {
-        ScriptedPhysicsWorld gluedWorld = new();
+        ScriptedPhysicsWorld gluedWorld = new() { ReportGroundContacts = true };
         CreateMotorRoom(() => gluedWorld, withGlue: true).RunTicks(2);
         Assert.Empty(gluedWorld.DestroyedBodies);
 
-        ScriptedPhysicsWorld plainWorld = new();
+        ScriptedPhysicsWorld plainWorld = new() { ReportGroundContacts = true };
         CreateMotorRoom(() => plainWorld, withGlue: false).RunTicks(2);
         Assert.NotEmpty(plainWorld.DestroyedBodies);
     }
@@ -83,7 +83,7 @@ public sealed class GameRoomTests
     [Fact]
     public void SeamSplitRebindsEveryMemberToItsNewBody()
     {
-        ScriptedPhysicsWorld world = new();
+        ScriptedPhysicsWorld world = new() { ReportGroundContacts = true };
         GameRoom room = CreateMotorRoom(() => world, withGlue: false);
         room.RunTicks(2);
         Assert.NotEmpty(world.DestroyedBodies);
@@ -100,11 +100,11 @@ public sealed class GameRoomTests
     {
         // Same layout and the same 30 impulse: only the declared strengths differ, so the split
         // outcome proves the per-part threshold is live (plan P3 of the joint-strength batch).
-        ScriptedPhysicsWorld normalWorld = new();
+        ScriptedPhysicsWorld normalWorld = new() { ReportGroundContacts = true };
         CreateMotorRoom(() => normalWorld, withGlue: false).RunTicks(2);
         Assert.NotEmpty(normalWorld.DestroyedBodies);
 
-        ScriptedPhysicsWorld strongWorld = new();
+        ScriptedPhysicsWorld strongWorld = new() { ReportGroundContacts = true };
         CreateMotorRoom(() => strongWorld, withGlue: false, StrongMotorContentJson).RunTicks(2);
         Assert.Empty(strongWorld.DestroyedBodies);
     }
@@ -577,6 +577,16 @@ public sealed class GameRoomTests
 
         public List<PhysicsBodyId> DestroyedBodies { get; } = new();
 
+        /// <summary>
+        /// Reports every body as resting on flat ground. A driven part needs the surface it stands
+        /// on -- the original's wheel raycasts it and drives along its tangent (MotorWheel.cs:285-288)
+        /// -- so a fixture that wants a drive has to hand the room a contact with a normal.
+        /// Off by default: the phase-ordering fixture asserts exact operation logs.
+        /// </summary>
+        public bool ReportGroundContacts { get; init; }
+
+        private static readonly PhysicsBodyId GroundBody = new(9999);
+
         public IReadOnlyList<PhysicsBodySnapshot> Snapshots => _snapshots;
 
         public int DisposeCount { get; private set; }
@@ -644,6 +654,18 @@ public sealed class GameRoomTests
 
         public int DrainEvents(Span<PhysicsEvent> destination)
         {
+            if (ReportGroundContacts)
+            {
+                foreach (PhysicsBodySnapshot snapshot in _snapshots)
+                {
+                    _events.Add(PhysicsEvent.ContactPersisted(
+                        snapshot.Body,
+                        GroundBody,
+                        new PhysicsVector3(0f, 1f, 0f),
+                        0f));
+                }
+            }
+
             _events.CopyTo(destination);
             int count = _events.Count;
             _events.Clear();

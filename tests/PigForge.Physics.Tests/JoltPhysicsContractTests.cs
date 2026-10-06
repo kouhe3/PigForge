@@ -55,6 +55,56 @@ public sealed class JoltPhysicsContractTests
     }
 
     [Fact]
+    public void JoltWorldReportsTheSurfaceNormalABodyRestsOn()
+    {
+        using JoltPhysicsWorld world = new(new PhysicsVector3(0, -9.81f, 0));
+        PhysicsBodyId ground = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Static,
+            PhysicsVector3.Zero,
+            PhysicsQuaternion.Identity,
+            0,
+            new ShapeDefinition[] { new BoxShapeDefinition(10, 0.5f, 10) }));
+        PhysicsBodyId box = world.CreateBody(new BodyDefinition(
+            PhysicsBodyMode.Dynamic,
+            new PhysicsVector3(0, 0.55f, 0),
+            PhysicsQuaternion.Identity,
+            1,
+            new ShapeDefinition[] { new BoxShapeDefinition(0.5f, 0.5f, 0.5f) }));
+
+        PhysicsEvent[] events = new PhysicsEvent[8];
+        _ = world.DrainEvents(events);
+        FixedTimeStep timeStep = FixedTimeStep.FromSeconds(1f / 60f);
+        int reported = 0;
+        for (int tick = 0; tick < 60; tick++)
+        {
+            world.Step(timeStep);
+            int eventCount = world.DrainEvents(events);
+            for (int index = 0; index < eventCount; index++)
+            {
+                PhysicsEvent @event = events[index];
+                if (@event.Kind is not (PhysicsEventKind.ContactStarted or PhysicsEventKind.ContactPersisted)
+                    || @event.BodyA == @event.BodyB
+                    || @event.BodyA != box && @event.BodyB != box
+                    || @event.BodyA != ground && @event.BodyB != ground)
+                {
+                    continue;
+                }
+
+                // A driven wheel reads this as the ground it stands on, so a resting contact has to
+                // keep reporting the surface's own normal -- oriented to separate the pair's A.
+                PhysicsVector3 outward = @event.BodyA == box
+                    ? @event.ContactNormal
+                    : new PhysicsVector3(-@event.ContactNormal.X, -@event.ContactNormal.Y, -@event.ContactNormal.Z);
+                Assert.Equal(1f, outward.Y, 3);
+                Assert.Equal(0f, outward.X, 3);
+                reported++;
+            }
+        }
+
+        Assert.True(reported >= 30, $"a resting body reports its ground every tick: {reported} of 60");
+    }
+
+    [Fact]
     public void JoltWorldAppliesImpulseBeforeFixedStep()
     {
         using JoltPhysicsWorld world = new(new PhysicsVector3(0, 0, 0));
