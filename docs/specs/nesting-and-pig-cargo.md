@@ -66,7 +66,7 @@ PigForge 现状是「靠相邻焊接顺带粘住」，没有对应机制（见 �
 | # | 原版规则 | 出处 |
 |---|---|---|
 | 1 | 只有框能包裹零件：`CanEncloseParts() => true`（默认 `false`） | `Frame.cs:32`、`BasePart.cs:1143` |
-| 2 | 除框以外都能被包裹：`CanBeEnclosed()` 对非 WoodenFrame/MetalFrame 返回 true | `BasePart.cs:1148-1166` |
+| 2 | **只有覆写 `CanBeEnclosed()` 的类能被包裹**（vanilla `EnclosableParts = false` 时基类返回 false）：`Pig`/`KingPig`/`GoldenPig`/`Egg`/`Engine`/`Gearbox`/`TNT`/`PointLight`/`Pumpkin`/`SpringBoxingGlove`/`TimeBomb`/`HingePlate`/`CustomPart` 共 13 个类直接 `return true`；轮子/风扇/气球/沙袋/弹簧/机翼等都不在其中 | `BasePart.cs:1148-1166`；`tools/bple-joints`（类 + 继承链，内容 81 条；G108） |
 | 3 | 猪可被包裹；**只有被包裹时**才算「整体零件」 | `Pig.cs:170`、`Pig.cs:167` |
 | 4 | 未被包裹的猪用**连续碰撞**（自由刚体＝货物） | `Pig.cs:183` |
 | 5 | 放置到框所在格 = 设 `enclosedPart`；一框仅一个，且不能放同类型零件 | `Contraption.cs:1729-1749`、`ConstructionUI.cs:1212` |
@@ -135,6 +135,6 @@ PigForge 现状是「靠相邻焊接顺带粘住」，没有对应机制（见 �
 ## 8. 收口记录
 
 - ~~A1：非框零件之间是否停用相邻焊接？~~ **前提错误，已撤回**。原版不是「框 vs 非框」二分，而是每件三值的 `m_jointConnectionType`（§2.1）。用户指正：不可关节件为猪、猪王、鸟蛋、引擎；TNT 既可关节也可入框 —— 与 `Part_*.prefab` 实测完全一致。
-- **B1**：`canBeEnclosed` 用推导式（`!canEnclose`），对应原版 `BasePart.CanBeEnclosed()` 的实现方式。
+- ~~**B1**：`canBeEnclosed` 用推导式（`!canEnclose`）~~ —— **2026-10-06 修正（G108）**：vanilla 的 `EnclosableParts = false` 只关掉 **基类** `BasePart.CanBeEnclosed()`（`BasePart.cs:1148-1165`），只有**覆写它**的 13 个类（猪族/蛋/引擎/齿轮箱/TNT/点光/南瓜/拳套/定时炸弹/铰链板/CustomPart）返回 true，所以「谁能被框装住」是**每类事实**（内容 81 条），由 `tools/bple-joints` 从 `m_Script` guid → 类名（含继承链）写出，绝不从 `canEnclose` 推导。原 `!canEnclose` 等于「任意非框件都能入框」，比 vanilla 宽。
 - **B2**：包裹限一层（§2.2-5 原版即一框一个）。
 - **B3**：被包裹件取框中心位置（原版 `SetPartPos(x, y, basePart)`）。

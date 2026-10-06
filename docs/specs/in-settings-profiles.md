@@ -116,9 +116,7 @@ B 档（`INSettingsB*.json`）是 mod 的「全功能」档，**不作为任何�
      `GameRoom.BindAttachments` 按 `capabilities.HasBalloon` 选家族。
    - 测试同步：`PowerSystemTests.PowerFactorFollows…`、`CompoundAssemblerTests.{TheSeamThresholdScales…,TheCatalogGivesMetalWelds…}`、
      `JointAndEnclosureTests.{AttachmentSearchStops…,AttachmentSearchAccepts…,ASandbagOnlyReachesTheCellAboveIt,ABalloonReachesFiveCells}`。
-3. **门控分支** —— **已审查（结论见 §4.3）**，其中四项**尚未实现**（新差距 `G106`–`G109`）：
-   ~~`DynamicPowerSystem`~~（2026-10-06 第二十轮之三已落地，`G106`）、~~`Stable/StrongSpringConnection`~~（同日第二十轮之二已落地，`G107`）、
-   `EnclosableParts` 的「可包裹件族」、IN 档专属零件的目录范围。
+3. **门控分支** —— **已审查（结论见 §4.3）**：~~`DynamicPowerSystem`~~（第二十轮之三，`G106`）、~~`Stable/StrongSpringConnection`~~（第二十轮之二，`G107`）、~~`EnclosableParts` 的「可包裹件族」~~（第二十轮之四，`G108`）均已落地；**只剩** IN 档专属零件的目录范围（`G109`，待拍板）。
 4. ~~**火箭 / TNT 的倍率**~~ —— **已核对**：火箭族由 `tools/bple-rockets` 按声明默认档写出（G101/G104）；
    TNT 的 `GameplayConfig.TntBlastImpulse = 25f` 与 prefab `m_explosionImpulse: 25` 一致、`TNTExplosionForce` vanilla = 1.0，
    **倍率无待办**。（TNT 的半径 4 vs prefab 8 是另一条差距 `G46`。）
@@ -140,7 +138,7 @@ B 档（`INSettingsB*.json`）是 mod 的「全功能」档，**不作为任何�
 | `SwitchableBoxingGlove = false` | 一次性按钮：`Update` 的 else 分支在 `!m_enabled` 时出拳、`m_ShootTime`（prefab 覆写 0.4）后回卷再复位（`SpringBoxingGlove.cs:345-395`） | 内容 `activation: "trigger"`（按下出拳、可重复） | **已一致**（G99 当时按用户实机报告选对了分支，理由从「B 档 toggle」改写为「vanilla 按钮」） |
 | `SwitchableWing` / `SwitchableTail` = false | 机翼/尾翼常开（`Wings.cs:106`、`Tail.cs:59`） | `Aerodynamics.cs` 已按此实现 | 无 |
 | `SwitchableCokeSodaRocket = false` | 火箭/瓶族一生一次（`Rocket.cs:570-581`） | 已实现（G104） | 无 |
-| `EnclosableParts = false` | **只关掉基类** `CanBeEnclosed()`（`BasePart.cs:1148-1165`）；13 个类覆写为 `true`（猪族/蛋/引擎/齿轮箱/TNT/点光/南瓜/拳套/定时炸弹/铰链板/CustomPart），`Frame.CanEncloseParts()` 恒 true，`Frame.Initialize` 的焊接**无门控**。B 档专属的只有 `CanConnectTo(JCD)` 的 `enclosedInto` 放宽（`Contraption.cs:735-740`）与 `Rocket.cs:141`/`SpotLight.cs:72` 的附件隐藏 | 允许**任意非框件**入框（内容 `canEnclose` + 代码推 `canBeEnclosed`） | **新差距 `G108`**：把「可被包裹的件族」做成内容位（从类覆写表提取），或在规格里记为有意放宽 |
+| `EnclosableParts = false` | **只关掉基类** `CanBeEnclosed()`（`BasePart.cs:1148-1165`）；13 个类覆写为 `true`（猪族/蛋/引擎/齿轮箱/TNT/点光/南瓜/拳套/定时炸弹/铰链板/CustomPart），`Frame.CanEncloseParts()` 恒 true，`Frame.Initialize` 的焊接**无门控**。B 档专属的只有 `CanConnectTo(JCD)` 的 `enclosedInto` 放宽（`Contraption.cs:735-740`）与 `Rocket.cs:141`/`SpotLight.cs:72` 的附件隐藏 | **已落地**（`tools/bple-joints` 解析 `m_Script` guid → 类名 + 继承链，写出 81 条 `canBeEnclosed`；`ConstructionRules.TryResolveEnclosure` 要求该位；`!canEnclose` 的推导式已删） | **G108 已收口**：真服务器实测「框 + 猪」`status 0`（并进同一 body）／「框 + 扇」`status 5 error 6`（`CellsOccupied`）／「框 + 蛋」`status 0` |
 | `Rotatable*` = false（TNT/Wing/Tail/Sandbag/Balloon/Gearbox/Pumpkin） | 关掉 (a) `EffectDirection()` 随 yaw 旋转、(b) `m_autoAlign = Rotate` 自动对齐、(c) UI 四向按钮；附带事实：`Tail.cs:78-84` 读的是 `RotatableWing`，`RotatableTail` 全树未被读取 | 自由 yaw（`Place` 接受任意角）；开关条按 **(零件类型, 有效方向)** 分组，方向随 yaw 旋转（2026-10-06 第十九轮，**用户点名**） | 开关条分组**保留为有意偏差**（纯 UI，用户要的）；自动对齐仍是差距 `G96` |
 | `AvoidanceRocket` / `TrackingRocket` = false | 无追踪/规避弹道（`Rocket.cs:292-311`） | 未实现 | 无 |
 | `BlasterTNT`、`OffRoadWheel`、`HingePlate`、`MetalBox`、`WoodenBox`、`ColoredFrame`、`BracketFrame`、`AutoGun`、`MultipartGenerator`、`DecelerationLight`、`AutoControlLight`、`FuelSystem`/`ElectricalSystem`/`MechanicalSystem` = false | 14 个 `RegisterPart` 键为 false → `RemoveCustomPart` 掉对应条目（`INPartFactoryManager.cs:57-110`），即这些零件在 vanilla **不存在** | 目录 284 件里**只有 52 `tnt-blaster`（`Part_TNT_07_SET`）是 IN 档专属** | **新差距 `G109`**：目录范围（保留并标注 / 移除）待用户拍板 |

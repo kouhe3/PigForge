@@ -27,7 +27,7 @@ Accepted。取代 ADR-008 决策 1 里「除轮子外相邻即焊」的隐含默
 
 1. **内容新增三段真值**，唯一来源是 `tools/bple-joints/extract-joints.mjs`（扫描全部 `Part_*.prefab`），**禁止手写**；写入由 `tools/bple-joints/apply-joints.mjs` 从报告驱动、幂等：
    - `capabilities.jointConnectionType`（`none`/`source`/`target`）
-   - `capabilities.canEnclose`（仅框：`wooden-block`/`metal-box` 族，共 22 条）；`canBeEnclosed` 由 `!canEnclose` **推导**，不落数据
+   - `capabilities.canEnclose`（该类的 `CanEncloseParts()` 为真：`wooden-block`/`metal-box` 族，共 22 条）与 `capabilities.canBeEnclosed`（**该类或它的祖先覆写了 `CanBeEnclosed()`**，2026-10-06 起由 `bple-joints` 从类表写出，共 81 条；见差距 `G108`）。`canBeEnclosed` **不再**由 `!canEnclose` 推导 —— 那个推导把「任意非框件都能入框」当成了 vanilla，而 vanilla 的 `EnclosableParts = false` 只关掉基类实现，只有覆写它的 13 个类能入框
    - `capabilities.attachment`（方向 + 绳长 + 挂点；气球族 `down`、沙袋族 `up`，共 38 条）
 2. **装配判据逐字落地** `Contraption.cs:690`：`CanMergePair(a,b) = CanMerge(a) && CanMerge(b) && 两端非 none && 至少一端 source`。于是猪无需任何特判 —— 它的数据就是 `none`，焊不上任何东西。
 3. **嵌套关系是独立于关节能力的一条边**：被包裹件与其框**无论 `jointConnectionType` 为何都合并**（对应原版 `Frame.cs:44-49` 直接加 FixedJoint、绕过第 2 条判据）。同体成员天然互不碰撞，因此不需要 `IgnoreCollision` 的等价物。
