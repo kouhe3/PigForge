@@ -75,7 +75,8 @@ PigForge 的 `IPhysicsWorld` 契约里连这两个字段都没有，于是动力
   改动 3 个 Server 行为测试（气球/风扇/猪）。计数：Core **241** / Server **110** / Protocol 39 / Replay 11 /
   Physics **65**（50 非 Jolt + 15 Jolt，**分开跑**）/ web 224。Release 构建 0 警告 0 错误。
 - **未做**（规格 §6 有全表）：`Pig.FixedUpdate` 的慢速增阻、旋翼的 `angularDrag 1000/1`、绳的逐节阻尼、
-  `NoDrag` 开关、IN 铰链板体这些**运行期**覆盖；`m_BounceThreshold: 2`（我们的合成弹性阈值是 0.5，低速接触
-  我们会弹而原版不会）；`m_DefaultSolverIterations` 等其余 PhysicsManager 项逐条核对。
+  `NoDrag` 开关、IN 铰链板体这些**运行期**覆盖；~~`m_BounceThreshold: 2`~~ —— **已照搬**（2026-10-06，
+  差距 G89：`GameplayRules.MinimumBounceApproachSpeed = 2f`，门控装在**估算**出来的接近速度上，因为后端的
+  接触事件读数会低估已被求解器吸掉的落地速度）；`m_DefaultSolverIterations` 等其余 PhysicsManager 项逐条核对。
 - **顺带确认的文档**：Unity 自己 2021.3 文档说 `Physics.defaultMaxAngularSpeed` 默认 50，**与工程资产和实测
   都矛盾**（都是 7）；以资产为准。

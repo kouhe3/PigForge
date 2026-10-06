@@ -189,9 +189,14 @@ public sealed class GameplayRules
     /// out instead of accelerating forever (gap list G24).</summary>
     private const float MotorWheelMaximumSpeed = 15f;
 
-    /// <summary>A landing slower than this is not an impact worth bouncing (matches the order of
-    /// the level's own impact thresholds).</summary>
-    private const float MinimumBounceApproachSpeed = 0.5f;
+    /// <summary>
+    /// The original's own bounce threshold: Unity's <c>Physics.bounceThreshold</c> is
+    /// <c>ProjectSettings/DynamicsManager.asset</c>'s <c>m_BounceThreshold: 2</c> in BPLE, and
+    /// PhysX drops the restitution of a contact whose relative normal velocity is below it. So a
+    /// landing slower than 2 m/s does not bounce -- the pig settling on the ground is not a
+    /// rubber ball, which is exactly what the original looks like (gap G89).
+    /// </summary>
+    private const float MinimumBounceApproachSpeed = 2f;
 
     /// <summary>
     /// The puff's own length: the original pushes while <c>num &lt; 0.5 s</c>
@@ -859,7 +864,7 @@ public sealed class GameplayRules
     /// </summary>
     private void ApplyBounce(PhysicsEvent physicsEvent, GameplayTickOutput output)
     {
-        if (_config.RestitutionAppliedNatively || physicsEvent.ApproachSpeed <= MinimumBounceApproachSpeed)
+        if (_config.RestitutionAppliedNatively)
         {
             return;
         }
@@ -909,6 +914,15 @@ public sealed class GameplayRules
             ApproachFromHistory(bodyA, bodyB, normal, dynamicA, dynamicB),
             physicsEvent.ApproachSpeed);
         approachSpeed = MathF.Max(approachSpeed, PeakApproach(bodyA, bodyB, normal, dynamicA, dynamicB));
+        // The threshold gates that estimate, not the event's own reading: the backend's contact
+        // event understates a landing (the solver has already absorbed part of it by the time the
+        // event arrives), so a slow-looking event on a fast landing must still bounce -- and a
+        // genuinely slow one must not, which is the original's `m_BounceThreshold: 2`.
+        if (approachSpeed <= MinimumBounceApproachSpeed)
+        {
+            return;
+        }
+
         float deltaVelocity = (restitution * approachSpeed) - separation;
         if (deltaVelocity <= 0f)
         {

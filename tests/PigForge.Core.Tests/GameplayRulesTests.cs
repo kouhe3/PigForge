@@ -196,6 +196,45 @@ public sealed class GameplayRulesTests
         Assert.Empty(harness.Output.DestroyedEntities);
     }
 
+    /// <summary>
+    /// G89: the original's own bounce threshold. Unity's <c>Physics.bounceThreshold</c> is BPLE's
+    /// <c>ProjectSettings/DynamicsManager.asset</c> <c>m_BounceThreshold: 2</c>, and PhysX drops a
+    /// contact's restitution below it -- so a landing at 1.5 m/s settles, and the same landing at
+    /// 3 m/s bounces. The threshold gates the *estimated* approach speed (history, event, peak),
+    /// because the backend's own reading understates a landing the solver has already absorbed.
+    /// </summary>
+    [Theory]
+    [InlineData(1.5f, false)]
+    [InlineData(3f, true)]
+    public void ABounceNeedsTheOriginalsBounceThreshold(float speed, bool bounces)
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId pig = entities.Create();
+        harness.Rules.AddRestitution(pig, restitution: 0.5f, mass: 1f);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.Link(entities.Create(), new PhysicsBodyId(2));
+        // The bodies are already at rest by the time the event arrives -- the solver absorbs a
+        // landing before the contact is reported, which is exactly why the bounce asks for the
+        // outgoing velocity instead of adding an impulse -- so the impact speed travels in the
+        // event (and in the history this layer keeps).
+        PhysicsVector3 contactNormal = new(0f, 1f, 0f);
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
+
+        // `ContactStarted`: a bounce is the first touch of a pair (a persisted contact is already
+        // inside the solver's response), which is what `ProcessEvents` routes to `ApplyBounce`.
+        harness.Tick(1, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), contactNormal, speed) });
+
+        if (bounces)
+        {
+            Assert.Contains(harness.Output.Commands, command => command.Kind == PhysicsCommandKind.SuppressContact);
+            return;
+        }
+
+        Assert.Empty(harness.Output.Commands);
+    }
+
     [Fact]
     public void BlasterFiresOnceAndPushesBodiesInsideItsRadius()
     {

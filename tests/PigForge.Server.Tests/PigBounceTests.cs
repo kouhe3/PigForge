@@ -52,11 +52,31 @@ public sealed class PigBounceTests
         Assert.True(drop.RestingY > FloorTopY, $"the pig must rest above the floor, got y={drop.RestingY:0.###}");
     }
 
-    private static PigDrop RunDrop()
+    /// <summary>
+    /// A landing under the original's own bounce threshold does not bounce: Unity's
+    /// <c>Physics.bounceThreshold</c> is BPLE's <c>DynamicsManager.asset</c> <c>m_BounceThreshold: 2</c>,
+    /// and PhysX drops a contact's restitution below it (gap G89). A pig settling from a hand's
+    /// height must therefore come to rest instead of hopping.
+    /// </summary>
+    [Fact]
+    public void ASlowLandingDoesNotBounce()
+    {
+        // The pig's sphere chain rests with its origin half a metre above the floor, so starting
+        // 0.63 up leaves a 0.13 m fall: about 1.6 m/s, under the original's 2 m/s threshold and
+        // over the 0.5 the rules layer used to use.
+        PigDrop drop = RunDrop(dropStartY: FloorTopY + 0.63f);
+
+        Assert.InRange(drop.ImpactSpeed, 0.5f, 2f);
+        Assert.True(
+            drop.ReboundRise < 0.05f,
+            $"a landing under the bounce threshold must not rebound, got {drop.ReboundRise:0.###} m");
+    }
+
+    private static PigDrop RunDrop(float dropStartY = DropStartY)
     {
         using GameRoom room = PlayHost.CreateSandboxRoom();
 
-        Assert.True(room.Submit(new PlacePartCommand(0, 1, PlayerOne, PigPartTypeId, 20f, DropStartY, 0f, 1f)).IsAccepted);
+        Assert.True(room.Submit(new PlacePartCommand(0, 1, PlayerOne, PigPartTypeId, 20f, dropStartY, 0f, 1f)).IsAccepted);
         Assert.True(room.Submit(new StartSimulationCommand(0, 2, PlayerOne)).IsAccepted);
 
         List<float> trace = new();
