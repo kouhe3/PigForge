@@ -19,5 +19,7 @@ export function toDrawEntities(entities: readonly ReplayEntityState[] | readonly
     // PGFS v5's sub-entity flag (a glove's fist, a broken spring's endpoint); replay documents
     // have no such entity and carry no flag.
     subEntity: "subEntity" in entity ? entity.subEntity : false,
+    // PGFS v6's mirror bit (ADR-030); replay documents have no such bit.
+    mirrored: "mirrored" in entity ? entity.mirrored : false,
   }));
 }

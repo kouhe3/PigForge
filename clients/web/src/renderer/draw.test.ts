@@ -682,3 +682,92 @@ describe("drawFrame conditional connection sprites", () => {
     expect(draws[0][1]).toBe(0);
   });
 });
+
+describe("drawFrame mirrored parts", () => {
+  // A wing-like part: a body sprite offset in x, plus a mount with its own rotation, so both
+  // effects of the mirror are observable (ADR-030). At yaw 0 the part's own frame is the world
+  // frame, which keeps the expected offsets literal.
+  const mirrorTextures = (image: CanvasImageSource | undefined) => ({
+    atlases: new Map([["A.png", image as CanvasImageSource]]),
+    parts: new Map([
+      [
+        31,
+        {
+          bbox: [2, 2] as [number, number],
+          sprites: [
+            { atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: -0.5, cy: -0.15, sx: 1.9, sy: 0.6122, rot: 0, rotates: false },
+            { atlas: "A.png", x: 200, y: 20, w: 100, h: 100, cx: 0.31, cy: 0, sx: 1.1, sy: 1.016, rot: 0.5, rotates: false },
+          ],
+        },
+      ],
+    ]),
+  });
+
+  const wing = (mirrored: boolean): DrawEntity => ({
+    entityId: 30, partTypeId: 31, x: 0, y: 0, yaw: 0, scale: 1, vx: 0, vy: 0, bodyId: 5, active: false, mirrored,
+  });
+
+  /** The last `expected.length` entries, component by component (the canvas maths is float). */
+  const expectTail = (actual: Array<[number, number]>, expected: Array<[number, number]>) => {
+    const tail = actual.slice(-expected.length);
+    expect(tail).toHaveLength(expected.length);
+    tail.forEach(([x, y], index) => {
+      expect(x).toBeCloseTo(expected[index]![0], 4);
+      expect(y).toBeCloseTo(expected[index]![1], 4);
+    });
+  };
+
+  it("mirrors the offsets, reverses the sprite rotation and mirrors the art", () => {
+    const image = {} as CanvasImageSource;
+    const plain = makeCtx();
+    drawFrame(plain.ctx, createCamera(), [wing(false)], content, [], undefined, undefined, mirrorTextures(image));
+    const mirrored = makeCtx();
+    drawFrame(mirrored.ctx, createCamera(), [wing(true)], content, [], undefined, undefined, mirrorTextures(image));
+
+    // Sprite offsets are the part-local centres, so the mirror negates x and leaves y (camera
+    // scale 36): the body sprite's (-0.5, -0.15) becomes (0.5, -0.15).
+    expectTail(plain.translations, [[-18, 5.4], [11.16, 0]]);
+    expectTail(mirrored.translations, [[18, 5.4], [-11.16, 0]]);
+
+    // A sprite's world angle is the yaw plus its own rotation; the mirror reverses that rotation
+    // (the canvas negates the angle again, hence the sign flip below).
+    const plainRotations = plain.rotations.slice(-2);
+    const mirroredRotations = mirrored.rotations.slice(-2);
+    expect(plainRotations[0]).toBeCloseTo(0, 5);
+    expect(mirroredRotations[0]).toBeCloseTo(0, 5);
+    expect(plainRotations[1]).toBeCloseTo(-0.5, 5);
+    expect(mirroredRotations[1]).toBeCloseTo(0.5, 5);
+
+    // The art is mirrored rather than turned, in the sprite's own frame.
+    expect(plain.scales).toEqual([]);
+    expect(mirrored.scales).toEqual([[-1, 1], [-1, 1]]);
+  });
+
+  it("cancels a mirror against the manifest's own negative node scale", () => {
+    // The original's node scale and its flip are scalars on the same node, so a sprite the
+    // manifest already draws mirrored (a wing's top mount) comes back unmirrored.
+    const flipped = {
+      atlases: new Map([["A.png", {} as CanvasImageSource]]),
+      parts: new Map([
+        [
+          31,
+          {
+            bbox: [2, 2] as [number, number],
+            sprites: [
+              { atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0.31, cy: 0, sx: 1.1, sy: 1.016, rot: 0, rotates: false, flipX: true },
+            ],
+          },
+        ],
+      ]),
+    };
+
+    const plain = makeCtx();
+    drawFrame(plain.ctx, createCamera(), [wing(false)], content, [], undefined, undefined, flipped);
+    const mirrored = makeCtx();
+    drawFrame(mirrored.ctx, createCamera(), [wing(true)], content, [], undefined, undefined, flipped);
+
+    expect(plain.scales).toEqual([[-1, 1]]);
+    expect(mirrored.scales).toEqual([]);
+    expectTail(mirrored.translations, [[-11.16, 0]]);
+  });
+});

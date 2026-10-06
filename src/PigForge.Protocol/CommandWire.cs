@@ -5,16 +5,19 @@ namespace PigForge.Protocol;
 /// <summary>
 /// Binary client command (PGFC) and acknowledgement (PGFA) frames. Little-endian,
 /// no JSON. Kind bytes match <see cref="ClientCommandKind"/>.
+/// v3 adds the build pose's mirror bit to the two placement commands (ADR-030): a part's
+/// handedness is not expressible as a rotation, so `PlacePart` and `RotatePart` each carry an
+/// absolute `mirrored:u8` after their existing payload.
 /// </summary>
 public static class CommandFrame
 {
-    public const ushort Version = 2;
+    public const ushort Version = ProtocolVersion.Current;
     public const int HeaderByteCount = 19;
     public const int AckByteCount = 16;
 
-    public static int PlaceByteCount => HeaderByteCount + 20;
+    public static int PlaceByteCount => HeaderByteCount + 21;
     public static int RemoveByteCount => HeaderByteCount + 4;
-    public static int RotateByteCount => HeaderByteCount + 8;
+    public static int RotateByteCount => HeaderByteCount + 9;
     public static int StartByteCount => HeaderByteCount;
     // MovePart payload is entityId:u32 @19 + positionX:f32 @23 + positionY:f32 @27 (31 total);
     // ScalePart payload is entityId:u32 @19 + scale:f32 @23 (27 total).
@@ -62,6 +65,7 @@ public static class CommandFrame
                 BinaryPrimitives.WriteSingleLittleEndian(destination[27..], place.PositionY);
                 BinaryPrimitives.WriteSingleLittleEndian(destination[31..], place.Angle);
                 BinaryPrimitives.WriteSingleLittleEndian(destination[35..], place.Scale);
+                destination[39] = place.Mirrored ? (byte)1 : (byte)0;
                 break;
             case RemovePartCommand remove:
                 BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], remove.EntityId);
@@ -69,6 +73,7 @@ public static class CommandFrame
             case RotatePartCommand rotate:
                 BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], rotate.EntityId);
                 BinaryPrimitives.WriteSingleLittleEndian(destination[23..], rotate.Angle);
+                destination[27] = rotate.Mirrored ? (byte)1 : (byte)0;
                 break;
             case MovePartCommand move:
                 BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], move.EntityId);
@@ -150,7 +155,14 @@ public static class CommandFrame
                     return false;
                 }
 
-                command = new PlacePartCommand(tick, sequence, playerId, partTypeId, x, y, angle, scale);
+                bool placeMirrored = source[39] == 1;
+                if (source[39] > 1)
+                {
+                    error = "PlacePartCommand mirror flag must be zero or one.";
+                    return false;
+                }
+
+                command = new PlacePartCommand(tick, sequence, playerId, partTypeId, x, y, angle, scale, placeMirrored);
                 return true;
             }
             case ClientCommandKind.RemovePart:
@@ -187,7 +199,14 @@ public static class CommandFrame
                     return false;
                 }
 
-                command = new RotatePartCommand(tick, sequence, playerId, entityId, angle);
+                bool rotateMirrored = source[27] == 1;
+                if (source[27] > 1)
+                {
+                    error = "RotatePartCommand mirror flag must be zero or one.";
+                    return false;
+                }
+
+                command = new RotatePartCommand(tick, sequence, playerId, entityId, angle, rotateMirrored);
                 return true;
             }
             case ClientCommandKind.MovePart:

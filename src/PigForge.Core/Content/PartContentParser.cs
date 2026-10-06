@@ -505,9 +505,9 @@ public static class PartContentParser
         float? rocketExplodeRadius = null;
         float? rocketExplodeImpulse = null;
         bool isEgg = false;
-        float? wingLiftCoef = null;
-        float? wingMaxLift = null;
-        float? tailDragCoef = null;
+        float? wingLiftConstant = null;
+        float? tailLiftConstant = null;
+        bool mirror = false;
         float? umbrellaDragCoef = null;
         bool isGearbox = false;
         bool isDetacher = false;
@@ -636,9 +636,9 @@ public static class PartContentParser
 
         if (seenKeys.Contains("wing"))
         {
-            if (!capabilitiesElement.TryGetProperty("wing", out JsonElement wingElement) || !TryReadWing(wingElement, path, out wingLiftCoef, out wingMaxLift))
+            if (!capabilitiesElement.TryGetProperty("wing", out JsonElement wingElement) || !TryReadWing(wingElement, path, out wingLiftConstant))
             {
-                errors.Add($"{path}.capabilities.wing: must be an object with a finite liftCoef and optional finite maxLift.");
+                errors.Add($"{path}.capabilities.wing: must be an object with a finite liftConstant.");
                 hasError = true;
             }
         }
@@ -649,12 +649,26 @@ public static class PartContentParser
                 || tailElement.ValueKind != JsonValueKind.Number
                 || !IsFiniteNumber(tailElement))
             {
-                errors.Add($"{path}.capabilities.tail: must be a finite dragCoef number.");
+                errors.Add($"{path}.capabilities.tail: must be a finite liftConstant number.");
                 hasError = true;
             }
             else
             {
-                tailDragCoef = tailElement.GetSingle();
+                tailLiftConstant = tailElement.GetSingle();
+            }
+        }
+
+        if (seenKeys.Contains("mirror"))
+        {
+            if (!capabilitiesElement.TryGetProperty("mirror", out JsonElement mirrorElement)
+                || mirrorElement.ValueKind != JsonValueKind.True && mirrorElement.ValueKind != JsonValueKind.False)
+            {
+                errors.Add($"{path}.capabilities.mirror: must be a boolean.");
+                hasError = true;
+            }
+            else
+            {
+                mirror = mirrorElement.GetBoolean();
             }
         }
 
@@ -870,7 +884,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "mirror" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "attachment" or "suspension" or "powerConsumption" or "enginePower"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -882,7 +896,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftCoef, wingMaxLift, tailDragCoef, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, glove, powerConsumption, enginePower);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketDuration, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsBoost, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, attachment, suspension, glove, powerConsumption, enginePower);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -1764,16 +1778,20 @@ public static class PartContentParser
         return hasX || hasY;
     }
 
-    private static bool TryReadWing(JsonElement element, string path, out float? liftCoef, out float? maxLift)
+    /// <summary>
+    /// The original's <c>Wings.m_liftConstant</c> (Wings.cs:6,114): the only wing number the
+    /// response curve reads. The old `liftCoef`/`maxLift` pair was a PigForge approximation of the
+    /// whole curve and is gone (spec docs/specs/part-mirror.md).
+    /// </summary>
+    private static bool TryReadWing(JsonElement element, string path, out float? liftConstant)
     {
-        liftCoef = null;
-        maxLift = null;
+        liftConstant = null;
         if (element.ValueKind != JsonValueKind.Object)
         {
             return false;
         }
 
-        if (!element.TryGetProperty("liftCoef", out JsonElement liftElement)
+        if (!element.TryGetProperty("liftConstant", out JsonElement liftElement)
             || liftElement.ValueKind != JsonValueKind.Number
             || !IsFiniteNumber(liftElement)
             || !liftElement.TryGetSingle(out float liftValue))
@@ -1781,20 +1799,7 @@ public static class PartContentParser
             return false;
         }
 
-        if (element.TryGetProperty("maxLift", out JsonElement maxElement))
-        {
-            if (maxElement.ValueKind != JsonValueKind.Number
-                || !IsFiniteNumber(maxElement)
-                || !maxElement.TryGetSingle(out float maxValue)
-                || maxValue < 0f)
-            {
-                return false;
-            }
-
-            maxLift = maxValue;
-        }
-
-        liftCoef = liftValue;
+        liftConstant = liftValue;
         return true;
     }
 

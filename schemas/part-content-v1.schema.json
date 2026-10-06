@@ -148,6 +148,10 @@
         },
         "rocket": { "$ref": "#/$defs/rocketCapability" },
         "egg": { "type": "boolean" },
+        "mirror": {
+          "description": "Original BasePart.m_autoAlign == FlipVertically (2): this part's build pose has a handedness (a 180-degree turn about the part's own up axis, applied inside its own frame before the yaw), which a float yaw cannot express. Extracted by tools/bple-aero from the prefab, never authored.",
+          "type": "boolean"
+        },
         "wing": { "$ref": "#/$defs/wingCapability" },
         "tail": { "$ref": "#/$defs/tailCapability" },
         "umbrella": { "$ref": "#/$defs/umbrellaCapability" },
@@ -256,13 +260,16 @@
   "wingCapability": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["liftCoef"],
+    "required": ["liftConstant"],
     "properties": {
-      "liftCoef": { "type": "number" },
-      "maxLift": { "type": "number", "minimum": 0 }
+      "liftConstant": {
+        "description": "Original Wings.m_liftConstant (Wings.cs:6,114): lift = liftConstant * |v|^2 * curve(angle of attack), clamped to 100 N. Extracted by tools/bple-aero from the prefab, never authored.",
+        "type": "number"
+      }
     }
   },
   "tailCapability": {
+    "description": "Original Tail.m_liftConstant (Tail.cs:6,71), used by the same clamped |v|^2 curve the wing uses. Extracted by tools/bple-aero from the prefab, never authored.",
     "type": "number"
   },
   "umbrellaCapability": {

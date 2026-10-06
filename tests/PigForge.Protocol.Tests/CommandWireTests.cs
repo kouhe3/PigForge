@@ -7,7 +7,7 @@ public sealed class CommandWireTests
     [Fact]
     public void PlaceRoundTripPreservesFields()
     {
-        PlacePartCommand original = new(0, 1, 1, 4, -5.25f, 4.5f, -0.35f, 1.5f);
+        PlacePartCommand original = new(0, 1, 1, 4, -5.25f, 4.5f, -0.35f, 1.5f, Mirrored: true);
         Span<byte> buffer = stackalloc byte[CommandFrame.PlaceByteCount];
         Assert.True(CommandFrame.TryEncode(buffer, original, out int written));
         Assert.Equal(CommandFrame.PlaceByteCount, written);
@@ -19,7 +19,41 @@ public sealed class CommandWireTests
         Assert.Equal(original.PositionY, place.PositionY);
         Assert.Equal(original.Angle, place.Angle);
         Assert.Equal(original.Scale, place.Scale);
+        Assert.True(place.Mirrored);
         Assert.Equal(original.Sequence, place.Sequence);
+    }
+
+    /// <summary>
+    /// v3 carries the build pose's handedness beside the absolute angle (ADR-030); the field is
+    /// absolute, so a rotate on a mirrored part must say so rather than toggle anything.
+    /// </summary>
+    [Fact]
+    public void RotateRoundTripPreservesTheMirror()
+    {
+        Span<byte> buffer = stackalloc byte[CommandFrame.RotateByteCount];
+        foreach (bool mirrored in (bool[])[true, false])
+        {
+            RotatePartCommand original = new(0, 1, 1, 7, 1.25f, Mirrored: mirrored);
+            Assert.True(CommandFrame.TryEncode(buffer, original, out int written));
+            Assert.Equal(CommandFrame.RotateByteCount, written);
+            Assert.True(CommandFrame.TryDecode(buffer[..written], out ReplayCommand? decoded, out string error));
+            Assert.Equal(string.Empty, error);
+            RotatePartCommand rotate = Assert.IsType<RotatePartCommand>(decoded);
+            Assert.Equal(7u, rotate.EntityId);
+            Assert.Equal(1.25f, rotate.Angle);
+            Assert.Equal(mirrored, rotate.Mirrored);
+        }
+    }
+
+    [Fact]
+    public void AMirrorFlagOutsideZeroOrOneIsRejected()
+    {
+        RotatePartCommand original = new(0, 1, 1, 7, 0f);
+        byte[] buffer = new byte[CommandFrame.RotateByteCount];
+        Assert.True(CommandFrame.TryEncode(buffer, original, out int written));
+        buffer[27] = 2;
+        Assert.False(CommandFrame.TryDecode(buffer.AsSpan(0, written), out _, out string error));
+        Assert.Contains("mirror flag", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

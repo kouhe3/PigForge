@@ -195,7 +195,8 @@
             "positionX": { "$ref": "#/$defs/finiteNumber" },
             "positionY": { "$ref": "#/$defs/finiteNumber" },
             "angle": { "$ref": "#/$defs/finiteNumber" },
-            "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 }
+            "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 },
+            "mirrored": { "type": "boolean" }
           }
         }
       ],
@@ -224,7 +225,8 @@
           "properties": {
             "kind": { "const": "ROTATE_PART" },
             "entityId": { "$ref": "#/$defs/positiveUInt" },
-            "angle": { "$ref": "#/$defs/finiteNumber" }
+            "angle": { "$ref": "#/$defs/finiteNumber" },
+            "mirrored": { "type": "boolean" }
           }
         }
       ],

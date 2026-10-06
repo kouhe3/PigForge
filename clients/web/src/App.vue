@@ -29,6 +29,8 @@ const entitiesRef = {
 };
 const placeAngle = ref(0);
 const placeScale = ref(1);
+/** The pending placement's handedness (ADR-030); only a content part with `mirror` accepts it. */
+const placeMirrored = ref(false);
 const selectedPart = ref(4);
 const tool = ref<ToolId>("place");
 const activeTab = ref<"replay" | "live">("replay");
@@ -109,6 +111,9 @@ function dispatch(build: (sequence: number) => ClientCommand, kind: CommandKind,
 /** Picking a part starts placement, like a Besiege block pick. */
 function selectPalettePart(partTypeId: number): void {
   selectedPart.value = partTypeId;
+  // A different part may not declare the mirror at all, and the server refuses a mirrored part
+  // that has no `capabilities.mirror` (ADR-030): arming a part resets the pending handedness.
+  placeMirrored.value = false;
   tool.value = "place";
 }
 
@@ -140,6 +145,7 @@ function placePart(x: number, y: number): void {
       y: snapped.y,
       angle: placeAngle.value,
       scale: placeScale.value,
+      mirrored: placeMirrored.value,
     }),
     0,
   );
@@ -150,9 +156,18 @@ function movePart(entityId: number, x: number, y: number): void {
   dispatch((sequence) => ({ kind: 6, sequence, playerId: 0, tick: 0, entityId, x, y }), 6, entityId);
 }
 
-/** PGFC kind 2: rotate a placed preview part to an absolute yaw (radians). */
-function rotateToAngle(entityId: number, angle: number): void {
-  dispatch((sequence) => ({ kind: 2, sequence, playerId: 0, tick: 0, entityId, angle }), 2, entityId);
+/**
+ * PGFC kind 2: rotate a placed preview part to an absolute yaw (radians) and handedness. Both
+ * fields are absolute (ADR-030), so every rotate carries the mirror the client is showing --
+ * a rotate that sent `mirrored: false` would silently unmirror the part.
+ */
+function rotateToAngle(entityId: number, angle: number, mirrored: boolean): void {
+  dispatch((sequence) => ({ kind: 2, sequence, playerId: 0, tick: 0, entityId, angle, mirrored }), 2, entityId);
+}
+
+/** True when the content gives this part the original's FlipVertically handedness (ADR-030). */
+function canMirror(entity: DrawEntity): boolean {
+  return partById.value.get(entity.partTypeId)?.capabilities?.mirror === true;
 }
 
 /** PGFC kind 7: rescale a placed preview part (0.25–4). */
@@ -438,7 +453,22 @@ function onKey(event: KeyboardEvent): void {
     // Rotate every selected part a visible increment; a fresh placeAngle of 0 would
     // produce no visible change, so accumulate from each part's current yaw.
     for (const target of editableSelectedEntities()) {
-      rotateToAngle(target.entityId, target.yaw + Math.PI / 12);
+      rotateToAngle(target.entityId, target.yaw + Math.PI / 12, target.mirrored === true);
+    }
+  } else if (event.key === "f" || event.key === "F") {
+    // The original's `Flip`: a part whose prefab says FlipVertically toggles its handedness
+    // (Contraption.cs:1918-1944). Other parts cannot be flipped at all, and a part with nothing
+    // selected flips the pending placement so the next click places it mirrored.
+    const targets = editableSelectedEntities().filter(canMirror);
+    if (targets.length > 0) {
+      for (const target of targets) {
+        rotateToAngle(target.entityId, target.yaw, target.mirrored !== true);
+      }
+    } else {
+      const armed = partById.value.get(selectedPart.value);
+      if (armed?.capabilities?.mirror === true) {
+        placeMirrored.value = !placeMirrored.value;
+      }
     }
   } else if (event.key === "Delete" || event.key === "Backspace") {
     for (const target of editableSelectedEntities()) {
@@ -491,7 +521,13 @@ onMounted(() => {
         } else if (message.kind === "MoveRequested") {
           movePart(message.entityId, message.x, message.y);
         } else if (message.kind === "RotateRequested") {
-          rotateToAngle(message.entityId, message.angle);
+          // A drag re-aims the part; its handedness is not part of the drag, so keep the mirror
+          // the snapshot is showing (PGFC's rotate carries both fields, ADR-030).
+          rotateToAngle(
+            message.entityId,
+            message.angle,
+            viewState.entities.find((entity) => entity.entityId === message.entityId)?.mirrored === true,
+          );
         } else if (message.kind === "ScaleRequested") {
           scalePart(message.entityId, message.scale);
         }
@@ -582,7 +618,7 @@ onUnmounted(() => {
             @click="tool = entry.id"
           >{{ entry.hotkey }} {{ entry.label }}</button>
         </span>
-        <span class="meta">{{ toolLabel }} · {{ phaseLabel }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }}</span>
+        <span class="meta">{{ toolLabel }} · {{ phaseLabel }} · tick {{ session.tick }} · 角 {{ placeAngle.toFixed(2) }} · 缩放 {{ placeScale.toFixed(2) }} · 镜像 {{ placeMirrored ? "开" : "关" }}</span>
       </template>
     </header>
 

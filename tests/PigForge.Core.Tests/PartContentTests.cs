@@ -430,6 +430,52 @@ public sealed class PartContentTests
         Assert.True(library.GetPart(37).Capabilities!.FanIsRotor);
     }
 
+    /// <summary>
+    /// G05 + G55 (docs/specs/part-mirror.md): the original's wing and tail are one clamped |v|^2
+    /// response curve each, evaluated in the part's own frame (Wings.cs:104-118, Tail.cs:57-75), and
+    /// their build pose carries a handedness -- <c>m_autoAlign == FlipVertically</c> on exactly the
+    /// 17 wing/tail prefabs -- that a float yaw cannot express, which is why the content declares it
+    /// and PGFS v6 publishes it as a bit. The only per-prefab number is <c>m_liftConstant</c>;
+    /// extracted by tools/bple-aero, never authored.
+    /// </summary>
+    [Fact]
+    public void TheRealContentCarriesTheExtractedWingAndTailLiftAndMirror()
+    {
+        PartContentDocument document = PartContentParser.Parse(File.ReadAllText(FindRepositoryFile("content/parts.json")));
+        Dictionary<uint, PartCapabilities> capabilities = document.Parts
+            .Where(part => part.Capabilities is not null)
+            .ToDictionary(part => part.PartTypeId, part => part.Capabilities!);
+
+        // Part_WoodenWings_* 0.8, Part_MetalWings_* 1.5, Part_WoodenTail_* 0.2, Part_MetalTail_* 1.0.
+        Assert.Equal(0.8f, capabilities[31].WingLiftConstant);
+        Assert.Equal(1.5f, capabilities[32].WingLiftConstant);
+        Assert.Equal(0.2f, capabilities[33].TailLiftConstant);
+        Assert.Equal(1f, capabilities[34].TailLiftConstant);
+        Assert.False(capabilities[31].HasTail);
+        Assert.False(capabilities[33].HasWing);
+
+        // The 17 FlipVertically prefabs: 9 wings and 8 tails, and nothing else in the catalogue.
+        uint[] mirrorable = [31, 32, 33, 34, 144, 145, 146, 147, 148, 149, 150, 178, 179, 180, 181, 182, 183];
+        foreach (uint partTypeId in mirrorable)
+        {
+            Assert.True(capabilities[partTypeId].Mirror, $"part {partTypeId} must declare the original's mirror");
+        }
+
+        Assert.Equal(
+            mirrorable.OrderBy(id => id).ToArray(),
+            capabilities.Where(entry => entry.Value.Mirror).Select(entry => entry.Key).OrderBy(id => id).ToArray());
+
+        // The old approximation left no trace: no `liftCoef`/`maxLift` survives the tool, and every
+        // wing or tail part carries exactly one of the two keys.
+        foreach (PartDefinition part in document.Parts)
+        {
+            bool wing = part.Capabilities?.HasWing == true;
+            bool tail = part.Capabilities?.HasTail == true;
+            Assert.False(wing && tail, $"part {part.PartTypeId} cannot be both a wing and a tail");
+            Assert.Equal(wing || tail, part.Capabilities?.Mirror == true);
+        }
+    }
+
     [Theory]
     [InlineData("engineAssetGuid", "unknown property")]
     [InlineData("schemaVersion", "only version 1")]

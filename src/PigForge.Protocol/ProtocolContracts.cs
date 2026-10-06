@@ -3,7 +3,12 @@ namespace PigForge.Protocol;
 
 public static class ProtocolVersion
 {
-	public const ushort Current = 2;
+	/// <summary>
+	/// The client command protocol (PGFC). v3 added the build pose's mirror to the two placement
+	/// commands (ADR-030); <see cref="CommandFrame.Version"/> is this constant, so the envelope
+	/// contract and the wire can never disagree.
+	/// </summary>
+	public const ushort Current = 3;
 }
 
 public enum ClientCommandKind

@@ -17,13 +17,14 @@ public readonly record struct SnapshotEntity(
 public readonly record struct SnapshotFrameHeader(ushort Version, uint Tick, byte Phase, uint EntityCount);
 
 /// <summary>
-/// Binary wire format for published authoritative room snapshots (v5).
+/// Binary wire format for published authoritative room snapshots (v6).
 /// Layout, little-endian: magic "PGFS" | version:u16 | tick:u32 | phase:u8 | entityCount:u32,
 /// then per entity: entityId:u32 | physicsBodyId:u32 | partTypeId:u32 | position:3f |
 /// rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f | attachYaw:f | flags:u8.
 /// Flags bit0 is the part switch state; bit1 marks a runtime sub-entity (a boxing glove's fist,
 /// a broken spring's endpoint -- ADR-027) that borrows its host's part type, so the client can
-/// draw its own art instead of the host's; bits 2-7 are reserved (written 0, ignored on read).
+/// draw its own art instead of the host's; bit2 is the build pose's mirror (ADR-030), the
+/// handedness a float yaw cannot carry; bits 3-7 are reserved (written 0, ignored on read).
 /// `attachYaw` is the world Z yaw, in radians, of the frame the part's non-spinning sprites are
 /// rigidly attached to: the hinge's parent body frame for a hinged wheel (so its axle follows the
 /// chassis), the part's own frame otherwise. Rotation is the part's own body rotation, which for
@@ -32,7 +33,16 @@ public readonly record struct SnapshotFrameHeader(ushort Version, uint Tick, byt
 /// </summary>
 public static class SnapshotFrame
 {
-	public const ushort CurrentVersion = 5;
+	public const ushort CurrentVersion = 6;
+
+	/// <summary>Flags bit 0: the part's switch state.</summary>
+	public const byte FlagActive = 0x01;
+
+	/// <summary>Flags bit 1: a runtime sub-entity (ADR-027/ADR-028).</summary>
+	public const byte FlagSubEntity = 0x02;
+
+	/// <summary>Flags bit 2: the build pose is mirrored (ADR-030).</summary>
+	public const byte FlagMirrored = 0x04;
 
 	public const byte BuildingPhase = 0x10;
 

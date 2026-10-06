@@ -5,7 +5,7 @@ function writeFrame(flags = 1): Uint8Array {
   const bytes = new Uint8Array(SNAPSHOT_HEADER_BYTES + SNAPSHOT_ENTITY_BYTES);
   const view = new DataView(bytes.buffer);
   bytes.set([0x50, 0x47, 0x46, 0x53], 0);
-  view.setUint16(4, 5, true);
+  view.setUint16(4, 6, true);
   view.setUint32(6, 7, true);
   view.setUint8(10, 1);
   view.setUint32(11, 1, true);
@@ -32,7 +32,7 @@ function writeFrame(flags = 1): Uint8Array {
 }
 
 describe("decodeSnapshotFrame", () => {
-  it("decodes a v5 PGFS frame", () => {
+  it("decodes a v6 PGFS frame", () => {
     const decoded = decodeSnapshotFrame(writeFrame());
     expect(typeof decoded).not.toBe("string");
     if (typeof decoded === "string") {
@@ -48,16 +48,28 @@ describe("decodeSnapshotFrame", () => {
     expect(decoded.entities[0].attachYaw).toBeCloseTo(0.75);
     expect(decoded.entities[0].active).toBe(true);
     expect(decoded.entities[0].subEntity).toBe(false);
+    expect(decoded.entities[0].mirrored).toBe(false);
   });
 
-  it("reads the sub-entity flag beside the switch flag", () => {
-    const decoded = decodeSnapshotFrame(writeFrame(0b11));
+  it("reads the sub-entity and mirror flags beside the switch flag", () => {
+    const decoded = decodeSnapshotFrame(writeFrame(0b111));
     expect(typeof decoded).not.toBe("string");
     if (typeof decoded === "string") {
       return;
     }
     expect(decoded.entities[0].active).toBe(true);
     expect(decoded.entities[0].subEntity).toBe(true);
+    expect(decoded.entities[0].mirrored).toBe(true);
+
+    // Bit2 alone: a mirrored part whose switch is off.
+    const mirroredOnly = decodeSnapshotFrame(writeFrame(0b100));
+    expect(typeof mirroredOnly).not.toBe("string");
+    if (typeof mirroredOnly === "string") {
+      return;
+    }
+    expect(mirroredOnly.entities[0].active).toBe(false);
+    expect(mirroredOnly.entities[0].subEntity).toBe(false);
+    expect(mirroredOnly.entities[0].mirrored).toBe(true);
   });
 
   it("exposes building phase 0x10", () => {
@@ -72,7 +84,7 @@ describe("decodeSnapshotFrame", () => {
     new DataView(versioned.buffer).setUint16(4, 1, true);
     expect(decodeSnapshotFrame(versioned)).toBe("Snapshot version 1 is unsupported.");
     const previous = writeFrame();
-    new DataView(previous.buffer).setUint16(4, 4, true);
-    expect(decodeSnapshotFrame(previous)).toBe("Snapshot version 4 is unsupported.");
+    new DataView(previous.buffer).setUint16(4, 5, true);
+    expect(decodeSnapshotFrame(previous)).toBe("Snapshot version 5 is unsupported.");
   });
 });

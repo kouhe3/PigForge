@@ -13,18 +13,36 @@ describe("encodeCommand", () => {
       y: 4.5,
       angle: -0.35,
       scale: 1.5,
+      mirrored: true,
     });
     const view = new DataView(bytes.buffer);
     expect(String.fromCharCode(...bytes.slice(0, 4))).toBe("PGFC");
-    expect(view.getUint16(4, true)).toBe(2);
+    expect(view.getUint16(4, true)).toBe(3);
     expect(view.getUint8(6)).toBe(0);
     expect(view.getUint32(7, true)).toBe(1);
     expect(view.getUint32(19, true)).toBe(4);
     expect(view.getFloat32(23, true)).toBeCloseTo(-5.25);
     expect(view.getFloat32(35, true)).toBeCloseTo(1.5);
+    // v3: the pose's handedness rides beside the absolute angle (ADR-030).
+    expect(bytes.byteLength).toBe(40);
+    expect(view.getUint8(39)).toBe(1);
   });
 
-  it("encodes MovePart and ScalePart matching the PGFC v2 layout", () => {
+  it("encodes RotatePart matching the PGFC v3 layout", () => {
+    const mirrored = encodeCommand({ kind: 2, sequence: 6, playerId: 1, tick: 0, entityId: 7, angle: 1.25, mirrored: true });
+    expect(mirrored.byteLength).toBe(28);
+    const view = new DataView(mirrored.buffer);
+    expect(view.getUint16(4, true)).toBe(3);
+    expect(view.getUint8(6)).toBe(2);
+    expect(view.getUint32(19, true)).toBe(7);
+    expect(view.getFloat32(23, true)).toBeCloseTo(1.25);
+    expect(view.getUint8(27)).toBe(1);
+
+    const plain = encodeCommand({ kind: 2, sequence: 7, playerId: 1, tick: 0, entityId: 7, angle: 0, mirrored: false });
+    expect(new DataView(plain.buffer).getUint8(27)).toBe(0);
+  });
+
+  it("encodes MovePart and ScalePart matching the PGFC layout", () => {
     const move = encodeCommand({ kind: 6, sequence: 2, playerId: 1, tick: 0, entityId: 7, x: 1.5, y: -2.25 });
     expect(move.byteLength).toBe(31);
     const moveView = new DataView(move.buffer);
@@ -61,7 +79,7 @@ describe("encodeCommand", () => {
     const bytes = new Uint8Array(16);
     const view = new DataView(bytes.buffer);
     bytes.set([0x50, 0x47, 0x46, 0x41], 0);
-    view.setUint16(4, 2, true);
+    view.setUint16(4, 3, true);
     view.setUint32(6, 3, true);
     view.setUint8(10, 0);
     view.setUint8(11, 0);

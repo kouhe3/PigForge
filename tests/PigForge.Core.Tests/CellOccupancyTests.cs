@@ -49,8 +49,8 @@ public sealed class CellOccupancyTests
 
         // The footprint splits the two geometries: neighbouring cells that only touch (occupancy)
         // and blades that reach across the cell line (connection).
-        PartFootprint frameFootprint = PartFootprint.ForPart(content.GetPart(PartFrame), -11f, 10f, 0f, 1f);
-        PartFootprint rotorFootprint = PartFootprint.ForPart(content.GetPart(PartRotor), -10f, 10f, 0f, 1f);
+        PartFootprint frameFootprint = PartFootprint.ForPart(content.GetPart(PartFrame), -11f, 10f, 0f, false, 1f);
+        PartFootprint rotorFootprint = PartFootprint.ForPart(content.GetPart(PartRotor), -10f, 10f, 0f, false, 1f);
         // The rule layer's tolerance, because touching boxes already count as overlapping at 0.
         Assert.False(rotorFootprint.Overlaps(frameFootprint, -ConstructionRules.OverlapTolerance));
         Assert.True(rotorFootprint.Touches(frameFootprint));
@@ -146,12 +146,12 @@ public sealed class CellOccupancyTests
         PartDefinition king = content.GetPart(PartKingPig);
 
         // Scale 1: the box is 3x2 cells, so a probe two cells out is free.
-        PartFootprint single = PartFootprint.ForPart(king, 0f, 0f, 0f, 1f);
-        PartFootprint probe = PartFootprint.ForPart(content.GetPart(PartFrame), 2f, 0f, 0f, 1f);
+        PartFootprint single = PartFootprint.ForPart(king, 0f, 0f, 0f, false, 1f);
+        PartFootprint probe = PartFootprint.ForPart(content.GetPart(PartFrame), 2f, 0f, 0f, false, 1f);
         Assert.False(single.Overlaps(probe, -ConstructionRules.OverlapTolerance));
 
         // Scale 2: the same box covers 6x4 cells (x[-3, 3] y[-1, 3]) and now reaches the probe.
-        PartFootprint scaled = PartFootprint.ForPart(king, 0f, 0f, 0f, 2f);
+        PartFootprint scaled = PartFootprint.ForPart(king, 0f, 0f, 0f, false, 2f);
         Assert.True(scaled.Overlaps(probe));
 
         // The rule layer sees the same box: the cell at (2, 0) is free for the unscaled pig and

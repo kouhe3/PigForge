@@ -1376,9 +1376,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.05,
-          "maxLift": 6
+          "liftConstant": 0.8
         }
       },
       "shapes": [
@@ -1433,9 +1433,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.08,
-          "maxLift": 10
+          "liftConstant": 1.5
         }
       },
       "shapes": [
@@ -1489,7 +1489,8 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "tail": 0.03
+        "mirror": true,
+        "tail": 0.2
       },
       "shapes": [
         {
@@ -1526,7 +1527,8 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "tail": 0.05
+        "mirror": true,
+        "tail": 1
       },
       "shapes": [
         {
@@ -5490,9 +5492,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.05,
-          "maxLift": 6
+          "liftConstant": 0.8
         }
       },
       "shapes": [
@@ -5548,9 +5550,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.05,
-          "maxLift": 6
+          "liftConstant": 0.8
         }
       },
       "shapes": [
@@ -5606,9 +5608,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.05,
-          "maxLift": 6
+          "liftConstant": 0.8
         }
       },
       "shapes": [
@@ -5664,9 +5666,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.05,
-          "maxLift": 6
+          "liftConstant": 0.8
         }
       },
       "shapes": [
@@ -5721,7 +5723,8 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "tail": 0.03
+        "mirror": true,
+        "tail": 0.2
       },
       "shapes": [
         {
@@ -5759,7 +5762,8 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "tail": 0.03
+        "mirror": true,
+        "tail": 0.2
       },
       "shapes": [
         {
@@ -5797,7 +5801,8 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "tail": 0.03
+        "mirror": true,
+        "tail": 0.2
       },
       "shapes": [
         {
@@ -6977,9 +6982,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.08,
-          "maxLift": 10
+          "liftConstant": 1.5
         }
       },
       "shapes": [
@@ -7035,9 +7040,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.08,
-          "maxLift": 10
+          "liftConstant": 1.5
         }
       },
       "shapes": [
@@ -7093,9 +7098,9 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
+        "mirror": true,
         "wing": {
-          "liftCoef": 0.08,
-          "maxLift": 10
+          "liftConstant": 1.5
         }
       },
       "shapes": [
@@ -7150,7 +7155,8 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "tail": 0.05
+        "mirror": true,
+        "tail": 1
       },
       "shapes": [
         {
@@ -7183,7 +7189,8 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "tail": 0.05
+        "mirror": true,
+        "tail": 1
       },
       "shapes": [
         {
@@ -7216,7 +7223,8 @@
         "powerConsumption": 0,
         "enginePower": 0,
         "jointConnectionType": "target",
-        "tail": 0.05
+        "mirror": true,
+        "tail": 1
       },
       "shapes": [
         {

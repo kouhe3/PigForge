@@ -35,7 +35,13 @@ public readonly record struct PartFootprint
         _all = all;
     }
 
-    public static PartFootprint ForPart(PartDefinition part, float positionX, float positionY, float angle, float scale)
+    /// <summary>
+    /// Projects a build pose into the plane. <paramref name="mirrored"/> is the pose's handedness
+    /// (ADR-030): the original applies it inside the part's own frame and <i>before</i> the yaw
+    /// (<c>BasePart.SetFlipped</c> = a 180-degree turn about the part's own up axis), so it negates
+    /// a shape offset's X and Z and the cell box's centre, and only then does the yaw rotate them.
+    /// </summary>
+    public static PartFootprint ForPart(PartDefinition part, float positionX, float positionY, float angle, bool mirrored, float scale)
     {
         float cos = MathF.Cos(angle);
         float sin = MathF.Sin(angle);
@@ -43,8 +49,9 @@ public readonly record struct PartFootprint
         for (int index = 0; index < part.Shapes.Count; index++)
         {
             PartShapeDefinition shape = part.Shapes[index];
+            float mirrorSign = mirrored ? -1f : 1f;
             (float offsetX, float offsetY) = shape.Offset is { Length: 3 } offset
-                ? (((offset[0] * cos) - (offset[1] * sin)) * scale, ((offset[0] * sin) + (offset[1] * cos)) * scale)
+                ? ((((offset[0] * mirrorSign) * cos) - (offset[1] * sin)) * scale, (((offset[0] * mirrorSign) * sin) + (offset[1] * cos)) * scale)
                 : (0f, 0f);
             float centreX = positionX + offsetX;
             float centreY = positionY + offsetY;
@@ -81,6 +88,11 @@ public readonly record struct PartFootprint
         GridCellBox box = part.GridBox ?? GridCellBox.Single;
         float boxCentreX = box.CentreX;
         float boxCentreY = box.CentreY;
+        if (mirrored)
+        {
+            boxCentreX = -boxCentreX;
+        }
+
         float boxHalfX = box.Width * 0.5f;
         float boxHalfY = box.Height * 0.5f;
         switch (QuarterTurns(angle))
@@ -134,11 +146,11 @@ public readonly record struct PartFootprint
 
     public static PartFootprint ForPart(PartDefinition part, PhysicsVector3 position, PhysicsQuaternion rotation, float scale)
     {
-        // Physics poses may tumble; the build plane projects them to their Z yaw.
-        float yaw = MathF.Atan2(
-            2f * ((rotation.W * rotation.Z) + (rotation.X * rotation.Y)),
-            1f - (2f * ((rotation.Y * rotation.Y) + (rotation.Z * rotation.Z))));
-        return ForPart(part, position.X, position.Y, yaw, scale);
+        // Physics poses may tumble; the build plane projects them to their Z yaw. A mirrored pose
+        // is only decodable while it is still a build pose: once a part is simulated its transform
+        // is the physics pose and the handedness lives in the construction registry instead.
+        bool mirrored = BuildPose.IsMirrored(rotation);
+        return ForPart(part, position.X, position.Y, BuildPose.YawOf(rotation, mirrored), mirrored, scale);
     }
 
     /// <summary>

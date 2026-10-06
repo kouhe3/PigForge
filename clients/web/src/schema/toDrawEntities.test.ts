@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { toDrawEntities } from "./toDrawEntities";
 import type { SnapshotEntity } from "./types";
 
-function snapshot(physicsBodyId: number): SnapshotEntity {
+function snapshot(physicsBodyId: number, mirrored = false): SnapshotEntity {
   return {
     entityId: 7,
     physicsBodyId,
@@ -15,6 +15,7 @@ function snapshot(physicsBodyId: number): SnapshotEntity {
     attachYaw: 0.25,
     active: false,
     subEntity: false,
+    mirrored,
   };
 }
 
@@ -47,5 +48,12 @@ describe("toDrawEntities", () => {
   it("carries the attach frame onto the draw entity", () => {
     const [entity] = toDrawEntities([{ ...snapshot(19), attachYaw: 0.75 }]);
     expect(entity.attachYaw).toBe(0.75);
+  });
+
+  it("carries the mirror flag through", () => {
+    const [plain] = toDrawEntities([snapshot(19)]);
+    const [mirrored] = toDrawEntities([snapshot(19, true)]);
+    expect(plain.mirrored).toBe(false);
+    expect(mirrored.mirrored).toBe(true);
   });
 });

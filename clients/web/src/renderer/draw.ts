@@ -277,6 +277,12 @@ export function drawFrame(
     const placed = texture !== undefined && atlasImages !== undefined ? layoutSprites(texture, entity.scale) : undefined;
     const tire = turning && placed !== undefined ? placed.find((_, index) => turning[index]) : undefined;
     const entitySides = connections.get(entity.entityId);
+    // The build pose's handedness (PGFS v6, ADR-030). The original turns a mirrored part's whole
+    // frame 180 degrees about its own up axis, so in the plane every sprite offset mirrors in x, a
+    // sprite's own rotation runs the other way, and its art is mirrored rather than turned. Only
+    // the wing and tail families can be mirrored and neither is a hinged wheel, so a mirrored
+    // entity never takes the rolling-mount branch below.
+    const mirrored = entity.mirrored === true;
     if (texture && atlasImages && texture.sprites.every((sprite) => atlasImages.get(sprite.atlas) !== undefined)) {
       // Original art: drawn at the BPLE world size and offsets, so part visuals match
       placed?.forEach((placement, index) => {
@@ -297,7 +303,8 @@ export function drawFrame(
         if (!image) return;
         // Sprite offsets are in manifest metres, so everything scales with the part like the
         // content shapes do; the spin foreshortening shrinks one axis about the sprite centre.
-        const centreX = drawn.cx * entity.scale;
+        // The mirror negates the sprite's x offset in the part's own frame (ADR-030).
+        const centreX = (mirrored ? -1 : 1) * drawn.cx * entity.scale;
         const centreY = drawn.cy * entity.scale;
         const w = drawn.sx * pixelScale * (pose?.scaleX ?? 1);
         const h = drawn.sy * pixelScale * (pose?.scaleY ?? 1);
@@ -321,10 +328,15 @@ export function drawFrame(
 
         ctx.save();
         ctx.translate(offsetX * pixelScale, -offsetY * pixelScale);
-        ctx.rotate(-(angle + drawn.rot));
+        // `angle` is the yaw plus this sprite's pose rotation, so the sprite's own rotation is
+        // `angle - yaw + drawn.rot`; the mirror reverses it about the part's up axis.
+        const spriteRotation = (angle - entity.yaw) + drawn.rot;
+        ctx.rotate(-(mirrored ? entity.yaw - spriteRotation : entity.yaw + spriteRotation));
         // A negative node scale in the original mirrors the art (a wing's top mount is its
-        // bottom mount drawn upside down), so mirror in the sprite's own rotated frame.
-        const flipX = placement.sprite.flipX === true;
+        // bottom mount drawn upside down), so mirror in the sprite's own rotated frame. The build
+        // pose's mirror composes with it: the original's node scale and its flip are scalars on the
+        // same node, so the two signs multiply.
+        const flipX = (placement.sprite.flipX === true) !== mirrored;
         const flipY = placement.sprite.flipY === true;
         if (flipX || flipY) {
           ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
@@ -337,6 +349,11 @@ export function drawFrame(
       // original sprite path did before the wheel pivot took over placement.
       ctx.save();
       ctx.rotate(-entity.yaw);
+      if (mirrored) {
+        // The pose is Rz(yaw) * Ry(180): mirror the part's own frame (ADR-030).
+        ctx.scale(-1, 1);
+      }
+
       const fill = part?.mode === "static" ? STATIC_FILL : DYNAMIC_FILL;
       const stroke = part?.mode === "static" ? "#8a9a7a" : "#d8b880";
       const shapes = part?.shapes?.length ? part.shapes : [DEFAULT_SHAPE];

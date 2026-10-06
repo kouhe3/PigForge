@@ -87,7 +87,9 @@ public abstract record ReplayCommand(
     ClientCommandKind Kind);
 
 /// <summary>Free planar placement (v2): position in metres, <paramref name="Angle"/> in
-/// radians, uniform <paramref name="Scale"/> in (0, 4].</summary>
+/// radians, uniform <paramref name="Scale"/> in (0, 4]. <paramref name="Mirrored"/> is the build
+/// pose's handedness (ADR-030), applied inside the part's own frame before the yaw; only parts
+/// whose content declares `capabilities.mirror` accept it.</summary>
 public sealed record PlacePartCommand(
     uint Tick,
     uint Sequence,
@@ -96,7 +98,8 @@ public sealed record PlacePartCommand(
     float PositionX,
     float PositionY,
     float Angle,
-    float Scale) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.PlacePart);
+    float Scale,
+    bool Mirrored = false) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.PlacePart);
 
 public sealed record RemovePartCommand(
     uint Tick,
@@ -109,7 +112,8 @@ public sealed record RotatePartCommand(
     uint Sequence,
     uint PlayerId,
     uint EntityId,
-    float Angle) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.RotatePart);
+    float Angle,
+    bool Mirrored = false) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.RotatePart);
 
 /// <summary>Moves a placed part to a new build-plane position, keeping its angle and scale.</summary>
 public sealed record MovePartCommand(

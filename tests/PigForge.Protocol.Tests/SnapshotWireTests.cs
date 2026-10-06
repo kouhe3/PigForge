@@ -122,10 +122,31 @@ public sealed class SnapshotWireTests
                 AngularVelocity: ReplayVector3.Zero,
                 Scale: 1f + index,
                 AttachYaw: index * 0.5f,
-                Flags: (byte)(index % 2));
+                Flags: (byte)(index % 8));
         }
 
         return entities;
+    }
+
+    [Fact]
+    public void EverySnapshotFlagBitIsDeclaredAndSurvivesTheRoundTrip()
+    {
+        // v6 (ADR-030): bit0 the switch, bit1 a runtime sub-entity, bit2 the build pose's mirror.
+        Assert.Equal(0x01, SnapshotFrame.FlagActive);
+        Assert.Equal(0x02, SnapshotFrame.FlagSubEntity);
+        Assert.Equal(0x04, SnapshotFrame.FlagMirrored);
+
+        SnapshotEntity flagged = CreateEntities(1)[0] with { Flags = 0b111 };
+        Span<byte> buffer = stackalloc byte[SnapshotFrame.GetMaxByteCount(1)];
+        Assert.True(SnapshotFrame.TryEncodeHeader(
+            buffer,
+            new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, 1, 0, 1),
+            out SnapshotFrameWriter writer));
+        Assert.True(writer.WriteEntity(flagged));
+        Assert.True(SnapshotFrame.TryDecodeHeader(buffer[..writer.WrittenBytes], out _, out SnapshotFrameReader reader));
+        Assert.True(reader.TryReadEntity(out SnapshotEntity decoded));
+        Assert.Equal((byte)0b111, decoded.Flags);
+        Assert.Equal(6, SnapshotFrame.CurrentVersion);
     }
 
     [Fact]
@@ -140,6 +161,11 @@ public sealed class SnapshotWireTests
         Assert.True(writer.WriteEntity(entities[0]));
 
         buffer[4] = 2;
+        buffer[5] = 0;
+        Assert.False(SnapshotFrame.TryDecodeHeader(buffer[..writer.WrittenBytes], out _, out _));
+
+        // v5 is the frame the previous client speaks; the mirror bit is what made it v6.
+        buffer[4] = 5;
         buffer[5] = 0;
         Assert.False(SnapshotFrame.TryDecodeHeader(buffer[..writer.WrittenBytes], out _, out _));
     }

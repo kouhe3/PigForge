@@ -138,7 +138,8 @@ public sealed class GameRoom : IDisposable
         float PositionX,
         float PositionY,
         float Angle,
-        float Scale);
+        float Scale,
+        bool Mirrored);
 
     /// <summary>
     /// The 2.5D lock every authoritative body carries: freeze the Z translation and the X/Y
@@ -341,7 +342,7 @@ public sealed class GameRoom : IDisposable
             case PlacePartCommand place:
             {
                 ConstructionResult placed = _construction.Place(
-                    place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale, 0);
+                    place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale, 0, place.Mirrored);
                 if (!placed.IsSuccess)
                 {
                     return (CommandStatus.RuleRejected, placed.Error, 0);
@@ -353,7 +354,7 @@ public sealed class GameRoom : IDisposable
 
             case RotatePartCommand rotate:
             {
-                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle, 0);
+                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle, 0, rotate.Mirrored);
                 return rotated.IsSuccess
                     ? (CommandStatus.Accepted, ConstructionError.None, rotate.EntityId)
                     : (CommandStatus.RuleRejected, rotated.Error, 0);
@@ -495,12 +496,12 @@ public sealed class GameRoom : IDisposable
 
         if (capabilities.HasWing)
         {
-            _rules.AddWing(entity, capabilities.WingLiftCoef!.Value, capabilities.WingMaxLift ?? 0f);
+            _rules.AddWing(entity, capabilities.WingLiftConstant!.Value);
         }
 
         if (capabilities.HasTail)
         {
-            _rules.AddTail(entity, capabilities.TailDragCoef!.Value);
+            _rules.AddTail(entity, capabilities.TailLiftConstant!.Value);
         }
 
         if (capabilities.HasUmbrella)
@@ -759,7 +760,7 @@ public sealed class GameRoom : IDisposable
 
         foreach (CapturedPart part in _retryLayout)
         {
-            ConstructionResult placed = _construction.Place(part.PartTypeId, part.PositionX, part.PositionY, part.Angle, part.Scale, 0);
+            ConstructionResult placed = _construction.Place(part.PartTypeId, part.PositionX, part.PositionY, part.Angle, part.Scale, 0, part.Mirrored);
             if (placed.IsSuccess)
             {
                 RegisterPlacedRole(placed.Entity, part.PartTypeId);
@@ -795,7 +796,7 @@ public sealed class GameRoom : IDisposable
             case PlacePartCommand place:
             {
                 ConstructionResult placed = _construction.Place(
-                    place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale, place.PlayerId);
+                    place.PartTypeId, place.PositionX, place.PositionY, place.Angle, place.Scale, place.PlayerId, place.Mirrored);
                 if (!placed.IsSuccess)
                 {
                     return (CommandStatus.RuleRejected, placed.Error, 0);
@@ -807,7 +808,7 @@ public sealed class GameRoom : IDisposable
 
             case RotatePartCommand rotate:
             {
-                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle, rotate.PlayerId);
+                ConstructionResult rotated = _construction.Rotate(new EntityId(rotate.EntityId), rotate.Angle, rotate.PlayerId, rotate.Mirrored);
                 return rotated.IsSuccess
                     ? (CommandStatus.Accepted, ConstructionError.None, rotate.EntityId)
                     : (CommandStatus.RuleRejected, rotated.Error, 0);
@@ -1004,7 +1005,7 @@ public sealed class GameRoom : IDisposable
 
                 // A cell another player has taken since the part was destroyed keeps its owner:
                 // the rebuilt part is left out rather than stealing the cell.
-                ConstructionResult placed = _construction.Place(part.PartTypeId, part.PositionX, part.PositionY, part.Angle, part.Scale, playerId);
+                ConstructionResult placed = _construction.Place(part.PartTypeId, part.PositionX, part.PositionY, part.Angle, part.Scale, playerId, part.Mirrored);
                 if (placed.IsSuccess)
                 {
                     RegisterPlacedRole(placed.Entity, part.PartTypeId);
@@ -1108,13 +1109,15 @@ public sealed class GameRoom : IDisposable
             EntityId entity = new(entityValue);
             if (_parts.TryGet(entity, out PartLink part) && _transforms.TryGet(entity, out EntityTransform transform))
             {
+                bool mirrored = _construction.IsMirrored(entity);
                 layout.Add(new CapturedPart(
                     entityValue,
                     part.PartTypeId,
                     transform.Position.X,
                     transform.Position.Y,
-                    PlanarAngle(transform.Rotation),
-                    transform.Scale));
+                    BuildPose.YawOf(transform.Rotation, mirrored),
+                    transform.Scale,
+                    mirrored));
             }
         }
 
@@ -1219,13 +1222,6 @@ public sealed class GameRoom : IDisposable
         }
     }
 
-    private static float PlanarAngle(PhysicsQuaternion rotation)
-    {
-        // Construction places parts at Z-axis rotations only, so the yaw is atan2 of
-        // the Z components of the quaternion (2*z, up to sign in the W-projection).
-        float angle = 2f * MathF.Atan2(rotation.Z, rotation.W);
-        return float.IsFinite(angle) ? angle : 0f;
-    }
 
     private Dictionary<uint, (PhysicsVector3 Position, PhysicsQuaternion Rotation)> CapturePoses()
     {
@@ -1492,13 +1488,17 @@ public sealed class GameRoom : IDisposable
     private static ReplayQuaternion ToReplay(PhysicsQuaternion value) => new(value.X, value.Y, value.Z, value.W);
 
     /// <summary>
-    /// One entity's snapshot flags (PGFS v5): bit0 the part's switch is on, bit1 the entity is a
+    /// One entity's snapshot flags (PGFS v6): bit0 the part's switch is on, bit1 the entity is a
     /// runtime sub-entity of its host (ADR-027). A sub-entity borrows its host's part type on the
     /// wire, so without bit1 the client cannot tell a boxing glove's fist from a second glove part
-    /// and draws the host's own art over it.
+    /// and draws the host's own art over it. Bit2 is the build pose's mirror (ADR-030), which the
+    /// client cannot derive from the rotation either -- a mirrored pose at a quarter turn is an
+    /// ordinary 180-degree rotation.
     /// </summary>
     private byte SnapshotFlags(EntityId entity) =>
-        (byte)((_rules.IsPartActive(entity) ? 1 : 0) | (_subEntityIds.Contains(entity.Value) ? 2 : 0));
+        (byte)((_rules.IsPartActive(entity) ? SnapshotFrame.FlagActive : 0)
+            | (_subEntityIds.Contains(entity.Value) ? SnapshotFrame.FlagSubEntity : 0)
+            | (_construction.IsMirrored(entity) ? SnapshotFrame.FlagMirrored : 0));
 
     /// <summary>Deterministic hash: layout hash in Building, authoritative snapshot hash in Running.</summary>
     public long ComputeStateHash()
@@ -1580,7 +1580,8 @@ public sealed class GameRoom : IDisposable
                 body,
                 isDynamic: definition.Mode == PhysicsBodyMode.Dynamic,
                 localOffset: member.LocalOffset,
-                localRotation: member.LocalRotation);
+                localRotation: member.LocalRotation,
+                mirrored: _construction.IsMirrored(member.Entity));
             _bodyByEntity.Add(member.Entity.Value, body);
             if (!_entitiesByBody.TryGetValue(body.Value, out List<uint>? members))
             {

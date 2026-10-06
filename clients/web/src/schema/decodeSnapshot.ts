@@ -1,6 +1,6 @@
 import type { SnapshotEntity, SnapshotFrame, Vec3, Quat } from "./types";
 
-export const SNAPSHOT_VERSION = 5;
+export const SNAPSHOT_VERSION = 6;
 export const SNAPSHOT_BUILDING_PHASE = 0x10;
 export const SNAPSHOT_HEADER_BYTES = 15;
 export const SNAPSHOT_ENTITY_BYTES = 73;
@@ -42,6 +42,7 @@ export function decodeSnapshotFrame(source: Uint8Array): SnapshotFrame | string 
       attachYaw: view.getFloat32(offset + 68, true),
       active: (view.getUint8(offset + 72) & 1) === 1,
       subEntity: (view.getUint8(offset + 72) & 2) === 2,
+      mirrored: (view.getUint8(offset + 72) & 4) === 4,
     });
   }
 

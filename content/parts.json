@@ -571,7 +571,7 @@
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 0.8 } },
       "shapes": [
         {
           "kind": "box",
@@ -594,7 +594,7 @@
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 1.5 } },
       "shapes": [
         {
           "kind": "box",
@@ -616,7 +616,7 @@
       "mass": 0.5,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tail": 0.03 },
+      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "tail": 0.2 },
       "shapes": [
         {
           "kind": "box",
@@ -632,7 +632,7 @@
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tail": 0.05 },
+      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "tail": 1.0 },
       "shapes": [
         {
           "kind": "box",
@@ -2411,7 +2411,7 @@
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 0.8 } },
       "shapes": [
         {
           "kind": "box",
@@ -2435,7 +2435,7 @@
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 0.8 } },
       "shapes": [
         {
           "kind": "box",
@@ -2459,7 +2459,7 @@
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 0.8 } },
       "shapes": [
         {
           "kind": "box",
@@ -2483,7 +2483,7 @@
       "mass": 0.6,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.05, "maxLift": 6.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 0.8 } },
       "shapes": [
         {
           "kind": "box",
@@ -2506,7 +2506,7 @@
       "mass": 0.5,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tail": 0.03 },
+      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "tail": 0.2 },
       "shapes": [
         {
           "kind": "box",
@@ -2523,7 +2523,7 @@
       "mass": 0.5,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tail": 0.03 },
+      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "tail": 0.2 },
       "shapes": [
         {
           "kind": "box",
@@ -2540,7 +2540,7 @@
       "mass": 0.5,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tail": 0.03 },
+      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "normal", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "tail": 0.2 },
       "shapes": [
         {
           "kind": "box",
@@ -3088,7 +3088,7 @@
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 1.5 } },
       "shapes": [
         {
           "kind": "box",
@@ -3112,7 +3112,7 @@
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 1.5 } },
       "shapes": [
         {
           "kind": "box",
@@ -3136,7 +3136,7 @@
       "mass": 0.9,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "wing": { "liftCoef": 0.08, "maxLift": 10.0 } },
+      "capabilities": { "jointConnectionDirection": "any", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "wing": { "liftConstant": 1.5 } },
       "shapes": [
         {
           "kind": "box",
@@ -3159,7 +3159,7 @@
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tail": 0.05 },
+      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "tail": 1.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3175,7 +3175,7 @@
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tail": 0.05 },
+      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "tail": 1.0 },
       "shapes": [
         {
           "kind": "box",
@@ -3191,7 +3191,7 @@
       "mass": 0.7,
       "material": { "restitution": 0, "friction": 0.7 },
       "damping": { "linear": 1.0, "angular": 0.2 },
-      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tail": 0.05 },
+      "capabilities": { "jointConnectionDirection": "right", "jointConnectionStrength": "high", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "mirror": true, "tail": 1.0 },
       "shapes": [
         {
           "kind": "box",

@@ -42,15 +42,19 @@ public readonly record struct RocketState(
 /// eggBreakImpactSpeed) destroys the egg and requests a replay.</summary>
 public readonly record struct EggMarker;
 
-/// <summary>Aerodynamic lift: a wing generates vertical lift proportional to the
-/// square of the body's horizontal speed, capped at <paramref name="MaxLift"/>.
-/// A glider stays airborne once it is moving fast enough sideways.</summary>
-public readonly record struct WingState(float LiftCoef, float MaxLift);
+/// <summary>
+/// A wing: the original's <c>Wings</c> class, whose only per-prefab number is
+/// <c>m_liftConstant</c>. The force itself is the class's clamped <c>|v|^2</c> response curve
+/// evaluated in the part's own frame (docs/specs/part-mirror.md, <see cref="Aerodynamics"/>).
+/// </summary>
+public readonly record struct WingState(float LiftConstant);
 
-/// <summary>Velocity damper (tailplane stability): a tail applies a linear
-/// drag impulse opposite the body velocity so the glider does not spin or
-/// accelerate out of control.</summary>
-public readonly record struct TailState(float DragCoef);
+/// <summary>
+/// A tail: the same response curve with its own coefficients and the original's
+/// <c>0.4 * (num2 - 30)</c> twist, again with <c>m_liftConstant</c> as the only content value
+/// (<see cref="Aerodynamics.TailAngleOfAttack"/>).
+/// </summary>
+public readonly record struct TailState(float LiftConstant);
 
 /// <summary>Falling damper (umbrella): while the body descends (vy &lt; 0) an
 /// upward impulse proportional to fall speed slows the drop; a black umbrella

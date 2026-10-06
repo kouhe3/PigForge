@@ -29,7 +29,8 @@ public enum ConstructionError
     FrozenEntity,
     UnsupportedShape,
     NotOwnedByPlayer,
-    PartNotSwitchable
+    PartNotSwitchable,
+    PartNotMirrorable
 }
 
 public readonly record struct ConstructionResult(EntityId Entity, ConstructionError Error)
@@ -82,6 +83,11 @@ public sealed class ConstructionRules
     private readonly Dictionary<uint, uint> _ownerByEntity = new();
     private readonly Dictionary<uint, int> _partCountByOwner = new();
 
+    // The build pose's handedness, kept beside the pose because a quaternion cannot carry it
+    // unambiguously (see BuildPose). It survives FreezeAll: starting the simulation rewrites the
+    // transforms with physics poses, and the mirror is a property of how the part was built.
+    private readonly HashSet<uint> _mirroredEntities = new();
+
     public ConstructionRules(
         EntityStore entities,
         PartStore parts,
@@ -105,6 +111,13 @@ public sealed class ConstructionRules
     /// <summary>The owner recorded for a placed entity, or null when the registry does not track it.</summary>
     public uint? OwnerOf(EntityId entity) =>
         _ownerByEntity.TryGetValue(entity.Value, out uint owner) ? owner : null;
+
+    /// <summary>
+    /// Whether the part was built mirrored (the original's `FlipVertically` handedness, ADR-030).
+    /// Content gates it: only a part whose prefab declares `m_autoAlign == 2` -- the wing and tail
+    /// families -- may be mirrored, exactly as the original only flips those.
+    /// </summary>
+    public bool IsMirrored(EntityId entity) => _mirroredEntities.Contains(entity.Value);
 
     /// <summary>Placed entity ids owned by the given player, ascending.</summary>
     public IReadOnlyCollection<uint> PlacedEntitiesOf(uint owner)
@@ -286,7 +299,12 @@ public sealed class ConstructionRules
         return anchor;
     }
 
-    public ConstructionResult Place(uint partTypeId, float positionX, float positionY, float angle, float scale, uint owner)
+    /// <summary>
+    /// Puts a part down at a planar pose. <paramref name="mirrored"/> is the pose's handedness
+    /// (ADR-030) and is only accepted for content that declares `capabilities.mirror` -- the
+    /// original only flips the parts whose prefab says <c>m_autoAlign == FlipVertically</c>.
+    /// </summary>
+    public ConstructionResult Place(uint partTypeId, float positionX, float positionY, float angle, float scale, uint owner, bool mirrored = false)
     {
         if (!float.IsFinite(angle))
         {
@@ -313,7 +331,12 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.UnknownPartType);
         }
 
-        PartFootprint footprint = PartFootprint.ForPart(part, positionX, positionY, angle, scale);
+        if (mirrored && part.Capabilities?.Mirror != true)
+        {
+            return Failure(ConstructionError.PartNotMirrorable);
+        }
+
+        PartFootprint footprint = PartFootprint.ForPart(part, positionX, positionY, angle, mirrored, scale);
         (float minX, float minY, float maxX, float maxY) = footprint.Bounds();
         int areaInCells = (int)MathF.Ceiling(maxX - minX) * (int)MathF.Ceiling(maxY - minY);
         if (areaInCells > _limits.MaxFootprintCells)
@@ -357,8 +380,12 @@ public sealed class ConstructionRules
         _parts.Set(entity, new PartLink(partTypeId));
         _transforms.Set(entity, new EntityTransform(
             new PhysicsVector3(positionX, positionY, 0f),
-            RotationQuaternion(angle),
+            BuildPose.Rotation(angle, mirrored),
             scale));
+        if (mirrored)
+        {
+            _mirroredEntities.Add(entity.Value);
+        }
 
         foreach (uint neighbour in neighbours)
         {
@@ -376,13 +403,24 @@ public sealed class ConstructionRules
     }
 
     public ConstructionResult Move(EntityId entity, float positionX, float positionY, uint owner) =>
-        Retransform(entity, owner, positionX, positionY, angle: null, scale: null);
+        Retransform(entity, owner, positionX, positionY, angle: null, mirrored: null, scale: null);
 
     public ConstructionResult Scale(EntityId entity, float scale, uint owner) =>
-        Retransform(entity, owner, positionX: null, positionY: null, angle: null, scale: scale);
+        Retransform(entity, owner, positionX: null, positionY: null, angle: null, mirrored: null, scale: scale);
 
+    /// <summary>
+    /// Re-aims the pose's yaw and keeps its handedness: this is what the original's
+    /// <c>RotateClockwise</c> does (it never clears <c>m_flipped</c>).
+    /// </summary>
     public ConstructionResult Rotate(EntityId entity, float angle, uint owner) =>
-        Retransform(entity, owner, positionX: null, positionY: null, angle: angle, scale: null);
+        Retransform(entity, owner, positionX: null, positionY: null, angle: angle, mirrored: null, scale: null);
+
+    /// <summary>
+    /// Sets the pose's yaw <b>and</b> handedness together -- the wire's absolute form (ADR-030):
+    /// a client's rotate carries the mirror it is showing rather than toggling anything.
+    /// </summary>
+    public ConstructionResult Rotate(EntityId entity, float angle, uint owner, bool mirrored) =>
+        Retransform(entity, owner, positionX: null, positionY: null, angle: angle, mirrored: mirrored, scale: null);
 
     /// <summary>
     /// Shared path for every post-placement transform (move/rotate/scale): the target pose
@@ -397,6 +435,7 @@ public sealed class ConstructionRules
         float? positionX,
         float? positionY,
         float? angle,
+        bool? mirrored,
         float? scale)
     {
         if (!_entities.IsAlive(entity))
@@ -439,9 +478,18 @@ public sealed class ConstructionRules
         float targetX = positionX ?? current.Position.X;
         float targetY = positionY ?? current.Position.Y;
         float targetScale = scale ?? current.Scale;
-        PhysicsQuaternion targetRotation = angle.HasValue ? RotationQuaternion(angle.Value) : current.Rotation;
         PartDefinition part = _content.GetPart(link.PartTypeId);
-        PartFootprint candidate = PartFootprint.ForPart(part, targetX, targetY, YawOf(targetRotation), targetScale);
+        bool targetMirrored = mirrored ?? _mirroredEntities.Contains(entity.Value);
+        if (targetMirrored && part.Capabilities?.Mirror != true)
+        {
+            return Failure(ConstructionError.PartNotMirrorable);
+        }
+
+        // The pose is yaw + handedness, so a move/scale keeps both from the stored pose: a mirrored
+        // part's quaternion cannot be asked for its yaw (see BuildPose).
+        float targetYaw = angle ?? BuildPose.YawOf(current.Rotation, _mirroredEntities.Contains(entity.Value));
+        PhysicsQuaternion targetRotation = BuildPose.Rotation(targetYaw, targetMirrored);
+        PartFootprint candidate = PartFootprint.ForPart(part, targetX, targetY, targetYaw, targetMirrored, targetScale);
         (float minX, float minY, float maxX, float maxY) = candidate.Bounds();
         int areaInCells = (int)MathF.Ceiling(maxX - minX) * (int)MathF.Ceiling(maxY - minY);
         if (areaInCells > _limits.MaxFootprintCells)
@@ -485,6 +533,14 @@ public sealed class ConstructionRules
             new PhysicsVector3(targetX, targetY, current.Position.Z),
             targetRotation,
             targetScale));
+        if (targetMirrored)
+        {
+            _mirroredEntities.Add(entity.Value);
+        }
+        else
+        {
+            _mirroredEntities.Remove(entity.Value);
+        }
 
         Reconnect(entity.Value);
         if (enclosingFrame != 0)
@@ -657,6 +713,9 @@ public sealed class ConstructionRules
                 hash = unchecked(hash * 31 + transform.Position.GetHashCode());
                 hash = unchecked(hash * 31 + transform.Rotation.GetHashCode());
                 hash = unchecked(hash * 31 + transform.Scale.GetHashCode());
+                // The pose quaternion already differs under the mirror, but the bit is the state's
+                // own representation of it and must hash even if a pose is ever normalised.
+                hash = unchecked(hash * 31 + (_mirroredEntities.Contains(entityValue) ? 1 : 0));
             }
 
             IEnumerable<uint> orderedConnections = _connectionsByEntity.TryGetValue(entityValue, out HashSet<uint>? connections)
@@ -819,6 +878,7 @@ public sealed class ConstructionRules
         UnlinkAll(entityValue);
         _connectionsByEntity.Remove(entityValue);
         _frozenEntities.Remove(entityValue);
+        _mirroredEntities.Remove(entityValue);
         if (_ownerByEntity.Remove(entityValue, out uint owner)
             && _partCountByOwner.TryGetValue(owner, out int count))
         {
@@ -920,19 +980,6 @@ public sealed class ConstructionRules
     }
 
     private static int BucketIndex(float value) => (int)MathF.Floor(value / BucketSize);
-
-    private static PhysicsQuaternion RotationQuaternion(float angle)
-    {
-        float halfAngle = angle / 2f;
-        return new PhysicsQuaternion(0f, 0f, MathF.Sin(halfAngle), MathF.Cos(halfAngle));
-    }
-
-    /// <summary>Build-plane yaw of a stored pose; same projection as
-    /// <see cref="PartFootprint.ForPart(PartDefinition, PhysicsVector3, PhysicsQuaternion, float)"/>.</summary>
-    private static float YawOf(PhysicsQuaternion rotation) =>
-        MathF.Atan2(
-            2f * ((rotation.W * rotation.Z) + (rotation.X * rotation.Y)),
-            1f - (2f * ((rotation.Y * rotation.Y) + (rotation.Z * rotation.Z))));
 
     private static ConstructionResult Failure(ConstructionError error) => new(default, error);
 

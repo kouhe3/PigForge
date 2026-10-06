@@ -313,9 +313,13 @@ public sealed record PartCapabilities(
     float? RocketExplodeRadius = null,
     float? RocketExplodeImpulse = null,
     bool IsEgg = false,
-    float? WingLiftCoef = null,
-    float? WingMaxLift = null,
-    float? TailDragCoef = null,
+    // The original's wing and tail are one clamped |v|^2 response curve each, evaluated in the
+    // part's own frame (spec docs/specs/part-mirror.md, Wings.cs:104-118 / Tail.cs:57-75); the
+    // content carries the class's own `m_liftConstant` and nothing else.
+    float? WingLiftConstant = null,
+    float? TailLiftConstant = null,
+    // BasePart.m_autoAlign == FlipVertically: the build pose has a handedness (ADR-030).
+    bool Mirror = false,
     float? UmbrellaDragCoef = null,
     bool IsGearbox = false,
     bool IsDetacher = false,
@@ -360,9 +364,9 @@ public sealed record PartCapabilities(
 
     public bool HasRocket => RocketThrustPerTick is float thrust && thrust != 0f;
 
-    public bool HasWing => WingLiftCoef is float lift && lift != 0f;
+    public bool HasWing => WingLiftConstant is float lift && lift != 0f;
 
-    public bool HasTail => TailDragCoef is float drag && drag != 0f;
+    public bool HasTail => TailLiftConstant is float lift && lift != 0f;
     public bool HasUmbrella => UmbrellaDragCoef is float drag && drag != 0f;
 
 

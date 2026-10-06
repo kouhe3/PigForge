@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using PigForge.Core.Construction;
 using PigForge.Core.Content;
 using PigForge.Physics.Abstractions;
 using PigForge.Physics.Bepu;
@@ -434,10 +435,11 @@ public sealed class GameplayRulesTests
             EntityId entity,
             PhysicsBodyId body,
             PhysicsVector3 localOffset = default,
-            PhysicsQuaternion? localRotation = null)
+            PhysicsQuaternion? localRotation = null,
+            bool mirrored = false)
         {
             _bodies.Set(entity, new PhysicsBodyLink(body));
-            Rules.LinkBody(entity, body, localOffset: localOffset, localRotation: localRotation);
+            Rules.LinkBody(entity, body, localOffset: localOffset, localRotation: localRotation, mirrored: mirrored);
         }
 
         public void IngestBody(
@@ -1157,41 +1159,139 @@ public sealed class GameplayRulesTests
         Assert.Contains(rocket, harness.Output.DestroyedEntities);
     }
 
+    /// <summary>
+    /// The two response curves are the original's own tables (Wings.cs:76-88, Tail.cs:32-41),
+    /// read through <c>ResponseCurve.Get</c>: piecewise linear between the listed knots and clamped
+    /// to the first and last value outside them. The asymmetry -- a lift peak at 15 degrees, a stall
+    /// by 22, a negative band on the other side -- is the whole aerodynamics.
+    /// </summary>
     [Fact]
-    public void WingLiftGrowsWithHorizontalSpeedSquared()
+    public void TheAerodynamicResponseCurvesAreTheOriginalsTables()
+    {
+        Assert.Equal(1.75f, Aerodynamics.WingCoefficient(15f), 5);
+        Assert.Equal(1.5f, Aerodynamics.WingCoefficient(10f), 5);
+        Assert.Equal(0.75f, Aerodynamics.WingCoefficient(0f), 5);   // halfway from (-10, 0) to (10, 1.5)
+        Assert.Equal(0.45f, Aerodynamics.WingCoefficient(20.5f), 5); // stalled: 0.8 at 19 falling to 0.1 at 22
+        Assert.Equal(0f, Aerodynamics.WingCoefficient(-180f), 5);
+        Assert.Equal(0f, Aerodynamics.WingCoefficient(500f), 5);     // clamped past the last knot
+
+        Assert.Equal(1.5f, Aerodynamics.TailCoefficient(45f), 5);
+        Assert.Equal(1f, Aerodynamics.TailCoefficient(10f), 5);
+        Assert.Equal(-1.5f, Aerodynamics.TailCoefficient(135f), 5);
+        Assert.Equal(0f, Aerodynamics.TailCoefficient(-300f), 5);
+    }
+
+    [Fact]
+    public void AWingLiftsAlongItsOwnFrameAndIsClampedAtOneHundredNewtons()
     {
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId wing = entities.Create();
-        harness.Rules.AddWing(wing, liftCoef: 0.05f, maxLift: 6f);
+        harness.Rules.AddWing(wing, liftConstant: 0.8f); // Part_WoodenWings_01_SET.prefab:154
         harness.Link(wing, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(10, 0, 0));
 
+        // Flying right with no angle of attack: the curve reads 0.75, so the force is
+        // 0.8 * 10^2 * 0.75 = 60 N straight up (Wings.cs:111-116), one tick of which is 1 N*s.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(10, 0, 0));
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), command.Body);
-        Assert.Equal(5f, command.Impulse.Y, 5); // 0.05 * 10^2 = 5
+        Assert.Equal(0f, command.Impulse.X, 5);
+        Assert.Equal(1f, command.Impulse.Y, 4); // 0.8 * 100 * 0.75 / 60
+        Assert.Equal(0f, command.Impulse.Z, 5);
 
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(10, 0, 0));
+        // The original clamps a wing's force at 100 N (Wings.cs:115), so six times the speed does
+        // not give thirty-six times the impulse.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(60, 0, 0));
         harness.Tick(2, Array.Empty<PhysicsEvent>());
         command = Assert.Single(harness.Output.Commands);
-        Assert.True(command.Impulse.Y <= 6f); // capped at maxLift
+        Assert.Equal(100f / 60f, command.Impulse.Y, 4);
+
+        // A parked wing has no angle of attack to read.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        Assert.Empty(harness.Output.Commands);
     }
 
+    /// <summary>
+    /// The mirror is a real aerodynamic input, not a drawing flag: the original measures the angle
+    /// of attack with an extra sign (<c>Wings.cs:111</c>) and turns the whole frame 180 degrees
+    /// about the part's own up axis (ADR-030), so the same wing at the same velocity pushes the
+    /// other way.
+    /// </summary>
     [Fact]
-    public void TailDampsVelocityOppositeToMotion()
+    public void AMirroredWingAndTailPushTheOtherWay()
+    {
+        (float wingY, float tailY) = WingAndTailLift(mirrored: false);
+        (float mirroredWingY, float mirroredTailY) = WingAndTailLift(mirrored: true);
+
+        Assert.True(wingY < 0f, $"an unmirrored wing at 26.6 degrees of attack pushes down, was {wingY}");
+        Assert.True(mirroredWingY > 0f, $"a mirrored wing pushes up, was {mirroredWingY}");
+        Assert.True(tailY < 0f, $"an unmirrored tail pushes down, was {tailY}");
+        Assert.True(mirroredTailY > 0f, $"a mirrored tail pushes up, was {mirroredTailY}");
+    }
+
+    /// <summary>
+    /// The tail is trimmed, the wing is not: the original twists the tail's reference axis by
+    /// <c>0.4 * (num2 - 30)</c> (Tail.cs:67) before it measures the angle of attack, so a tail
+    /// flying straight with no pitch still reads a negative angle -- which is what makes the wooden
+    /// tail (liftConstant 0.2) push *down* on a level glider while the wing's curve (0.75 at zero
+    /// attack) pushes up.
+    /// </summary>
+    [Fact]
+    public void ATailIsTrimmedByItsOwnTwistTerms()
     {
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId tail = entities.Create();
-        harness.Rules.AddTail(tail, dragCoef: 0.03f);
+        harness.Rules.AddTail(tail, liftConstant: 0.2f); // Part_WoodenTail_01_SET.prefab:97
         harness.Link(tail, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(4, 3, 0));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(10, 0, 0));
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
-        Assert.Equal(-0.12f, command.Impulse.X, 5); // -0.03 * 4
-        Assert.Equal(-0.09f, command.Impulse.Y, 5); // -0.03 * 3
+        Assert.True(command.Impulse.Y < 0f, $"a level tail pushes down, was {command.Impulse.Y}");
+        Assert.Equal(0f, command.Impulse.X, 5);
+    }
+
+    /// <summary>One wing and one tail flying at the same sloped velocity, mirror or not.</summary>
+    private (float WingY, float TailY) WingAndTailLift(bool mirrored)
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId wing = entities.Create();
+        EntityId tail = entities.Create();
+        harness.Rules.AddWing(wing, liftConstant: 0.8f);
+        harness.Rules.AddTail(tail, liftConstant: 0.2f);
+
+        // A mirrored part's whole frame is turned 180 degrees about its own up axis (ADR-030), and
+        // the assembler publishes that pose as the body's rotation at spawn -- which is also how the
+        // rules layer sees it here. The bit travels beside the pose because a live physics pose can
+        // no longer be asked which handedness it was built with.
+        PhysicsQuaternion buildPose = BuildPose.Rotation(yaw: 0f, mirrored);
+        harness.Link(wing, new PhysicsBodyId(1), mirrored: mirrored);
+        harness.Link(tail, new PhysicsBodyId(2), mirrored: mirrored);
+        PhysicsVector3 velocity = new(10f, 5f, 0f);
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), velocity, buildPose);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, 2, 0), velocity, buildPose);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        float wingY = 0f;
+        float tailY = 0f;
+        foreach (PhysicsCommand command in harness.Output.Commands)
+        {
+            if (command.Body == new PhysicsBodyId(1))
+            {
+                wingY = command.Impulse.Y;
+            }
+            else if (command.Body == new PhysicsBodyId(2))
+            {
+                tailY = command.Impulse.Y;
+            }
+        }
+
+        return (wingY, tailY);
     }
 
     [Fact]

@@ -112,6 +112,15 @@ public sealed class GameplayRules
     // in FanPropeller.cs:155 -- so a rule that only knows the compound's rotation would aim a
     // fan the way it was never built.
     private readonly Dictionary<uint, PhysicsQuaternion> _localRotationByEntity = new();
+
+    /// <summary>
+    /// The build pose's handedness per entity (ADR-030). The pose quaternion already carries it --
+    /// a mirrored part's frame is turned 180 degrees about its own up axis -- but the wing and the
+    /// tail read it <em>again</em> as <c>IsFlipped()</c> in their angle-of-attack terms
+    /// (Wings.cs:111, Tail.cs:64,68), and a live physics pose can no longer be asked which
+    /// handedness it was built with. Published by <see cref="LinkBody"/> at bind time.
+    /// </summary>
+    private readonly HashSet<uint> _mirroredByEntity = new();
     // A rotor's own axis at the moment it spawned (the original's `m_originalDirection` /
     // `m_rotorTargetDirection`, FanPropeller.cs:73-79, read once in `Initialize()`), keyed by
     // entity. Its thrust is blended back toward it while the live axis still points the same way
@@ -276,7 +285,8 @@ public sealed class GameplayRules
         PhysicsBodyId body,
         bool isDynamic = true,
         PhysicsVector3 localOffset = default,
-        PhysicsQuaternion? localRotation = null)
+        PhysicsQuaternion? localRotation = null,
+        bool mirrored = false)
     {
         if (!_bodies.TryGet(entity, out PhysicsBodyLink link) || link.Body != body)
         {
@@ -305,6 +315,15 @@ public sealed class GameplayRules
         else
         {
             _localRotationByEntity.Remove(entity.Value);
+        }
+
+        if (mirrored)
+        {
+            _mirroredByEntity.Add(entity.Value);
+        }
+        else
+        {
+            _mirroredByEntity.Remove(entity.Value);
         }
 
         if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members))
@@ -591,11 +610,11 @@ public sealed class GameplayRules
 
     public void AddEgg(EntityId entity) => _eggs.Set(entity, default);
 
-    public void AddWing(EntityId entity, float liftCoef, float maxLift) =>
-        _wings.Set(entity, new WingState(liftCoef, maxLift));
+    public void AddWing(EntityId entity, float liftConstant) =>
+        _wings.Set(entity, new WingState(liftConstant));
 
-    public void AddTail(EntityId entity, float dragCoef) =>
-        _tails.Set(entity, new TailState(dragCoef));
+    public void AddTail(EntityId entity, float liftConstant) =>
+        _tails.Set(entity, new TailState(liftConstant));
 
     public void AddUmbrella(EntityId entity, float dragCoef) =>
         _umbrellas.Set(entity, new UmbrellaState(dragCoef));
@@ -1118,6 +1137,7 @@ public sealed class GameplayRules
     {
         _localOffsetByEntity.Remove(entity.Value);
         _localRotationByEntity.Remove(entity.Value);
+        _mirroredByEntity.Remove(entity.Value);
         _fanSpawnDirectionByEntity.Remove(entity.Value);
         if (_membersByBody.TryGetValue(body.Value, out List<uint>? members))
         {
@@ -1450,14 +1470,25 @@ public sealed class GameplayRules
             }
 
             WingState wing = wings.CurrentValue;
-            // Lift grows with the square of horizontal speed (a glider only flies
-            // while moving forward), capped so a single wing cannot hover.
-            float lift = MathF.Min(wing.LiftCoef * kinematics.Velocity.X * kinematics.Velocity.X, wing.MaxLift);
-            if (lift > float.Epsilon)
+            // The original evaluates its response curve in the wing's own frame (Wings.cs:104-118),
+            // so the build angle and the live rig rotation both aim the lift -- and a mirrored wing
+            // (whose pose carries the extra 180-degree Y turn, ADR-030) measures its angle of attack
+            // on the other handedness and pushes the other way.
+            ResolvePartFrame(wings.CurrentId, link.Body.Value, kinematics.Position, out _, out PhysicsQuaternion frame);
+            bool mirrored = _mirroredByEntity.Contains(wings.CurrentId.Value);
+            PhysicsVector3 right = frame.Rotate(new PhysicsVector3(1f, 0f, 0f));
+            PhysicsVector3 forward = frame.Rotate(new PhysicsVector3(0f, 0f, 1f));
+            float angleOfAttack = Aerodynamics.WingAngleOfAttack(kinematics.Velocity, right, mirrored);
+            PhysicsVector3 force = Aerodynamics.Force(
+                wing.LiftConstant,
+                kinematics.Velocity,
+                Aerodynamics.WingCoefficient(angleOfAttack),
+                forward);
+            if (PhysicsVector3.Dot(force, force) > 0f)
             {
                 output.Commands.Add(PhysicsCommand.ApplyImpulse(
                     link.Body,
-                    new PhysicsVector3(0f, lift, 0f),
+                    force * (1f / Aerodynamics.ForcePerTickDivisor),
                     kinematics.Position));
             }
         }
@@ -1481,12 +1512,25 @@ public sealed class GameplayRules
             }
 
             TailState tail = tails.CurrentValue;
-            // A tail damps velocity proportionally (no spin-down thrust, just
-            // air resistance to keep a loaded glider stable).
-            output.Commands.Add(PhysicsCommand.ApplyImpulse(
-                link.Body,
-                kinematics.Velocity * -tail.DragCoef,
-                kinematics.Position));
+            // The same clamped |v|^2 curve as the wing, with the original's own 0.4 * (num2 - 30)
+            // twist about the part's forward axis and its double use of the flip (Tail.cs:57-75).
+            ResolvePartFrame(tails.CurrentId, link.Body.Value, kinematics.Position, out _, out PhysicsQuaternion frame);
+            bool mirrored = _mirroredByEntity.Contains(tails.CurrentId.Value);
+            PhysicsVector3 right = frame.Rotate(new PhysicsVector3(1f, 0f, 0f));
+            PhysicsVector3 forward = frame.Rotate(new PhysicsVector3(0f, 0f, 1f));
+            float angleOfAttack = Aerodynamics.TailAngleOfAttack(kinematics.Velocity, right, forward, mirrored);
+            PhysicsVector3 force = Aerodynamics.Force(
+                tail.LiftConstant,
+                kinematics.Velocity,
+                Aerodynamics.TailCoefficient(angleOfAttack),
+                forward);
+            if (PhysicsVector3.Dot(force, force) > 0f)
+            {
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    link.Body,
+                    force * (1f / Aerodynamics.ForcePerTickDivisor),
+                    kinematics.Position));
+            }
         }
     }
 
@@ -2245,6 +2289,7 @@ public sealed class GameplayRules
         _membersByBody.Clear();
         _localOffsetByEntity.Clear();
         _localRotationByEntity.Clear();
+        _mirroredByEntity.Clear();
         _fanSpawnDirectionByEntity.Clear();
         _rotationByBody.Clear();
         _restitutionByBody.Clear();

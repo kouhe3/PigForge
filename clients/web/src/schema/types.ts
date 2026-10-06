@@ -120,8 +120,16 @@ export interface PartCapabilities {
   glove?: PartGlove;
   rocket?: { thrustPerTick: number; directionX: -1 | 0 | 1; directionY?: -1 | 0 | 1; durationTicks: number; explodeRadius?: number; explodeImpulse?: number };
   egg?: boolean;
-  wing?: { liftCoef: number; maxLift?: number };
+  /** The original's `Wings.m_liftConstant` (Wings.cs:6), the only wing number its clamped |v|^2 response curve reads. */
+  wing?: { liftConstant: number };
+  /** The original's `Tail.m_liftConstant` (Tail.cs:6), used by the same curve. */
   tail?: number;
+  /**
+   * The original's `BasePart.m_autoAlign == FlipVertically`: this part's build pose has a
+   * handedness -- a 180-degree turn about the part's own up axis, applied inside its own frame
+   * before the yaw -- which is what the PGFS mirror bit carries (ADR-030). Absent means false.
+   */
+  mirror?: boolean;
   umbrella?: number;
   gearbox?: boolean;
   detacher?: boolean;
@@ -278,6 +286,12 @@ export interface SnapshotEntity {
    * `partTypeId` on the wire, so the renderer draws the part's own sub-entity art instead.
    */
   subEntity: boolean;
+  /**
+   * Per-entity snapshot flags bit2 (PGFS v6): the part's build pose is mirrored (ADR-030), the
+   * handedness a float yaw cannot express. The renderer draws such a part with its art mirrored
+   * in the part's own frame, and the manifest's sprite depth stays as it was for the wing art.
+   */
+  mirrored: boolean;
 }
 
 export interface SnapshotFrame {
@@ -306,6 +320,10 @@ export interface DrawEntity {
    */
   subEntity?: boolean;
   /**
+   * The snapshot's mirror flag (PGFS v6; false for replay documents, which have no such bit).
+   */
+  mirrored?: boolean;
+  /**
    * Orientation of the frame this part's non-spinning sprites are attached to, from the
    * snapshot's `attachYaw` (PGFS v4). A rolling wheel's `yaw` integrates its roll, so its
    * mounts need this angle instead to stay rigid to the chassis (see `drawFrame`). Absent
@@ -321,9 +339,9 @@ export interface DrawEntity {
 }
 
 export type ClientCommand =
-  | { kind: 0; sequence: number; playerId: number; tick: number; partTypeId: number; x: number; y: number; angle: number; scale: number }
+  | { kind: 0; sequence: number; playerId: number; tick: number; partTypeId: number; x: number; y: number; angle: number; scale: number; mirrored: boolean }
   | { kind: 1; sequence: number; playerId: number; tick: number; entityId: number }
-  | { kind: 2; sequence: number; playerId: number; tick: number; entityId: number; angle: number }
+  | { kind: 2; sequence: number; playerId: number; tick: number; entityId: number; angle: number; mirrored: boolean }
   | { kind: 3; sequence: number; playerId: number; tick: number }
   | { kind: 5; sequence: number; playerId: number; tick: number }
   | { kind: 6; sequence: number; playerId: number; tick: number; entityId: number; x: number; y: number }

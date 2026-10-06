@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pigforge.invalid/schemas/client-command-v1.schema.json",
   "title": "PigForge client command wire (PGFC/PGFA)",
-  "description": "Documents the little-endian binary layout. Not a JSON payload schema. Magic PGFC for commands, PGFA for acks. version=2.",
+  "description": "Documents the little-endian binary layout. Not a JSON payload schema. Magic PGFC for commands, PGFA for acks. version=3.",
   "type": "object",
   "additionalProperties": false,
   "required": ["magic", "version", "kind"],
   "properties": {
     "magic": { "const": "PGFC" },
-    "version": { "const": 2 },
+    "version": { "const": 3 },
     "kind": { "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] }
   }
 }

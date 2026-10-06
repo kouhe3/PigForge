@@ -1,9 +1,11 @@
 import type { ClientCommand } from "./types";
 
-export const COMMAND_VERSION = 2;
+export const COMMAND_VERSION = 3;
 export const COMMAND_HEADER_BYTES = 19;
 
-const PAYLOAD_BYTES: Record<ClientCommand["kind"], number> = { 0: 20, 1: 4, 2: 8, 3: 0, 5: 0, 6: 12, 7: 8, 8: 5, 9: 5 };
+// v3 gives the two placement commands a trailing `mirrored:u8` (ADR-030): a build pose's
+// handedness is not expressible as a rotation, so it travels beside the absolute angle.
+const PAYLOAD_BYTES: Record<ClientCommand["kind"], number> = { 0: 21, 1: 4, 2: 9, 3: 0, 5: 0, 6: 12, 7: 8, 8: 5, 9: 5 };
 
 export function encodeCommand(command: ClientCommand): Uint8Array {
   const bytes = new Uint8Array(COMMAND_HEADER_BYTES + PAYLOAD_BYTES[command.kind]);
@@ -20,11 +22,13 @@ export function encodeCommand(command: ClientCommand): Uint8Array {
     view.setFloat32(27, command.y, true);
     view.setFloat32(31, command.angle, true);
     view.setFloat32(35, command.scale, true);
+    view.setUint8(39, command.mirrored ? 1 : 0);
   } else if (command.kind === 1) {
     view.setUint32(19, command.entityId, true);
   } else if (command.kind === 2) {
     view.setUint32(19, command.entityId, true);
     view.setFloat32(23, command.angle, true);
+    view.setUint8(27, command.mirrored ? 1 : 0);
   } else if (command.kind === 6) {
     view.setUint32(19, command.entityId, true);
     view.setFloat32(23, command.x, true);
