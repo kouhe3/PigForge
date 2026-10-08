@@ -26,8 +26,11 @@ namespace PigForge.Server.Tests;
 /// parts and at least two terrain objects, taking the terrain with the most outline points whose
 /// own high ground sits strictly inside the level's y-range, and dropping in the middle of that
 /// high ground (the average x of its own top points). The room keeps a far goal zone and far map
-/// bounds so the level's own goal cannot end the run and PigForge's out-of-bounds reset (a PigForge
-/// addition, G78 -- the original has neither) cannot reset the falling control.
+/// bounds so the level's own goal cannot end the run and the out-of-bounds rule cannot reset the
+/// falling control. The original does have an out-of-bounds rule -- `Pig.cs:397-403` sends
+/// `PigOutOfBounds` when a pig drops below the level's camera limits and `GameMode.cs:384-387`
+/// answers by returning to the building state -- but it has **no run timer**, which is what the
+/// room's `MaxTicks` used to invent (G78).
 /// </summary>
 public sealed class OriginalLevelTests
 {
@@ -38,6 +41,39 @@ public sealed class OriginalLevelTests
 
     private const int SampleTicks = 30;
     private const int Ticks = 240;
+
+    /// <summary>
+    /// A level room has no run timer: the original ends a run when the pig reaches the goal
+    /// (<c>GameMode.NotifyGoalReached</c>) or leaves the camera limits
+    /// (<c>GameMode.OnPigOutOfBounds</c>, <c>GameMode.cs:384-387</c>), never on a clock.
+    /// <c>MaxTicks: 1200</c> used to fail every official level 20 s after Start; this is the
+    /// regression that keeps it gone. A placed block leaves no pig in play, so the only way this
+    /// room's phase can change is the timer.
+    /// </summary>
+    [Fact]
+    public void ALevelRoomKeepsPlayingPastTheInventedTickLimit()
+    {
+        using GameRoom room = PlayHost.CreateLevelRoom("original/episode_1_levels/Level_05.json");
+        Assert.Equal(CommandStatus.Accepted, room.Submit(new PlacePartCommand(0, SequencePlace, 1, PartPlayer, 43.2f, -6.8f, 0f, 1f)).Status);
+        Assert.Equal(CommandStatus.Accepted, room.Submit(new StartSimulationCommand(0, SequenceStart, 1)).Status);
+
+        List<string> transitions = new();
+        GameplayPhase previous = room.Phase;
+        for (int tick = 0; tick < 1400; tick++)
+        {
+            room.Tick();
+            if (room.Phase != previous)
+            {
+                transitions.Add($"{previous}->{room.Phase} at tick {room.CurrentTick}");
+                previous = room.Phase;
+            }
+        }
+
+        Assert.True(
+            room.Phase == GameplayPhase.Playing,
+            $"the room left Playing for {room.Phase} at tick {room.CurrentTick}; transitions: {string.Join(", ", transitions)}");
+        Assert.True(room.CurrentTick >= 1400, $"the room stopped at tick {room.CurrentTick}");
+    }
 
     [Fact]
     public void EveryConvertedLevelLoadsAndCarriesTerrain()

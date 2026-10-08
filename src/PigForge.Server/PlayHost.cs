@@ -89,13 +89,18 @@ public static class PlayHost
         PartContentLibrary parts = PartContentLibrary.Load(Path.Combine(root, "content", "parts.json"));
         levelJson = File.ReadAllText(Path.Combine(root, "content", "levels", levelFile));
         LevelContentDocument level = LevelContentLibrary.Parse(levelJson);
+        // No tick limit: a goal-based level room ends when the pig reaches the goal zone or leaves the
+        // map, exactly like the original (`GameMode.NotifyGoalReached`, `GameMode.OnPigOutOfBounds` --
+        // `Pig.cs:397-403` sends `PigOutOfBounds` when the pig drops below the camera limits, and
+        // `GameMode.cs:384-387` answers by returning to the building state). The original has no run
+        // timer at all: `MaxTicks: 1200` used to fail every official level 20 s after Start.
         GameplayConfig config = new(
             level.GoalZone,
             level.MapBounds,
             TntBlastRadius: 4f,
             TntBlastImpulse: 25f,
             TntIgniteImpactSpeed: 5f,
-            MaxTicks: 1200,
+            MaxTicks: 0,
             ObjectivesEnabled: !sandboxMode);
         GameRoom room = new(GameRoomOptions.Create(
             parts,
