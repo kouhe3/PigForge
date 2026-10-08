@@ -129,11 +129,12 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 ## 7. PigForge 现状
 
 - 关卡载体：`content/levels/{slope-v1,terrain-v1}.json`（v1，静态 primitive 拼装）与
-  `content/levels/original/**`（**v3**：每个 `e2dTerrain` 一条 —— 边界环 + `collider` 位 + `fill` 地面
-  贴图/颜色/tile），schema `schemas/level-content-{v1,v2,v3}.schema.json`，解析器 `LevelContentParser`
-  （启动期严格校验，按版本门控）。**网格地形与 fill 贴图都实现了**（`ADR-032`/`ADR-033`、
-  `docs/specs/level-terrain-visuals.md`）；**仍缺 `_curve` 边缘条带**（`G76` 的剩余部分）。
-- 目标：`goalZone` 矩形 = 过关（`G77` 缺「同载具零件代猪到达 2.5 单位连通」那条）；失败 = 出界或 1200 tick 超时（`G78`，原版两者皆无）。
+  `content/levels/original/**`（**v4**：每个 `e2dTerrain` 一条 —— 边界环 + `collider` 位 + `fill` 地面
+  贴图/颜色/tile + `curve` 边缘条带的两行顶点/两层贴图与 wrap/u 尺度/第二层运行段），schema
+  `schemas/level-content-{v1,v2,v3,v4}.schema.json`，解析器 `LevelContentParser`（启动期严格校验，按版本门控）。
+  **网格地形、fill 贴图与 `_curve` 条带都实现了**（`ADR-032`/`ADR-033`/`ADR-034`/`ADR-035`、
+  `docs/specs/level-terrain-visuals.md`）——`G76` 收口。
+- 目标：`goalZone` 矩形 = 过关（`G77` 缺「同载具零件代猪到达 2.5 单位连通」那条）；失败 = 出界（`G78` 的一半，**原版也有**：`Pig.cs:397-403` 在猪掉出关卡相机范围时发 `PigOutOfBounds`，`GameMode.cs:384-387` 收到后回到建造态——`CancelPigBoundsDetection` 在声明默认档是 `false`，A/B 档把它改成 `true`，所以 mod B 里猪可以出画面）。**原版没有超时判负**，`MaxTicks: 1200` 是 PigForge 自造的，已删（`PlayHost` 现在传 0）。原版那条矩形的来源是关卡自己的 `LevelManager.m_cameraLimits`（在关卡文件的 `PrefabOverrides` 文本块里，`Level_05` = `topLeft(-10.46, 13.45)` / `size(56.3, 24.7)`），我们暂时仍用地形 AABB + 25 m 余量。
 - 没有星级/挑战/计时/收集/存档/关卡选择/结算页（`G79`–`G84` 全部未实现）。
 - 物理契约已有 `PhysicsShapeKind.ConvexMesh` / `TriangleMesh` 两个枚举值、`PartContentParser` 也认得
   `convexMesh`/`triangleMesh` 的 `vertices`/`triangles` 键。**网格形状已落地**（2026-10-06，`ADR-032`）：
@@ -146,7 +147,7 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 | 片 | 内容 | 依赖 |
 |---|---|---|
 | P1 ✅ | 解码工具 + 报告（本文档的证据面） | — |
-| P2 ◐ | 关卡内容格式 v2 + 搬运：契约（`terrain`: position/depth/**边界环**）、房间侧的静态网格体（无实体）、转换器 `tools/bple-levels/build-levels.mjs`、客户端 `GET /level` 侧通道与地形绘制 —— 见 `ADR-033`。**v3 已补**：每个地形对象的 `collider` 位（1648 碰撞 / 498 纯视觉）与 `fill`（`e2d/Fill` 的贴图/颜色/tile，17 张贴图复制到客户端资产目录）——见 `docs/specs/level-terrain-visuals.md`。**未做**：`_curve` 条带 + 2146 张内嵌控制贴图、道具实例、`PrefabOverrides` | 格式已定（§3） |
+| P2 ◐ | 关卡内容格式 v2 + 搬运：契约（`terrain`: position/depth/**边界环**）、房间侧的静态网格体（无实体）、转换器 `tools/bple-levels/build-levels.mjs`、客户端 `GET /level` 侧通道与地形绘制 —— 见 `ADR-033`。**v3 已补**：每个地形对象的 `collider` 位（1648 碰撞 / 498 纯视觉）与 `fill`（`e2d/Fill` 的贴图/颜色/tile，17 张贴图复制到客户端资产目录）——见 `docs/specs/level-terrain-visuals.md`。**v4 已补**：`_curve` 边缘条带（两行顶点 + 两层贴图与 wrap + `uScale` + `splat1` 运行段；控制贴图在构建期折成运行段）。**未做**：道具实例、`PrefabOverrides`（含原版那条 `m_cameraLimits` 出界矩形） | 格式已定（§3） |
 | P3 ✅ | 地形进物理：契约 `TriangleMeshShapeDefinition` + 两个后端的静态网格形状（`ADR-032`） | 独立于 P2，已先行 |
 | P4 | 道具件：先做每关都需要的（`LevelStart`、`DessertPlace`、`StarBox`、`BoxChallenge`、`e2dTerrainBase`） | P2 |
 | P5 | 目标/挑战/收集：星级 3 条（过关 + 两个 Challenge）、计时、收集计数 | P4 |
@@ -161,8 +162,8 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
   双面语义，两个后端各自实现；见 `ADR-032`（含双面与绕向的实测）。② 离线拆成静态凸体/盒子拼接、
   ③ 只做视觉网格两条不再考虑。
 - **A3 进度存哪**：服务器侧文件（多人一致、可做排名）还是客户端 localStorage（单机、零后端）。
-- **A4 是否保留原版失败条件**：搬关后 `MaxTicks` 超时与出界判负是 PigForge 自定（`G78`），原版两者皆无。
-- **B1 关卡 JSON**：新增 `schemaVersion 2`（地形 + 道具 + 目标扩展），现有两张关卡保持可解析。
+- **A4 失败条件**（2026-10-06 查原版源码后收口）：**出界判负是原版机制**（`Pig.cs:397-403`：猪掉出关卡相机范围 → `PigOutOfBounds` → `GameMode.cs:384-387` 回到建造态；`CancelPigBoundsDetection` 声明默认 `false`，A/B 档为 `true`，所以 mod B 里镜头可以出画面）；**原版没有 tick 超时**，我们自造的 `MaxTicks: 1200`（每次 Start 后 20 s 判负）已删除。**仍待做**：出界矩形改用关卡自己的 `m_cameraLimits`（要读 `PrefabOverrides`），以及把出界的后果从 `Failed` 改成「回建造态」。
+- **B1 关卡 JSON**：`schemaVersion` 已到 **4**（v2 地形 / v3 fill / v4 边缘条带）；旧版本文档一律保持可解析。
 - **B2 道具件的最小集合**：先按「每关都出现」的清单做，其余按需。
 - **B3 `TerrainScale`**：按声明默认档 1.0 走恒等；不做用户档位。
 

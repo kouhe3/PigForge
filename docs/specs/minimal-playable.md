@@ -2,6 +2,11 @@
 
 > 状态：Draft。消费 `docs/intent/minimal-playable.md`。收窄 `web-client-spec.md` M3：本切片不做预测回滚、Naive UI、keep。
 > 权威契约仍是协议 v2、`SnapshotWire`、ADR-001/002；本文件只补「能玩」缺口。
+>
+> **2026-10-06 修正（第二十八轮）**：本文的「超时 1200 tick = 失败条件」已删。原版**没有**跑动计时器
+> （`G81`：`TimeChallenge` 只驱动计时器、超时不判负），唯一会结束一局的是猪**掉出关卡相机范围**
+> （`Pig.cs:397-403` → `GameMode.cs:384-387` 回到建造态），所以 `PlayHost` 现在给目标局传 `MaxTicks: 0`。
+> 下面提到 1200 tick 的地方保留原文，只作为当时的规格记录；现行为见 `docs/specs/original-level-pack.md` §8 的 A4。
 
 ## Capability Map
 
@@ -266,7 +271,7 @@ Web：`gesture` 只产出判别联合（`PlaceRequested` / `RotateRequested` / �
 
 ## Open Questions
 
-- 无。访谈已锁定：本机、手摆、不要 keep、斜坡顶→底。超时 1200 tick 为规格默认；要改走 Ask first。
+- 无。访谈已锁定：本机、手摆、不要 keep、斜坡顶→底。~~超时 1200 tick 为规格默认~~ —— **2026-10-06 已按原版删掉**（见文首修正），出界判负保留；出界的判定源与后果另见差距 `G111`。
 
 ## References
 
