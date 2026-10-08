@@ -17,7 +17,7 @@ import { drawFrame } from "./renderer/draw";
 import { fitBounds } from "./renderer/camera";
 import { groundTextureNames, loadGroundTextures, type GroundTextureSet } from "./renderer/terrain";
 import { curveTextureNames } from "./renderer/terrainCurve";
-import { zoneRect } from "./schema/levelContent";
+import { cameraLimitsRect, zoneRect } from "./schema/levelContent";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
 import { viewState } from "./viewState";
@@ -517,8 +517,10 @@ watch(canEdit, (editable) => {
   }
 });
 
-// A level frames the view on its own bounds. `viewState.camera` is the module singleton the
-// gesture handlers hold by reference, so the fit copies its fields instead of replacing the object.
+// A level frames the view the way the original's camera sees it: the level's own camera rectangle
+// when it has one (v5 -- `LevelManager.m_cameraLimits`, what the original clamps its camera to),
+// otherwise its terrain bounds. `viewState.camera` is the module singleton the gesture handlers hold
+// by reference, so the fit copies its fields instead of replacing the object.
 watch(
   () => session.level,
   (level) => {
@@ -526,7 +528,8 @@ watch(
     if (level === null || node === null) {
       return;
     }
-    Object.assign(viewState.camera, fitBounds(zoneRect(level.bounds), node.clientWidth, node.clientHeight));
+    const rect = level.cameraLimits ? cameraLimitsRect(level.cameraLimits) : zoneRect(level.bounds);
+    Object.assign(viewState.camera, fitBounds(rect, node.clientWidth, node.clientHeight));
   },
 );
 

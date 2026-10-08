@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "contentVersion": "episode_6_level_31",
   "goalZone": {
     "min": [
@@ -26,6 +26,7 @@
       36
     ]
   },
+  "cameraLimits": {"topLeft":[-215,62.8],"size":[65.5,77.2]},
   "spawns": [],
   "terrain": [
     {

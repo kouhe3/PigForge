@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "contentVersion": "episode_6_level_IX",
   "goalZone": {
     "min": [
@@ -26,6 +26,7 @@
       35
     ]
   },
+  "cameraLimits": {"topLeft":[-219.87,85.7],"size":[76.5,98]},
   "spawns": [
     {
       "partTypeId": 15,

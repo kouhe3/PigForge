@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "contentVersion": "scenario_09",
   "goalZone": {
     "min": [
@@ -26,6 +26,7 @@
       35
     ]
   },
+  "cameraLimits": {"topLeft":[-85.59,32.4],"size":[93.3,45.6]},
   "spawns": [],
   "terrain": [
     {

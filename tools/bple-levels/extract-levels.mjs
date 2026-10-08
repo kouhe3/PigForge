@@ -67,6 +67,7 @@ import { readLevel } from "./lib/reader.mjs";
 import { OUTLINE_LOOP, classifyOutline } from "./lib/outline.mjs";
 import { loadTerrainFillTiles, readTextureImport } from "./lib/fill.mjs";
 import { curveLayerRuns, curveRows, readCurveTextureWrap } from "./lib/curve.mjs";
+import { readCameraLimits } from "./lib/overrides.mjs";
 import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap } from "./lib/pack.mjs";
 import { formatJson } from "./lib/write.mjs";
 
@@ -282,6 +283,7 @@ for (const { bundle, file } of dataFiles) {
     prefabInstances: data.instances,
     prefabOverrides: data.overrideBytes.length,
     overrideBytes: data.overrideBytes.reduce((sum, value) => sum + value, 0),
+    cameraLimits: readCameraLimits(data.overrides, check),
     paletteSize: palette.length,
     references: loader?.referenceCount ?? null,
     terrain: data.terrain.length,
@@ -375,6 +377,7 @@ const report = {
     prefabInstances: sum("prefabInstances"),
     prefabOverrides: sum("prefabOverrides"),
     overrideBytes: sum("overrideBytes"),
+    cameraLimits: levels.filter((level) => level.cameraLimits !== null).length,
     terrain: sum("terrain"),
     terrainWithCollider: sum("terrainWithCollider"),
     terrainVisualOnly: sum("terrain") - sum("terrainWithCollider"),
@@ -445,6 +448,7 @@ md.push(`- episode 清单 **${report.counts.episodes}** 张（\`m_levelInfos\` �
 md.push(`- 调色板里去重后的 prefab **${report.counts.palettePrefabs}** 个：零件 **${report.counts.partPrefabs}**（\`part-map.json\` 认得）、非零件道具 **${report.counts.nonPartPrefabs}**`);
 md.push(`- 实例总数 **${report.totals.prefabInstances}**（group ${report.totals.groups}）、地形对象 **${report.totals.terrain}**（带碰撞体 ${report.totals.terrainWithCollider}）、`);
 md.push(`  \`PrefabOverrides\` ${report.totals.prefabOverrides} 条 / ${report.totals.overrideBytes} 字节`);
+md.push(`- 相机界（\`PrefabOverrides\` 里 \`LevelManager.m_cameraLimits\`，\`Pig.cs:396-403\` 的出界矩形）**${report.totals.cameraLimits}/${report.counts.files}** 关有`);
 md.push(`- 地形网格合计：fill ${report.totals.fillVertices} 顶点 / ${report.totals.fillTriangles} 索引，curve ${report.totals.curveVertices} 顶点 / ${report.totals.curveTriangles} 索引，`);
 md.push(`  curve texture 条目 ${report.totals.curveTextures}，control texture ${report.totals.controlTextures}`, "");
 md.push("## 非零件道具（PigForge 没有对应件，搬关必须先有）", "");
@@ -519,6 +523,7 @@ writeFileSync(OUT_MD, `${md.join("\n")}\n`);
 console.log(`files: ${report.counts.files}  bundles: ${histogramLine(new Map(Object.entries(bundleCounts)))}`);
 console.log(`instances: ${report.totals.prefabInstances}  groups: ${report.totals.groups}  terrain: ${report.totals.terrain}`);
 console.log(`palette prefabs: ${report.counts.palettePrefabs} (parts ${report.counts.partPrefabs} / props ${report.counts.nonPartPrefabs})`);
+console.log(`camera limits: ${report.totals.cameraLimits}/${report.counts.files} levels`);
 console.log(
   `fill: ${report.fill.textures.length} texture(s) over ${report.totals.terrain} terrain(s) ` +
     `(collider ${report.totals.terrainWithCollider} / visual ${report.totals.terrainVisualOnly}), ` +

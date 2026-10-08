@@ -1389,6 +1389,14 @@ public sealed class GameRoom : IDisposable
         {
             ResetPlayersOutOfBounds();
         }
+        else if (_output.PigsOutOfBounds.Count > 0)
+        {
+            // The original bounds a pig by the level's own camera rectangle and answers by returning to
+            // its building state (`Pig.cs:396-403` -> `GameMode.cs:384-387`). That is the same rebuild
+            // loop the Retry command runs: the layout captured at Start comes back at its build poses,
+            // ready to be started again, and the room waits in Building for the next Start.
+            Retry();
+        }
     }
 
     public void RunTicks(uint count)

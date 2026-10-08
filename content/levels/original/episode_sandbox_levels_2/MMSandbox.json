@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "contentVersion": "MMSandbox",
   "goalZone": {
     "min": [
@@ -26,6 +26,7 @@
       51
     ]
   },
+  "cameraLimits": {"topLeft":[-273.15,332.8],"size":[452.01,349.3]},
   "spawns": [
     {
       "partTypeId": 10,

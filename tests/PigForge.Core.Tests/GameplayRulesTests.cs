@@ -388,6 +388,102 @@ public sealed class GameplayRulesTests
         Assert.Equal(1, harness.Rules.AlivePigs);
     }
 
+    /// <summary>
+    /// The original's own bound is the level's camera rectangle (<c>Pig.cs:396-403</c>) and its answer
+    /// is the building state (<c>GameMode.cs:384-387</c>), so a level that carries one reports the pig
+    /// for the room to rebuild instead of failing the run.
+    /// </summary>
+    [Fact]
+    public void PigLeavingTheLevelsCameraLimitsIsReportedForTheRoomToRebuild()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f,
+            CameraLimits: new CameraLimits(TopLeftX: -10f, TopLeftY: 20f, SizeX: 40f, SizeY: 30f)));
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
+        harness.Link(pig, new PhysicsBodyId(1));
+        // x = 60 is past topLeft.x + size.x * 1.1 = 34.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(60, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(pig, Assert.Single(harness.Output.PigsOutOfBounds));
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+        Assert.False(harness.Rules.RestartRequested);
+        Assert.Equal(1, harness.Rules.AlivePigs);
+    }
+
+    /// <summary>
+    /// The rectangle is tested against the pig's own transform, not the compound's centre: a pig can
+    /// sit anywhere inside a contraption, on either side of the boundary.
+    /// </summary>
+    [Fact]
+    public void TheCameraLimitTestsThePigsOwnPositionNotTheBodysCentre()
+    {
+        static GameplayHarness Harness(out EntityStore entities)
+        {
+            entities = new EntityStore();
+            return new GameplayHarness(entities, new GameplayConfig(
+                GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+                MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+                TntBlastRadius: 4f,
+                TntBlastImpulse: 12f,
+                TntIgniteImpactSpeed: 5f,
+                CameraLimits: new CameraLimits(TopLeftX: -10f, TopLeftY: 20f, SizeX: 40f, SizeY: 30f)));
+        }
+
+        // The body's centre is inside (y = 1 >= bottom -10) but the pig hangs 15 m below it, out of
+        // bounds -- the centre-only test would miss this.
+        GameplayHarness dropped = Harness(out EntityStore droppedEntities);
+        EntityId droppedPig = droppedEntities.Create();
+        dropped.Rules.AddPig(droppedPig, 0.2f, 0.05f);
+        dropped.Link(droppedPig, new PhysicsBodyId(1), localOffset: new PhysicsVector3(0f, -15f, 0f));
+        dropped.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        dropped.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(droppedPig, Assert.Single(dropped.Output.PigsOutOfBounds));
+
+        // The mirror case: the centre is below the bottom edge but the pig rides 15 m above it, still
+        // inside, so nothing is reported.
+        GameplayHarness carried = Harness(out EntityStore carriedEntities);
+        EntityId carriedPig = carriedEntities.Create();
+        carried.Rules.AddPig(carriedPig, 0.2f, 0.05f);
+        carried.Link(carriedPig, new PhysicsBodyId(1), localOffset: new PhysicsVector3(0f, 15f, 0f));
+        carried.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, -20, 0), PhysicsVector3.Zero);
+
+        carried.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Empty(carried.Output.PigsOutOfBounds);
+        Assert.Equal(GameplayPhase.Playing, carried.Rules.Phase);
+    }
+
+    /// <summary>
+    /// The original's three comparisons, verbatim (<c>Pig.cs:396-403</c>): a pig is out below the
+    /// rectangle's bottom edge, past <c>topLeft.x + size.x * 1.1</c> or back past
+    /// <c>topLeft.x - size.x * 0.1</c>. There is no upper bound at all.
+    /// </summary>
+    [Theory]
+    [InlineData(0f, 0f, true)]
+    [InlineData(0f, -10f, true)]      // exactly the bottom edge is still inside
+    [InlineData(0f, -10.01f, false)]
+    [InlineData(34f, 0f, true)]       // topLeft.x + size.x * 1.1 = -10 + 44
+    [InlineData(34.01f, 0f, false)]
+    [InlineData(-14f, 0f, true)]      // topLeft.x - size.x * 0.1 = -10 - 4
+    [InlineData(-14.01f, 0f, false)]
+    [InlineData(0f, 1000f, true)]     // no top bound
+    public void CameraLimitsReachTheOriginalsEdges(float x, float y, bool expected)
+    {
+        CameraLimits limits = new(TopLeftX: -10f, TopLeftY: 20f, SizeX: 40f, SizeY: 30f);
+
+        Assert.Equal(expected, limits.Contains(new PhysicsVector3(x, y, 0f)));
+    }
+
     [Fact]
     public void DisabledObjectivesKeepPlayingWhenPigEntersGoalZone()
     {

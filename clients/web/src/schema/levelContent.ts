@@ -105,13 +105,26 @@ export interface LevelTerrain {
 
 export interface LevelContentDocument {
   format: "pigforge.level-content";
-  schemaVersion: 1 | 2 | 3 | 4;
+  schemaVersion: 1 | 2 | 3 | 4 | 5;
   contentVersion: string;
   goalZone: LevelZone;
   bounds: LevelZone;
+  /**
+   * v5 only: the level's own camera rectangle out of the level file's `PrefabOverrides`
+   * (`LevelManager.m_cameraLimits`), the pig's real bound (`Pig.cs:396-403`). `topLeft` is the
+   * rectangle's top-left corner and `size` extends right and down, which is also what the original
+   * limits its camera to (`IngameCamera.cs:599` frames the rect that way).
+   */
+  cameraLimits?: LevelCameraLimits;
   spawns: LevelSpawn[];
   /** v2 only; a v1 document omits it and the client draws no terrain. */
   terrain?: LevelTerrain[];
+}
+
+/** A v5 level's own camera rectangle, in the original's own `topLeft` + `size` form. */
+export interface LevelCameraLimits {
+  topLeft: [number, number];
+  size: [number, number];
 }
 
 /** A rectangle in the plane the renderer draws (x/y world metres, y up). */
@@ -127,11 +140,23 @@ export function zoneRect(zone: LevelZone): WorldRect {
   return { minX: zone.min[0], minY: zone.min[1], maxX: zone.max[0], maxY: zone.max[1] };
 }
 
+/**
+ * The world rectangle a level's camera limits cover: `topLeft` is the top-left corner and `size`
+ * extends right and down, so the bottom edge is `topLeft.y - size.y` -- the same rect the original
+ * builds (`IngameCamera.cs:599`).
+ */
+export function cameraLimitsRect(limits: LevelCameraLimits): WorldRect {
+  const [left, top] = limits.topLeft;
+  const [width, height] = limits.size;
+  return { minX: left, minY: top - height, maxX: left + width, maxY: top };
+}
+
 const ROOT_REQUIRED_KEYS = ["format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns"];
 // v1 has no `terrain`, but the server parser accepts the v2 addition on either version, and the
 // client only ever decodes what the server already parsed.
-const ROOT_KEYS = [...ROOT_REQUIRED_KEYS, "terrain"];
+const ROOT_KEYS = [...ROOT_REQUIRED_KEYS, "terrain", "cameraLimits"];
 const ZONE_KEYS = ["min", "max"];
+const CAMERA_LIMITS_KEYS = ["topLeft", "size"];
 const SPAWN_REQUIRED_KEYS = ["partTypeId", "position"];
 const SPAWN_KEYS = [...SPAWN_REQUIRED_KEYS, "angle", "role", "tntFuseTicks", "motorImpulsePerTick", "motorDirectionX", "wheel"];
 const TERRAIN_REQUIRED_KEYS = ["position", "depth", "loops"];
@@ -159,14 +184,24 @@ export function validateLevelContent(value: unknown): string[] {
     errors.push("root.format: must be 'pigforge.level-content'.");
   }
   if (document.schemaVersion !== 1 && document.schemaVersion !== 2
-    && document.schemaVersion !== 3 && document.schemaVersion !== 4) {
-    errors.push("root.schemaVersion: versions 1 to 4 are supported.");
+    && document.schemaVersion !== 3 && document.schemaVersion !== 4 && document.schemaVersion !== 5) {
+    errors.push("root.schemaVersion: versions 1 to 5 are supported.");
   }
   if (!isContentVersion(document.contentVersion)) {
     errors.push("root.contentVersion: must contain 1 to 128 non-whitespace-padded characters.");
   }
   validateZone(document.goalZone, "root.goalZone", errors);
   validateZone(document.bounds, "root.bounds", errors);
+  // v5 carries the level's own camera rectangle and every v5 document must; older versions must not.
+  if (document.schemaVersion === 5) {
+    if (document.cameraLimits === undefined) {
+      errors.push("root.cameraLimits: required on a schemaVersion 5 document.");
+    } else {
+      validateCameraLimits(document.cameraLimits, "root.cameraLimits", errors);
+    }
+  } else if (document.cameraLimits !== undefined) {
+    errors.push("root.cameraLimits: only a schemaVersion 5 document carries the level's camera limits.");
+  }
   if (!Array.isArray(document.spawns)) {
     errors.push("root.spawns: must be an array.");
   } else {
@@ -176,8 +211,11 @@ export function validateLevelContent(value: unknown): string[] {
     if (!Array.isArray(document.terrain)) {
       errors.push("root.terrain: must be an array.");
     } else {
-      const modern = document.schemaVersion === 3 || document.schemaVersion === 4;
-      const curved = document.schemaVersion === 4;
+      // The terrain shape is version-gated: v3 gives it the collider bit and the fill, v4 the edge
+      // trim. A malformed version is already an error above, so an unknown one reads as the oldest.
+      const version = typeof document.schemaVersion === "number" ? document.schemaVersion : 0;
+      const modern = version >= 3;
+      const curved = version >= 4;
       document.terrain.forEach((terrain, index) => {
         validateTerrain(terrain, `root.terrain[${index}]`, modern, curved, errors);
       });
@@ -226,6 +264,30 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isVec3(value: unknown): value is Vec3 {
   return Array.isArray(value) && value.length === 3 && value.every(isFiniteNumber);
+}
+
+/** An `[x, y]` pair; a camera limit is 2D (the plane the game plays in). */
+function isPoint2(value: unknown): value is [number, number] {
+  return Array.isArray(value) && value.length === 2 && value.every(isFiniteNumber);
+}
+
+/** The level's own camera rectangle: `topLeft` and `size`, each `[x, y]`, with a positive size. */
+function validateCameraLimits(value: unknown, path: string, errors: string[]): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`${path}: camera limits must be a JSON object.`);
+    return;
+  }
+
+  const limits = value as Record<string, unknown>;
+  validateKeys(limits, CAMERA_LIMITS_KEYS, CAMERA_LIMITS_KEYS, path, errors);
+  if (!isPoint2(limits.topLeft)) {
+    errors.push(`${path}.topLeft: must be [x, y] with finite numbers.`);
+  }
+  if (!isPoint2(limits.size)) {
+    errors.push(`${path}.size: must be [x, y] with finite numbers.`);
+  } else if (limits.size[0] <= 0 || limits.size[1] <= 0) {
+    errors.push(`${path}.size: must be positive on both axes.`);
+  }
 }
 
 function validateZone(value: unknown, path: string, errors: string[]): void {

@@ -1,7 +1,8 @@
-// Level builder: turns the original's 277 binary level files into PigForge level content v3
-// (`content/levels/original/<area>/<scene>.json`) -- every `e2dTerrain` object (its collision outline,
-// whether it carries a MeshCollider, and the fill texture/color/tile that draw its ground), the
-// finish trigger, the map bounds and the (rare) placed parts.
+// Level builder: turns the original's 277 binary level files into PigForge level content v5
+// (`content/levels/original/<area>/<scene>.json`) -- the level's own `PrefabOverrides` camera limits
+// (the rectangle the original drops the pig out of, `Pig.cs:396-403`), every `e2dTerrain` object (its
+// collision outline, whether it carries a MeshCollider, and the fill texture/color/tile that draw its
+// ground), the finish trigger, the map bounds and the (rare) placed parts.
 //
 // It is the write side of the same decoder the extractor reports with (`lib/`), so every emitted
 // number comes out of the pack: the palette resolves a `PrefabIndex` to its prefab, the goal zone
@@ -11,8 +12,8 @@
 // docs/specs/original-level-pack.md §3). Nothing here is hand-written that the pack defines.
 //
 // Output shape (`lib/write.mjs`): the readable 2-space layout for `format`/`schemaVersion`/
-// `contentVersion`/`goalZone`/`bounds`/`spawns`, one `terrain` entry per object with its
-// `position`, `depth` and `loops`, and one line per outline loop -- the pack is three quarters
+// `contentVersion`/`goalZone`/`bounds`/`spawns`, one line for `cameraLimits`, one `terrain` entry per
+// object with its `position`, `depth` and `loops`, and one line per outline loop -- the pack is three quarters
 // outline points, so those carry the file (33.8 MB pretty-printed, 8.7 MB this way). Every number
 // in a content file is exactly a float32 -- the pack reaches us through `BinaryReader.ReadSingle`
 // and PigForge stores these fields as `float` -- so the derived corners (bounds, goal zone, spawn
@@ -47,6 +48,7 @@ import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap, readCollisionMeshD
 import { readBoxCollider } from "./lib/goal.mjs";
 import { assertTerrainFillTileSizes, readE2dTerrainGuid, readImportState, readTerrainFillTile } from "./lib/fill.mjs";
 import { curveBlockOf } from "./lib/curve.mjs";
+import { readCameraLimits } from "./lib/overrides.mjs";
 import { formatJson, formatLevelDocument, sha256 } from "./lib/write.mjs";
 
 const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE 2022.1.9")));
@@ -75,9 +77,10 @@ const check = (condition, message) => {
 // never silently dropped -- the schema has no place to put it.
 const ROTATION_EPSILON = 0.0001;
 const SCALE_EPSILON = 0.0001;
-// The original has no out-of-bounds kill; PigForge's is a safety net, so bounds only has to stop a
-// pig wandering to infinity, not clip level play. 25 = 2.5 x the collider depth (the extrusion the
-// terrain sticks into z).
+// `bounds` is PigForge's own coarse box around the terrain (terrain AABB + this margin): the client
+// frames the view on it. The pig's own bound is the level's camera limits, read from the level file's
+// `PrefabOverrides` (`lib/overrides.mjs`) -- the original drops the pig out of that rectangle
+// (`Pig.cs:396-403`). 25 = 2.5 x the collider depth (the extrusion the terrain sticks into z).
 const BOUNDS_MARGIN = 25;
 
 const contentVersionOf = (sceneName) => sceneName.replaceAll(" ", "-");
@@ -187,6 +190,7 @@ const totals = {
   spawns: 0,
   goals: 0,
   levelsWithoutGoal: 0,
+  cameraLimits: 0,
   bytes: 0,
 };
 
@@ -421,16 +425,23 @@ for (const { bundle, file } of dataFiles) {
     });
   }
 
+  // ---------------------------------------------------------------- camera limits
+  // The original's own pig bound, straight out of the level file's `PrefabOverrides`: every one of
+  // the 277 levels overrides `LevelManager.m_cameraLimits`, so a level without one is drift.
+  const cameraLimits = readCameraLimits(data.overrides, check);
+  if (cameraLimits) totals.cameraLimits += 1;
+
   // ---------------------------------------------------------------- write
   const contentVersion = contentVersionOf(sceneName);
   const area = areaOf(bundle);
   const relativePath = `content/levels/original/${area}/${contentVersion}.json`;
   const document = {
     format: "pigforge.level-content",
-    schemaVersion: 4,
+    schemaVersion: 5,
     contentVersion,
     goalZone,
     bounds: levelBounds,
+    cameraLimits,
     spawns,
     terrain: terrainEntries,
   };
@@ -555,6 +566,7 @@ const report = {
     spawns: totals.spawns,
     goals: totals.goals,
     levelsWithoutGoal: totals.levelsWithoutGoal,
+    cameraLimits: totals.cameraLimits,
     terrainSkipped: skippedTerrains.length,
     terrainSkippedForFill: skippedFills.length,
     terrainSkippedForCurve: skippedCurves.length,
@@ -586,6 +598,7 @@ md.push(`- 关卡 **${rows.length}**，地形条目 **${totals.terrain}**（每�
 md.push(`- 边缘条带（\`curve.shader\`）节点 **${totals.curveNodes}**，第二层运行段 **${totals.curveRuns}**（层选择来自关卡文件内嵌控制贴图的 G 通道）`);
 md.push(`- 关卡贴图 **${textureRows.length}** 张 / ${textureBytes} 字节（fill ${fillTextureNames.size} + curve ${curveTextureNames.size}，Bilinear 已断言），复制到 \`${OUT_TEXTURES}\``);
 md.push(`- 零件实例 **${totals.spawns}**，有终点的关卡 **${totals.goals}**，无终点（沙盒/MM）**${totals.levelsWithoutGoal}**`);
+md.push(`- 相机界（\`PrefabOverrides\` 的 \`LevelManager.m_cameraLimits\`，原版出界判定的矩形）**${totals.cameraLimits}/${rows.length}** 关`);
 md.push(`- 深度 **${DEPTH}**（\`e2dConstants.cs\`），bounds 外扩 **${BOUNDS_MARGIN}** m`);
 md.push(`- 跳过地形 **${skippedTerrains.length}**（轮廓不可走）+ **${skippedFills.length}**（fill 不可组装）+ **${skippedCurves.length}**（条带不可组装），失败 **${failures.length}**`);
 md.push("", `**${changed} changed / ${unchanged} unchanged**${DRY_RUN ? " (dry-run，未写盘)" : ""}，合计 ${totals.bytes} 字节。`, "");
@@ -628,6 +641,7 @@ console.log(
 console.log(`levels: ${rows.length}  terrain: ${totals.terrain}  loops: ${totals.loops}  points: ${totals.points}  spawns: ${totals.spawns}`);
 console.log(`curve: nodes: ${totals.curveNodes}  second-layer runs: ${totals.curveRuns}`);
 console.log(`goal: ${totals.goals}  no-goal: ${totals.levelsWithoutGoal}  depth: ${DEPTH}  bounds margin: ${BOUNDS_MARGIN}`);
+console.log(`camera limits: ${totals.cameraLimits}/${rows.length} levels`);
 console.log(
   `terrain collider/visual: ${totals.colliderTerrains}/${totals.terrain - totals.colliderTerrains}` +
     `  skipped: ${skippedTerrains.length} outline + ${skippedFills.length} fill + ${skippedCurves.length} curve`,

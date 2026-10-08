@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "contentVersion": "Episode_6_Ice-Sandbox",
   "goalZone": {
     "min": [
@@ -26,6 +26,7 @@
       36
     ]
   },
+  "cameraLimits": {"topLeft":[-230,135],"size":[201,150]},
   "spawns": [],
   "terrain": [
     {

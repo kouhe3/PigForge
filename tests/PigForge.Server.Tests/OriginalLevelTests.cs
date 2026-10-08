@@ -90,6 +90,8 @@ public sealed class OriginalLevelTests
         int spawns = 0;
         int levelsWithoutTerrain = 0;
         int levelsWithoutGoal = 0;
+        int levelsWithCameraLimits = 0;
+        HashSet<CameraLimits> cameraLimits = new();
         HashSet<string> fillTextures = new(StringComparer.Ordinal);
         foreach (string file in files)
         {
@@ -100,6 +102,14 @@ public sealed class OriginalLevelTests
             // spaces ("Episode_6_Dark Sandbox") with dashes so the file system and the field agree.
             Assert.Equal(Path.GetFileNameWithoutExtension(file), document.ContentVersion);
             Assert.DoesNotContain(' ', document.ContentVersion);
+
+            // v5: every level carries the original's own camera rectangle, read out of its
+            // `PrefabOverrides` (`LevelManager.m_cameraLimits`) -- that is the pig's bound.
+            Assert.NotNull(document.CameraLimits);
+            CameraLimits limits = document.CameraLimits.Value;
+            Assert.True(limits.SizeX > 0f && limits.SizeY > 0f, $"{file}: camera limits size {limits.SizeX} x {limits.SizeY}");
+            levelsWithCameraLimits++;
+            cameraLimits.Add(limits);
 
             if (document.Terrain.Count == 0)
             {
@@ -161,6 +171,10 @@ public sealed class OriginalLevelTests
         Assert.Equal(17, fillTextures.Count);
         Assert.Equal(20, spawns);
         Assert.Equal(14, levelsWithoutGoal);
+        // Every level overrides `LevelManager.m_cameraLimits` and no two read the same (measured
+        // 2026-10-06: 277/277, 277 distinct rectangles).
+        Assert.Equal(277, levelsWithCameraLimits);
+        Assert.Equal(277, cameraLimits.Count);
     }
 
     [Fact]
@@ -200,6 +214,77 @@ public sealed class OriginalLevelTests
         Assert.True(
             without.Height < candidate.LevelMinY - 5f,
             $"{candidate.File}: without terrain the pig must fall well below the terrain (y = {without.Height}, min {candidate.LevelMinY})");
+    }
+
+    /// <summary>
+    /// The other half of the original's out-of-bounds rule: the bound is the level's own camera
+    /// rectangle and the answer is the building state (<c>Pig.cs:396-403</c> ->
+    /// <c>GameMode.cs:384-387</c>) -- the contraption comes back at its build poses and can be
+    /// launched again, which is the room's `Retry`, not a failed run.
+    /// </summary>
+    [Fact]
+    public void APigLeavingTheLevelsCameraLimitsReturnsTheRoomToItsBuildLayout()
+    {
+        // A narrow rectangle and a pig well outside it: the very first tick is out of bounds, and the
+        // only thing in the room is the placed pig, so the goal cannot end the run instead.
+        LevelContentDocument level = LevelContentParser.Parse("""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 5,
+            "contentVersion": "camera-limits-room",
+            "goalZone": { "min": [400, 400, -1], "max": [401, 401, 1] },
+            "bounds": { "min": [-50, -50, -10], "max": [50, 50, 10] },
+            "cameraLimits": { "topLeft": [0, 4], "size": [2, 2] },
+            "spawns": []
+        }
+        """);
+        Assert.NotNull(level.CameraLimits);
+
+        using GameRoom room = CreateGoalRoom(level);
+        Assert.Equal(RoomMode.Building, room.Mode);
+        CommandOutcome placed = room.Submit(new PlacePartCommand(0, SequencePlace, 0, PartPig, 10f, 5f, 0f, 1f));
+        Assert.True(placed.IsAccepted, $"place: {placed.Status}/{placed.Error}");
+        Assert.True(room.Submit(new StartSimulationCommand(0, SequenceStart, 0)).IsAccepted);
+        Assert.Equal(RoomMode.Running, room.Mode);
+
+        // x = 10 is past topLeft.x + size.x * 1.1 = 2.2, so the first objective check reports the pig.
+        room.Tick();
+
+        Assert.Equal(RoomMode.Building, room.Mode);
+        Assert.Equal(GameplayPhase.Playing, room.Phase);
+        // The same contraption, back at its build pose as a preview, and startable again: the Retry
+        // loop, not a frozen failed room.
+        SnapshotEntity restored = Assert.Single(Publish(room), entity => entity.PartTypeId == PartPig);
+        Assert.Equal(0u, restored.PhysicsBodyId);
+        Assert.Equal(10f, restored.Position.X);
+        Assert.Equal(5f, restored.Position.Y);
+        Assert.True(room.Submit(new StartSimulationCommand(0, SequenceStart + 2, 0)).IsAccepted);
+        Assert.Equal(RoomMode.Running, room.Mode);
+    }
+
+    /// <summary>
+    /// A goal-based (non-sandbox) room over an arbitrary document, the shape `PlayHost.CreateLevelRoom`
+    /// builds: the level's own goal, bounds and camera limits, no tick limit.
+    /// </summary>
+    private static GameRoom CreateGoalRoom(LevelContentDocument level)
+    {
+        string root = FindRepositoryRoot();
+        PartContentLibrary parts = PartContentLibrary.Load(Path.Combine(root, "content", "parts.json"));
+        GameplayConfig config = new(
+            level.GoalZone,
+            level.MapBounds,
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 25f,
+            TntIgniteImpactSpeed: 5f,
+            MaxTicks: 0,
+            CameraLimits: level.CameraLimits);
+        GameRoom room = new(GameRoomOptions.Create(
+            parts,
+            () => new BepuPhysicsWorld(new PhysicsVector3(0f, -9.81f, 0f)),
+            config,
+            sandboxMode: false));
+        room.SetupFromLevel(level);
+        return room;
     }
 
     private readonly record struct FallResult(float Height, float Speed);

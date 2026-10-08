@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { decodeLevelContent, validateLevelContent, zoneRect } from "./levelContent";
+import { cameraLimitsRect, decodeLevelContent, validateLevelContent, zoneRect } from "./levelContent";
 
 /** The v2 document from the client brief: one terrain outline, one spawn, a goal zone and bounds. */
 const v2 = {
@@ -65,7 +65,7 @@ describe("validateLevelContent root", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expectRejected({ schemaVersion: 5 }, "versions 1 to 4");
+    expectRejected({ schemaVersion: 6 }, "versions 1 to 5");
   });
 
   it("rejects an empty, padded or non-string contentVersion", () => {
@@ -354,5 +354,60 @@ describe("validateLevelContent curve", () => {
 describe("zoneRect", () => {
   it("takes the x/y extent of the zone and ignores z", () => {
     expect(zoneRect({ min: [12, -0.5, -2], max: [16, 2.5, 2] })).toEqual({ minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 });
+  });
+});
+
+/** The v5 document: the v4 shape plus the level's own camera limits (the pig's real bound). */
+const v5 = {
+  ...structuredClone(v4),
+  schemaVersion: 5,
+  cameraLimits: { topLeft: [-10.46, 13.45], size: [56.3, 24.7] },
+};
+
+/** The v5 document with its `cameraLimits` replaced by `value`. */
+function withCameraLimits(value: unknown): string[] {
+  return validateLevelContent({ ...structuredClone(v5), cameraLimits: value });
+}
+
+describe("validateLevelContent camera limits", () => {
+  it("accepts a v5 document with the level's camera limits", () => {
+    expect(validateLevelContent(v5)).toEqual([]);
+  });
+
+  it("requires cameraLimits on a v5 document and refuses it on an older one", () => {
+    const missing = structuredClone(v5) as Record<string, unknown>;
+    delete missing.cameraLimits;
+    expect(validateLevelContent(missing)).toContain("root.cameraLimits: required on a schemaVersion 5 document.");
+    for (const schemaVersion of [1, 2, 3, 4]) {
+      const older = structuredClone(v5) as Record<string, unknown>;
+      older.schemaVersion = schemaVersion;
+      expect(validateLevelContent(older))
+        .toContain("root.cameraLimits: only a schemaVersion 5 document carries the level's camera limits.");
+    }
+  });
+
+  it("rejects a malformed camera rectangle", () => {
+    expect(withCameraLimits(3)).toContain("root.cameraLimits: camera limits must be a JSON object.");
+    expect(withCameraLimits({ topLeft: [0, 0], size: [1, 1], extra: 1 }))
+      .toContain("root.cameraLimits: unknown property 'extra'.");
+    expect(withCameraLimits({ topLeft: [0, 0] }))
+      .toContain("root.cameraLimits: missing required property 'size'.");
+    expect(withCameraLimits({ topLeft: [0], size: [1, 1] }))
+      .toContain("root.cameraLimits.topLeft: must be [x, y] with finite numbers.");
+    expect(withCameraLimits({ topLeft: [0, Number.NaN], size: [1, 1] }))
+      .toContain("root.cameraLimits.topLeft: must be [x, y] with finite numbers.");
+    expect(withCameraLimits({ topLeft: [0, 0], size: [0, 1] }))
+      .toContain("root.cameraLimits.size: must be positive on both axes.");
+  });
+});
+
+describe("cameraLimitsRect", () => {
+  it("turns topLeft + size into the rectangle the original builds", () => {
+    const rect = cameraLimitsRect({ topLeft: [-10.46, 13.45], size: [56.3, 24.7] });
+    expect(rect.minX).toBeCloseTo(-10.46);
+    expect(rect.maxX).toBeCloseTo(45.84);
+    expect(rect.maxY).toBeCloseTo(13.45);
+    // size extends *down* from topLeft (`IngameCamera.cs:599` builds the rect that way).
+    expect(rect.minY).toBeCloseTo(-11.25);
   });
 });

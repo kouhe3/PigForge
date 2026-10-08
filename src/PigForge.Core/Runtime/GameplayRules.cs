@@ -18,6 +18,23 @@ public readonly record struct GameplayZone(PhysicsVector3 Min, PhysicsVector3 Ma
 }
 
 /// <summary>
+/// The original's own camera rectangle (<c>LevelManager.CameraLimits</c>, <c>LevelManager.cs:9-16</c>):
+/// <see cref="TopLeftX"/>/<see cref="TopLeftY"/> is its top-left corner and
+/// <see cref="SizeX"/>/<see cref="SizeY"/> extends right and down. A pig is outside it when it drops
+/// below the bottom edge, runs past <c>topLeft.x + size.x * 1.1</c> or back past
+/// <c>topLeft.x - size.x * 0.1</c> (<c>Pig.cs:396-403</c>) -- the x margins are the original's own
+/// asymmetry and there is no upper bound at all. The original answers by returning to its building
+/// state (<c>GameMode.cs:384-387</c>).
+/// </summary>
+public readonly record struct CameraLimits(float TopLeftX, float TopLeftY, float SizeX, float SizeY)
+{
+    public bool Contains(PhysicsVector3 position) =>
+        position.Y >= TopLeftY - SizeY
+        && position.X <= TopLeftX + SizeX * 1.1f
+        && position.X >= TopLeftX - SizeX * 0.1f;
+}
+
+/// <summary>
 /// Level-driven rule parameters. Per ADR-002 there are no damage primitives: only
 /// impulses, position triggers (goal zone, map bounds) and restart.
 /// </summary>
@@ -34,7 +51,10 @@ public sealed record GameplayConfig(
     // True when the physics backend already applies restitution in its solver (see
     // PhysicsCapabilities.AppliesRestitutionNatively): the rules layer then leaves elasticity
     // alone instead of adding a second, synthesized bounce on top of it.
-    bool RestitutionAppliedNatively = false)
+    bool RestitutionAppliedNatively = false,
+    // The level's own camera rectangle (a v5 document's `cameraLimits`): the pig's real bound. A
+    // document without one (PigForge's hand-made v1 slope/terrain rooms) falls back to `MapBounds`.
+    CameraLimits? CameraLimits = null)
 {
     public static GameplayConfig Default { get; } = new(
         GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
@@ -65,12 +85,18 @@ public sealed class GameplayTickOutput
     /// (<c>Pig.cs:249-262</c>), so this is a per-tick value, not a spawn-time one.</summary>
     public List<PartDampingOverride> DampingOverrides { get; } = new();
 
+    /// <summary>Pigs whose own transform left the level's camera rectangle this tick
+    /// (<see cref="GameplayConfig.CameraLimits"/>, <c>Pig.cs:396-403</c>). The room answers the way the
+    /// original does -- <c>GameMode.cs:384-387</c> returns to the building state.</summary>
+    public List<EntityId> PigsOutOfBounds { get; } = new();
+
     public void Clear()
     {
         Commands.Clear();
         DestroyedEntities.Clear();
         DetachedEntities.Clear();
         DampingOverrides.Clear();
+        PigsOutOfBounds.Clear();
     }
 }
 
@@ -82,7 +108,8 @@ public readonly record struct PartDampingOverride(EntityId Entity, float Linear,
 /// Runtime gameplay rules (motors, wheels, pigs, TNT, joint breaks, level outcome) that
 /// consume physics events and snapshots only. Semantics per ADR-002: pigs are
 /// indestructible bouncy cargo; TNT is a pure momentum source; win is delivery into the
-/// goal zone; a pig leaving the map bounds requests a deterministic restart.
+/// goal zone; a pig leaving the level's camera rectangle is reported so the room can do what
+/// the original does -- return to the building state.
 /// </summary>
 public sealed class GameplayRules
 {
@@ -821,7 +848,7 @@ public sealed class GameplayRules
         RunBlasters(output);
         RunSlowSpeedDamping(output);
         DropCommandsForDestroyedBodies(output);
-        CheckObjectives(tick);
+        CheckObjectives(tick, output);
         StorePreviousVelocities();
         _hasProcessedTick = true;
     }
@@ -2449,7 +2476,7 @@ public sealed class GameplayRules
         }
     }
 
-    private void CheckObjectives(uint tick)
+    private void CheckObjectives(uint tick, GameplayTickOutput output)
     {
         if (!_config.ObjectivesEnabled)
         {
@@ -2471,8 +2498,23 @@ public sealed class GameplayRules
                 return;
             }
 
-            if (!_config.MapBounds.Contains(kinematics.Position))
+            if (_config.CameraLimits is CameraLimits cameraLimits)
             {
+                // The original's bound is the level's own camera rectangle tested against the pig's own
+                // transform (Pig.cs:396-403), not the cluster's centre: the pig sits somewhere inside a
+                // contraption and the rectangle is generous enough that only a real escape leaves it.
+                // The answer is the building state (GameMode.cs:384-387), which the room runs.
+                ResolvePartFrame(pigs.CurrentId, link.Body.Value, kinematics.Position, out PhysicsVector3 pigPosition, out _);
+                if (!cameraLimits.Contains(pigPosition))
+                {
+                    output.PigsOutOfBounds.Add(pigs.CurrentId);
+                    return;
+                }
+            }
+            else if (!_config.MapBounds.Contains(kinematics.Position))
+            {
+                // A document with no camera limits (PigForge's own v1 slope/terrain rooms): the coarse
+                // map box stays the pig's bound and leaving it still ends the run.
                 Phase = GameplayPhase.Failed;
                 RestartRequested = true;
                 return;

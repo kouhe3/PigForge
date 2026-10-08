@@ -124,16 +124,17 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 5,
+            "schemaVersion": 6,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [0, 0], "size": [1, 1] },
             "spawns": []
         }
         """;
 
         LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
-        Assert.Contains("schemaVersion", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("root.schemaVersion", exception.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -431,6 +432,94 @@ public sealed class LevelContentTests
             Loops: [Array.Empty<PhysicsVector3>()]);
 
         Assert.Throws<ArgumentException>(() => LevelTerrainMesh.Build(terrain));
+    }
+
+    /// <summary>
+    /// v5 adds the level's own camera rectangle, read out of the level file's `PrefabOverrides`
+    /// (`LevelManager.m_cameraLimits`): `topLeft` is its top-left corner and `size` extends right and
+    /// down. It is the pig's bound -- the original sends `PigOutOfBounds` when a pig leaves it and
+    /// answers by returning to the building state (`Pig.cs:396-403`, `GameMode.cs:384-387`).
+    /// </summary>
+    [Fact]
+    public void AVersionFiveLevelCarriesItsOwnCameraLimits()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 5,
+            "contentVersion": "terrain-v5",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "terrain": [
+                {
+                    "position": [-2.7907727, 9.021405, 0],
+                    "depth": 10,
+                    "collider": true,
+                    "fill": {
+                        "texture": "Ground_Rocks_Texture.png",
+                        "color": [255, 255, 255, 255],
+                        "tileOffset": [0, 6.2],
+                        "tileSize": [5, 5]
+                    },
+                    "curve": {
+                        "textures": [
+                            { "texture": "Ground_Rocks_Texture.png", "wrap": "clamp" },
+                            { "texture": "Ground_Rocks_Outline_Texture.png", "wrap": "repeat" }
+                        ],
+                        "uScale": 10,
+                        "splat1": [[1, 2]],
+                        "nodes": [[0, 0], [1, 0], [2, 3]],
+                        "stripe": [[0, 0.1], [1, 0.1], [2, 3.1]]
+                    },
+                    "loops": [ [ [0, 0], [4, 0], [4, 3] ] ]
+                }
+            ]
+        }
+        """;
+
+        LevelContentDocument level = LevelContentParser.Parse(json);
+
+        Assert.Equal((ushort)5, LevelContentDocument.SchemaVersion);
+        CameraLimits limits = Assert.IsType<CameraLimits>(level.CameraLimits);
+        Assert.Equal(-10.46f, limits.TopLeftX);
+        Assert.Equal(13.45f, limits.TopLeftY);
+        Assert.Equal(56.3f, limits.SizeX);
+        Assert.Equal(24.7f, limits.SizeY);
+        // The converted pack carries the rectangle the original's own level file does: Level_05's
+        // `LevelManager` override reads topLeft(-10.46, 13.45) / size(56.3, 24.7).
+        LevelContentDocument real =
+            LevelContentLibrary.Parse(File.ReadAllText(FindRepositoryFile("content/levels/original/episode_1_levels/Level_05.json")));
+        Assert.Equal(new CameraLimits(-10.46f, 13.45f, 56.3f, 24.7f), real.CameraLimits);
+    }
+
+    [Theory]
+    // v5 requires the block at the root, and older versions forbid it.
+    [InlineData("", 5, "cameraLimits")]
+    [InlineData("""{ "topLeft": [0, 0], "size": [1, 1] }""", 4, "cameraLimits")]
+    [InlineData("""3""", 5, "cameraLimits")]
+    [InlineData("""{ "topLeft": [0, 0] }""", 5, "size")]
+    [InlineData("""{ "topLeft": [0], "size": [1, 1] }""", 5, "topLeft")]
+    [InlineData("""{ "topLeft": [0, 0], "size": [1, 1], "extra": 1 }""", 5, "extra")]
+    [InlineData("""{ "topLeft": [0, 0], "size": [0, 1] }""", 5, "size")]
+    public void TheCameraLimitsAreVersionBoundAndWellFormed(string cameraLimits, int version, string expected)
+    {
+        string limitsLine = cameraLimits.Length == 0 ? string.Empty : $$""" "cameraLimits": {{cameraLimits}}, """;
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": {{version}},
+            "contentVersion": "versioned-camera-limits",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            {{limitsLine}}
+            "spawns": []
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryFile(string relativePath)

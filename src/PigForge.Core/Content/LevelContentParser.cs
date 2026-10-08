@@ -23,8 +23,11 @@ public static class LevelContentParser
 {
     private static readonly string[] RequiredRootProperties = { "format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns" };
 
-    /// <summary>v2 additions; a v1 document simply omits them.</summary>
-    private static readonly string[] OptionalRootProperties = { "terrain" };
+    /// <summary>Version-gated additions; an older document simply omits them.</summary>
+    private static readonly string[] OptionalRootProperties = { "terrain", "cameraLimits" };
+
+    /// <summary>The two halves of a v5 `cameraLimits` block, and nothing else.</summary>
+    private static readonly string[] CameraLimitProperties = { "topLeft", "size" };
 
     public static LevelContentDocument Parse(string json)
     {
@@ -107,6 +110,25 @@ public static class LevelContentParser
             mapBounds = ReadZone(boundsElement, "root.bounds", errors);
         }
 
+        // v5: the level's own camera rectangle out of the level file's `PrefabOverrides` (that is the
+        // pig's bound, `Pig.cs:396-403`). Only a v5 document carries one, and every v5 document must.
+        CameraLimits? cameraLimits = null;
+        if (seen.Contains("cameraLimits") && root.TryGetProperty("cameraLimits", out JsonElement cameraLimitsElement))
+        {
+            if (schemaVersion >= 5)
+            {
+                cameraLimits = ReadCameraLimits(cameraLimitsElement, "root.cameraLimits", errors);
+            }
+            else
+            {
+                errors.Add("root.cameraLimits: only a schemaVersion 5 document carries the level's camera limits.");
+            }
+        }
+        else if (schemaVersion >= 5)
+        {
+            errors.Add("root.cameraLimits: a schemaVersion 5 document must carry the level's camera limits.");
+        }
+
         List<LevelSpawnDefinition> spawns = new();
         if (seen.Contains("spawns") && root.TryGetProperty("spawns", out JsonElement spawnsElement))
         {
@@ -151,6 +173,7 @@ public static class LevelContentParser
         return new LevelContentDocument(contentVersion!, goalZone!.Value, mapBounds!.Value, spawns)
         {
             Terrain = terrain,
+            CameraLimits = cameraLimits,
         };
     }
 
@@ -827,6 +850,50 @@ public static class LevelContentParser
             motorDirection,
             wheel,
             angle));
+    }
+
+    /// <summary>
+    /// The level's own camera rectangle (`root.cameraLimits`, v5): exactly `topLeft` and `size`, each
+    /// an `[x, y]` pair of finite numbers -- `topLeft` is the rectangle's top-left corner and `size`
+    /// extends right and down (`LevelManager.CameraLimits`, `LevelManager.cs:9-16`).
+    /// </summary>
+    private static CameraLimits? ReadCameraLimits(JsonElement element, string path, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be a JSON object.");
+            return null;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+            else if (!CameraLimitProperties.Contains(property.Name, StringComparer.Ordinal))
+            {
+                errors.Add($"{path}: unknown property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, CameraLimitProperties, path, errors);
+
+        PhysicsVector3? topLeft = ReadPoint2(element, path, "topLeft", seen, errors);
+        PhysicsVector3? size = ReadPoint2(element, path, "size", seen, errors);
+        if (topLeft is not { } corner || size is not { } extent)
+        {
+            return null;
+        }
+
+        if (extent.X <= 0f || extent.Y <= 0f)
+        {
+            errors.Add($"{path}.size: must be positive on both axes.");
+            return null;
+        }
+
+        return new CameraLimits(corner.X, corner.Y, extent.X, extent.Y);
     }
 
     private static GameplayZone ReadZone(JsonElement element, string path, List<string> errors)

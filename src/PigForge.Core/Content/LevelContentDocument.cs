@@ -110,17 +110,27 @@ public sealed record LevelContentDocument(
     public const string Format = "pigforge.level-content";
 
     /// <summary>
-    /// The version this code writes: v3 gives every terrain its collider bit and its fill, and v4 adds
-    /// the edge trim (<see cref="LevelCurveDefinition"/>).
+    /// The version this code writes: v3 gives every terrain its collider bit and its fill, v4 adds the
+    /// edge trim (<see cref="LevelCurveDefinition"/>), and v5 adds the level's own camera limits
+    /// (<see cref="CameraLimits"/>).
     /// </summary>
-    public const ushort SchemaVersion = 4;
+    public const ushort SchemaVersion = 5;
 
     /// <summary>
     /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill) and v3 ones
-    /// (fill, no edge trim).
+    /// (fill, no edge trim) and v4 ones (edge trim, no camera limits).
     /// </summary>
     public const ushort LegacySchemaVersion = 1;
 
     /// <summary>Static triangle-mesh collision the level brings; empty on a v1 document.</summary>
     public IReadOnlyList<LevelTerrainDefinition> Terrain { get; init; } = Array.Empty<LevelTerrainDefinition>();
+
+    /// <summary>
+    /// The level's own camera rectangle, straight out of the level file's <c>PrefabOverrides</c>
+    /// (<c>LevelManager.m_cameraLimits</c>): the original drops a pig out of that rectangle
+    /// (<c>Pig.cs:396-403</c>) and answers by returning to its building state
+    /// (<c>GameMode.cs:384-387</c>). Null on a v1-v4 document, which the room then bounds by
+    /// <see cref="MapBounds"/> instead.
+    /// </summary>
+    public CameraLimits? CameraLimits { get; init; }
 }

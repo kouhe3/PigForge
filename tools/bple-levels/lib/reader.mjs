@@ -111,14 +111,14 @@ class Reader {
 /// caller owns), so the extractor reports drift exactly as it always did.
 ///
 /// Returned shape:
-///   {
-///     rootCount, groups, instances,                     // counts
-///     instanceList: [{ name, prefabIndex, position, euler, localScale, dataType }],
-///     terrain: [{ instance, fillOffset, fill, fillColor, fillTextureIndex, curve,
-///                 curveTextureCount, controlTextureBytes, hasCollider }],
-///     overrideBytes, prefabIndexes, instanceNames, maxDepth, trailingBytes,
-///     terrainTransforms, goalInstances                   // derived, for the report
-///   }
+//   {
+//     rootCount, groups, instances,                     // counts
+//     instanceList: [{ name, prefabIndex, position, euler, localScale, dataType }],
+//     terrain: [{ instance, fillOffset, fill, fillColor, fillTextureIndex, curve,
+//                 curveTextureCount, controlTextureBytes, hasCollider }],
+//     overrides: [{ node, text }], overrideBytes, prefabIndexes, instanceNames, maxDepth, trailingBytes,
+//     terrainTransforms, goalInstances                   // derived, for the report
+//   }
 /// `fill.vertices` / `fill.indices` are the raw 2D fill polygon the collider is built from;
 /// `instance.position` is the world placement (TerrainScale 1.0), so a terrain entry is
 /// `{ position: instance.position, depth, loops: boundary loops of fill }`.
@@ -130,6 +130,7 @@ export function readLevel(buffer, check = (condition, message) => { if (!conditi
     instances: 0,
     instanceList: [],
     terrain: [],
+    overrides: [],
     overrideBytes: [],
     prefabIndexes: new Map(),
     instanceNames: new Map(),
@@ -179,8 +180,14 @@ export function readLevel(buffer, check = (condition, message) => { if (!conditi
       });
     } else if (type === 2) {
       const length = reader.int32();
+      // `Overrides` is UTF-8 text in the original's own `ObjectDeserializer` format (one
+      // tab-indented property per line); LevelLoader.cs:198-208 hands it to ReadFile, which
+      // reconstructs the instance's components from it. Kept verbatim so a consumer decides
+      // which fields matter.
+      const text = reader.buffer.toString("utf8", reader.offset, reader.offset + length);
       reader.offset += length;
       level.overrideBytes.push(length);
+      level.overrides.push({ node, text });
     }
   };
   const readObject = (depth) => {

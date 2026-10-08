@@ -125,9 +125,15 @@ function terrainText(terrains, schemaVersion) {
   return `[\n${entries.join(",\n")}\n  ]`;
 }
 
-/// A PigForge level-content v4 document, in the schema's own key order: `format`, `schemaVersion`,
-/// `contentVersion`, `goalZone`, `bounds`, `spawns`, `terrain`.
+/// A PigForge level-content document, in the schema's own key order: `format`, `schemaVersion`,
+/// `contentVersion`, `goalZone`, `bounds`, `cameraLimits` (v5), `spawns`, `terrain`.
 export function formatLevelDocument(document) {
+  if (document.schemaVersion >= 5 && document.cameraLimits === undefined) {
+    throw new Error("a v5 document needs the level's own cameraLimits");
+  }
+  if (document.schemaVersion < 5 && document.cameraLimits !== undefined) {
+    throw new Error("cameraLimits is a v5 field");
+  }
   return `${[
     "{",
     `  "format": ${JSON.stringify(document.format)},`,
@@ -135,6 +141,7 @@ export function formatLevelDocument(document) {
     `  "contentVersion": ${JSON.stringify(document.contentVersion)},`,
     `  "goalZone": ${pretty(document.goalZone, 2)},`,
     `  "bounds": ${pretty(document.bounds, 2)},`,
+    ...(document.cameraLimits === undefined ? [] : [`  "cameraLimits": ${compact(document.cameraLimits)},`]),
     `  "spawns": ${pretty(document.spawns, 2)},`,
     `  "terrain": ${terrainText(document.terrain, document.schemaVersion)}`,
     "}",
