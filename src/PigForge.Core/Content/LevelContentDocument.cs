@@ -42,6 +42,43 @@ public sealed record LevelTerrainFillDefinition(
     float TileHeight);
 
 /// <summary>
+/// One of the two <c>e2dCurveTexture</c> layers the original's <c>e2d/Curve</c> shader samples
+/// (<c>_Splat0</c> / <c>_Splat1</c>). <see cref="Wrap"/> is that texture's own Unity wrap mode:
+/// <see cref="LevelCurveWrap.Repeat"/> tiles the art and <see cref="LevelCurveWrap.Clamp"/> stretches
+/// its last texel column, because the shader's u runs far past 1 (<c>u = arclength * uScale</c>).
+/// </summary>
+public sealed record LevelCurveTextureDefinition(string Texture, LevelCurveWrap Wrap);
+
+/// <summary>Unity's <c>TextureWrapMode</c> as the shader's sampler sees it.</summary>
+public enum LevelCurveWrap
+{
+    Repeat,
+    Clamp
+}
+
+/// <summary>One run of curve nodes drawn with the second layer texture, <c>[start, count]</c>.</summary>
+public readonly record struct LevelCurveRun(int Start, int Count);
+
+/// <summary>
+/// The edge trim one terrain draws along its outline: the original's <c>_curve</c> mesh and the
+/// material inputs <c>LevelLoader.ReadTerrain</c> restores. <see cref="Nodes"/> and
+/// <see cref="Stripe"/> are the strip's two rows in the level file's own vertex order --
+/// <c>nodes[i]</c> is an <c>e2dTerrain.TerrainCurve</c> node on the terrain surface and
+/// <c>stripe[i]</c> is that node pushed outwards by the node's <c>e2dCurveTexture.size.y</c>, kept
+/// inside the terrain's boundary rect (<c>e2dTerrainBoundary.EnsurePointIsInBoundary</c>) -- and the
+/// mesh's triangles are the quads between consecutive pairs (<c>e2dTerrainCurveMesh.RebuildMesh</c>).
+/// <c>e2d/Curve</c> maps u = arclength * <see cref="UScale"/> and v = 1 on the nodes row / 0 on the
+/// stripe row across the band, and picks the layer from the control texture's green channel, which the
+/// converter folds into <see cref="Splat1"/>. See <c>docs/specs/level-terrain-visuals.md</c>.
+/// </summary>
+public sealed record LevelCurveDefinition(
+    IReadOnlyList<PhysicsVector3> Nodes,
+    IReadOnlyList<PhysicsVector3> Stripe,
+    IReadOnlyList<LevelCurveTextureDefinition> Textures,
+    float UScale,
+    IReadOnlyList<LevelCurveRun> Splat1);
+
+/// <summary>
 /// One of a level's terrain objects, exactly as the original places one: an <c>e2dTerrain</c> at
 /// <see cref="Position"/> whose fill outline is extruded along z by <see cref="Depth"/>
 /// (<c>LevelLoader.CreateCollider</c>, <c>LevelLoader.cs:339-380</c>). <see cref="Loops"/> holds the
@@ -52,14 +89,16 @@ public sealed record LevelTerrainFillDefinition(
 /// boundary at all (see <c>docs/specs/original-level-pack.md</c> §3).
 /// <see cref="Collider"/> is the object's own <c>hasCollider</c>: 498 of the original's 2146 terrains
 /// are decoration and never enter the world as a body, but they still draw. <see cref="Fill"/> is the
-/// ground's texture/tint/tiling on a v3 document; a v1/v2 document carries neither.
+/// ground's texture/tint/tiling on a v3 document and <see cref="Curve"/> its edge trim on a v4 one;
+/// an older document carries neither.
 /// </summary>
 public sealed record LevelTerrainDefinition(
     PhysicsVector3 Position,
     float Depth,
     IReadOnlyList<IReadOnlyList<PhysicsVector3>> Loops,
     bool Collider = true,
-    LevelTerrainFillDefinition? Fill = null);
+    LevelTerrainFillDefinition? Fill = null,
+    LevelCurveDefinition? Curve = null);
 
 /// <summary>Engine-agnostic level definition: spawns, goal trigger zone and map bounds (ADR-002).</summary>
 public sealed record LevelContentDocument(
@@ -70,10 +109,16 @@ public sealed record LevelContentDocument(
 {
     public const string Format = "pigforge.level-content";
 
-    /// <summary>The version this code writes: v3 gives every terrain its collider bit and its fill.</summary>
-    public const ushort SchemaVersion = 3;
+    /// <summary>
+    /// The version this code writes: v3 gives every terrain its collider bit and its fill, and v4 adds
+    /// the edge trim (<see cref="LevelCurveDefinition"/>).
+    /// </summary>
+    public const ushort SchemaVersion = 4;
 
-    /// <summary>v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill).</summary>
+    /// <summary>
+    /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill) and v3 ones
+    /// (fill, no edge trim).
+    /// </summary>
     public const ushort LegacySchemaVersion = 1;
 
     /// <summary>Static triangle-mesh collision the level brings; empty on a v1 document.</summary>

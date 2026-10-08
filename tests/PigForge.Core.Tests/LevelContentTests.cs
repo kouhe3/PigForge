@@ -124,7 +124,7 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
@@ -209,6 +209,126 @@ public sealed class LevelContentTests
         LevelTerrainDefinition terrain = Assert.Single(LevelContentParser.Parse(json).Terrain);
         Assert.True(terrain.Collider);
         Assert.Null(terrain.Fill);
+    }
+
+    /// <summary>
+    /// v4 adds the edge trim: the original's `_curve` mesh (`nodes` on the terrain, `stripe` offset
+    /// outwards) and the `e2d/Curve` inputs `LevelLoader.ReadTerrain` restores -- the two layer
+    /// textures with their own wrap modes, the shader's u scale and the node runs that take the second
+    /// layer (the control texture's green channel); see docs/specs/level-terrain-visuals.md.
+    /// </summary>
+    [Fact]
+    public void AVersionFourLevelCarriesTheEdgeTrim()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 4,
+            "contentVersion": "terrain-v4",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "spawns": [],
+            "terrain": [
+                {
+                    "position": [-2.7907727, 9.021405, 0],
+                    "depth": 10,
+                    "collider": true,
+                    "fill": {
+                        "texture": "Ground_Rocks_Texture.png",
+                        "color": [255, 255, 255, 255],
+                        "tileOffset": [0, 6.2],
+                        "tileSize": [5, 5]
+                    },
+                    "curve": {
+                        "textures": [
+                            { "texture": "Ground_Rocks_Texture.png", "wrap": "clamp" },
+                            { "texture": "Ground_Rocks_Outline_Texture.png", "wrap": "repeat" }
+                        ],
+                        "uScale": 10,
+                        "splat1": [[1, 2]],
+                        "nodes": [[0, 0], [1, 0], [2, 3]],
+                        "stripe": [[0, 0.1], [1, 0.1], [2, 3.1]]
+                    },
+                    "loops": [ [ [0, 0], [4, 0], [4, 3] ] ]
+                }
+            ]
+        }
+        """;
+
+        LevelTerrainDefinition terrain = Assert.Single(LevelContentParser.Parse(json).Terrain);
+        LevelCurveDefinition curve = Assert.IsType<LevelCurveDefinition>(terrain.Curve);
+        Assert.Equal(3, curve.Nodes.Count);
+        Assert.Equal(3, curve.Stripe.Count);
+        Assert.Equal(2f, curve.Nodes[2].X);
+        Assert.Equal(3.1f, curve.Stripe[2].Y);
+        Assert.Equal(0f, curve.Nodes[0].Z);
+        Assert.Equal(10f, curve.UScale);
+        Assert.Equal(2, curve.Textures.Count);
+        Assert.Equal("Ground_Rocks_Texture.png", curve.Textures[0].Texture);
+        Assert.Equal(LevelCurveWrap.Clamp, curve.Textures[0].Wrap);
+        Assert.Equal("Ground_Rocks_Outline_Texture.png", curve.Textures[1].Texture);
+        Assert.Equal(LevelCurveWrap.Repeat, curve.Textures[1].Wrap);
+        LevelCurveRun run = Assert.Single(curve.Splat1);
+        Assert.Equal(1, run.Start);
+        Assert.Equal(2, run.Count);
+    }
+
+    [Theory]
+    // v4 requires the trim on every terrain, and older versions forbid it.
+    [InlineData("""{ "position": [0, 0, 0], "depth": 10, "collider": true, "fill": { "texture": "a.png", "color": [1,2,3,4], "tileOffset": [0,0], "tileSize": [5,5] }, "loops": [[[0,0],[1,0],[1,1]]] }""", 4, "curve")]
+    [InlineData("""{ "position": [0, 0, 0], "depth": 10, "collider": true, "fill": { "texture": "a.png", "color": [1,2,3,4], "tileOffset": [0,0], "tileSize": [5,5] }, "curve": { "textures": [ { "texture": "a.png", "wrap": "repeat" }, { "texture": "b.png", "wrap": "repeat" } ], "uScale": 1, "splat1": [], "nodes": [[0,0],[1,0]], "stripe": [[0,1],[1,1]] }, "loops": [[[0,0],[1,0],[1,1]]] }""", 3, "curve")]
+    public void TheEdgeTrimIsVersionBound(string terrain, int version, string expected)
+    {
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": {{version}},
+            "contentVersion": "versioned-trim",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "spawns": [],
+            "terrain": [ {{terrain}} ]
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("""{ "textures": [ { "texture": "a.png", "wrap": "repeat" }, { "texture": "b.png", "wrap": "repeat" } ], "uScale": 1, "splat1": [], "nodes": [[0,0],[1,0]], "stripe": [[0,1]] }""", "stripe")]
+    [InlineData("""{ "textures": [ { "texture": "a.png", "wrap": "repeat" }, { "texture": "b.png", "wrap": "repeat" } ], "uScale": 1, "splat1": [], "nodes": [[0,0]], "stripe": [[0,1]] }""", "at least 2")]
+    [InlineData("""{ "textures": [ { "texture": "a.png", "wrap": "repeat" } ], "uScale": 1, "splat1": [], "nodes": [[0,0],[1,0]], "stripe": [[0,1],[1,1]] }""", "textures")]
+    [InlineData("""{ "textures": [ { "texture": "a.png", "wrap": "tile" }, { "texture": "b.png", "wrap": "repeat" } ], "uScale": 1, "splat1": [], "nodes": [[0,0],[1,0]], "stripe": [[0,1],[1,1]] }""", "wrap")]
+    [InlineData("""{ "textures": [ { "texture": "a.png", "wrap": "repeat" }, { "texture": "b.png", "wrap": "repeat" } ], "uScale": 0, "splat1": [], "nodes": [[0,0],[1,0]], "stripe": [[0,1],[1,1]] }""", "uScale")]
+    [InlineData("""{ "textures": [ { "texture": "a.png", "wrap": "repeat" }, { "texture": "b.png", "wrap": "repeat" } ], "uScale": 1, "splat1": [[2,2]], "nodes": [[0,0],[1,0],[2,0]], "stripe": [[0,1],[1,1],[2,1]] }""", "splat1")]
+    [InlineData("""{ "textures": [ { "texture": "a.png", "wrap": "repeat" }, { "texture": "b.png", "wrap": "repeat" } ], "uScale": 1, "splat1": [[1,2],[2,1]], "nodes": [[0,0],[1,0],[2,0],[3,0]], "stripe": [[0,1],[1,1],[2,1],[3,1]] }""", "sorted")]
+    [InlineData("""{ "textures": [ { "texture": "a.png", "wrap": "repeat" }, { "texture": "b.png", "wrap": "repeat" } ], "uScale": 1, "splat1": [[0,0]], "nodes": [[0,0],[1,0]], "stripe": [[0,1],[1,1]] }""", "count")]
+    public void AMalformedCurveIsRejected(string curve, string expected)
+    {
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 4,
+            "contentVersion": "bad-curve",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "spawns": [],
+            "terrain": [
+                {
+                    "position": [0, 0, 0],
+                    "depth": 10,
+                    "collider": true,
+                    "fill": { "texture": "a.png", "color": [1,2,3,4], "tileOffset": [0,0], "tileSize": [5,5] },
+                    "curve": {{curve}},
+                    "loops": [ [ [0, 0], [4, 0], [4, 3] ] ]
+                }
+            ]
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]

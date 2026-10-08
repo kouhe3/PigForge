@@ -5,6 +5,7 @@ import { layoutSprites, subEntityTexture, type PartTexture, type PartTextureSet 
 import { type Camera, worldToScreen } from "./camera";
 import { conditionalSpriteVisible, connectableSides } from "./connectionVisuals";
 import { drawTerrain, GROUND_FILL, type GroundTextureSet } from "./terrain";
+import { drawTerrainCurves } from "./terrainCurve";
 
 /** A static part is drawn in the ground's own green; the terrain painter owns that colour. */
 const STATIC_FILL = GROUND_FILL;
@@ -184,7 +185,9 @@ function turningSprites(texture: PartTexture, part: PartDefinition): boolean[] {
  * Paints one frame. The level's terrain (`terrains`) is drawn straight after the background grid
  * and before every entity -- the ground lies behind everything -- which is why it is appended to
  * the parameter list instead of changing the existing argument order, and `groundTextures` (the
- * level's own fill art, see `./terrain`) right behind it.
+ * level's own fill art, see `./terrain` and `./terrainCurve`) right behind it. Every terrain's
+ * ground fill is painted first and the `_curve` bands after them, like the original's curve mesh
+ * sitting in front of the fills.
  */
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -207,6 +210,7 @@ export function drawFrame(
   drawGrid(ctx, camera, width, height);
   if (terrains && terrains.length > 0) {
     drawTerrain(ctx, camera, terrains, groundTextures ?? null, width, height);
+    drawTerrainCurves(ctx, camera, terrains, groundTextures ?? null, width, height);
   }
   if (goal) {
     const a = worldToScreen(camera, goal.minX, goal.maxY, width, height);

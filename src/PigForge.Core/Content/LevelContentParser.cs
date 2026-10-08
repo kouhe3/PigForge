@@ -175,9 +175,10 @@ public static class LevelContentParser
         }
 
         // v3 is the version that describes every `e2dTerrain` the original ships: a collider bit and
-        // the ground's fill. Older documents carry neither, and a stray one is a drift error rather
-        // than a field to ignore.
+        // the ground's fill; v4 adds the edge trim. Older documents carry neither, and a stray field
+        // is a drift error rather than a field to ignore.
         bool modern = schemaVersion >= 3;
+        bool trimmed = schemaVersion >= 4;
         HashSet<string> seen = new();
         foreach (JsonProperty property in element.EnumerateObject())
         {
@@ -187,9 +188,11 @@ public static class LevelContentParser
             }
         }
 
-        string[] required = modern
-            ? ["position", "depth", "collider", "fill", "loops"]
-            : ["position", "depth", "loops"];
+        string[] required = trimmed
+            ? ["position", "depth", "collider", "fill", "curve", "loops"]
+            : modern
+                ? ["position", "depth", "collider", "fill", "loops"]
+                : ["position", "depth", "loops"];
         RequireExactly(seen, required, path, errors);
         foreach (string property in seen)
         {
@@ -201,6 +204,10 @@ public static class LevelContentParser
             if (property is "collider" or "fill")
             {
                 errors.Add($"{path}.{property}: only a schemaVersion 3 terrain carries a collider bit or a fill.");
+            }
+            else if (property == "curve")
+            {
+                errors.Add($"{path}.curve: only a schemaVersion 4 terrain carries the edge trim.");
             }
             else
             {
@@ -227,6 +234,12 @@ public static class LevelContentParser
         if (seen.Contains("fill") && element.TryGetProperty("fill", out JsonElement fillElement))
         {
             fill = ParseFill(fillElement, $"{path}.fill", errors);
+        }
+
+        LevelCurveDefinition? curve = null;
+        if (seen.Contains("curve") && element.TryGetProperty("curve", out JsonElement curveElement))
+        {
+            curve = ParseCurve(curveElement, $"{path}.curve", errors);
         }
 
         float depth = 0f;
@@ -270,10 +283,259 @@ public static class LevelContentParser
             errors.Add($"{path}.loops: a terrain needs at least one outline loop.");
         }
 
-        if (position is not null && depth > 0f && loops.Count > 0 && (!modern || fill is not null))
+        if (position is not null
+            && depth > 0f
+            && loops.Count > 0
+            && (!modern || fill is not null)
+            && (!trimmed || curve is not null))
         {
-            terrain.Add(new LevelTerrainDefinition(position.Value, depth, loops, collider, fill));
+            terrain.Add(new LevelTerrainDefinition(position.Value, depth, loops, collider, fill, curve));
         }
+    }
+
+    /// <summary>
+    /// A v4 `curve` block: `{ "nodes": [[x, y], ...], "stripe": [[x, y], ...],
+    /// "textures": [{ "texture": "...", "wrap": "repeat" }, { ... }], "uScale": 10,
+    /// "splat1": [[0, 12], ...] }` -- the original's `_curve` mesh (two rows of points, one per row
+    /// vertex) and the `e2d/Curve` material inputs `LevelLoader.ReadTerrain` restores. The two rows
+    /// must be the same length (an even vertex count), `splat1` must be a sorted, disjoint set of
+    /// in-range runs, and the two layer textures are exactly `_Splat0` and `_Splat1`.
+    /// </summary>
+    private static LevelCurveDefinition? ParseCurve(JsonElement element, string path, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be a JSON object.");
+            return null;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, ["nodes", "stripe", "textures", "uScale", "splat1"], path, errors);
+        foreach (string property in seen)
+        {
+            if (property is not ("nodes" or "stripe" or "textures" or "uScale" or "splat1"))
+            {
+                errors.Add($"{path}: unknown property '{property}'.");
+            }
+        }
+
+        IReadOnlyList<PhysicsVector3>? nodes = ReadPoints(element, seen, "nodes", path, errors, minimum: 2);
+        IReadOnlyList<PhysicsVector3>? stripe = ReadPoints(element, seen, "stripe", path, errors, minimum: 2);
+        if (nodes is not null && stripe is not null && nodes.Count != stripe.Count)
+        {
+            errors.Add($"{path}.stripe: {stripe.Count} points against {nodes.Count} in nodes -- the strip's two rows are one vertex per node.");
+        }
+
+        List<LevelCurveTextureDefinition> textures = new();
+        if (seen.Contains("textures") && element.TryGetProperty("textures", out JsonElement texturesElement))
+        {
+            if (texturesElement.ValueKind != JsonValueKind.Array || texturesElement.GetArrayLength() != 2)
+            {
+                errors.Add($"{path}.textures: exactly two layers are supported (the shader samples _Splat0 and _Splat1).");
+            }
+            else
+            {
+                int textureIndex = 0;
+                foreach (JsonElement textureElement in texturesElement.EnumerateArray())
+                {
+                    LevelCurveTextureDefinition? texture = ParseCurveTexture(textureElement, $"{path}.textures[{textureIndex}]", errors);
+                    if (texture is not null)
+                    {
+                        textures.Add(texture);
+                    }
+
+                    textureIndex++;
+                }
+            }
+        }
+
+        float uScale = 0f;
+        if (seen.Contains("uScale") && element.TryGetProperty("uScale", out JsonElement uScaleElement))
+        {
+            if (uScaleElement.ValueKind != JsonValueKind.Number || !IsFinite(uScaleElement) || uScaleElement.GetSingle() <= 0f)
+            {
+                errors.Add($"{path}.uScale: must be a finite positive number.");
+            }
+            else
+            {
+                uScale = uScaleElement.GetSingle();
+            }
+        }
+
+        List<LevelCurveRun> splat1 = new();
+        if (seen.Contains("splat1") && element.TryGetProperty("splat1", out JsonElement splatElement))
+        {
+            if (splatElement.ValueKind != JsonValueKind.Array)
+            {
+                errors.Add($"{path}.splat1: must be an array of [start, count] runs.");
+            }
+            else
+            {
+                int runIndex = 0;
+                int previousEnd = -1;
+                foreach (JsonElement runElement in splatElement.EnumerateArray())
+                {
+                    string runPath = $"{path}.splat1[{runIndex}]";
+                    if (runElement.ValueKind != JsonValueKind.Array
+                        || runElement.GetArrayLength() != 2
+                        || !runElement[0].TryGetInt32(out int start)
+                        || !runElement[1].TryGetInt32(out int count)
+                        || start < 0
+                        || count < 1)
+                    {
+                        errors.Add($"{runPath}: must be [start, count] with start >= 0 and count >= 1.");
+                        runIndex++;
+                        continue;
+                    }
+
+                    if (start < previousEnd)
+                    {
+                        errors.Add($"{runPath}: runs must be sorted by start and must not overlap.");
+                    }
+
+                    if (nodes is not null && start + count > nodes.Count)
+                    {
+                        errors.Add($"{runPath}: nodes {start}..{start + count - 1} are outside the {nodes.Count} node(s) the curve has.");
+                    }
+
+                    previousEnd = start + count;
+                    splat1.Add(new LevelCurveRun(start, count));
+                    runIndex++;
+                }
+            }
+        }
+
+        bool complete = nodes is not null
+            && stripe is not null
+            && nodes.Count == stripe.Count
+            && textures.Count == 2
+            && uScale > 0f;
+        return complete ? new LevelCurveDefinition(nodes!, stripe!, textures, uScale, splat1) : null;
+    }
+
+    /// <summary>One `{ "texture": "Border.png", "wrap": "repeat" | "clamp" }` layer of a curve.</summary>
+    private static LevelCurveTextureDefinition? ParseCurveTexture(JsonElement element, string path, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be a JSON object.");
+            return null;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, ["texture", "wrap"], path, errors);
+        foreach (string property in seen)
+        {
+            if (property is not ("texture" or "wrap"))
+            {
+                errors.Add($"{path}: unknown property '{property}'.");
+            }
+        }
+
+        string? texture = null;
+        if (seen.Contains("texture") && element.TryGetProperty("texture", out JsonElement textureElement))
+        {
+            if (textureElement.ValueKind != JsonValueKind.String)
+            {
+                errors.Add($"{path}.texture: must be a string.");
+            }
+            else
+            {
+                string? name = textureElement.GetString();
+                if (string.IsNullOrEmpty(name))
+                {
+                    errors.Add($"{path}.texture: must be a file name.");
+                }
+                else if (name.Length > 128 || name.Any(char.IsWhiteSpace))
+                {
+                    errors.Add($"{path}.texture: must be 1 to 128 non-whitespace-padded characters.");
+                }
+                else
+                {
+                    texture = name;
+                }
+            }
+        }
+
+        LevelCurveWrap? wrap = null;
+        if (seen.Contains("wrap") && element.TryGetProperty("wrap", out JsonElement wrapElement))
+        {
+            wrap = wrapElement.ValueKind == JsonValueKind.String && wrapElement.ValueEquals("repeat") ? LevelCurveWrap.Repeat
+                : wrapElement.ValueKind == JsonValueKind.String && wrapElement.ValueEquals("clamp") ? LevelCurveWrap.Clamp
+                : null;
+            if (wrap is null)
+            {
+                errors.Add($"{path}.wrap: must be \"repeat\" or \"clamp\".");
+            }
+        }
+
+        return texture is not null && wrap is not null ? new LevelCurveTextureDefinition(texture, wrap.Value) : null;
+    }
+
+    /// <summary>
+    /// One row of a v4 curve's points (`"nodes"` or `"stripe"`): 2D points in the terrain's own local
+    /// frame, one per node. `minimum` is the row's own lower bound (a strip needs two nodes).
+    /// </summary>
+    private static IReadOnlyList<PhysicsVector3>? ReadPoints(
+        JsonElement parent,
+        HashSet<string> seen,
+        string field,
+        string path,
+        List<string> errors,
+        int minimum)
+    {
+        if (!seen.Contains(field) || !parent.TryGetProperty(field, out JsonElement element))
+        {
+            return null;
+        }
+
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add($"{path}.{field}: must be an array of points.");
+            return null;
+        }
+
+        List<PhysicsVector3> points = new();
+        int index = 0;
+        foreach (JsonElement pointElement in element.EnumerateArray())
+        {
+            string pointPath = $"{path}.{field}[{index}]";
+            index++;
+            if (pointElement.ValueKind != JsonValueKind.Array
+                || pointElement.GetArrayLength() != 2
+                || !IsFinite(pointElement[0])
+                || !IsFinite(pointElement[1]))
+            {
+                errors.Add($"{pointPath}: must be [x, y] with finite numbers.");
+                continue;
+            }
+
+            points.Add(new PhysicsVector3(pointElement[0].GetSingle(), pointElement[1].GetSingle(), 0f));
+        }
+
+        if (points.Count < minimum)
+        {
+            errors.Add($"{path}.{field}: {points.Count} point(s), at least {minimum} are needed.");
+            return null;
+        }
+
+        return points;
     }
 
     /// <summary>

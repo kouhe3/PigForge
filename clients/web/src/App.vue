@@ -16,6 +16,7 @@ import { partThumbnailDataUrl } from "./renderer/thumbnails";
 import { drawFrame } from "./renderer/draw";
 import { fitBounds } from "./renderer/camera";
 import { groundTextureNames, loadGroundTextures, type GroundTextureSet } from "./renderer/terrain";
+import { curveTextureNames } from "./renderer/terrainCurve";
 import { zoneRect } from "./schema/levelContent";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
@@ -529,12 +530,14 @@ watch(
   },
 );
 
-// The level's ground art, fetched from this origin (original art is extracted locally, never
-// committed). Missing files are dropped by the loader and the ground falls back to its flat colour.
+// The level's ground and `_curve` art, fetched from this origin (original art is extracted locally,
+// never committed). Missing files are dropped by the loader, and the ground and the band along each
+// outline then fall back to the flat fill.
 watch(
   () => session.level,
   (level) => {
-    const names = groundTextureNames(level?.terrain ?? []);
+    const terrains = level?.terrain ?? [];
+    const names = [...groundTextureNames(terrains), ...curveTextureNames(terrains)];
     if (names.length === 0) {
       groundTextures.value = null;
       return;

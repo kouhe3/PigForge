@@ -45,7 +45,8 @@ import { readLevel } from "./lib/reader.mjs";
 import { outlineLoops } from "./lib/outline.mjs";
 import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap, readCollisionMeshDepth } from "./lib/pack.mjs";
 import { readBoxCollider } from "./lib/goal.mjs";
-import { assertTerrainFillTileSizes, readE2dTerrainGuid, readTerrainFillTile, readTextureImport } from "./lib/fill.mjs";
+import { assertTerrainFillTileSizes, readE2dTerrainGuid, readImportState, readTerrainFillTile } from "./lib/fill.mjs";
+import { curveBlockOf } from "./lib/curve.mjs";
 import { formatJson, formatLevelDocument, sha256 } from "./lib/write.mjs";
 
 const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE 2022.1.9")));
@@ -131,7 +132,9 @@ const E2D_TERRAIN_GUID = readE2dTerrainGuid(BPLE, check);
 // once every level has been walked. `fillTextures` is `file name -> asset path` for the textures the
 // content names; the file name is what the document carries, so two assets sharing one is refused.
 const terrainFillTiles = new Map();
-const fillTextures = new Map();
+const levelTextures = new Map();
+const fillTextureNames = new Set();
+const curveTextureNames = new Set();
 const fillTileOf = (prefabPath) => {
   if (!terrainFillTiles.has(prefabPath)) {
     terrainFillTiles.set(prefabPath, readTerrainFillTile(BPLE, prefabPath, E2D_TERRAIN_GUID, check));
@@ -140,6 +143,21 @@ const fillTileOf = (prefabPath) => {
 };
 
 const goalBoxCache = new Map();
+/// One texture the content names, by its file name (the document only ever carries that). The
+/// client's level-texture directory is flat, so two assets sharing a file name are a hard failure
+/// rather than a silent overwrite -- `kind` says which half of the terrain asked for it.
+const registerLevelTexture = (assetPath, kind) => {
+  const name = basename(assetPath);
+  const taken = levelTextures.get(name);
+  check(
+    taken === undefined || taken === assetPath,
+    `${name}: two level texture assets share the file name (${taken} and ${assetPath}, asked for by the ${kind} of a terrain)`,
+  );
+  levelTextures.set(name, assetPath);
+  (kind === "fill" ? fillTextureNames : curveTextureNames).add(name);
+  return name;
+};
+
 const goalBoxOf = (prefabPath) => {
   if (!goalBoxCache.has(prefabPath)) {
     const file = join(BPLE, prefabPath);
@@ -156,10 +174,13 @@ const bundleCounts = {};
 const rows = [];
 const skippedTerrains = [];
 const skippedFills = [];
+const skippedCurves = [];
 const totals = {
   terrain: 0,
   loops: 0,
   points: 0,
+  curveNodes: 0,
+  curveRuns: 0,
   colliderTerrains: 0,
   fillTextures: 0,
   fillTextureBytes: 0,
@@ -252,8 +273,7 @@ for (const { bundle, file } of dataFiles) {
       ? basename(fillTexturePath)
       : null;
     const tile = typeof prefabPath === "string" ? fillTileOf(prefabPath) : null;
-    const takenBy = fillTextureName === null ? undefined : fillTextures.get(fillTextureName);
-    if (tile === null || fillTextureName === null || (takenBy !== undefined && takenBy !== fillTexturePath)) {
+    if (tile === null || fillTextureName === null) {
       skippedHere += 1;
       skippedFills.push({
         level: sceneName,
@@ -265,13 +285,28 @@ for (const { bundle, file } of dataFiles) {
         tile,
         reason: tile === null
           ? "the terrain prefab declares no positive FillTextureTileWidth/Height"
-          : fillTextureName === null
-            ? `fill texture index ${terrain.fillTextureIndex} resolves to no PNG`
-            : `two fill texture assets share the file name ${fillTextureName}: ${takenBy} and ${fillTexturePath}`,
+          : `fill texture index ${terrain.fillTextureIndex} resolves to no PNG`,
       });
       continue;
     }
-    fillTextures.set(fillTextureName, fillTexturePath);
+    registerLevelTexture(fillTexturePath, "fill");
+    // The edge trim (`curve.shader`): the level file's own `_curve` mesh -- a two-row strip -- plus
+    // the two `e2dCurveTexture` layers with their wrap modes, the shader's u scale and the runs of
+    // nodes the control texture's green channel switches to the second layer (`lib/curve.mjs`).
+    const curveLabel = `${basename(file)}: terrain "${instance.name}"`;
+    const curve = curveBlockOf({
+      terrain,
+      referencePaths: references,
+      bpleRoot: BPLE,
+      registerTexture: (assetPath) => registerLevelTexture(assetPath, "curve"),
+      check,
+      label: curveLabel,
+    });
+    if (curve === null) {
+      skippedHere += 1;
+      skippedCurves.push({ level: sceneName, bundle, instance: instance.name, reason: "the curve mesh or its layers could not be read" });
+      continue;
+    }
     terrainEntries.push({
       position: instance.position.slice(),
       depth: DEPTH,
@@ -287,8 +322,11 @@ for (const { bundle, file } of dataFiles) {
         tileOffset: terrain.fillOffset.map((value) => Math.fround(value)),
         tileSize: [tile.tileWidth, tile.tileHeight],
       },
+      curve,
       loops,
     });
+    totals.curveNodes += curve.nodes.length;
+    totals.curveRuns += curve.splat1.length;
   }
   check(terrainEntries.length > 0, `${basename(file)}: no terrain with a closed outline`);
 
@@ -389,7 +427,7 @@ for (const { bundle, file } of dataFiles) {
   const relativePath = `content/levels/original/${area}/${contentVersion}.json`;
   const document = {
     format: "pigforge.level-content",
-    schemaVersion: 3,
+    schemaVersion: 4,
     contentVersion,
     goalZone,
     bounds: levelBounds,
@@ -442,19 +480,21 @@ for (const [bundle, expected] of Object.entries(BUNDLE_EXPECT)) {
   check(bundleCounts[bundle] === expected, `${bundle}: ${bundleCounts[bundle] ?? 0} files, expected ${expected}`);
 }
 check(skippedTerrains.length === 0, `${skippedTerrains.length} terrain(s) have no closed outline and were skipped`);
+check(skippedCurves.length === 0, `${skippedCurves.length} terrain(s) have no usable curve mesh and were skipped`);
 
-// ---------------------------------------------------------------- fill textures
+// ---------------------------------------------------------------- level textures
 
 // The tile size histogram is asserted over every terrain prefab the levels place (21 of them, all
-// 5 x 5 today), and the fill textures are copied next to the part atlases -- the original art never
-// enters the repository, so the document only names a file and the client reads it from its own tree.
+// 5 x 5 today), and the level textures -- the ground's fill and the edge trim's two layers -- are
+// copied next to the part atlases: the original art never enters the repository, so the document only
+// names a file and the client reads it from its own tree.
 assertTerrainFillTileSizes(new Map([...terrainFillTiles].filter(([, tile]) => tile !== null)), check);
 check(skippedFills.length === 0, `${skippedFills.length} terrain(s) have no usable fill and were skipped`);
 
 const textureRows = [];
 let textureBytes = 0;
-for (const [name, source] of [...fillTextures.entries()].sort((left, right) => left[0].localeCompare(right[0]))) {
-  readTextureImport(BPLE, source, check);
+for (const [name, source] of [...levelTextures.entries()].sort((left, right) => left[0].localeCompare(right[0]))) {
+  readImportState(BPLE, source, check);
   const bytes = readFileSync(join(BPLE, source));
   const target = join(OUT_TEXTURES, name);
   const changed = !existsSync(target) || !bytes.equals(readFileSync(target));
@@ -463,16 +503,23 @@ for (const [name, source] of [...fillTextures.entries()].sort((left, right) => l
     writeFileSync(target, bytes);
   }
   textureBytes += bytes.length;
-  textureRows.push({ name, source, bytes: bytes.length, changed });
+  textureRows.push({
+    name,
+    source,
+    bytes: bytes.length,
+    changed,
+    fill: fillTextureNames.has(name),
+    curve: curveTextureNames.has(name),
+  });
 }
-totals.fillTextures = textureRows.length;
-totals.fillTextureBytes = textureBytes;
+totals.levelTextures = textureRows.length;
+totals.levelTextureBytes = textureBytes;
 
 // The directory belongs to this tool alone (it sits inside the gitignored original-art tree), so a
 // texture that is no longer referenced is removed instead of left behind.
 const staleTextures = existsSync(OUT_TEXTURES)
   ? readdirSync(OUT_TEXTURES, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && !fillTextures.has(entry.name))
+      .filter((entry) => entry.isFile() && !levelTextures.has(entry.name))
       .map((entry) => entry.name)
       .sort()
   : [];
@@ -503,19 +550,25 @@ const report = {
     visualTerrains: totals.terrain - totals.colliderTerrains,
     loops: totals.loops,
     points: totals.points,
+    curveNodes: totals.curveNodes,
+    curveRuns: totals.curveRuns,
     spawns: totals.spawns,
     goals: totals.goals,
     levelsWithoutGoal: totals.levelsWithoutGoal,
     terrainSkipped: skippedTerrains.length,
     terrainSkippedForFill: skippedFills.length,
-    fillTextures: textureRows.length,
-    fillTextureBytes: textureBytes,
-    fillTexturesChanged: textureRows.filter((row) => row.changed).length,
-    fillTexturesRemoved: staleTextures.length,
+    terrainSkippedForCurve: skippedCurves.length,
+    levelTextures: textureRows.length,
+    levelTextureBytes: textureBytes,
+    levelTexturesChanged: textureRows.filter((row) => row.changed).length,
+    levelTexturesRemoved: staleTextures.length,
+    fillTextures: fillTextureNames.size,
+    curveTextures: curveTextureNames.size,
     textureRoot: OUT_TEXTURES,
   },
   skipped: skippedTerrains,
   skippedFills,
+  skippedCurves,
   textures: textureRows,
   levels: rows,
   failures,
@@ -530,24 +583,28 @@ md.push("每个数字都来自原版：调色板解析 prefab，终点区读该 
 md.push("地形轮廓走 fill 网格的真实边界环（`lib/outline.mjs`；顶点表在 5/1648 个地形上不是轮廓），");
 md.push("地面的样子读 `fill.shader` 的三个输入（贴图/颜色来自关卡文件，tile 尺寸来自地形 prefab，见 `docs/specs/level-terrain-visuals.md`）。", "");
 md.push(`- 关卡 **${rows.length}**，地形条目 **${totals.terrain}**（每个 \`e2dTerrain\` 对象一条：带碰撞体 ${totals.colliderTerrains} / 纯视觉 ${totals.terrain - totals.colliderTerrains}），环 ${totals.loops}，轮廓点 ${totals.points}`);
-md.push(`- fill 贴图 **${textureRows.length}** 张 / ${textureBytes} 字节（Repeat + Bilinear 已断言），复制到 \`${OUT_TEXTURES}\``);
+md.push(`- 边缘条带（\`curve.shader\`）节点 **${totals.curveNodes}**，第二层运行段 **${totals.curveRuns}**（层选择来自关卡文件内嵌控制贴图的 G 通道）`);
+md.push(`- 关卡贴图 **${textureRows.length}** 张 / ${textureBytes} 字节（fill ${fillTextureNames.size} + curve ${curveTextureNames.size}，Bilinear 已断言），复制到 \`${OUT_TEXTURES}\``);
 md.push(`- 零件实例 **${totals.spawns}**，有终点的关卡 **${totals.goals}**，无终点（沙盒/MM）**${totals.levelsWithoutGoal}**`);
 md.push(`- 深度 **${DEPTH}**（\`e2dConstants.cs\`），bounds 外扩 **${BOUNDS_MARGIN}** m`);
-md.push(`- 跳过地形 **${skippedTerrains.length}**（轮廓不可走）+ **${skippedFills.length}**（fill 不可组装），失败 **${failures.length}**`);
+md.push(`- 跳过地形 **${skippedTerrains.length}**（轮廓不可走）+ **${skippedFills.length}**（fill 不可组装）+ **${skippedCurves.length}**（条带不可组装），失败 **${failures.length}**`);
 md.push("", `**${changed} changed / ${unchanged} unchanged**${DRY_RUN ? " (dry-run，未写盘)" : ""}，合计 ${totals.bytes} 字节。`, "");
 md.push("## 跳过与失败", "");
-if (skippedTerrains.length === 0 && skippedFills.length === 0 && failures.length === 0) {
-  md.push("无。每个地形都有闭环轮廓与可组装的 fill，每条调色板下标都能解析。", "");
+if (skippedTerrains.length === 0 && skippedFills.length === 0 && skippedCurves.length === 0 && failures.length === 0) {
+  md.push("无。每个地形都有闭环轮廓、可组装的 fill 与条带，每条调色板下标都能解析。", "");
 } else {
   for (const skipped of skippedTerrains) md.push(`- SKIP \`${skipped.level}\` / \`${skipped.instance}\`：${skipped.reason}（${skipped.links}）`);
   for (const skipped of skippedFills) md.push(`- SKIP-FILL \`${skipped.level}\` / \`${skipped.instance}\`：${skipped.reason}`);
+  for (const skipped of skippedCurves) md.push(`- SKIP-CURVE \`${skipped.level}\` / \`${skipped.instance}\`：${skipped.reason}`);
   for (const failure of failures) md.push(`- FAIL ${failure}`);
   md.push("");
 }
-md.push("## fill 贴图", "");
-md.push("| 文件 | 源资产 | 字节 | 本次 |", "|---|---|---|---|");
+md.push("## 关卡贴图", "");
+md.push("| 文件 | 源资产 | 字节 | fill | curve | 本次 |", "|---|---|---|---|---|---|");
 for (const texture of textureRows) {
-  md.push(`| \`${texture.name}\` | \`${texture.source}\` | ${texture.bytes} | ${texture.changed ? "写入" : "相同"} |`);
+  md.push(
+    `| \`${texture.name}\` | \`${texture.source}\` | ${texture.bytes} | ${texture.fill ? "✓" : ""} | ${texture.curve ? "✓" : ""} | ${texture.changed ? "写入" : "相同"} |`,
+  );
 }
 if (staleTextures.length > 0) md.push("", `已删除不再被引用的：${staleTextures.map((name) => `\`${name}\``).join("、")}`);
 md.push("");
@@ -569,13 +626,15 @@ console.log(
     : `build: wrote ${changed} file(s) (${changed} changed, ${unchanged} unchanged), ${totals.bytes} bytes total`,
 );
 console.log(`levels: ${rows.length}  terrain: ${totals.terrain}  loops: ${totals.loops}  points: ${totals.points}  spawns: ${totals.spawns}`);
+console.log(`curve: nodes: ${totals.curveNodes}  second-layer runs: ${totals.curveRuns}`);
 console.log(`goal: ${totals.goals}  no-goal: ${totals.levelsWithoutGoal}  depth: ${DEPTH}  bounds margin: ${BOUNDS_MARGIN}`);
 console.log(
   `terrain collider/visual: ${totals.colliderTerrains}/${totals.terrain - totals.colliderTerrains}` +
-    `  skipped: ${skippedTerrains.length} outline + ${skippedFills.length} fill`,
+    `  skipped: ${skippedTerrains.length} outline + ${skippedFills.length} fill + ${skippedCurves.length} curve`,
 );
 console.log(
-  `fill textures: ${textureRows.length} (${textureBytes} bytes, ${textureRows.filter((row) => row.changed).length} changed, ` +
+  `level textures: ${textureRows.length} (fill ${fillTextureNames.size} + curve ${curveTextureNames.size}, ${textureBytes} bytes, ` +
+    `${textureRows.filter((row) => row.changed).length} changed, ` +
     `${staleTextures.length} removed) -> ${OUT_TEXTURES}`,
 );
 console.log(`report: ${OUT_JSON}\n        ${OUT_MD}`);

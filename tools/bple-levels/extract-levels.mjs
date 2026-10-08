@@ -66,6 +66,7 @@ import { buildGuidIndex, episodeIndex, loadEpisodes, loadLoaders } from "./lib/u
 import { readLevel } from "./lib/reader.mjs";
 import { OUTLINE_LOOP, classifyOutline } from "./lib/outline.mjs";
 import { loadTerrainFillTiles, readTextureImport } from "./lib/fill.mjs";
+import { curveLayerRuns, curveRows, readCurveTextureWrap } from "./lib/curve.mjs";
 import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap } from "./lib/pack.mjs";
 import { formatJson } from "./lib/write.mjs";
 
@@ -106,6 +107,17 @@ const fillTextureUsage = new Map();
 const fillColorHistogram = new Map();
 const fillOffsetHistogram = new Map();
 const terrainPrefabs = new Set();
+const curveNodeHistogram = new Map();
+const curveWidthHistogram = new Map();
+const curveSegmentHistogram = new Map();
+const curveRunHistogram = new Map();
+const curveSizeHistogram = new Map();
+const curveTextureCountHistogram = new Map();
+const curveTextureUsage = new Map();
+let curveTerrains = 0;
+let curveNodes = 0;
+let curveRuns = 0;
+let curveNodesInSecondLayer = 0;
 let levelsWithGoal = 0;
 
 for (const { bundle, file } of dataFiles) {
@@ -192,6 +204,53 @@ for (const { bundle, file } of dataFiles) {
     // already finer than any hand-set offset in the pack.
     const offset = terrain.fillOffset.map((value) => (Math.round(value * 1000) / 1000).toString()).join(",");
     fillOffsetHistogram.set(offset, (fillOffsetHistogram.get(offset) ?? 0) + 1);
+
+    // The edge trim (`curve.shader`): structure, layer choice and layer textures are asserted here
+    // (`lib/curve.mjs`), the histograms below report what the pack actually holds.
+    const curveLabel = `${basename(file)}: terrain "${terrain.instance.name}"`;
+    const rows = curveRows(terrain, check, curveLabel);
+    if (rows) {
+      const nodeKey = rows.nodes.length.toString();
+      curveNodeHistogram.set(nodeKey, (curveNodeHistogram.get(nodeKey) ?? 0) + 1);
+      for (let index = 0; index < rows.nodes.length; index += 1) {
+        const width = Math.hypot(rows.stripe[index][0] - rows.nodes[index][0], rows.stripe[index][1] - rows.nodes[index][1]);
+        const key = (Math.round(width * 1000) / 1000).toString();
+        curveWidthHistogram.set(key, (curveWidthHistogram.get(key) ?? 0) + 1);
+        if (index + 1 < rows.nodes.length) {
+          const length = Math.hypot(rows.nodes[index + 1][0] - rows.nodes[index][0], rows.nodes[index + 1][1] - rows.nodes[index][1]);
+          const lengthKey = (Math.round(length * 1000) / 1000).toString();
+          curveSegmentHistogram.set(lengthKey, (curveSegmentHistogram.get(lengthKey) ?? 0) + 1);
+        }
+      }
+      const runs = curveLayerRuns(terrain.controlTexture, rows.nodes.length, check, curveLabel);
+      if (runs) {
+        const runKey = runs.length.toString();
+        curveRunHistogram.set(runKey, (curveRunHistogram.get(runKey) ?? 0) + 1);
+        curveRuns += runs.length;
+        curveNodesInSecondLayer += runs.reduce((total, run) => total + run[1], 0);
+      }
+      curveNodes += rows.nodes.length;
+      curveTerrains += 1;
+      check(
+        terrain.curveTextureCount >= 2,
+        `${curveLabel}: the curve declares ${terrain.curveTextureCount} layer texture(s); the shader samples _Splat0 and _Splat1`,
+      );
+      for (const texture of terrain.curveTextures ?? []) {
+        const path = referencePaths[texture.textureIndex] ?? "<out of range>";
+        const sizeKey = `${Math.round(texture.size[0] * 1000) / 1000}x${Math.round(texture.size[1] * 1000) / 1000}`;
+        curveSizeHistogram.set(sizeKey, (curveSizeHistogram.get(sizeKey) ?? 0) + 1);
+        const layersKey = terrain.curveTextureCount.toString();
+        curveTextureCountHistogram.set(layersKey, (curveTextureCountHistogram.get(layersKey) ?? 0) + 1);
+        if (typeof path === "string" && path.endsWith(".png")) {
+          const wrap = readCurveTextureWrap(BPLE, path, check);
+          const usage = curveTextureUsage.get(path) ?? { path, slots: 0, wrap };
+          usage.slots += 1;
+          curveTextureUsage.set(path, usage);
+        } else {
+          check(false, `${curveLabel}: a curve layer texture resolves to ${path}, expected a PNG`);
+        }
+      }
+    }
   }
   for (const path of levelFillTextures) {
     fillTextureUsage.get(path).levels += 1;
@@ -259,6 +318,19 @@ for (const { tileWidth, tileHeight } of terrainFillTiles.values()) {
   const key = `${tileWidth}x${tileHeight}`;
   fillTileHistogram.set(key, (fillTileHistogram.get(key) ?? 0) + 1);
 }
+
+// ---------------------------------------------------------------- curve (the edge trim's look)
+
+// Every terrain's `_curve` mesh is asserted in the walk above (`lib/curve.mjs`): an even vertex count
+// with two triangles per segment, a control texture one node per texel, layer channels r/g only, and
+// at least two layer textures. What is left is the layer table itself: its textures' wrap modes.
+const curveTextures = [...curveTextureUsage.values()]
+  .map((usage) => ({ ...usage, wrap: usage.wrap ?? readCurveTextureWrap(BPLE, usage.path, check) }))
+  .sort((left, right) => right.slots - left.slots || left.path.localeCompare(right.path));
+check(
+  curveTerrains === levels.reduce((total, level) => total + level.terrain, 0),
+  `${curveTerrains} terrain(s) have a usable curve mesh; every terrain the pack stores has one`,
+);
 
 // ---------------------------------------------------------------- part coverage
 
@@ -330,6 +402,19 @@ const report = {
     colors: sortedHistogram(fillColorHistogram),
     offsets: sortedHistogram(fillOffsetHistogram),
   },
+  curve: {
+    terrains: curveTerrains,
+    nodes: curveNodes,
+    runs: curveRuns,
+    nodesInSecondLayer: curveNodesInSecondLayer,
+    nodeCounts: sortedHistogram(curveNodeHistogram),
+    bandWidths: sortedHistogram(curveWidthHistogram),
+    segmentLengths: sortedHistogram(curveSegmentHistogram),
+    runCounts: sortedHistogram(curveRunHistogram),
+    layerSizes: sortedHistogram(curveSizeHistogram),
+    layerCounts: sortedHistogram(curveTextureCountHistogram),
+    textures: curveTextures,
+  },
   goals: {
     levelsWithGoal,
     names: sortedHistogram(goalNameHistogram),
@@ -395,6 +480,24 @@ md.push("| 贴图 | 地形数 | 关卡数 |", "|---|---|---|");
 for (const texture of report.fill.textures) md.push(`| \`${texture.path}\` | ${texture.terrains} | ${texture.levels} |`);
 md.push("", "⇒ 内容 v3 写 `fill { texture, color, tileOffset, tileSize }`。贴图本体**不入库**（原版美术，`.gitignore` 里那条），");
 md.push("由 `build-levels.mjs` 复制到 `clients/web/public/assets/original/levels/`。见 `docs/specs/level-terrain-visuals.md`。", "");
+md.push("", "## 地形 curve（边缘条带的几何与层）", "");
+md.push("每块地形还有一条沿轮廓的 `_curve` 网格（`e2dTerrainCurveMesh.RebuildMesh`）：偶顶点是 `TerrainCurve` 节点、");
+md.push("奇顶点是把该节点沿法线外推 `e2dCurveTexture.size.y` 再夹进地形包围盒（`e2dTerrainBoundary.EnsurePointIsInBoundary`）；");
+md.push("`Assets/Resources/curve.shader` 取 u = 弧长 × `_SplatParams0.x`、v = 节点行 1 / 条带行 0，");
+md.push("层由**嵌在关卡文件里**的控制贴图 G 通道在 `_Splat0`/`_Splat1` 间选。实测：", "");
+md.push(`- 有 curve 网格的地形 **${report.curve.terrains}** / ${report.totals.terrain}，节点 **${report.curve.nodes}**（索引恒 = (节点−1)×6，0 例外）`);
+md.push(`- 每地形节点数（前 6）：${report.curve.nodeCounts.slice(0, 6).map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")}`);
+md.push(`- 条带宽（\`|stripe − node|\`，按 1e-3 归并，前 6）：${report.curve.bandWidths.slice(0, 6).map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")} 米`);
+md.push(`- 段长（相邻节点距离，前 6）：${report.curve.segmentLengths.slice(0, 6).map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")} 米`);
+md.push(`- 第二层运行段合计 **${report.curve.runs}**，命中节点 **${report.curve.nodesInSecondLayer}** / ${report.curve.nodes}；`);
+md.push(`- 每地形段数（前 6）：${report.curve.runCounts.slice(0, 6).map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")}`);
+md.push(`- \`e2dCurveTexture.size\`（前 6，x×y 米）：${report.curve.layerSizes.slice(0, 6).map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")}；每地形层数：${report.curve.layerCounts.map((entry) => `\`${entry.key}\` ${entry.count}`).join("、")}`);
+md.push("", "| 层贴图 | 槽位引用数 | wrap |", "|---|---|---|");
+for (const texture of report.curve.textures) {
+  md.push(`| \`${texture.path}\` | ${texture.slots} | ${texture.wrap} |`);
+}
+md.push("", "⇒ 内容 v4 写 `curve { nodes, stripe, textures[{ texture, wrap }], uScale, splat1 }`：控制贴图只用来折出 `splat1` 运行段，");
+md.push("其余三样都直接进内容；wrap 必须保留——u = 弧长 × 10（≈ 每米 10 次）远超 1，Clamp 的层只会显示贴图最右一列。", "");
 md.push("", "## 地形贴图表（`m_references`）", "");
 md.push(`去重后 **${report.textures.length}** 个资源，被 loader 引用；每个地形还有一张**嵌在关卡文件里**的控制贴图（PNG，合计 ${report.totals.controlTextures} 张）。`, "");
 md.push("| 资源 | 被多少关卡的 loader 引用 |", "|---|---|");

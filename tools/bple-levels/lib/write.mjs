@@ -75,9 +75,11 @@ function pretty(value, indent) {
   return scalarText(value);
 }
 
-/// One `terrain` entry: `position`, `depth`, `collider` and the `fill` block on one line each, then
-/// one line per outline loop. `fill` is one line because it is four scalars and two short vectors
-/// (`fill.shader`'s own inputs); a document without one (v2 and older) omits the line entirely.
+/// One `terrain` entry: `position`, `depth`, `collider`, the `fill` block and (v4) the `curve` block
+/// on lines of their own, then one line per outline loop. `fill` is one line because it is four
+/// scalars and two short vectors (`fill.shader`'s own inputs); a document without one (v2 and older)
+/// omits the line entirely. `curve` is the `_curve` mesh -- two rows of points, one line each, plus
+/// the two layer textures, the u scale and the second layer's node runs (`curve.shader`'s inputs).
 function terrainText(terrains, schemaVersion) {
   if (terrains.length === 0) return "[]";
   const entries = terrains.map((terrain) => {
@@ -88,6 +90,12 @@ function terrainText(terrains, schemaVersion) {
     }
     if (schemaVersion < 3 && (terrain.fill !== undefined || terrain.collider !== undefined)) {
       throw new Error("a terrain fill block and collider flag are v3-only");
+    }
+    if (schemaVersion >= 4 && terrain.curve === undefined) {
+      throw new Error("a v4 terrain entry needs a curve block");
+    }
+    if (schemaVersion < 4 && terrain.curve !== undefined) {
+      throw new Error("a terrain curve block is v4-only");
     }
 
     const loops = terrain.loops.map((loop) => `        ${compact(loop)}`).join(",\n");
@@ -100,13 +108,24 @@ function terrainText(terrains, schemaVersion) {
     if (terrain.fill !== undefined) {
       lines.push(`      "fill": ${compact(terrain.fill)},`);
     }
+    if (terrain.curve !== undefined) {
+      lines.push(
+        '      "curve": {',
+        `        "textures": ${compact(terrain.curve.textures)},`,
+        `        "uScale": ${numberText(terrain.curve.uScale)},`,
+        `        "splat1": ${compact(terrain.curve.splat1)},`,
+        `        "nodes": ${compact(terrain.curve.nodes)},`,
+        `        "stripe": ${compact(terrain.curve.stripe)}`,
+        "      },",
+      );
+    }
     lines.push('      "loops": [', loops, "      ]", "    }");
     return lines.join("\n");
   });
   return `[\n${entries.join(",\n")}\n  ]`;
 }
 
-/// A PigForge level-content v3 document, in the schema's own key order: `format`, `schemaVersion`,
+/// A PigForge level-content v4 document, in the schema's own key order: `format`, `schemaVersion`,
 /// `contentVersion`, `goalZone`, `bounds`, `spawns`, `terrain`.
 export function formatLevelDocument(document) {
   return `${[

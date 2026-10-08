@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigforge.invalid/schemas/level-content-v4.schema.json",
+  "title": "PigForge Level Content v4",
+  "description": "Engine-agnostic level definition. v4 adds `terrain[].curve`, the art trim the original draws along every terrain's outline: the level file's own `_curve` mesh (a two-row triangle strip -- `nodes` on the terrain, `stripe` offset by the node's `e2dCurveTexture.size.y`), the two `e2d/Curve` layer textures with their wrap modes, the shader's `_SplatParams0.x` u scale and the runs of nodes whose layer is the second texture (the control texture's green channel). v1-v3 documents keep parsing; only v4 carries a `curve` block and only v4 requires one per terrain.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns"],
+  "properties": {
+    "format": { "const": "pigforge.level-content" },
+    "schemaVersion": { "const": 4 },
+    "contentVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
+    "goalZone": { "$ref": "#/$defs/zone" },
+    "bounds": { "$ref": "#/$defs/zone" },
+    "spawns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/spawn" }
+    },
+    "terrain": {
+      "description": "One entry per `e2dTerrain` object. `position` is the object's own transform (the original never rotates or scales these), `depth` is the extrusion along z the collision shell uses (e2dConstants.COLLISION_MESH_Z_DEPTH = 10), `collider` is the original's `hasCollider` (498 of 2146 terrains are decoration and get no body), `fill` is the ground's texture, tint and tiling, `curve` is the edge trim's geometry and layers, and `loops` are the terrain's boundary polygons in its local frame, each point being [x, y] because the extrusion supplies z.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/terrain" }
+    }
+  },
+  "$defs": {
+    "positiveUInt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "finiteNumber": { "type": "number" },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "point2": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/finiteNumber" },
+        { "$ref": "#/$defs/finiteNumber" }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "$ref": "#/$defs/vector3" },
+        "max": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "spawn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partTypeId", "position"],
+      "properties": {
+        "partTypeId": { "$ref": "#/$defs/positiveUInt" },
+        "position": { "$ref": "#/$defs/vector3" },
+        "angle": { "$ref": "#/$defs/finiteNumber" },
+        "role": { "enum": ["part", "pig", "tnt"] },
+        "tntFuseTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "motorImpulsePerTick": { "$ref": "#/$defs/finiteNumber" },
+        "motorDirectionX": { "enum": [-1, 0, 1] },
+        "wheel": { "type": "boolean" }
+      }
+    },
+    "fill": {
+      "description": "The original's `e2d/Fill` inputs that the level names: `texture` is a file name in the client's level-texture directory (the art itself is never committed), `color` is the level file's own RGBA quad in bytes (`LevelLoader.ReadColor` multiplies each by 0.003921569f), `tileOffset` is the level file's fill texture tile offset and `tileSize` is the terrain prefab's `FillTextureTileWidth/Height`, both in world metres.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["texture", "color", "tileOffset", "tileSize"],
+      "properties": {
+        "texture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "color": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "type": "integer", "minimum": 0, "maximum": 255 },
+            { "type": "integer", "minimum": 0, "maximum": 255 }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "tileOffset": { "$ref": "#/$defs/point2" },
+        "tileSize": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "number", "exclusiveMinimum": 0 },
+            { "type": "number", "exclusiveMinimum": 0 }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "curveTexture": {
+      "description": "One of the two `e2dCurveTexture` layers the `e2d/Curve` shader samples (`_Splat0` / `_Splat1`). `wrap` is that texture's own Unity wrap mode: `repeat` tiles (`wrapU: 0`) and `clamp` stretches the last texel column (`wrapU: 1`) -- the shader's u runs far past 1, so the mode is part of the look.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["texture", "wrap"],
+      "properties": {
+        "texture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "wrap": { "enum": ["repeat", "clamp"] }
+      }
+    },
+    "curve": {
+      "description": "The original's `_curve` mesh (`e2dTerrainCurveMesh`, built from `e2dTerrain.TerrainCurve` and its `StripeVertices`) and the material inputs `LevelLoader.ReadTerrain` restores. `nodes` and `stripe` are the strip's two rows in the level file's own vertex order -- `nodes[i]` is a `TerrainCurve` node on the terrain surface, `stripe[i]` is that node pushed outwards by the node's `e2dCurveTexture.size.y` and kept inside the terrain's boundary rect, and the mesh's triangles are the quads between consecutive pairs. The shader maps u = arclength x `uScale` and v = 1 on `nodes` / 0 on `stripe` across the band; `splat1` lists the node runs the control texture's green channel switches to `textures[1]`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes", "stripe", "textures", "uScale", "splat1"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/point2" }
+        },
+        "stripe": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/point2" }
+        },
+        "textures": {
+          "type": "array",
+          "prefixItems": [
+            { "$ref": "#/$defs/curveTexture" },
+            { "$ref": "#/$defs/curveTexture" }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "uScale": { "type": "number", "exclusiveMinimum": 0 },
+        "splat1": {
+          "description": "Disjoint runs `[start, count]` of node indices drawn with `textures[1]`, sorted by `start`; every node outside them uses `textures[0]`.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "integer", "minimum": 0 },
+              { "type": "integer", "minimum": 1 }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      }
+    },
+    "terrain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "depth", "collider", "fill", "curve", "loops"],
+      "properties": {
+        "position": { "$ref": "#/$defs/vector3" },
+        "depth": { "type": "number", "exclusiveMinimum": 0 },
+        "collider": { "type": "boolean" },
+        "fill": { "$ref": "#/$defs/fill" },
+        "curve": { "$ref": "#/$defs/curve" },
+        "loops": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "items": { "$ref": "#/$defs/point2" }
+          }
+        }
+      }
+    }
+  }
+}

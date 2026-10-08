@@ -98,8 +98,11 @@ export function loadTerrainFillTiles(bpleRoot, prefabPaths, check) {
   return tiles;
 }
 
-/// The import state of a fill texture, read from its `.meta`: `{ wrapU, wrapV, filterMode }`.
-export function readTextureImport(bpleRoot, path, check) {
+/// The import state of a texture, read from its `.meta`: `{ wrapU, wrapV, filterMode }`, with the
+/// filter asserted -- every texture this pack samples is Bilinear. The wrap mode is the caller's
+/// business: a fill texture must be Repeat, but a `_curve` layer may legitimately be Clamp (the
+/// shader's u then resolves to the texture's last texel column).
+export function readImportState(bpleRoot, path, check) {
   const file = join(bpleRoot, `${path}.meta`);
   check(existsSync(file), `${path}.meta does not exist`);
   const text = existsSync(file) ? readFileSync(file, "utf8") : "";
@@ -110,10 +113,17 @@ export function readTextureImport(bpleRoot, path, check) {
   const wrapU = field("wrapU");
   const wrapV = field("wrapV");
   const filterMode = field("filterMode");
-  check(
-    wrapU === WRAP_REPEAT && wrapV === WRAP_REPEAT,
-    `${path}: fill UVs tile, so the texture must wrap Repeat; wrapU=${wrapU} wrapV=${wrapV}`,
-  );
   check(filterMode === FILTER_BILINEAR, `${path}: expected FilterMode.Bilinear (1), got ${filterMode}`);
   return { wrapU, wrapV, filterMode };
+}
+
+/// The import state of a *fill* texture: `fill.shader`'s UVs run far outside 0..1 (a 100 m level
+/// tiles 20 times at 5 m), so this one must wrap Repeat or the ground smears instead of tiling.
+export function readTextureImport(bpleRoot, path, check) {
+  const state = readImportState(bpleRoot, path, check);
+  check(
+    state.wrapU === WRAP_REPEAT && state.wrapV === WRAP_REPEAT,
+    `${path}: fill UVs tile, so the texture must wrap Repeat; wrapU=${state.wrapU} wrapV=${state.wrapV}`,
+  );
+  return state;
 }

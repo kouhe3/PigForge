@@ -79,8 +79,9 @@ class Reader {
     return [this.float(), this.float(), this.float()];
   }
   /// Reads a mesh block. `vertices` and `indices` keep the position list / triangle indices;
-  /// without them the block is skipped at its known stride. A fill mesh needs both (the
-  /// collider outline is its boundary); a curve mesh is only ever counted.
+  /// without them the block is skipped at its known stride. Both meshes are kept: the fill mesh
+  /// (whose boundary is the collider outline and the drawing) and the curve mesh (the edge trim's
+  /// two rows).
   mesh({ vertices = false, indices = false } = {}) {
     const vertexCount = this.int32();
     this.check(vertexCount >= 0, `negative vertex count ${vertexCount}`);
@@ -142,17 +143,24 @@ export function readLevel(buffer, check = (condition, message) => { if (!conditi
       const fill = reader.mesh({ vertices: true, indices: true });
       const fillColor = reader.uint32();
       const fillTextureIndex = reader.int32();
-      const curve = reader.mesh();
+      const curve = reader.mesh({ vertices: true, indices: true });
       const curveTextureCount = reader.int32();
+      const curveTextures = [];
       for (let index = 0; index < curveTextureCount; index += 1) {
-        reader.int32();
-        reader.vector2();
-        reader.bool();
-        reader.float();
+        curveTextures.push({
+          textureIndex: reader.int32(),
+          size: reader.vector2(),
+          fixedAngle: reader.bool(),
+          fadeThreshold: reader.float(),
+        });
       }
       let controlTextureBytes = 0;
+      let controlTexture = null;
       if (reader.int32() > 0) {
         controlTextureBytes = reader.int32();
+        // The control texture is the PNG the editor wrote next to the mesh: one pixel high, one
+        // texel per curve node, and its channels say which `e2dCurveTexture` layer a node uses.
+        controlTexture = Buffer.from(reader.buffer.subarray(reader.offset, reader.offset + controlTextureBytes));
         reader.offset += controlTextureBytes;
       }
       const hasCollider = reader.bool();
@@ -164,7 +172,9 @@ export function readLevel(buffer, check = (condition, message) => { if (!conditi
         fillTextureIndex,
         curve,
         curveTextureCount,
+        curveTextures,
         controlTextureBytes,
+        controlTexture,
         hasCollider,
       });
     } else if (type === 2) {
