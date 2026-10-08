@@ -40,7 +40,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { arg, flag } from "./lib/args.mjs";
+import { arg, flag } from "../lib/args.mjs";
 import { buildGuidIndex, loadEpisodes, loadLoaders } from "./lib/unity-yaml.mjs";
 import { readLevel } from "./lib/reader.mjs";
 import { outlineLoops } from "./lib/outline.mjs";

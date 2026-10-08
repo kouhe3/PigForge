@@ -22,30 +22,20 @@
 // changed original fails the tool instead of silently producing a different world.
 //
 // Usage: node tools/bple-joints/extract-joints.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join } from "node:path";
+import { CONTENT, assets, bpleProject, gameObjects, reportJson, reportMd, scriptAssembly } from "../lib/paths.mjs";
+import { checks, fail, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, buildClassBases, buildGuidIndex, classChain, derivesFromBasePart, firstClassName, prefabText } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-joints-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-joints-report.md")));
-const ASSETS = join(BPLE, "Assets");
-const SCRIPTS = join(ASSETS, "Scripts", "Assembly-CSharp");
-const GAMEOBJECT = join(ASSETS, "GameObject");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("joints");
+const OUT_MD = reportMd("joints");
+const GAMEOBJECT = gameObjects(BPLE);
+const SCRIPTS = scriptAssembly(BPLE);
 
 if (!existsSync(GAMEOBJECT) || !existsSync(SCRIPTS)) {
-  console.error(`BPLE project not found: ${ASSETS}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${assets(BPLE)}\nPass --bple <path to BPLE_Unity6>.`);
 }
 
 // Unity's enum, spelled out so a report reader does not have to decode integers.
@@ -74,59 +64,10 @@ const warnings = [];
 
 // ------------------------------------------------------------------ script index
 // Unity serializes a MonoBehaviour as a script guid, so a prefab's class is only readable once
-// the guid is mapped back to the `.cs` file beside its `.meta`. Reused from
-// tools/bple-springs/extract-springs.mjs so both tools resolve classes the same way.
-const CLASS_DECLARATION = /^\s*(?:public |internal )?(?:sealed |abstract |partial |static |unsafe )*class\s+(\w+)\s*:\s*([\w<>,.\s]*?)\s*\{?\s*$/gm;
-
-/** The first class declared in a file; `null` for files that only declare enums/structs. */
-function firstClassName(text) {
-  return /^\s*(?:public |internal )?(?:sealed |abstract |partial |static |unsafe )*class\s+(\w+)\b/m.exec(text)?.[1] ?? null;
-}
-
-/** guid -> class name, from the `.cs.meta` file's guid and the class declared in the `.cs`. */
-function buildGuidIndex() {
-  const byGuid = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs.meta")) continue;
-    const meta = /^guid:\s*([0-9a-f]{32})/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
-    if (!meta) continue;
-    const file = basename(entry, ".cs.meta");
-    const source = join(SCRIPTS, `${file}.cs`);
-    const declared = existsSync(source) ? firstClassName(readFileSync(source, "utf8")) : null;
-    byGuid.set(meta[1], declared ?? file);
-  }
-  return byGuid;
-}
-
-/** class name -> base class name, for every class in the assembly. */
-function buildClassBases() {
-  const bases = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs")) continue;
-    for (const match of readFileSync(join(SCRIPTS, entry), "utf8").matchAll(CLASS_DECLARATION)) {
-      // A generic base (`PartManager<T>`) is kept verbatim: it simply does not resolve further.
-      bases.set(match[1], match[2].split(",")[0].trim());
-    }
-  }
-  return bases;
-}
-
-const guidIndex = buildGuidIndex();
-const classBases = buildClassBases();
-
-/** `className` and every ancestor, nearest first. C# forbids cycles, but the guard keeps a
- * malformed source from hanging the tool. */
-function classChain(className) {
-  const chain = [];
-  const seen = new Set();
-  for (let name = className; name && !seen.has(name); name = classBases.get(name)) {
-    seen.add(name);
-    chain.push(name);
-  }
-  return chain;
-}
-
-const derivesFromBasePart = (className) => classChain(className).includes("BasePart");
+// the guid is mapped back to the `.cs` file beside its `.meta`; `declaredClass` resolves the class
+// the `.cs` actually declares instead of trusting the file name.
+const guidIndex = buildGuidIndex(SCRIPTS, { declaredClass: true });
+const classBases = buildClassBases(SCRIPTS);
 
 /** The `{...}` body of one boolean override, or `null` when the class does not declare it. */
 function readOverrideBody(text, method) {
@@ -170,7 +111,7 @@ const overrideTable = {
 /** What `className` returns for one of the two enclosure methods: the nearest declaration in the
  * chain wins, `null` means no class in the chain overrides it (the virtual base decides). */
 function resolveEnclosure(className, method) {
-  for (const name of classChain(className)) {
+  for (const name of classChain(classBases, className)) {
     const override = overrideTable[method].get(name);
     if (override) return { ...override, declaringClass: name };
   }
@@ -183,7 +124,7 @@ function partClassOf(text) {
   const guids = [...new Set([...text.matchAll(/m_Script:\s*\{fileID:\s*-?\d+,\s*guid:\s*([0-9a-f]{32})/g)]
     .map((match) => guidIndex.get(match[1]))
     .filter((value) => value !== undefined))];
-  const derived = guids.filter(derivesFromBasePart);
+  const derived = guids.filter((value) => derivesFromBasePart(classBases, value));
   return derived.length === 1 ? derived[0] : null;
 }
 
@@ -205,11 +146,6 @@ function enclosureOf(text, prefabName) {
     canEnclosePartsClass: enclosing?.declaringClass ?? null,
     canBeEnclosedClass: enclosed?.declaringClass ?? null,
   };
-}
-
-function prefabText(name) {
-  const path = join(GAMEOBJECT, `${name}.prefab`);
-  return existsSync(path) ? readFileSync(path, "utf8") : null;
 }
 
 /** The first `m_jointConnectionType` in the file. Every part prefab carries exactly one, on the
@@ -257,26 +193,8 @@ function readJointKind(text) {
   return match ? Number(match[1]) : null;
 }
 
-/** partTypeId -> prefab name, reusing the mapping the shapes/textures extractors established so
- * this tool cannot drift into a second convention. */
-function loadAssignments() {
-  const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
-  const byPart = new Map();
-  // `parts` covers the 44 bases, `variants` the 223 imported skins; both map partTypeId -> the
-  // prefab the part was extracted from, and either may be null for a PigForge-only invention.
-  for (const section of ["parts", "variants"]) {
-    for (const [partTypeId, prefab] of Object.entries(map[section] ?? {})) {
-      if (typeof prefab === "string" && prefab.length > 0) {
-        byPart.set(Number(partTypeId), prefab);
-      }
-    }
-  }
-
-  return byPart;
-}
-
 const assignments = loadAssignments();
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 const nameByPart = new Map(content.parts.map((part) => [part.partTypeId, part.name ?? ""]));
 
 const parts = {};
@@ -288,7 +206,7 @@ for (const part of content.parts) {
     continue;
   }
 
-  const text = prefabText(prefab);
+  const text = prefabText(GAMEOBJECT, prefab);
   if (text === null) {
     warnings.push(`part ${part.partTypeId} (${prefab}): prefab file missing`);
     continue;
@@ -411,7 +329,8 @@ const sameHistogram = (actual, expected) =>
   [...new Set([...Object.keys(actual), ...Object.keys(expected)])].every(
     (key) => (actual[key] ?? 0) === (expected[key] ?? 0),
   );
-const invariants = [];
+const check = checks();
+const invariants = check.failures;
 if (prefabScan.count !== 343) {
   invariants.push(`prefab count: expected 343, got ${prefabScan.count}`);
 }
@@ -490,14 +409,7 @@ if (mappedPrefabDisagreement.length !== 0) {
   invariants.push(`canEncloseParts disagrees with the name criterion on mapped prefabs: ${JSON.stringify(mappedPrefabDisagreement.sort())}`);
 }
 
-if (invariants.length > 0) {
-  console.error("extract-joints: source-tree invariants changed:");
-  for (const invariant of invariants) {
-    console.error(`  - ${invariant}`);
-  }
-
-  process.exit(1);
-}
+check.verify("extract-joints: source-tree invariants changed:");
 
 const report = {
   bple: BPLE,
@@ -511,8 +423,7 @@ const report = {
   unmapped,
   parts,
 };
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(OUT_JSON, report);
 
 const byType = (wanted) =>
   Object.entries(parts)
@@ -594,7 +505,7 @@ if (warnings.length > 0) {
   md.push("");
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`prefabs: ${Object.values(distribution).reduce((sum, count) => sum + count, 0)} (${JSON.stringify(distribution)})`);
 console.log(`strength: ${JSON.stringify(prefabScan.strengthHistogram)}; preprocessing: ${JSON.stringify(prefabScan.preprocessingHistogram)}; joint kind: ${JSON.stringify(prefabScan.jointKindHistogram)}`);

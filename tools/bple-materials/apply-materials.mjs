@@ -40,29 +40,18 @@
 // Usage:
 //   node tools/bple-materials/apply-materials.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, parseParts, readContentText } from "../lib/parts.mjs";
+import { num4 } from "../lib/report.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-materials-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("materials");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8"));
 const unityDefault = report.unityDefaultMaterial;
 if (!unityDefault || !Number.isFinite(unityDefault.bounciness) || !Number.isFinite(unityDefault.dynamicFriction)) {
   throw new Error(`report is missing unityDefaultMaterial: ${JSON.stringify(unityDefault)}`);
 }
-
-const num = (value) => (Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4))));
 
 const COMBINE_NAMES = ["average", "minimum", "multiply", "maximum"];
 
@@ -134,7 +123,7 @@ function desiredMaterial(row, part) {
 }
 
 /** partTypeId -> desired material (null = leave untouched), derived only from the report. */
-const contentParts = new Map(JSON.parse(readFileSync(CONTENT, "utf8")).parts.map((part) => [String(part.partTypeId), part]));
+const contentParts = new Map(parseParts(readContentText()).map((part) => [String(part.partTypeId), part]));
 const desired = new Map();
 for (const row of report.diff ?? []) {
   desired.set(String(row.partTypeId), desiredMaterial(row, contentParts.get(String(row.partTypeId))));
@@ -143,8 +132,8 @@ for (const row of report.diff ?? []) {
 // Average is Unity's default and the pre-extraction behaviour, so it stays implicit; only a
 // mode that actually changes the blend is written.
 const materialText = (value) => (value.frictionCombine === "average"
-  ? `{ "restitution": ${num(value.restitution)}, "friction": ${num(value.friction)} }`
-  : `{ "restitution": ${num(value.restitution)}, "friction": ${num(value.friction)}, "frictionCombine": ${JSON.stringify(value.frictionCombine)} }`);
+  ? `{ "restitution": ${num4(value.restitution)}, "friction": ${num4(value.friction)} }`
+  : `{ "restitution": ${num4(value.restitution)}, "friction": ${num4(value.friction)}, "frictionCombine": ${JSON.stringify(value.frictionCombine)} }`);
 
 /** Rewrites one document text with the report's material values, preserving everything else. */
 function rewrite(text) {
@@ -199,8 +188,9 @@ function rewrite(text) {
   return { text, updated, changed, unityDefaultParts, skipped, before };
 }
 
-// Re-parse and re-derive: the rewrite must be valid JSON and exactly match the report, and every
-// part the report has no source for must be byte-identical to what it was.
+// Re-parse and re-derive: the rewrite must be valid JSON and exactly match the report, every part
+// the report has no source for must be byte-identical to what it was, and a second application
+// over the rewritten text must be a byte-for-byte no-op.
 function verify(result) {
   const document = JSON.parse(result.text);
   for (const part of document.parts) {
@@ -227,40 +217,41 @@ function verify(result) {
     }
   }
 
+  // Idempotence: a second application over the rewritten text must be a byte-for-byte no-op.
+  const second = rewrite(result.text);
+  if (second.text !== result.text) throw new Error("rewrite is not idempotent");
+
   return document;
 }
 
-const first = rewrite(readFileSync(CONTENT, "utf8"));
-verify(first);
+applyContent({
+  rewrite,
+  verify,
+  report: (first, _verified, { dryRun, content }) => {
+    const tally = (pick, format = num4) => {
+      const counts = new Map();
+      for (const part of JSON.parse(first.text).parts) {
+        const want = desired.get(String(part.partTypeId));
+        if (!want) continue;
+        const value = pick(want);
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
 
-// Idempotence: a second application over the rewritten text must be a byte-for-byte no-op.
-const second = rewrite(first.text);
-if (second.text !== first.text) throw new Error("rewrite is not idempotent");
+      return [...counts]
+        .sort((a, b) => (typeof a[0] === "number" && typeof b[0] === "number" ? a[0] - b[0] : String(a[0]).localeCompare(String(b[0]))))
+        .map(([value, count]) => `${format(value)}×${count}`)
+        .join(", ");
+    };
 
-if (!DRY_RUN) writeFileSync(CONTENT, first.text);
-
-const tally = (pick, format = num) => {
-  const counts = new Map();
-  for (const part of JSON.parse(first.text).parts) {
-    const want = desired.get(String(part.partTypeId));
-    if (!want) continue;
-    const value = pick(want);
-    counts.set(value, (counts.get(value) ?? 0) + 1);
-  }
-
-  return [...counts]
-    .sort((a, b) => (typeof a[0] === "number" && typeof b[0] === "number" ? a[0] - b[0] : String(a[0]).localeCompare(String(b[0]))))
-    .map(([value, count]) => `${format(value)}×${count}`)
-    .join(", ");
-};
-
-console.log(`${DRY_RUN ? "would update" : "updated"} ${first.updated} parts in ${CONTENT} (${first.changed} changed)`);
-console.log(`unity default material (no PhysicMaterial in the original): ${first.unityDefaultParts}`);
-console.log(`restitution: ${tally((want) => want.restitution)}`);
-console.log(`friction: ${tally((want) => want.friction)}`);
-console.log(`frictionCombine: ${tally((want) => want.frictionCombine, String)}`);
-const mappedSkips = first.skipped.filter((part) => part.mapped);
-const unmappedSkips = first.skipped.filter((part) => !part.mapped);
-console.log(`skipped (report has no source): ${first.skipped.length}`);
-for (const part of mappedSkips) console.log(`  - ${part.partTypeId} ${part.name} (prefab not mapped to a part)`);
-for (const part of unmappedSkips) console.log(`  - ${part.partTypeId} ${part.name} (absent from the report)`);
+    console.log(`${dryRun ? "would update" : "updated"} ${first.updated} parts in ${content} (${first.changed} changed)`);
+    console.log(`unity default material (no PhysicMaterial in the original): ${first.unityDefaultParts}`);
+    console.log(`restitution: ${tally((want) => want.restitution)}`);
+    console.log(`friction: ${tally((want) => want.friction)}`);
+    console.log(`frictionCombine: ${tally((want) => want.frictionCombine, String)}`);
+    const mappedSkips = first.skipped.filter((part) => part.mapped);
+    const unmappedSkips = first.skipped.filter((part) => !part.mapped);
+    console.log(`skipped (report has no source): ${first.skipped.length}`);
+    for (const part of mappedSkips) console.log(`  - ${part.partTypeId} ${part.name} (prefab not mapped to a part)`);
+    for (const part of unmappedSkips) console.log(`  - ${part.partTypeId} ${part.name} (absent from the report)`);
+  },
+});

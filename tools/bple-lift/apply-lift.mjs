@@ -15,99 +15,87 @@
 // Usage:
 //   node tools/bple-lift/apply-lift.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, capabilitiesSpan, partSpan, propertyPattern } from "../lib/parts.mjs";
+import { numPlain6 } from "../lib/report.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-lift-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("lift");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8")).parts;
-const number = (value) => String(Number(Number(value).toFixed(6)));
 
-const propertyPattern = (key) => new RegExp(`"${key}":\\s*(?:"[^"]*"|true|false|-?[0-9.]+|\\{(?:[^{}]|\\{[^{}]*\\})*\\})`);
+applyContent({
+  rewrite: (text) => {
+    const document = JSON.parse(text);
+    let updated = 0;
 
-let text = readFileSync(CONTENT, "utf8");
-const document = JSON.parse(text);
-let updated = 0;
+    for (const part of document.parts) {
+      const entry = report[String(part.partTypeId)];
+      if (!entry) {
+        continue;
+      }
 
-for (const part of document.parts) {
-  const entry = report[String(part.partTypeId)];
-  if (!entry) {
-    continue;
-  }
+      const { anchorIndex, shapesIndex } = partSpan(text, part.partTypeId);
 
-  const anchor = `"partTypeId": ${part.partTypeId},`;
-  const anchorIndex = text.indexOf(anchor);
-  if (anchorIndex < 0) throw new Error(`anchor missing for part ${part.partTypeId}`);
-  const shapesIndex = text.indexOf('"shapes":', anchorIndex);
-  if (shapesIndex < 0) throw new Error(`shapes missing for part ${part.partTypeId}`);
+      const massMatch = /"mass":\s*-?[0-9.]+/.exec(text.slice(anchorIndex, shapesIndex));
+      if (!massMatch) throw new Error(`mass missing for part ${part.partTypeId}`);
+      text =
+        text.slice(0, anchorIndex + massMatch.index) +
+        `"mass": ${numPlain6(entry.mass)}` +
+        text.slice(anchorIndex + massMatch.index + massMatch[0].length);
 
-  const massMatch = /"mass":\s*-?[0-9.]+/.exec(text.slice(anchorIndex, shapesIndex));
-  if (!massMatch) throw new Error(`mass missing for part ${part.partTypeId}`);
-  text =
-    text.slice(0, anchorIndex + massMatch.index) +
-    `"mass": ${number(entry.mass)}` +
-    text.slice(anchorIndex + massMatch.index + massMatch[0].length);
+      // Recomputed after the mass rewrite, which may have changed the text length.
+      const span = capabilitiesSpan(text, part.partTypeId);
+      if (span === null) {
+        throw new Error(`part ${part.partTypeId}: balloon content needs an inline capabilities object`);
+      }
 
-  // Recomputed after the mass rewrite, which may have changed the text length.
-  const shapesAfterMass = text.indexOf('"shapes":', anchorIndex);
-  const capabilitiesIndex = text.indexOf('"capabilities":', anchorIndex);
-  if (capabilitiesIndex < 0 || capabilitiesIndex > shapesAfterMass) {
-    throw new Error(`part ${part.partTypeId}: balloon content needs an inline capabilities object`);
-  }
+      // The segment between this part's anchor and its `shapes` holds exactly one inline
+      // capabilities object; rewriting the property there avoids brace matching across the nested
+      // objects (a balloon carries an `attachment` object) while touching nothing else.
+      const segment = text.slice(span.anchorIndex, span.shapesIndex);
+      const pattern = propertyPattern("balloon");
+      if (!pattern.test(segment)) {
+        throw new Error(`part ${part.partTypeId}: balloon capability missing`);
+      }
 
-  // The segment between this part's anchor and its `shapes` holds exactly one inline
-  // capabilities object; rewriting the property there avoids brace matching across the nested
-  // objects (a balloon carries an `attachment` object) while touching nothing else.
-  const segment = text.slice(anchorIndex, shapesAfterMass);
-  const pattern = propertyPattern("balloon");
-  if (!pattern.test(segment)) {
-    throw new Error(`part ${part.partTypeId}: balloon capability missing`);
-  }
+      text =
+        text.slice(0, span.anchorIndex) +
+        segment.replace(pattern, `"balloon": ${numPlain6(entry.liftPerTick)}`) +
+        text.slice(span.shapesIndex);
+      updated += 1;
+    }
 
-  text =
-    text.slice(0, anchorIndex) +
-    segment.replace(pattern, `"balloon": ${number(entry.liftPerTick)}`) +
-    text.slice(shapesAfterMass);
-  updated += 1;
-}
+    return { text, updated };
+  },
+  // Re-parse and re-derive: the rewrite must be valid JSON, exactly match the report, and be
+  // idempotent (a second run changes nothing). Any part still carrying a balloon capability that
+  // no balloon prefab backs is a deviation and must be named explicitly, so a stale value cannot
+  // hide.
+  verify: (result) => {
+    const check = JSON.parse(result.text);
+    for (const part of check.parts) {
+      const entry = report[String(part.partTypeId)];
+      if (!entry) continue;
+      if (part.mass !== entry.mass) {
+        throw new Error(`part ${part.partTypeId}: mass ${part.mass} != ${entry.mass}`);
+      }
 
-// Re-parse and re-derive: the rewrite must be valid JSON, exactly match the report, and be
-// idempotent (a second run changes nothing).
-const check = JSON.parse(text);
-for (const part of check.parts) {
-  const entry = report[String(part.partTypeId)];
-  if (!entry) continue;
-  if (part.mass !== entry.mass) {
-    throw new Error(`part ${part.partTypeId}: mass ${part.mass} != ${entry.mass}`);
-  }
+      if (part.capabilities?.balloon !== entry.liftPerTick) {
+        throw new Error(`part ${part.partTypeId}: balloon ${part.capabilities?.balloon} != ${entry.liftPerTick}`);
+      }
+    }
 
-  if (part.capabilities?.balloon !== entry.liftPerTick) {
-    throw new Error(`part ${part.partTypeId}: balloon ${part.capabilities?.balloon} != ${entry.liftPerTick}`);
-  }
-}
+    const strays = check.parts
+      .filter((part) => part.capabilities?.balloon !== undefined && report[String(part.partTypeId)] === undefined)
+      .map((part) => `${part.partTypeId}:${part.name}`);
 
-// Any part still carrying a balloon capability that no balloon prefab backs is a deviation and
-// must be named explicitly, so a stale value cannot hide.
-const strays = check.parts
-  .filter((part) => part.capabilities?.balloon !== undefined && report[String(part.partTypeId)] === undefined)
-  .map((part) => `${part.partTypeId}:${part.name}`);
-
-if (!DRY_RUN) {
-  writeFileSync(CONTENT, text);
-}
-
-console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} balloon parts in ${CONTENT}`);
-if (strays.length > 0) {
-  console.log(`balloon-capability parts with no balloon prefab (left untouched): ${strays.join(", ")}`);
-}
+    return { strays };
+  },
+  report: ({ updated }, { strays }, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${updated} balloon parts in ${content}`);
+    if (strays.length > 0) {
+      console.log(`balloon-capability parts with no balloon prefab (left untouched): ${strays.join(", ")}`);
+    }
+  },
+});

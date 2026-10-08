@@ -61,7 +61,7 @@
 // Usage: node tools/bple-levels/extract-levels.mjs [--bple <path>] [--json <path>] [--md <path>]
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { arg } from "./lib/args.mjs";
+import { arg } from "../lib/args.mjs";
 import { buildGuidIndex, episodeIndex, loadEpisodes, loadLoaders } from "./lib/unity-yaml.mjs";
 import { readLevel } from "./lib/reader.mjs";
 import { OUTLINE_LOOP, classifyOutline } from "./lib/outline.mjs";

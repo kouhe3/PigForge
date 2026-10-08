@@ -25,47 +25,31 @@
 //       expression — the Pig/KingPig component marks a part as running the expression machine.
 //     A frame id's own materialId column is a runtime material and never resolves to an asset.
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { arg } from "../lib/args.mjs";
+import { MANIFEST, assets, bpleProject, gameObjects, scriptAssembly } from "../lib/paths.mjs";
+import { fail, writeJsonArtifact } from "../lib/report.mjs";
+import { fieldOf, indexAssetGuids, prefabText, readPartMap } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
 const UNITS_PER_PIXEL = 20 / 768; // BPLE: 768 px = 20 world units (Sprite.cs camera height).
 
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT = resolve(arg("out", join(REPO, "clients", "web", "public", "assets", "original")));
-const ASSETS = join(BPLE, "Assets");
-const GAMEOBJECT = join(ASSETS, "GameObject");
+const BPLE = bpleProject();
+const OUT = resolve(arg("out", dirname(MANIFEST)));
+const ASSETS = assets(BPLE);
+const GAMEOBJECT = gameObjects(BPLE);
+const SCRIPTS = scriptAssembly(BPLE);
 
 if (!existsSync(ASSETS)) {
-  console.error(`BPLE project not found: ${ASSETS}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${ASSETS}\nPass --bple <path to BPLE_Unity6>.`);
 }
 
 // ---------------------------------------------------------------- guid index
 
-const guidToPath = new Map();
-(function walk(dir) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      walk(path);
-    } else if (entry.name.endsWith(".meta")) {
-      const head = readFileSync(path, "utf8").slice(0, 256);
-      const match = /^guid: ([0-9a-f]{32})/m.exec(head);
-      if (match) guidToPath.set(match[1], path.slice(0, -5));
-    }
-  }
-})(ASSETS);
+const guidToPath = indexAssetGuids(ASSETS, { suffix: "" });
 
 function scriptGuid(scriptName) {
-  const meta = join(ASSETS, "Scripts", "Assembly-CSharp", `${scriptName}.cs.meta`);
+  const meta = join(SCRIPTS, `${scriptName}.cs.meta`);
   const match = /^guid: ([0-9a-f]{32})/m.exec(readFileSync(meta, "utf8"));
   return match[1];
 }
@@ -155,10 +139,6 @@ function parsePrefab(text) {
     const header = /^(\d+) &(\d+)(?: stripped)?\n/.exec(chunk);
     if (header) blocks.push({ classId: Number(header[1]), fileId: header[2], body: chunk.slice(header[0].length) });
   }
-  const field = (body, name) => {
-    const match = new RegExp(`^\\s*${name}:\\s*(.*)$`, "m").exec(body);
-    return match ? match[1].trim() : undefined;
-  };
   const gameObjects = new Map();
   const transforms = new Map();
   const renderers = new Map();
@@ -170,7 +150,7 @@ function parsePrefab(text) {
     const owner = /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1];
     if (owner) components.set(fileId, owner);
     if (classId === 1) {
-      gameObjects.set(fileId, { name: field(body, "m_Name"), active: field(body, "m_IsActive") !== "0" });
+      gameObjects.set(fileId, { name: fieldOf(body, "m_Name"), active: fieldOf(body, "m_IsActive") !== "0" });
     } else if (classId === 4) {
       const pos = /m_LocalPosition: \{x: ([-\d.eE+]+), y: ([-\d.eE+]+), z: ([-\d.eE+]+)\}/.exec(body);
       const rot = /m_LocalRotation: \{x: ([-\d.eE+]+), y: ([-\d.eE+]+), z: ([-\d.eE+]+), w: ([-\d.eE+]+)\}/.exec(body);
@@ -766,12 +746,12 @@ function pigExpression(prefab) {
 }
 
 function extractPart(prefabName) {
-  const path = join(GAMEOBJECT, `${prefabName}.prefab`);
-  if (!existsSync(path)) {
+  const text = prefabText(GAMEOBJECT, prefabName);
+  if (text === null) {
     warnings.push(`prefab missing: ${prefabName}`);
     return undefined;
   }
-  const prefab = parsePrefab(readFileSync(path, "utf8"));
+  const prefab = parsePrefab(text);
   const found = prefab.sprites.map((s) => extractSprite(prefab, s)).filter(Boolean);
   if (found.length === 0) {
     warnings.push(`no extractable sprite in ${prefabName}`);
@@ -963,7 +943,7 @@ function extractSubEntityPrefab(prefab, prefabName) {
 
 // ---------------------------------------------------------------------- main
 
-const map = JSON.parse(readFileSync(join(HERE, "part-map.json"), "utf8"));
+const map = readPartMap();
 const assignments = { ...map.parts, ...map.variants };
 const parts = {};
 let mapped = 0;
@@ -998,7 +978,7 @@ mkdirSync(OUT, { recursive: true });
 for (const [atlas, entry] of usedAtlases) {
   copyFileSync(entry.path, join(OUT, atlas));
 }
-writeFileSync(join(OUT, "part-textures.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+writeJsonArtifact(join(OUT, "part-textures.json"), manifest);
 
 console.log(`bple:   ${BPLE}`);
 console.log(`out:    ${OUT}`);

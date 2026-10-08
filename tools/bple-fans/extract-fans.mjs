@@ -49,39 +49,25 @@
 // content/parts.json.
 //
 // Usage: node tools/bple-fans/extract-fans.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join } from "node:path";
 import { loadVanillaSettings, VANILLA_SETTINGS_NAME } from "../in-settings/vanilla-settings.mjs";
+import { CONTENT, bpleProject, gameObjects, reportJson, reportMd, scriptAssembly } from "../lib/paths.mjs";
+import { checks, fail, fixed, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, blockWith, buildGuidIndex, prefabText, readField } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-fans-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-fans-report.md")));
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
-const SCRIPTS = join(BPLE, "Assets", "Scripts", "Assembly-CSharp");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("fans");
+const OUT_MD = reportMd("fans");
+const GAMEOBJECT = gameObjects(BPLE);
+const SCRIPTS = scriptAssembly(BPLE);
 const inSettingsSource = loadVanillaSettings(BPLE);
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
 }
 
 const warnings = [];
-
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
 
 /** The original's own direction enum (BasePart.cs:86-96) and its vector map (`BasePart.cs:1126-1136`);
  * a FanPropeller only uses the four cardinal values. */
@@ -113,44 +99,14 @@ const BALLOON_PART = 10;
 /** The six IN entries a FanPropeller reads (FanPropeller.cs:93-107). */
 const fanSettingNames = ["FanForce", "FanSpeed", "PropellerForce", "PropellerSpeed", "RotorForce", "RotorSpeed", "BalloonForce"];
 
-function prefabText(name) {
-  const path = join(GAMEOBJECT, `${name}.prefab`);
-  return existsSync(path) ? readFileSync(path, "utf8") : null;
-}
-
-/** The first `field: value` in the text, or null. Every FanPropeller field is serialized once. */
-function readField(text, field) {
-  const match = new RegExp(`^\\s*${field}:\\s*(-?[0-9.]+)\\s*$`, "m").exec(text);
-  if (!match) {
-    return null;
-  }
-
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
-}
-
 /** The `--- !u!114 &...` MonoBehaviour block that carries the FanPropeller component: the one
  * that serializes `m_isRotor`. Reading the fields out of that single block keeps `m_partType`
  * (also carried by the BasePart block) from being paired with another component's force. */
-function fanPropellerBlock(text) {
-  const blocks = text.split(/\n--- !u!/);
-  return blocks.find((block) => /^\s*m_isRotor:/m.test(block)) ?? null;
-}
+const fanPropellerBlock = (text) => blockWith(text, /^\s*m_isRotor:/m);
 
 /** class name of the script a block references, via the `.cs.meta` guid index (the same index
  * tools/bple-power and tools/bple-springs build). */
-function buildGuidIndex() {
-  const byGuid = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs.meta")) continue;
-    const match = /^guid:\s*([0-9a-f]{32})/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
-    if (match) byGuid.set(match[1], basename(entry, ".cs.meta"));
-  }
-
-  return byGuid;
-}
-
-const guidIndex = buildGuidIndex();
+const guidIndex = buildGuidIndex(SCRIPTS);
 
 /** The FanPropeller fields of one prefab, or null when it has no FanPropeller component. The
  * block's script must resolve to `FanPropeller` -- a hard check, not a name guess. */
@@ -214,22 +170,8 @@ const inSettings = readInSettings();
 
 /** partTypeId -> prefab name, reusing the mapping the shapes/textures/joints/power extractors
  * established so this tool cannot drift into a second convention. */
-function loadAssignments() {
-  const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
-  const byPart = new Map();
-  for (const section of ["parts", "variants"]) {
-    for (const [partTypeId, prefab] of Object.entries(map[section] ?? {})) {
-      if (typeof prefab === "string" && prefab.length > 0) {
-        byPart.set(Number(partTypeId), prefab);
-      }
-    }
-  }
-
-  return byPart;
-}
-
 const assignments = loadAssignments();
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 const nameByPart = new Map(content.parts.map((part) => [part.partTypeId, part.name ?? ""]));
 
 // ---------------------------------------------------------------- whole-project scan
@@ -263,7 +205,7 @@ const thrustPerTick = (force, forceMultiplier) => (force * forceMultiplier) / TI
 
 // The balloon's own content value witnesses the same 60: if this drifts, the fan/propeller/rotor
 // and the balloon are no longer measured in the same second.
-const balloonText = prefabText(BALLOON_PREFAB);
+const balloonText = prefabText(GAMEOBJECT, BALLOON_PREFAB);
 const balloonForce = balloonText === null ? null : readField(balloonText, "m_force");
 const balloonPart = content.parts.find((part) => part.partTypeId === BALLOON_PART);
 const balloonLift = balloonPart?.capabilities?.balloon;
@@ -280,7 +222,7 @@ for (const part of content.parts) {
     continue;
   }
 
-  const text = prefabText(prefab);
+  const text = prefabText(GAMEOBJECT, prefab);
   if (text === null) {
     warnings.push(`part ${part.partTypeId} (${prefab}): prefab file missing`);
     continue;
@@ -326,12 +268,10 @@ for (const part of content.parts) {
 // Measured on BPLE_Unity6: 26 FanPropeller components, 6 fans / 10 propellers / 10 rotors,
 // `m_isRotor` on exactly the 10 rotors, and the direction histogram below. Drift fails the tool
 // instead of silently writing a different world into content/parts.json.
-const invariants = [];
-const expect = (label, actual, wanted) => {
-  if (actual !== wanted) {
-    invariants.push(`${label}: expected ${wanted}, got ${actual}`);
-  }
-};
+const check = checks();
+const invariants = check.failures;
+// `matches` prints `expected <wanted>, got <actual>`, the wording this tool has always used.
+const expect = check.matches;
 
 expect("FanPropeller prefab count", scan.count, 26);
 expect("Fan part type", scan.byPartType.Fan, 6);
@@ -405,16 +345,12 @@ for (const [partTypeId, part] of Object.entries(parts)) {
   }
 }
 
-if (invariants.length > 0) {
-  fail(`FanPropeller invariants failed:\n  - ${invariants.join("\n  - ")}`);
-}
+check.verify("FanPropeller invariants failed:");
 
 // ---------------------------------------------------------------- report
 const report = { bple: BPLE, tickRateHz: TICK_RATE_HZ, inSettings: Object.fromEntries(fanSettingNames.map((name) => [name, inSettings.get(name)])), scan, warnings, unmapped, parts };
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(OUT_JSON, report);
 
-const f = (value, digits = 6) => (typeof value === "number" ? Number(value.toFixed(digits)) : value);
 const md = [];
 md.push("# 原版 FanPropeller 报告（风扇 / 螺旋桨 / 旋翼）", "");
 md.push("来源：`tools/bple-fans/extract-fans.mjs`，扫描原版全部 `Part_*.prefab`。");
@@ -436,7 +372,7 @@ md.push("## PigForge 内容映射（26 件）", "");
 md.push("全部 26 件都由 `apply-fans.mjs` 写进 `content/parts.json`；`∞` = 原版 `PropellerSpeed` 没有上限，内容不写 `maxSpeed`。", "");
 md.push("| 内容 id | 名称 | prefab | 类型 | 方向 | m_force | thrustPerTick | maxSpeed | rotor |", "|---|---|---|---|---|---|---|---|---|");
 for (const [partTypeId, part] of Object.entries(parts).sort((left, right) => Number(left[0]) - Number(right[0]))) {
-  md.push(`| \`${partTypeId}\` | ${part.name} | \`${part.prefab}\` | ${part.partType} | ${part.direction} | ${part.force} | ${f(part.thrustPerTick)} | ${part.maxSpeed === null ? "∞" : f(part.maxSpeed)} | ${part.rotor} |`);
+  md.push(`| \`${partTypeId}\` | ${part.name} | \`${part.prefab}\` | ${part.partType} | ${part.direction} | ${part.force} | ${fixed(part.thrustPerTick)} | ${part.maxSpeed === null ? "∞" : fixed(part.maxSpeed)} | ${part.rotor} |`);
 }
 
 md.push("", `## IN 全局倍率（\`${VANILLA_SETTINGS_NAME}\`，vanilla 声明默认）`, "");
@@ -455,7 +391,7 @@ if (warnings.length > 0) {
   }
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`FanPropeller prefabs: ${scan.count} (${JSON.stringify(scan.byPartType)}; ${JSON.stringify(scan.byDirection)})`);
 console.log(`rotor flags: ${scan.rotors.length}; content parts: ${fanPropellerContentParts}`);

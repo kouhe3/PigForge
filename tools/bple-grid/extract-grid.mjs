@@ -23,28 +23,19 @@
 // different world into content/parts.json.
 //
 // Usage: node tools/bple-grid/extract-grid.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { CONTENT, bpleProject, gameObjects, reportJson, reportMd } from "../lib/paths.mjs";
+import { checks, fail, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, prefabText } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-grid-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-grid-report.md")));
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("grid");
+const OUT_MD = reportMd("grid");
+const GAMEOBJECT = gameObjects(BPLE);
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
 }
 
 // The original's own default, spelled out so every reader shares one vocabulary: a part that
@@ -52,11 +43,6 @@ if (!existsSync(GAMEOBJECT)) {
 const DEFAULT_BOX = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
 
 const warnings = [];
-
-function prefabText(name) {
-  const path = join(GAMEOBJECT, `${name}.prefab`);
-  return existsSync(path) ? readFileSync(path, "utf8") : null;
-}
 
 /** The four serialized grid fields (BasePart.cs:197-200). Every part prefab carries all four on
  * the BasePart MonoBehaviour; a missing one is a hard error, not a silent default. */
@@ -81,26 +67,8 @@ const boxKey = (box) => `${box.minX},${box.maxX},${box.minY},${box.maxY}`;
 const sameBox = (left, right) =>
   left.minX === right.minX && left.maxX === right.maxX && left.minY === right.minY && left.maxY === right.maxY;
 
-/** partTypeId -> prefab name, reusing the mapping the shapes/textures/joints extractors
- * established so this tool cannot drift into a second convention. */
-function loadAssignments() {
-  const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
-  const byPart = new Map();
-  // `parts` covers the 44 bases, `variants` the 223 imported skins; both map partTypeId -> the
-  // prefab the part was extracted from, and either may be null for a PigForge-only invention.
-  for (const section of ["parts", "variants"]) {
-    for (const [partTypeId, prefab] of Object.entries(map[section] ?? {})) {
-      if (typeof prefab === "string" && prefab.length > 0) {
-        byPart.set(Number(partTypeId), prefab);
-      }
-    }
-  }
-
-  return byPart;
-}
-
 const assignments = loadAssignments();
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 const nameByPart = new Map(content.parts.map((part) => [part.partTypeId, part.name ?? ""]));
 
 const parts = {};
@@ -112,7 +80,7 @@ for (const part of content.parts) {
     continue;
   }
 
-  const text = prefabText(prefab);
+  const text = prefabText(GAMEOBJECT, prefab);
   if (text === null) {
     warnings.push(`part ${part.partTypeId} (${prefab}): prefab file missing`);
     continue;
@@ -161,7 +129,8 @@ for (const entry of readdirSync(GAMEOBJECT)) {
 // Hard invariants: measured on BPLE_Unity6 -- 343 prefabs, 332 one-cell-at-origin and 11 at
 // x[-1, 1] y[0, 1], and those 11 are exactly the KingPig/GoldenPig families. Drift fails the
 // tool instead of silently writing a different world into content/parts.json.
-const invariants = [];
+const check = checks();
+const invariants = check.failures;
 if (prefabScan.count !== 343) {
   invariants.push(`prefab count: expected 343, got ${prefabScan.count}`);
 }
@@ -188,18 +157,10 @@ if (misfits.length > 0) {
   invariants.push(`non-default grid box outside the KingPig/GoldenPig families: ${misfits.join(", ")}`);
 }
 
-if (invariants.length > 0) {
-  console.error("extract-grid: source-tree invariants changed:");
-  for (const invariant of invariants) {
-    console.error(`  - ${invariant}`);
-  }
-
-  process.exit(1);
-}
+check.verify("extract-grid: source-tree invariants changed:");
 
 const report = { bple: BPLE, default: DEFAULT_BOX, prefabScan, warnings, unmapped, parts };
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(OUT_JSON, report);
 
 const nonDefaultParts = Object.entries(parts)
   .filter(([, value]) => !value.isDefault)
@@ -248,7 +209,7 @@ if (warnings.length > 0) {
   md.push("");
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`prefabs: ${prefabScan.count} (${JSON.stringify(prefabScan.histogram)})`);
 console.log(`non-default: ${prefabScan.nonDefault.length} (${prefabScan.nonDefault.join(", ")})`);

@@ -1,5 +1,5 @@
-// Shared CLI argument helpers. The tools/bple-* tools all follow the same
-// `--name <value>` / `--flag` convention, so both CLIs read their options through here.
+// Shared CLI argument helpers. Every tools/bple-* entry point follows the same
+// `--name <value>` / `--flag` convention, so all of them read their options through here.
 
 /// The value of `--<name> <value>`, or `fallback` when the flag is absent or has no value.
 export function arg(name, fallback) {

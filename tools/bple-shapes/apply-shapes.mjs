@@ -27,25 +27,27 @@
 //     apply-brackets is the canonical order.
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
+import { flag } from "../lib/args.mjs";
+import { ARTIFACTS, contentFile, reportFile } from "../lib/paths.mjs";
+import { matchingBracket, partSpan } from "../lib/parts.mjs";
+import { numInt1 } from "../lib/report.mjs";
 
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
+/// The collider report `extract-shapes.mjs` writes, and the content document this tool rewrites
+/// (`--report` and `--content` override them).
+const REPORT = reportFile(join(ARTIFACTS, "bple-part-shapes.json"));
+const CONTENT = contentFile();
 
-const REPORT = resolve(arg("report", join(REPO, "artifacts", "bple-part-shapes.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+/// A `--dry-run` prints and verifies the rewrite without writing the document.
+const DRY_RUN = flag("dry-run");
 
+// The report's `parts`: partTypeId -> the original colliders to mirror. The extractor's own
+// warnings are not needed here.
 const report = JSON.parse(readFileSync(REPORT, "utf8")).parts;
 
+/// Four decimals: the report's own precision, so a rewritten shape is byte-stable.
 const round4 = (value) => Number(value.toFixed(4));
-const num = (value) => (Number.isInteger(value) ? value.toFixed(1) : String(round4(value)));
 
 /** PigForge shapes for a part: every original body collider with its local offset. */
 function shapesFor(partTypeId, current) {
@@ -102,15 +104,18 @@ function shapesFor(partTypeId, current) {
   return [...body, ...current.filter((shape) => shape.condition?.kind === "frame")];
 }
 
+/** The `shapes` array as the hand-authored lines of content/parts.json: `indent` is the array's
+ * own indentation and each nested shape sits two spaces deeper. Numbers are rendered by the
+ * library's `numInt1`, the spelling the document already used (`4.0`, `0.5`). */
 function renderShapes(shapes, indent) {
   const lines = [`${indent}"shapes": [`];
   shapes.forEach((shape, index) => {
     const properties = [`${indent}    "kind": "${shape.kind}"`];
     properties.push(shape.kind === "box"
-      ? `${indent}    "halfExtents": [${shape.halfExtents.map(num).join(", ")}]`
-      : `${indent}    "radius": ${num(shape.radius)}`);
+      ? `${indent}    "halfExtents": [${shape.halfExtents.map(numInt1).join(", ")}]`
+      : `${indent}    "radius": ${numInt1(shape.radius)}`);
     if (shape.offset) {
-      properties.push(`${indent}    "offset": [${shape.offset.map(num).join(", ")}]`);
+      properties.push(`${indent}    "offset": [${shape.offset.map(numInt1).join(", ")}]`);
     }
 
     if (shape.condition) {
@@ -127,25 +132,20 @@ function renderShapes(shapes, indent) {
   return lines;
 }
 
+// The document is edited as text, one line per field, never re-serialised, so the splice below
+// replaces exactly the bytes of one part's `shapes` array and the diff stays one line per part:
+// `partSpan` finds the part's `"partTypeId"` anchor and its `"shapes":` key (missing either is a
+// hard error), and `matchingBracket` scans out the array's own closing `]`; the replacement starts
+// at the key's own line, so the renderer emits the `"shapes": [` line as well.
 let text = readFileSync(CONTENT, "utf8");
 const document = JSON.parse(text);
 let updated = 0;
 for (const part of document.parts) {
   const shapes = shapesFor(part.partTypeId, part.shapes);
   if (!shapes) continue;
-  const anchorIndex = text.indexOf(`"partTypeId": ${part.partTypeId},`);
-  if (anchorIndex < 0) throw new Error(`anchor missing for part ${part.partTypeId}`);
-  const keyIndex = text.indexOf('"shapes": [', anchorIndex);
-  if (keyIndex < 0) throw new Error(`shapes missing for part ${part.partTypeId}`);
-  const lineStart = text.lastIndexOf("\n", keyIndex) + 1;
-  let end = text.indexOf("[", keyIndex);
-  for (let depth = 0; end < text.length; end += 1) {
-    if (text[end] === "[") depth += 1;
-    else if (text[end] === "]") {
-      depth -= 1;
-      if (depth === 0) break;
-    }
-  }
+  const { shapesIndex } = partSpan(text, part.partTypeId);
+  const lineStart = text.lastIndexOf("\n", shapesIndex) + 1;
+  const end = matchingBracket(text, text.indexOf("[", shapesIndex));
   text = `${text.slice(0, lineStart)}${renderShapes(shapes, "      ").join("\n")}${text.slice(end + 1)}`;
   updated += 1;
   console.log(`${String(part.partTypeId).padStart(3)} ${part.name.padEnd(20)} ${JSON.stringify(shapes)}`);

@@ -18,44 +18,31 @@
 //   - `defer: true` keeps a prefab in the texture map but out of content until its
 //     capability fields land.
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { arg, flag } from "../lib/args.mjs";
+import { ARTIFACTS, PART_MAP, bpleProject, contentFile, reportFile } from "../lib/paths.mjs";
+import { fail, writeJsonArtifact } from "../lib/report.mjs";
+import { indexAssetGuids } from "../lib/unity.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
 
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && index + 1 < process.argv.length ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const MAP = resolve(arg("map", join(REPO, "tools", "bple-textures", "part-map.json")));
+const BPLE = bpleProject();
+const CONTENT = contentFile();
+const MAP = resolve(arg("map", PART_MAP));
 const OVERRIDES = resolve(arg("overrides", join(HERE, "variant-overrides.json")));
-const REPORT = resolve(arg("report", join(REPO, "artifacts", "bple-variant-import-report.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = reportFile(join(ARTIFACTS, "bple-variant-import-report.json"));
+const DRY_RUN = flag("dry-run");
 const ASSETS = join(BPLE, "Assets");
 const GAMEOBJECT = join(ASSETS, "GameObject");
 
 if (!existsSync(ASSETS) || !existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found at ${BPLE} (expected Assets/GameObject).`);
-  process.exit(1);
+  fail(`BPLE project not found at ${BPLE} (expected Assets/GameObject).`);
 }
 
 // ---------------------------------------------------------------- guid index
-const guidToPath = new Map();
-(function walk(dir) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) walk(path);
-    else if (entry.name.endsWith(".meta")) {
-      const match = readFileSync(path, "utf8").match(/guid:\s*([0-9a-f]{32})/);
-      if (match) guidToPath.set(match[1], path.slice(0, -5));
-    }
-  }
-})(ASSETS);
+const guidToPath = indexAssetGuids(ASSETS, { suffix: "" });
 
 // --------------------------------------------------------- original registry
 const gameData = readFileSync(join(ASSETS, "MonoBehaviour", "GameData.asset"), "utf8");
@@ -330,7 +317,7 @@ const report = {
   deferred,
   warnings,
 };
-writeFileSync(REPORT, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(REPORT, report);
 
 if (!DRY_RUN && additions.length > 0) {
   const closing = contentText.lastIndexOf("\n  ]\n}");

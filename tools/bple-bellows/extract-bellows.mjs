@@ -46,35 +46,21 @@
 // into content/parts.json.
 //
 // Usage: node tools/bple-bellows/extract-bellows.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join } from "node:path";
+import { CONTENT, bpleProject, gameObjects, reportJson, reportMd, scriptAssembly } from "../lib/paths.mjs";
+import { checks, count, fail, fixed, numericHistogram, round6, sortedHistogramLine as histogramLine, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, buildGuidIndex, prefabText, readField, readVector } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-bellows-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-bellows-report.md")));
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
-const SCRIPTS = join(BPLE, "Assets", "Scripts", "Assembly-CSharp");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("bellows");
+const OUT_MD = reportMd("bellows");
+const GAMEOBJECT = gameObjects(BPLE);
+const SCRIPTS = scriptAssembly(BPLE);
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
 }
-
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
 
 /** The room's fixed tick rate (`GameRoomOptions.TickRateHz`, PlayHost) and the original's
  * `FixedUpdate` rate: the divisor that turns the per-second `ForceMode.Force` of Bellows.cs:105-110
@@ -116,28 +102,6 @@ const CONSTANT_FIELDS = {
 /** The values those four must have (measured, and the ones the content conversion assumes). */
 const EXPECTED_CONSTANTS = { boostSeconds: 0.5, waitSeconds: 0.3, inflateSeconds: 0.3, alienInflateSeconds: 0.15 };
 
-/** The first `field: value` in the text, or null. Every serialized field appears once per block. */
-function readField(text, field) {
-  const match = new RegExp(`^\\s*${field}:\\s*(-?[0-9.]+)\\s*$`, "m").exec(text);
-  if (!match) {
-    return null;
-  }
-
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
-}
-
-/** The first `field: {x: a, y: b, z: c}` of a serialized Vector3, or null. */
-function readVector(text, field) {
-  const match = new RegExp(`^\\s*${field}:\\s*\\{x:\\s*(-?[0-9.]+),\\s*y:\\s*(-?[0-9.]+),\\s*z:\\s*(-?[0-9.]+)\\s*\\}\\s*$`, "m").exec(text);
-  if (!match) {
-    return null;
-  }
-
-  const vector = { x: Number(match[1]), y: Number(match[2]), z: Number(match[3]) };
-  return Object.values(vector).every(Number.isFinite) ? vector : null;
-}
-
 /** The `Bellows` class constants, read out of the original source itself (Bellows.cs:14-20) so a
  * re-balanced original fails this tool instead of a stale cycle being written into content. */
 function readConstants() {
@@ -173,20 +137,7 @@ function readConstants() {
 
 const constants = readConstants();
 
-/** class name of the script a block references, via the `.cs.meta` guid index (the same index
- * tools/bple-rockets, tools/bple-aero, tools/bple-fans and tools/bple-power build). */
-function buildGuidIndex() {
-  const byGuid = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs.meta")) continue;
-    const match = /^guid:\s*([0-9a-f]{32})/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
-    if (match) byGuid.set(match[1], basename(entry, ".cs.meta"));
-  }
-
-  return byGuid;
-}
-
-const guidIndex = buildGuidIndex();
+const guidIndex = buildGuidIndex(SCRIPTS);
 
 /** The `--- !u!114 &...` MonoBehaviour block that carries the `Bellows` component. `m_boostForce`
  * is serialized by `Rocket` too (26 prefabs measure it: these 8 plus the 18 rockets), so the block
@@ -265,27 +216,6 @@ function readBellows(text, prefab) {
   };
 }
 
-/** Bump one histogram bucket. The histograms are Maps, not objects: the report orders the numeric
- * ones ascending, and a Map keeps that choice explicit. */
-function count(histogram, value) {
-  const key = String(value);
-  histogram.set(key, (histogram.get(key) ?? 0) + 1);
-}
-
-/** A histogram's entries, sorted ascending numerically where the keys are numbers (9 before 18,
- * which a plain string sort gets wrong) and lexically otherwise (`"1,0,0"`, a direction triple). */
-const sortedEntries = (histogram) =>
-  [...histogram].sort(([left], [right]) =>
-    Number.isFinite(Number(left)) && Number.isFinite(Number(right)) ? Number(left) - Number(right) : left.localeCompare(right));
-
-/** A histogram as its report/console line. */
-const histogramLine = (histogram) => `{ ${sortedEntries(histogram).map(([key, value]) => `"${key}": ${value}`).join(", ")} }`;
-
-/** A histogram as a JSON object, same order. */
-const numericHistogram = (histogram) => Object.fromEntries(sortedEntries(histogram));
-
-const ROUND6 = (value) => Number(value.toFixed(6));
-
 /** A duration in seconds -> ticks, refusing anything that is not an exact multiple of 1/60:
  * 0.5 s -> 30, 0.3 s -> 18, 0.15 s -> 9. */
 function ticksOf(seconds, prefab, field) {
@@ -295,22 +225,6 @@ function ticksOf(seconds, prefab, field) {
   }
 
   return Math.round(ticks);
-}
-
-/** partTypeId -> prefab name, reusing the mapping the shapes/textures/joints/power extractors
- * established so this tool cannot drift into a second convention. */
-function loadAssignments() {
-  const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
-  const byPart = new Map();
-  for (const section of ["parts", "variants"]) {
-    for (const [partTypeId, prefab] of Object.entries(map[section] ?? {})) {
-      if (typeof prefab === "string" && prefab.length > 0) {
-        byPart.set(Number(partTypeId), prefab);
-      }
-    }
-  }
-
-  return byPart;
 }
 
 // ---------------------------------------------------------------- whole-project scan
@@ -330,7 +244,7 @@ for (const entry of readdirSync(GAMEOBJECT).sort()) {
   if (!/^Part_.*\.prefab$/.test(entry)) continue;
 
   const name = basename(entry, ".prefab");
-  const text = readFileSync(join(GAMEOBJECT, entry), "utf8");
+  const text = prefabText(GAMEOBJECT, name);
   if (/^\s*m_boostForce:/m.test(text)) {
     boostForcePrefabs++;
   }
@@ -353,24 +267,11 @@ for (const entry of readdirSync(GAMEOBJECT).sort()) {
 scan.alien.sort();
 
 // ---------------------------------------------------------------- hard invariants
-const invariants = [];
-const expect = (label, actual, wanted) => {
-  if (actual !== wanted) {
-    invariants.push(`${label}: ${actual}, expected ${wanted}`);
-  }
-};
-const expectClose = (label, actual, wanted) => {
-  if (typeof actual !== "number" || Math.abs(actual - wanted) > 1e-9) {
-    invariants.push(`${label}: ${actual}, expected ${wanted}`);
-  }
-};
-const histogramEquals = (label, histogram, wanted) => {
-  const actual = JSON.stringify(numericHistogram(histogram));
-  const expected = JSON.stringify(Object.fromEntries(wanted));
-  if (actual !== expected) {
-    invariants.push(`${label}: ${actual}, expected ${expected}`);
-  }
-};
+const check = checks();
+const invariants = check.failures;
+const expect = check.equal;
+const expectClose = check.close;
+const histogramEquals = check.histogram;
 
 // The four class constants the report cites must be the ones this conversion assumes
 // (Bellows.cs:14,16,18,20).
@@ -418,7 +319,7 @@ for (const fact of facts.values()) {
   const bellows = {
     directionX: fact.direction.x,
     directionY: fact.direction.y,
-    thrustPerTick: ROUND6(fact.boostForce / TICK_RATE_HZ),
+    thrustPerTick: round6(fact.boostForce / TICK_RATE_HZ),
     inflateTicks: fact.inflateTicks,
   };
 
@@ -432,7 +333,7 @@ for (const fact of facts.values()) {
 // ---------------------------------------------------------------- per content part
 
 const assignments = loadAssignments();
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 
 /** partTypeId -> COUNT of content parts on that prefab, so coverage can be asserted both ways. */
 const partsByPrefab = new Map();
@@ -481,9 +382,7 @@ const alienInflateParts = Object.entries(parts)
   .map(([partTypeId]) => partTypeId);
 expect("content parts with inflateTicks 9", alienInflateParts.join(", "), "93");
 
-if (invariants.length > 0) {
-  fail(`bellows invariants failed:\n  - ${invariants.join("\n  - ")}`);
-}
+check.verify("bellows invariants failed:");
 
 // ---------------------------------------------------------------- report
 const report = {
@@ -504,11 +403,9 @@ const report = {
   },
   parts,
 };
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(OUT_JSON, report);
 
-const f = (value, digits = 6) => (typeof value === "number" ? Number(value.toFixed(digits)) : value);
-const bellowsObject = (bellows) => `{ "directionX": ${bellows.directionX}, "directionY": ${bellows.directionY}, "thrustPerTick": ${f(bellows.thrustPerTick)}, "inflateTicks": ${bellows.inflateTicks} }`;
+const bellowsObject = (bellows) => `{ "directionX": ${bellows.directionX}, "directionY": ${bellows.directionY}, "thrustPerTick": ${fixed(bellows.thrustPerTick)}, "inflateTicks": ${bellows.inflateTicks} }`;
 
 const md = [];
 md.push("# 原版风箱族报告", "");
@@ -530,7 +427,7 @@ for (const [partTypeId, entry] of Object.entries(parts).sort((left, right) => Nu
   md.push(`| \`${partTypeId}\` | \`${entry.prefab}\` | ${entry.alien} | ${bellowsObject(entry.bellows)} |`);
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`count: ${scan.count}`);
 console.log(`byBoostForce: ${histogramLine(scan.byBoostForce)}`);

@@ -27,31 +27,22 @@
 //     material ownership in the referenced prefab; the report counts them per prefab and flags
 //     the part as uncertain instead of guessing.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { CONTENT, PART_MAP, REPO, assets, bpleProject, gameObjects, reportJson, reportMd } from "../lib/paths.mjs";
+import { fail, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments, indexAssetGuids } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-materials-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-materials-report.md")));
-const ASSETS = join(BPLE, "Assets");
-const GAMEOBJECT = join(ASSETS, "GameObject");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("materials");
+const OUT_MD = reportMd("materials");
+const ASSETS = assets(BPLE);
+const GAMEOBJECT = gameObjects(BPLE);
 const SHAPE_MAP = join(REPO, "tools", "bple-shapes", "part-map.json");
 const DYNAMICS_MANAGER = join(BPLE, "ProjectSettings", "DynamicsManager.asset");
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
 }
 
 // Unity's built-in fallback when a collider has no material asset. Field names mirror the
@@ -86,25 +77,7 @@ const PREFAB_INSTANCE = 1001;
 // ---------------------------------------------------------------- guid index
 
 /** guid -> absolute path of the *asset* (the .meta suffix is dropped), for PhysicMaterials only. */
-const guidToMaterialAsset = new Map();
-(function walk(dir) {
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      walk(path);
-    } else if (entry.name.endsWith(".physicMaterial.meta")) {
-      const head = readFileSync(path, "utf8").slice(0, 256);
-      const match = /^guid: ([0-9a-f]{32})/m.exec(head);
-      if (match) guidToMaterialAsset.set(match[1], path.slice(0, -5));
-    }
-  }
-})(ASSETS);
+const guidToMaterialAsset = indexAssetGuids(ASSETS, { suffix: ".physicMaterial", ignoreUnreadable: true });
 
 // ------------------------------------------------------------ material assets
 
@@ -267,20 +240,17 @@ for (const prefab of collectPrefabs()) {
 /** partTypeId -> prefab name, merged from every available part-map (textures is authoritative). */
 const partTypeToPrefab = new Map();
 const mapSources = [];
-for (const mapPath of [TEXTURE_MAP, SHAPE_MAP]) {
+for (const mapPath of [PART_MAP, SHAPE_MAP]) {
   if (!existsSync(mapPath)) {
     warnings.push(`part map missing: ${mapPath}`);
     continue;
   }
-  const map = JSON.parse(readFileSync(mapPath, "utf8"));
   mapSources.push(mapPath);
-  for (const group of ["parts", "variants"]) {
-    for (const [id, name] of Object.entries(map[group] ?? {})) {
-      if (!name) continue;
-      const existing = partTypeToPrefab.get(id);
-      if (existing && existing !== name) warnings.push(`partTypeId ${id}: ${mapPath} maps ${name}, another map says ${existing}`);
-      partTypeToPrefab.set(id, name);
-    }
+  for (const [partTypeId, prefab] of assignments(JSON.parse(readFileSync(mapPath, "utf8")))) {
+    const id = String(partTypeId);
+    const existing = partTypeToPrefab.get(id);
+    if (existing && existing !== prefab) warnings.push(`partTypeId ${id}: ${mapPath} maps ${prefab}, another map says ${existing}`);
+    partTypeToPrefab.set(id, prefab);
   }
 }
 
@@ -311,7 +281,7 @@ const unmappedSetPatternPrefabs = Object.values(prefabs)
 
 // --------------------------------------------------- content/parts.json (read-only)
 
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 const contentParts = new Map();
 for (const part of content.parts ?? []) contentParts.set(String(part.partTypeId), part);
 
@@ -765,11 +735,8 @@ md.push(warnings.length === 0 ? "（无）" : warnings.map((warning) => `- ${war
 md.push("", "### 溯源备注", "");
 md.push(notes.map((note) => `- ${note}`).join("\n"), "");
 
-const mdText = `${md.join("\n")}\n`;
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-mkdirSync(dirname(OUT_MD), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
-writeFileSync(OUT_MD, mdText);
+writeJsonArtifact(OUT_JSON, report);
+writeMarkdownArtifact(OUT_MD, md);
 console.log(`wrote ${OUT_JSON}`);
 console.log(`wrote ${OUT_MD}`);
 console.log(

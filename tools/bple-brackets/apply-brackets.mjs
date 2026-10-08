@@ -8,18 +8,12 @@
 //
 // Usage: node tools/bple-brackets/apply-brackets.mjs [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-const MANIFEST = join(REPO, "clients", "web", "public", "assets", "original", "part-textures.json");
-const CONTENT = join(REPO, "content", "parts.json");
-const DRY_RUN = process.argv.includes("--dry-run");
+import { readFileSync } from "node:fs";
+import { MANIFEST } from "../lib/paths.mjs";
+import { applyContent, matchingBracket, partSpan } from "../lib/parts.mjs";
+import { numInt1 } from "../lib/report.mjs";
 
 const round4 = (value) => Number(value.toFixed(4));
-const num = (value) => (Number.isInteger(value) ? value.toFixed(1) : String(round4(value)));
 
 /** Bracket bounds of one texture, in world metres relative to the part origin; null without one. */
 function bracketFor(texture) {
@@ -65,8 +59,8 @@ function renderShapes(shapes, indent) {
   const lines = [`${indent}"shapes": [`];
   shapes.forEach((shape, index) => {
     const properties = [`${indent}    "kind": "${shape.kind}"`];
-    properties.push(`${indent}    "halfExtents": [${shape.halfExtents.map(num).join(", ")}]`);
-    properties.push(`${indent}    "offset": [${shape.offset.map(num).join(", ")}]`);
+    properties.push(`${indent}    "halfExtents": [${shape.halfExtents.map(numInt1).join(", ")}]`);
+    properties.push(`${indent}    "offset": [${shape.offset.map(numInt1).join(", ")}]`);
     if (shape.condition) {
       properties.push(`${indent}    "condition": { "kind": "${shape.condition.kind}" }`);
     }
@@ -88,49 +82,41 @@ for (const [partTypeId, texture] of Object.entries(textures)) {
   }
 }
 
-let text = readFileSync(CONTENT, "utf8");
-const document = JSON.parse(text);
-let updated = 0;
+applyContent({
+  rewrite: (text) => {
+    const document = JSON.parse(text);
+    let updated = 0;
 
-for (const part of document.parts) {
-  const bracket = brackets.get(part.partTypeId);
-  if (bracket === undefined) {
-    continue;
-  }
+    for (const part of document.parts) {
+      const bracket = brackets.get(part.partTypeId);
+      if (bracket === undefined) {
+        continue;
+      }
 
-  const shapes = withBracket(part.shapes, bracket);
-  const anchorIndex = text.indexOf(`"partTypeId": ${part.partTypeId},`);
-  if (anchorIndex < 0) throw new Error(`anchor missing for part ${part.partTypeId}`);
-  const keyIndex = text.indexOf('"shapes": [', anchorIndex);
-  if (keyIndex < 0) throw new Error(`shapes missing for part ${part.partTypeId}`);
-  const lineStart = text.lastIndexOf("\n", keyIndex) + 1;
-  let end = text.indexOf("[", keyIndex);
-  for (let depth = 0; end < text.length; end += 1) {
-    if (text[end] === "[") depth += 1;
-    else if (text[end] === "]") {
-      depth -= 1;
-      if (depth === 0) break;
+      const shapes = withBracket(part.shapes, bracket);
+      const { shapesIndex } = partSpan(text, part.partTypeId);
+      const lineStart = text.lastIndexOf("\n", shapesIndex) + 1;
+      const open = text.indexOf("[", shapesIndex);
+      text = `${text.slice(0, lineStart)}${renderShapes(shapes, "      ").join("\n")}${text.slice(matchingBracket(text, open) + 1)}`;
+      updated += 1;
+      console.log(`${String(part.partTypeId).padStart(3)} ${part.name.padEnd(22)} bracket x[${round4(bracket.offsetX - bracket.halfX)}, ${round4(bracket.offsetX + bracket.halfX)}]`);
     }
-  }
 
-  text = `${text.slice(0, lineStart)}${renderShapes(shapes, "      ").join("\n")}${text.slice(end + 1)}`;
-  updated += 1;
-  console.log(`${String(part.partTypeId).padStart(3)} ${part.name.padEnd(22)} bracket x[${round4(bracket.offsetX - bracket.halfX)}, ${round4(bracket.offsetX + bracket.halfX)}]`);
-}
-
-// Re-parse and re-derive: the rewrite must be valid JSON and idempotent.
-const check = JSON.parse(text);
-for (const part of check.parts) {
-  const bracket = brackets.get(part.partTypeId);
-  if (bracket === undefined) continue;
-  const expected = withBracket(part.shapes, bracket);
-  if (JSON.stringify(part.shapes) !== JSON.stringify(expected)) {
-    throw new Error(`bracket mismatch for part ${part.partTypeId}`);
-  }
-}
-
-if (!DRY_RUN) {
-  writeFileSync(CONTENT, text);
-}
-
-console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTENT}`);
+    return { text, updated };
+  },
+  // Re-parse and re-derive: the rewrite must be valid JSON and idempotent.
+  verify: (result) => {
+    const check = JSON.parse(result.text);
+    for (const part of check.parts) {
+      const bracket = brackets.get(part.partTypeId);
+      if (bracket === undefined) continue;
+      const expected = withBracket(part.shapes, bracket);
+      if (JSON.stringify(part.shapes) !== JSON.stringify(expected)) {
+        throw new Error(`bracket mismatch for part ${part.partTypeId}`);
+      }
+    }
+  },
+  report: ({ updated }, _verified, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${updated} parts in ${content}`);
+  },
+});

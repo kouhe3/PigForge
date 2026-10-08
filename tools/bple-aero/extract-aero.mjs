@@ -38,37 +38,23 @@
 // original never reads it, so writing it would only create a second source of truth.
 //
 // Usage: node tools/bple-aero/extract-aero.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join } from "node:path";
+import { CONTENT, bpleProject, gameObjects, reportJson, reportMd, scriptAssembly } from "../lib/paths.mjs";
+import { checks, count, fail, fixed, histogramLine, round6, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, blockWith, buildGuidIndex, readField } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-aero-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-aero-report.md")));
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
-const SCRIPTS = join(BPLE, "Assets", "Scripts", "Assembly-CSharp");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("aero");
+const OUT_MD = reportMd("aero");
+const GAMEOBJECT = gameObjects(BPLE);
+const SCRIPTS = scriptAssembly(BPLE);
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
 }
 
 const warnings = [];
-
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
 
 /** The room's fixed tick rate (`GameRoomOptions.TickRateHz`, PlayHost) and the original's
  * `FixedUpdate` rate; the aero itself converts in the rules layer, but the report states the same
@@ -86,45 +72,13 @@ const FAMILIES = ["WoodenWings", "MetalWings", "WoodenTail", "MetalTail"];
 /** `BasePart.AutoAlignType` (BasePart.cs:79-84), by value. */
 const AUTO_ALIGN = { 0: "none", 1: "rotate", 2: "flipVertically" };
 
-function prefabText(name) {
-  const path = join(GAMEOBJECT, `${name}.prefab`);
-  return existsSync(path) ? readFileSync(path, "utf8") : null;
-}
-
-/** The first `field: value` in the text, or null. Every serialized field appears once per block. */
-function readField(text, field) {
-  const match = new RegExp(`^\\s*${field}:\\s*(-?[0-9.]+)\\s*$`, "m").exec(text);
-  if (!match) {
-    return null;
-  }
-
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
-}
-
 /** The `--- !u!114 &...` MonoBehaviour block that carries the part's concrete class: the one that
  * serializes `m_autoAlign`. Unity writes ONE block per MonoBehaviour, including the inherited
  * BasePart fields, so that single block also carries `m_Script`, `m_flipped`, `m_eightWay` and --
  * for `Wings` only -- `liftConstant` and `dragConstant`. */
-function partBlock(text) {
-  const blocks = text.split(/\n--- !u!/);
-  return blocks.find((block) => /^\s*m_autoAlign:/m.test(block)) ?? null;
-}
+const partBlock = (text) => blockWith(text, /^\s*m_autoAlign:/m);
 
-/** class name of the script a block references, via the `.cs.meta` guid index (the same index
- * tools/bple-fans, tools/bple-power and tools/bple-springs build). */
-function buildGuidIndex() {
-  const byGuid = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs.meta")) continue;
-    const match = /^guid:\s*([0-9a-f]{32})/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
-    if (match) byGuid.set(match[1], basename(entry, ".cs.meta"));
-  }
-
-  return byGuid;
-}
-
-const guidIndex = buildGuidIndex();
+const guidIndex = buildGuidIndex(SCRIPTS);
 
 /** The script name a block mounts; unresolved guids are a hard error, never a name guess. */
 function blockScript(block, prefab) {
@@ -137,38 +91,10 @@ function blockScript(block, prefab) {
   return script;
 }
 
-/** partTypeId -> prefab name, reusing the mapping the shapes/textures/joints/power extractors
- * established so this tool cannot drift into a second convention. */
-function loadAssignments() {
-  const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
-  const byPart = new Map();
-  for (const section of ["parts", "variants"]) {
-    for (const [partTypeId, prefab] of Object.entries(map[section] ?? {})) {
-      if (typeof prefab === "string" && prefab.length > 0) {
-        byPart.set(Number(partTypeId), prefab);
-      }
-    }
-  }
-
-  return byPart;
-}
-
 /** The family a prefab belongs to, by name; null for anything outside the four. */
 function familyOf(prefab) {
   return FAMILIES.find((family) => prefab.startsWith(`Part_${family}_`)) ?? null;
 }
-
-/** Bump one histogram bucket. The histograms are Maps, not objects: a JSON object reorders an
- * integer-like key (`"1"`) to the front, and the family order is the meaningful one. */
-function count(histogram, value) {
-  const key = String(value);
-  histogram.set(key, (histogram.get(key) ?? 0) + 1);
-}
-
-/** The histogram as the report/markdown prints it, in family order. */
-const histogramLine = (histogram) => `{ ${[...histogram].map(([key, value]) => `"${key}": ${value}`).join(", ")} }`;
-
-const ROUND6 = (value) => Number(value.toFixed(6));
 
 // ---------------------------------------------------------------- whole-project scan
 // The `m_autoAlign` histogram over all 343 prefabs is the fingerprint: 153 None / 173 Rotate /
@@ -224,12 +150,9 @@ scan.flipVertically.sort((left, right) => {
 
 // ---------------------------------------------------------------- the 17 FlipVertically prefabs
 const classCounts = {};
-const invariants = [];
-const expect = (label, actual, wanted) => {
-  if (actual !== wanted) {
-    invariants.push(`${label}: ${actual}, expected ${wanted}`);
-  }
-};
+const check = checks();
+const invariants = check.failures;
+const expect = check.equal;
 
 for (const name of scan.flipVertically) {
   const fact = prefabFacts.get(name);
@@ -292,13 +215,7 @@ expect("Wings/Tail prefabs outside the four families", scan.flipVertically.filte
 
 // The serialized `liftConstant` per family (docs/specs/part-mirror.md section 2 table 11): wooden
 // wings 0.8 / metal wings 1.5, wooden tails 0.2 / metal tails 1.0, and nothing else.
-const histogramEquals = (label, histogram, wanted) => {
-  const actual = JSON.stringify([...histogram]);
-  const expected = JSON.stringify(wanted);
-  if (actual !== expected) {
-    invariants.push(`${label}: ${actual}, expected ${expected}`);
-  }
-};
+const histogramEquals = check.histogramOrdered;
 
 histogramEquals("wing liftConstant", wingLiftConstant, [["0.8", 5], ["1.5", 4]]);
 histogramEquals("tail liftConstant", tailLiftConstant, [["0.2", 4], ["1", 4]]);
@@ -309,7 +226,7 @@ histogramEquals("dragConstant on Wings", dragConstantUnused, [["0.8", 5], ["0.4"
 // ---------------------------------------------------------------- per content part
 
 const assignments = loadAssignments();
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 
 /** partTypeId -> COUNT of content parts on that prefab, so coverage can be asserted both ways. */
 const partsByPrefab = new Map();
@@ -355,11 +272,11 @@ for (const part of content.parts) {
       fail(`content part ${part.partTypeId} (${prefab}): Wings has no dragConstant`);
     }
 
-    entry.wing = { liftConstant: ROUND6(fact.liftConstant) };
+    entry.wing = { liftConstant: round6(fact.liftConstant) };
     // Reported for completeness; apply-aero must NOT write it (the original never reads it).
-    entry.dragConstant = ROUND6(fact.dragConstant);
+    entry.dragConstant = round6(fact.dragConstant);
   } else {
-    entry.tail = ROUND6(fact.liftConstant);
+    entry.tail = round6(fact.liftConstant);
   }
 
   parts[String(part.partTypeId)] = entry;
@@ -392,9 +309,7 @@ for (const [partTypeId, entry] of Object.entries(parts)) {
 
 expect("content parts on a FlipVertically prefab", Object.keys(parts).length, 17);
 
-if (invariants.length > 0) {
-  fail(`aero invariants failed:\n  - ${invariants.join("\n  - ")}`);
-}
+check.verify("aero invariants failed:");
 
 // ---------------------------------------------------------------- report
 const report = {
@@ -409,10 +324,7 @@ const report = {
   warnings,
   parts,
 };
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
-
-const f = (value, digits = 6) => (typeof value === "number" ? Number(value.toFixed(digits)) : value);
+writeJsonArtifact(OUT_JSON, report);
 
 const md = [];
 md.push("# 原版机翼 / 尾翼 / 镜像报告", "");
@@ -431,7 +343,7 @@ md.push("## PigForge 内容映射（17 件）", "");
 md.push("`mirror: true` = 原版 `m_autoAlign == FlipVertically`，只有这 17 件；`wing.liftConstant` / `tail` 就是原先的 `liftConstant`。", "");
 md.push("| 内容 id | prefab | 类 | mirror | wing.liftConstant | tail | dragConstant（不写入） |", "|---|---|---|---|---|---|---|");
 for (const [partTypeId, entry] of Object.entries(parts).sort((left, right) => Number(left[0]) - Number(right[0]))) {
-  md.push(`| \`${partTypeId}\` | \`${entry.prefab}\` | ${entry.script} | ${entry.mirror} | ${entry.wing ? f(entry.wing.liftConstant) : ""} | ${entry.tail === undefined ? "" : f(entry.tail)} | ${entry.dragConstant === undefined ? "—" : f(entry.dragConstant)} |`);
+  md.push(`| \`${partTypeId}\` | \`${entry.prefab}\` | ${entry.script} | ${entry.mirror} | ${entry.wing ? fixed(entry.wing.liftConstant) : ""} | ${entry.tail === undefined ? "" : fixed(entry.tail)} | ${entry.dragConstant === undefined ? "—" : fixed(entry.dragConstant)} |`);
 }
 
 md.push("", `\`FlipVertically\` prefab（${scan.flipVertically.length}）：${scan.flipVertically.map((name) => `\`${name}\``).join("、")}`);
@@ -440,7 +352,7 @@ if (warnings.length > 0) {
   md.push("", `## 警告（${warnings.length}）`, ...warnings.map((warning) => `- ${warning}`));
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`autoAlign: ${JSON.stringify(scan.autoAlign)}`);
 console.log(`flipVertically: ${scan.flipVertically.length} (${AERO_CLASSES.map((script) => `${script} ${scan.classHistogram[script]}`).join(", ")})`);

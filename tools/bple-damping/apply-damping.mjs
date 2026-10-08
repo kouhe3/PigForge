@@ -23,20 +23,12 @@
 //   node tools/bple-damping/apply-damping.mjs [--report <file>] [--content <file>] [--dry-run]
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { flag } from "../lib/args.mjs";
+import { applyReport, contentFile } from "../lib/paths.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-damping-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("damping");
+const CONTENT = contentFile();
+const DRY_RUN = flag("dry-run");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8"));
 const entries = report.parts ?? {};

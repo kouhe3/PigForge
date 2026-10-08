@@ -29,20 +29,14 @@
 //   node tools/bple-joints/apply-joints.mjs [--report <file>] [--content <file>] [--dry-run]
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { flag } from "../lib/args.mjs";
+import { applyReport, contentFile } from "../lib/paths.mjs";
+import { capabilitiesSpan, partSpan, propertyPattern, readContentText, removeProperty, upsert } from "../lib/parts.mjs";
+import { numInt1 } from "../lib/report.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-joints-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("joints");
+const CONTENT = contentFile();
+const DRY_RUN = flag("dry-run");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8")).parts;
 
@@ -106,101 +100,32 @@ const ATTACHMENTS = [
 
 const attachmentFor = (prefab) => ATTACHMENTS.find((entry) => entry.pattern.test(prefab ?? "")) ?? null;
 
-const num = (value) => (Number.isInteger(value) ? value.toFixed(1) : String(Number(value.toFixed(4))));
-
 function renderAttachment(attachment) {
   const fields = [`"direction": ${JSON.stringify(attachment.direction)}`];
   if (attachment.maxDistance !== undefined) {
-    fields.push(`"maxDistance": ${num(attachment.maxDistance)}`);
+    fields.push(`"maxDistance": ${numInt1(attachment.maxDistance)}`);
   }
 
   if (attachment.offset !== undefined) {
-    fields.push(`"offset": [${attachment.offset.map(num).join(", ")}]`);
+    fields.push(`"offset": [${attachment.offset.map(numInt1).join(", ")}]`);
   }
 
   if (attachment.distanceFactor !== undefined) {
-    fields.push(`"distanceFactor": ${num(attachment.distanceFactor)}`);
+    fields.push(`"distanceFactor": ${numInt1(attachment.distanceFactor)}`);
   }
 
   if (attachment.distanceOffset !== undefined) {
-    fields.push(`"distanceOffset": ${num(attachment.distanceOffset)}`);
+    fields.push(`"distanceOffset": ${numInt1(attachment.distanceOffset)}`);
   }
 
   if (attachment.pigDistanceBonus !== undefined) {
-    fields.push(`"pigDistanceBonus": ${num(attachment.pigDistanceBonus)}`);
+    fields.push(`"pigDistanceBonus": ${numInt1(attachment.pigDistanceBonus)}`);
   }
 
   return `"attachment": { ${fields.join(", ")} }`;
 }
 
-/** Matches one property's value in the inline capabilities text (values nest at most one level). */
-const propertyPattern = (key) => new RegExp(`"${key}":\\s*(?:"[^"]*"|true|false|-?[0-9.]+|\\{(?:[^{}]|\\{[^{}]*\\})*\\})`);
-
-/**
- * Index of the `}` that closes the object opening at `start`, skipping braces inside JSON
- * strings. A plain `indexOf("}")` stops at the first nested object's brace — a part that already
- * carries `attachment` would then be spliced at the wrong offset and gain a duplicate key.
- */
-function matchingBrace(text, start) {
-  let depth = 0;
-  let inString = false;
-  for (let index = start; index < text.length; index += 1) {
-    const char = text[index];
-    if (inString) {
-      if (char === "\\") {
-        index += 1;
-      } else if (char === '"') {
-        inString = false;
-      }
-
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-    } else if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return index;
-      }
-    }
-  }
-
-  return -1;
-}
-
-function upsert(capabilities, desired) {
-  let cap = capabilities;
-  const missing = desired.filter(([key]) => !propertyPattern(key).test(cap));
-  if (missing.length > 0) {
-    cap = `{ ${missing.map(([, rendered]) => rendered).join(", ")},${cap.slice(1)}`;
-  }
-
-  for (const [key, rendered] of desired) {
-    cap = cap.replace(propertyPattern(key), rendered);
-  }
-
-  return cap;
-}
-
-/**
- * Removes one property (and the separator that joins it to its neighbour) from the inline
- * capabilities text, leaving every other byte alone. The leading separator is preferred, so a
- * trailing comma can never be left behind; a property that is absent is left absent.
- */
-function removeProperty(capabilities, key) {
-  const value = propertyPattern(key).source;
-  const leading = new RegExp(`\\s*,\\s*(?:${value})`);
-  if (leading.test(capabilities)) {
-    return capabilities.replace(leading, "");
-  }
-
-  return capabilities.replace(new RegExp(`(?:${value})\\s*,\\s*`), "");
-}
-
-let text = readFileSync(CONTENT, "utf8");
+let text = readContentText();
 const document = JSON.parse(text);
 let updated = 0;
 const written = { none: 0, source: 0, target: 0 };
@@ -244,33 +169,25 @@ for (const part of document.parts) {
     desired.push(["attachment", renderAttachment(attachment)]);
   }
 
-  const anchor = `"partTypeId": ${part.partTypeId},`;
-  const anchorIndex = text.indexOf(anchor);
-  if (anchorIndex < 0) throw new Error(`anchor missing for part ${part.partTypeId}`);
-  const shapesIndex = text.indexOf('"shapes":', anchorIndex);
-  if (shapesIndex < 0) throw new Error(`shapes missing for part ${part.partTypeId}`);
+  const { shapesIndex } = partSpan(text, part.partTypeId);
+  const span = capabilitiesSpan(text, part.partTypeId);
 
-  const capabilitiesIndex = text.indexOf('"capabilities":', anchorIndex);
-  const hasCapabilities = capabilitiesIndex >= 0 && capabilitiesIndex < shapesIndex;
-
-  if (!hasCapabilities) {
+  if (span === null) {
     const lineStart = text.lastIndexOf("\n", shapesIndex) + 1;
     const fields = desired.map(([, rendered]) => rendered).join(", ");
     text = `${text.slice(0, lineStart)}      "capabilities": { ${fields} },\n${text.slice(lineStart)}`;
   } else {
-    const open = text.indexOf("{", capabilitiesIndex);
-    const close = open < 0 ? -1 : matchingBrace(text, open);
-    if (open < 0 || close < 0 || text.slice(open, close).includes("\n")) {
+    if (text.slice(span.open, span.close).includes("\n")) {
       throw new Error(`part ${part.partTypeId}: expected a single-line capabilities object`);
     }
 
-    let capabilities = upsert(text.slice(open, close + 1), desired);
+    let capabilities = upsert(text.slice(span.open, span.close + 1), desired);
     if (!enclosed && propertyPattern("canBeEnclosed").test(capabilities)) {
       capabilities = removeProperty(capabilities, "canBeEnclosed");
       canBeEnclosedRemoved += 1;
     }
 
-    text = text.slice(0, open) + capabilities + text.slice(close + 1);
+    text = text.slice(0, span.open) + capabilities + text.slice(span.close + 1);
   }
 
   written[jointType] += 1;

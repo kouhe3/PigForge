@@ -67,38 +67,24 @@
 // different world into content/parts.json.
 //
 // Usage: node tools/bple-rockets/extract-rockets.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join } from "node:path";
 import { loadVanillaSettings, VANILLA_SETTINGS_NAME } from "../in-settings/vanilla-settings.mjs";
+import { CONTENT, bpleProject, gameObjects, reportJson, reportMd, scriptAssembly } from "../lib/paths.mjs";
+import { checks, count, fail, fixed, numericHistogram, round6, sortedHistogramLine, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, buildGuidIndex, readField, readVector } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-rockets-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-rockets-report.md")));
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
-const SCRIPTS = join(BPLE, "Assets", "Scripts", "Assembly-CSharp");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("rockets");
+const OUT_MD = reportMd("rockets");
+const GAMEOBJECT = gameObjects(BPLE);
+const SCRIPTS = scriptAssembly(BPLE);
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
 }
 
 const warnings = [];
-
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
 
 /** The room's fixed tick rate (`GameRoomOptions.TickRateHz`, PlayHost) and the original's
  * `FixedUpdate` rate: the divisor that turns the per-second `ForceMode.Force` of Rocket.cs:295-300
@@ -153,47 +139,7 @@ const SETTING_NAMES = [
   ...FEATURE_SETTINGS,
 ];
 
-function prefabText(name) {
-  const path = join(GAMEOBJECT, `${name}.prefab`);
-  return existsSync(path) ? readFileSync(path, "utf8") : null;
-}
-
-/** The first `field: value` in the text, or null. Every serialized field appears once per block. */
-function readField(text, field) {
-  const match = new RegExp(`^\\s*${field}:\\s*(-?[0-9.]+)\\s*$`, "m").exec(text);
-  if (!match) {
-    return null;
-  }
-
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
-}
-
-/** The first `field: {x: a, y: b, z: c}` of a serialized Vector3, or null. */
-function readVector(text, field) {
-  const match = new RegExp(`^\\s*${field}:\\s*\\{x:\\s*(-?[0-9.]+),\\s*y:\\s*(-?[0-9.]+),\\s*z:\\s*(-?[0-9.]+)\\s*\\}\\s*$`, "m").exec(text);
-  if (!match) {
-    return null;
-  }
-
-  const vector = { x: Number(match[1]), y: Number(match[2]), z: Number(match[3]) };
-  return Object.values(vector).every(Number.isFinite) ? vector : null;
-}
-
-/** class name of the script a block references, via the `.cs.meta` guid index (the same index
- * tools/bple-aero, tools/bple-fans and tools/bple-power build). */
-function buildGuidIndex() {
-  const byGuid = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs.meta")) continue;
-    const match = /^guid:\s*([0-9a-f]{32})/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
-    if (match) byGuid.set(match[1], basename(entry, ".cs.meta"));
-  }
-
-  return byGuid;
-}
-
-const guidIndex = buildGuidIndex();
+const guidIndex = buildGuidIndex(SCRIPTS);
 
 /** The `--- !u!114 &...` MonoBehaviour block that carries the `Rocket` component. `m_boostForce`
  * is serialized by `Bellows` too (8 prefabs measure it), so the block is only accepted once its
@@ -294,45 +240,8 @@ for (const name of SETTING_NAMES) {
 
 const setting = (name) => inSettings.get(name);
 
-/** partTypeId -> prefab name, reusing the mapping the shapes/textures/joints/power extractors
- * established so this tool cannot drift into a second convention. */
-function loadAssignments() {
-  const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
-  const byPart = new Map();
-  for (const section of ["parts", "variants"]) {
-    for (const [partTypeId, prefab] of Object.entries(map[section] ?? {})) {
-      if (typeof prefab === "string" && prefab.length > 0) {
-        byPart.set(Number(partTypeId), prefab);
-      }
-    }
-  }
-
-  return byPart;
-}
-
 /** The family a prefab belongs to, by name; null for anything outside the four. */
 const familyOf = (prefab) => FAMILIES.find((family) => prefab.startsWith(`Part_${family}_`)) ?? null;
-
-/** Bump one histogram bucket. The histograms are Maps, not objects: the report orders the numeric
- * ones ascending and `byFamily` in family order, and a Map keeps that choice explicit. */
-function count(histogram, value) {
-  const key = String(value);
-  histogram.set(key, (histogram.get(key) ?? 0) + 1);
-}
-
-/** A histogram's entries, sorted ascending numerically where the keys are numbers (3 before 10,
- * which a plain string sort gets wrong) and lexically otherwise (`"1,0,0"`, a direction triple). */
-const sortedEntries = (histogram) =>
-  [...histogram].sort(([left], [right]) =>
-    Number.isFinite(Number(left)) && Number.isFinite(Number(right)) ? Number(left) - Number(right) : left.localeCompare(right));
-
-/** A histogram as its report/console line. */
-const histogramLine = (histogram) => `{ ${sortedEntries(histogram).map(([key, value]) => `"${key}": ${value}`).join(", ")} }`;
-
-/** A histogram as a JSON object, same order. */
-const numericHistogram = (histogram) => Object.fromEntries(sortedEntries(histogram));
-
-const ROUND6 = (value) => Number(value.toFixed(6));
 
 /** A phase duration in seconds -> ticks, refusing anything that is not an exact multiple of 1/60:
  * 1 s -> 60, 0.5 s -> 30, 500 s -> 30000. */
@@ -426,24 +335,11 @@ scan.explodes.sort(byFamilyOrder);
 scan.visualization.sort(byFamilyOrder);
 
 // ---------------------------------------------------------------- hard invariants
-const invariants = [];
-const expect = (label, actual, wanted) => {
-  if (actual !== wanted) {
-    invariants.push(`${label}: ${actual}, expected ${wanted}`);
-  }
-};
-const expectClose = (label, actual, wanted) => {
-  if (typeof actual !== "number" || Math.abs(actual - wanted) > 1e-9) {
-    invariants.push(`${label}: ${actual}, expected ${wanted}`);
-  }
-};
-const histogramEquals = (label, histogram, wanted) => {
-  const actual = JSON.stringify(numericHistogram(histogram));
-  const expected = JSON.stringify(Object.fromEntries(wanted));
-  if (actual !== expected) {
-    invariants.push(`${label}: ${actual}, expected ${expected}`);
-  }
-};
+const check = checks();
+const invariants = check.failures;
+const expect = check.equal;
+const expectClose = check.close;
+const histogramEquals = check.histogram;
 
 // The vanilla explosion multipliers must be the identity, or the raw m_explosionRadius /
 // m_explosionImpulse are not the effective values this report writes (Rocket.cs:627-646).
@@ -466,7 +362,7 @@ for (const family of FAMILIES) {
 histogramEquals("m_boostForce", scan.byBoostForce, [["35", 9], ["50", 8], ["150", 1]]);
 histogramEquals("m_maximumSpeed", scan.byMaxSpeed, [["10", 8], ["18", 8], ["25", 1], ["150", 1]]);
 histogramEquals("m_boostDuration", scan.byBoostDuration, [["1", 9], ["3", 8], ["500", 1]]);
-expect("m_direction histogram", histogramLine(scan.direction), '{ "1,0,0": 18 }');
+expect("m_direction histogram", sortedHistogramLine(scan.direction), '{ "1,0,0": 18 }');
 expect("exploding prefabs", scan.explodes.join(", "), "Part_Rocket_03_SET, Part_RedRocket_03_SET");
 expect("visualization prefabs", scan.visualization.length, 10);
 expect("bottle prefabs with m_visualization", scan.visualization.filter((name) => PART_TYPES[facts.get(name).partType].name.endsWith("Bottle")).length, 10);
@@ -542,19 +438,19 @@ for (const fact of facts.values()) {
   const rocket = {
     directionX: fact.direction.x,
     directionY: fact.direction.y,
-    thrustPerTick: ROUND6(effective.boostForce / TICK_RATE_HZ),
+    thrustPerTick: round6(effective.boostForce / TICK_RATE_HZ),
     ignitionTicks,
     boostTicks,
     endTicks,
-    maxSpeed: ROUND6(effective.maximumSpeed),
+    maxSpeed: round6(effective.maximumSpeed),
   };
   if (fact.visualization) {
     rocket.visualization = true;
   }
 
   if (exploding) {
-    rocket.explodeRadius = ROUND6(fact.explosionRadius);
-    rocket.explodeImpulse = ROUND6(fact.explosionImpulse);
+    rocket.explodeRadius = round6(fact.explosionRadius);
+    rocket.explodeImpulse = round6(fact.explosionImpulse);
   }
 
   rockets.set(fact.prefab, {
@@ -580,7 +476,7 @@ for (const fact of facts.values()) {
 // ---------------------------------------------------------------- per content part
 
 const assignments = loadAssignments();
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 
 /** partTypeId -> COUNT of content parts on that prefab, so coverage can be asserted both ways. */
 const partsByPrefab = new Map();
@@ -622,9 +518,7 @@ for (const [prefab, mapped] of [...partsByPrefab].sort((left, right) => byFamily
 
 expect("content parts on a Rocket prefab", Object.keys(parts).length, 18);
 
-if (invariants.length > 0) {
-  fail(`rocket invariants failed:\n  - ${invariants.join("\n  - ")}`);
-}
+check.verify("rocket invariants failed:");
 
 // ---------------------------------------------------------------- report
 const report = {
@@ -645,11 +539,9 @@ const report = {
   warnings,
   parts,
 };
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(OUT_JSON, report);
 
-const f = (value, digits = 6) => (typeof value === "number" ? Number(value.toFixed(digits)) : value);
-const rocketObject = (rocket) => `{ "directionX": ${rocket.directionX}, "directionY": ${rocket.directionY}, "thrustPerTick": ${f(rocket.thrustPerTick)}, "ignitionTicks": ${rocket.ignitionTicks}, "boostTicks": ${rocket.boostTicks}, "endTicks": ${rocket.endTicks}, "maxSpeed": ${f(rocket.maxSpeed)}${rocket.visualization ? ', "visualization": true' : ""}${rocket.explodeRadius === undefined ? "" : `, "explodeRadius": ${f(rocket.explodeRadius)}, "explodeImpulse": ${f(rocket.explodeImpulse)}`} }`;
+const rocketObject = (rocket) => `{ "directionX": ${rocket.directionX}, "directionY": ${rocket.directionY}, "thrustPerTick": ${fixed(rocket.thrustPerTick)}, "ignitionTicks": ${rocket.ignitionTicks}, "boostTicks": ${rocket.boostTicks}, "endTicks": ${rocket.endTicks}, "maxSpeed": ${fixed(rocket.maxSpeed)}${rocket.visualization ? ', "visualization": true' : ""}${rocket.explodeRadius === undefined ? "" : `, "explodeRadius": ${fixed(rocket.explodeRadius)}, "explodeImpulse": ${fixed(rocket.explodeImpulse)}`} }`;
 
 const md = [];
 md.push("# 原版火箭族报告", "");
@@ -662,10 +554,10 @@ md.push(`IN 来源：\`${VANILLA_SETTINGS_NAME}\`（声明默认值，不是 \`I
 md.push("## prefab 直方图", "");
 md.push(`- 带 \`m_boostForce\` 的 prefab：**${boostForcePrefabs}**（\`Rocket\` **${scan.count}**、\`Bellows\` ${boostForcePrefabs - scan.count}）`);
 md.push(`- 家族：${FAMILIES.map((family) => `${family} **${scan.byFamily.get(family) ?? 0}**`).join("、")}`);
-md.push(`- \`m_boostForce\`：${histogramLine(scan.byBoostForce)}`);
-md.push(`- \`m_maximumSpeed\`：${histogramLine(scan.byMaxSpeed)}`);
-md.push(`- \`m_boostDuration\`：${histogramLine(scan.byBoostDuration)}`);
-md.push(`- \`m_direction\`：${histogramLine(scan.direction)}（z 必须为 0）`);
+md.push(`- \`m_boostForce\`：${sortedHistogramLine(scan.byBoostForce)}`);
+md.push(`- \`m_maximumSpeed\`：${sortedHistogramLine(scan.byMaxSpeed)}`);
+md.push(`- \`m_boostDuration\`：${sortedHistogramLine(scan.byBoostDuration)}`);
+md.push(`- \`m_direction\`：${sortedHistogramLine(scan.direction)}（z 必须为 0）`);
 md.push(`- \`m_explodes 1\`：${scan.explodes.map((name) => `\`${name}\``).join("、")}`);
 md.push(`- \`BottleVisualization\` 子物体（= 点火期内不推进，\`Rocket.cs:235-240\`）：${scan.visualization.length} 件`, "");
 md.push("## PigForge 内容映射（18 件）", "");
@@ -679,15 +571,15 @@ if (warnings.length > 0) {
   md.push("", `## 警告（${warnings.length}）`, ...warnings.map((warning) => `- ${warning}`));
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`count: ${scan.count}`);
 console.log(`byFamily: ${JSON.stringify(Object.fromEntries(FAMILIES.map((family) => [family, scan.byFamily.get(family) ?? 0])))}`);
-console.log(`byBoostForce: ${histogramLine(scan.byBoostForce)}`);
-console.log(`byMaxSpeed: ${histogramLine(scan.byMaxSpeed)}`);
-console.log(`byBoostDuration: ${histogramLine(scan.byBoostDuration)}`);
+console.log(`byBoostForce: ${sortedHistogramLine(scan.byBoostForce)}`);
+console.log(`byMaxSpeed: ${sortedHistogramLine(scan.byMaxSpeed)}`);
+console.log(`byBoostDuration: ${sortedHistogramLine(scan.byBoostDuration)}`);
 console.log(`explodes: ${scan.explodes.join(", ")}`);
-console.log(`direction: ${histogramLine(scan.direction)}`);
+console.log(`direction: ${sortedHistogramLine(scan.direction)}`);
 console.log(`visualization: ${scan.visualization.length} (${scan.visualization.join(", ")})`);
 console.log(`content parts: ${Object.keys(parts).length}`);
 if (warnings.length > 0) {

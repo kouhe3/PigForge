@@ -14,21 +14,11 @@
 // Usage:
 //   node tools/bple-grid/apply-grid.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, partSpan } from "../lib/parts.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-grid-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("grid");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8"));
 
@@ -50,105 +40,108 @@ function boxOf(entry, partTypeId) {
 }
 
 const isDefault = (box) => box.minX === 0 && box.maxX === 0 && box.minY === 0 && box.maxY === 0;
-const propertyPattern = (key) => new RegExp(`^\\s*"${key}":`);
+/** The line-anchored part-field pattern: a part-level field owns its whole line, so this scans
+ * the part's own block one line at a time. It is NOT `parts.mjs`'s `propertyPattern`, which
+ * matches a value inside an inline object. */
+const keyLine = (key) => new RegExp(`^[^\\S\\n]*"${key}":`, "m");
 const renderBox = (box) =>
   `      "gridBox": { "minX": ${box.minX}, "maxX": ${box.maxX}, "minY": ${box.minY}, "maxY": ${box.maxY} },`;
 
 const parts = report.parts ?? {};
-const document = JSON.parse(readFileSync(CONTENT, "utf8"));
-let text = readFileSync(CONTENT, "utf8");
-let lines = text.split("\n");
 
-let written = 0;
-let removed = 0;
-let untouched = 0;
-const updatedPartIds = new Set();
+applyContent({
+  rewrite: (text) => {
+    const document = JSON.parse(text);
+    let written = 0;
+    let removed = 0;
+    let untouched = 0;
+    const updatedPartIds = new Set();
 
-for (const part of document.parts) {
-  const entry = parts[String(part.partTypeId)];
-  if (!entry) {
-    continue; // unmapped partTypeId (static level geometry): nothing extracted to write
-  }
+    for (const part of document.parts) {
+      const entry = parts[String(part.partTypeId)];
+      if (!entry) {
+        continue; // unmapped partTypeId (static level geometry): nothing extracted to write
+      }
 
-  const box = boxOf(entry, part.partTypeId);
-  const anchorIndex = lines.findIndex((line) => line === `      "partTypeId": ${part.partTypeId},`);
-  if (anchorIndex < 0) {
-    throw new Error(`anchor missing for part ${part.partTypeId}`);
-  }
+      const box = boxOf(entry, part.partTypeId);
+      const { anchorIndex, shapesIndex } = partSpan(text, part.partTypeId);
+      const blockStart = text.indexOf("\n", anchorIndex) + 1;
+      const shapesLine = text.lastIndexOf("\n", shapesIndex) + 1;
+      const found = keyLine("gridBox").exec(text.slice(blockStart, shapesLine));
+      const boxLine = found === null ? -1 : blockStart + found.index;
 
-  const shapesIndex = lines.findIndex((line, index) => index > anchorIndex && /^\s*"shapes":/.test(line));
-  if (shapesIndex < 0) {
-    throw new Error(`shapes missing for part ${part.partTypeId}`);
-  }
+      if (isDefault(box)) {
+        if (boxLine >= 0) {
+          text = text.slice(0, boxLine) + text.slice(text.indexOf("\n", boxLine) + 1);
+          removed += 1;
+          updatedPartIds.add(part.partTypeId);
+        } else {
+          untouched += 1;
+        }
 
-  const boxIndex = lines.findIndex((line, index) => index > anchorIndex && index < shapesIndex && propertyPattern("gridBox").test(line));
-  if (isDefault(box)) {
-    if (boxIndex >= 0) {
-      lines.splice(boxIndex, 1);
-      removed += 1;
+        continue;
+      }
+
+      if (boxLine >= 0) {
+        text = `${text.slice(0, boxLine)}${renderBox(box)}${text.slice(text.indexOf("\n", boxLine))}`;
+      } else {
+        text = `${text.slice(0, shapesLine)}${renderBox(box)}\n${text.slice(shapesLine)}`;
+      }
+
+      written += 1;
       updatedPartIds.add(part.partTypeId);
-    } else {
-      untouched += 1;
     }
 
-    continue;
-  }
+    return { text, written, removed, untouched, updatedPartIds };
+  },
+  // Re-parse and re-derive: the rewrite must be valid JSON, exactly match the report, and be
+  // idempotent (a second run changes nothing).
+  verify: (result) => {
+    const check = JSON.parse(result.text);
+    let declared = 0;
+    for (const part of check.parts) {
+      const entry = parts[String(part.partTypeId)];
+      const box = part.gridBox;
+      if (!entry) {
+        if (box !== undefined) {
+          throw new Error(`part ${part.partTypeId}: gridBox on an unmapped part`);
+        }
 
-  if (boxIndex >= 0) {
-    lines[boxIndex] = renderBox(box);
-  } else {
-    lines.splice(shapesIndex, 0, renderBox(box));
-  }
+        continue;
+      }
 
-  written += 1;
-  updatedPartIds.add(part.partTypeId);
-}
+      const expected = boxOf(entry, part.partTypeId);
+      if (isDefault(expected)) {
+        if (box !== undefined) {
+          throw new Error(`part ${part.partTypeId}: default gridBox must be absent, got ${JSON.stringify(box)}`);
+        }
 
-text = lines.join("\n");
+        continue;
+      }
 
-// Re-parse and re-derive: the rewrite must be valid JSON, exactly match the report, and be
-// idempotent (a second run changes nothing).
-const check = JSON.parse(text);
-let declared = 0;
-for (const part of check.parts) {
-  const entry = parts[String(part.partTypeId)];
-  const box = part.gridBox;
-  if (!entry) {
-    if (box !== undefined) {
-      throw new Error(`part ${part.partTypeId}: gridBox on an unmapped part`);
+      if (
+        box === undefined
+        || box.minX !== expected.minX
+        || box.maxX !== expected.maxX
+        || box.minY !== expected.minY
+        || box.maxY !== expected.maxY
+      ) {
+        throw new Error(`part ${part.partTypeId}: gridBox mismatch ${JSON.stringify(box)} != ${JSON.stringify(expected)}`);
+      }
+
+      declared += 1;
     }
 
-    continue;
-  }
-
-  const expected = boxOf(entry, part.partTypeId);
-  if (isDefault(expected)) {
-    if (box !== undefined) {
-      throw new Error(`part ${part.partTypeId}: default gridBox must be absent, got ${JSON.stringify(box)}`);
+    const expectedDeclared = Object.entries(parts).filter(([, entry]) => !isDefault(boxOf(entry, "report"))).length;
+    if (declared !== expectedDeclared) {
+      throw new Error(`declared gridBox count: expected ${expectedDeclared}, got ${declared}`);
     }
 
-    continue;
-  }
-
-  if (
-    box === undefined
-    || box.minX !== expected.minX
-    || box.maxX !== expected.maxX
-    || box.minY !== expected.minY
-    || box.maxY !== expected.maxY
-  ) {
-    throw new Error(`part ${part.partTypeId}: gridBox mismatch ${JSON.stringify(box)} != ${JSON.stringify(expected)}`);
-  }
-
-  declared += 1;
-}
-
-const expectedDeclared = Object.entries(parts).filter(([, entry]) => !isDefault(boxOf(entry, "report"))).length;
-if (declared !== expectedDeclared) {
-  throw new Error(`declared gridBox count: expected ${expectedDeclared}, got ${declared}`);
-}
-
-if (!DRY_RUN) writeFileSync(CONTENT, text);
-console.log(`${DRY_RUN ? "would update" : "updated"} ${updatedPartIds.size} parts in ${CONTENT}`);
-console.log(`gridBox written: ${written}; removed: ${removed}; left default/absent: ${untouched}`);
-console.log(`declared gridBox in document: ${declared} (report non-default: ${expectedDeclared})`);
+    return { declared, expectedDeclared };
+  },
+  report: ({ updatedPartIds, written, removed, untouched }, { declared, expectedDeclared }, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${updatedPartIds.size} parts in ${content}`);
+    console.log(`gridBox written: ${written}; removed: ${removed}; left default/absent: ${untouched}`);
+    console.log(`declared gridBox in document: ${declared} (report non-default: ${expectedDeclared})`);
+  },
+});

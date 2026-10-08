@@ -25,29 +25,18 @@
 // Usage:
 //   node tools/bple-aero/apply-aero.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, canonicalCapabilities, renderCapabilities, rewriteCapabilitiesLines } from "../lib/parts.mjs";
+import { num6, numberOrNull6 } from "../lib/report.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-aero-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("aero");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8"));
 const parts = report.parts ?? {};
 if (Object.keys(parts).length === 0) {
   throw new Error(`${REPORT} carries no parts`);
 }
-
-const round6 = (value) => Number(value.toFixed(6));
 
 /** The values the report declares for one part; the report is the only admissible source, so a
  * missing or malformed entry is a hard error rather than a silent fallback. */
@@ -78,30 +67,17 @@ function aeroOf(partTypeId) {
   return entry;
 }
 
-/** JSON with at most six decimals, and an explicit `.0` for an integral value -- the same style
- * the hand-authored content uses (`4.0`, `1.0`), so an extracted float never looks like an int
- * (this is why the metal tail's 1 comes back out as `1.0`). */
-const num = (value) => {
-  const rounded = Number(value.toFixed(6));
-  return Number.isInteger(rounded) ? `${rounded}.0` : String(rounded);
-};
+/// The wing object as the hand-authored content spells it.
+const renderWing = (wing) => `{ "liftConstant": ${num6(wing.liftConstant)} }`;
 
-const renderWing = (wing) => `{ "liftConstant": ${num(wing.liftConstant)} }`;
-
-const renderValue = (value) =>
-  typeof value === "string" ? `"${value}"` : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
-const renderCapabilities = (object) => `{ ${Object.entries(object)
-  .map(([key, value]) => `"${key}": ${key === "wing" ? renderWing(value) : key === "tail" ? num(value) : renderValue(value)}`)
-  .join(", ")} }`;
+const render = renderCapabilities({ wing: renderWing, tail: num6 });
 
 /** Semantic form of one capabilities object, so "already applied" is a value comparison and not a
  * text one: `wing` is reduced to the one field this tool owns. */
-const wingSignature = (wing) =>
-  wing !== null && typeof wing === "object" && typeof wing.liftConstant === "number" ? round6(wing.liftConstant) : null;
-const canonical = (capabilities) =>
-  JSON.stringify(Object.entries(capabilities).map(([key, value]) => [key, key === "wing"
-    ? wingSignature(value)
-    : key === "tail" && typeof value === "number" ? round6(value) : value]));
+const canonical = canonicalCapabilities({
+  wing: (wing) => (typeof wing?.liftConstant === "number" ? numberOrNull6(wing.liftConstant) : null),
+  tail: (value) => (typeof value === "number" ? numberOrNull6(value) : value),
+});
 
 /** The rewritten capabilities of one part: the report's `mirror` / `wing` / `tail`, with the
  * invented `wing` object replaced. Key order is preserved so the diff stays a single line. */
@@ -133,9 +109,9 @@ function rewriteCapabilities(partTypeId, capabilities) {
     }
 
     if (entry.wing !== undefined && entry.wing !== null) {
-      next.wing = { liftConstant: round6(entry.wing.liftConstant) };
+      next.wing = { liftConstant: numberOrNull6(entry.wing.liftConstant) };
     } else {
-      next.tail = round6(entry.tail);
+      next.tail = numberOrNull6(entry.tail);
     }
 
     aeroPlaced = true;
@@ -161,89 +137,53 @@ function rewriteCapabilities(partTypeId, capabilities) {
   return next;
 }
 
-const isSameCapabilities = (left, right) => canonical(left) === canonical(right);
-
-let text = readFileSync(CONTENT, "utf8");
-const lines = text.split("\n");
-
-let updated = 0;
-let unchanged = 0;
-let partTypeId = null;
-const rewritten = new Map();
-
-for (let index = 0; index < lines.length; index++) {
-  const partMatch = /^\s*"partTypeId":\s*(\d+),\s*$/.exec(lines[index]);
-  if (partMatch) {
-    partTypeId = Number(partMatch[1]);
-    continue;
-  }
-
-  const capabilitiesMatch = /^(\s*)"capabilities":\s*(\{.*\}),\s*$/.exec(lines[index]);
-  if (!capabilitiesMatch || partTypeId === null) {
-    continue;
-  }
-
-  const current = JSON.parse(capabilitiesMatch[2]);
-  const next = rewriteCapabilities(partTypeId, current);
-  partTypeId = null;
-  if (next === null) {
-    continue;
-  }
-
-  if (isSameCapabilities(current, next)) {
-    unchanged++;
-    continue;
-  }
-
-  lines[index] = `${capabilitiesMatch[1]}"capabilities": ${renderCapabilities(next)},`;
-  updated++;
-}
-
-text = lines.join("\n");
-
-// Re-parse and re-derive: the rewrite must be valid JSON, match the report exactly, and be
-// idempotent (a second pass changes nothing).
-const check = JSON.parse(text);
 const expected = new Set(Object.keys(parts).map(Number));
-for (const part of check.parts) {
-  if (!expected.has(part.partTypeId)) {
-    continue;
-  }
 
-  const entry = aeroOf(part.partTypeId);
-  const capabilities = part.capabilities ?? {};
-  if (entry.mirror && capabilities.mirror !== true) {
-    throw new Error(`part ${part.partTypeId}: capabilities.mirror was not written`);
-  }
+applyContent({
+  rewrite: (text) => rewriteCapabilitiesLines(text, { rewrite: rewriteCapabilities, canonical, render }),
+  // Re-parse and re-derive: the rewrite must be valid JSON and match the report exactly.
+  verify: (result) => {
+    const rewritten = new Set();
+    for (const part of JSON.parse(result.text).parts) {
+      if (!expected.has(part.partTypeId)) {
+        continue;
+      }
 
-  if (entry.wing !== undefined && entry.wing !== null) {
-    if (capabilities.wing === undefined) {
-      throw new Error(`part ${part.partTypeId}: capabilities.wing was not written`);
+      const entry = aeroOf(part.partTypeId);
+      const capabilities = part.capabilities ?? {};
+      if (entry.mirror && capabilities.mirror !== true) {
+        throw new Error(`part ${part.partTypeId}: capabilities.mirror was not written`);
+      }
+
+      if (entry.wing !== undefined && entry.wing !== null) {
+        if (capabilities.wing === undefined) {
+          throw new Error(`part ${part.partTypeId}: capabilities.wing was not written`);
+        }
+
+        if (capabilities.wing.liftConstant !== numberOrNull6(entry.wing.liftConstant)) {
+          throw new Error(`part ${part.partTypeId}: written wing.liftConstant does not match the report`);
+        }
+
+        if (capabilities.wing.liftCoef !== undefined || capabilities.wing.maxLift !== undefined) {
+          throw new Error(`part ${part.partTypeId}: the replaced wing keys are still present`);
+        }
+      } else {
+        if (capabilities.tail !== numberOrNull6(entry.tail)) {
+          throw new Error(`part ${part.partTypeId}: written tail does not match the report`);
+        }
+      }
+
+      rewritten.add(part.partTypeId);
     }
 
-    if (capabilities.wing.liftConstant !== Number(num(entry.wing.liftConstant))) {
-      throw new Error(`part ${part.partTypeId}: written wing.liftConstant does not match the report`);
+    if (rewritten.size !== expected.size) {
+      throw new Error(`aero capabilities written for ${rewritten.size} parts, expected ${expected.size}`);
     }
 
-    if (capabilities.wing.liftCoef !== undefined || capabilities.wing.maxLift !== undefined) {
-      throw new Error(`part ${part.partTypeId}: the replaced wing keys are still present`);
-    }
-  } else {
-    if (capabilities.tail !== Number(num(entry.tail))) {
-      throw new Error(`part ${part.partTypeId}: written tail does not match the report`);
-    }
-  }
-
-  rewritten.set(part.partTypeId, true);
-}
-
-if (rewritten.size !== expected.size) {
-  throw new Error(`aero capabilities written for ${rewritten.size} parts, expected ${expected.size}`);
-}
-
-if (!DRY_RUN) {
-  writeFileSync(CONTENT, text);
-}
-
-console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTENT}`);
-console.log(`already matching: ${unchanged}; verified: ${rewritten.size}`);
+    return { verified: rewritten.size };
+  },
+  report: ({ updated, unchanged }, { verified }, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${updated} parts in ${content}`);
+    console.log(`already matching: ${unchanged}; verified: ${verified}`);
+  },
+});

@@ -49,40 +49,27 @@
 //   - the original's PhysicsManager clamp is the value the report carries.
 //   - the runtime damping ramps are exactly EXPECTED_DAMPING_RAMPS, read out of `FixedUpdate`.
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { flag } from "../lib/args.mjs";
+import { CONTENT, PART_MAP, assets, bpleProject, gameObjects, reportJson, reportMd } from "../lib/paths.mjs";
+import { fail, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { filesUnder } from "../lib/unity.mjs";
 
 /** `BPLE 2022.1.9` is the pristine original (the same editor the original shipped with,
  * 2021.3.45f2); `BPLE_Unity6` is the migrated copy the other tools default to and carries the
  * Unity 6 API names (`linearDamping` / `angularDamping`). Both spellings are parsed, so either
  * root works, but the pristine copy is the one to trust when they disagree. */
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE 2022.1.9")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-damping-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-damping-report.md")));
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
-const SCRIPTS = join(BPLE, "Assets", "Scripts");
+const BPLE = bpleProject("BPLE 2022.1.9");
+const OUT_JSON = reportJson("damping");
+const OUT_MD = reportMd("damping");
+const GAMEOBJECT = gameObjects(BPLE);
+const SCRIPTS = join(assets(BPLE), "Scripts");
 const SETTINGS = join(BPLE, "ProjectSettings");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
 
 if (!existsSync(GAMEOBJECT) || !existsSync(SCRIPTS)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to the BPLE project>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to the BPLE project>.`);
 }
-
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
 
 /** The spawn-time methods the original runs in this order (`INContraption.cs:813-816`:
  * `EnsureRigidbody()` then `Initialize()`), so a later layer overrides an earlier one. */
@@ -124,23 +111,10 @@ const warnings = [];
 // The decompiled C#: one class per file, `class X : Y`, methods on their own line.
 // ---------------------------------------------------------------------------------------------
 
-function scriptFiles(directory) {
-  const found = [];
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      found.push(...scriptFiles(path));
-    } else if (entry.name.endsWith(".cs")) {
-      found.push(path);
-    }
-  }
-  return found;
-}
-
 /** `guid -> class name`, from the `.cs.meta` files next to every script. */
 function buildGuidMap() {
   const map = new Map();
-  for (const path of scriptFiles(SCRIPTS)) {
+  for (const path of filesUnder(SCRIPTS, ".cs")) {
     const meta = `${path}.meta`;
     if (!existsSync(meta)) {
       continue;
@@ -163,7 +137,7 @@ function buildClasses() {
   const bases = new Map();
   const files = new Map();
   const texts = new Map();
-  for (const path of scriptFiles(SCRIPTS)) {
+  for (const path of filesUnder(SCRIPTS, ".cs")) {
     const text = readFileSync(path, "utf8");
     const declaration = /^\s*(?:public\s+|internal\s+)?(?:sealed\s+|abstract\s+|partial\s+|static\s+)*class\s+(\w+)\s*:\s*([\w.]+)/m.exec(text);
     if (!declaration) {
@@ -473,8 +447,8 @@ function readSettings() {
 const classes = buildClasses();
 const guidToClass = buildGuidMap();
 
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
-const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
+const map = JSON.parse(readFileSync(PART_MAP, "utf8"));
 const assignments = { ...map.parts, ...map.variants };
 if (Object.keys(assignments).length !== content.parts.length) {
   fail(`part-map.json maps ${Object.keys(assignments).length} parts but content declares ${content.parts.length}.`);
@@ -698,9 +672,8 @@ const report = {
   warnings,
 };
 
-const text = `${JSON.stringify(report, null, 2)}\n`;
-if (process.argv.includes("--write")) {
-  writeFileSync(OUT_JSON, text);
+if (flag("write")) {
+  writeJsonArtifact(OUT_JSON, report);
   const markdown = [
     "# BPLE per-part damping",
     "",
@@ -719,10 +692,9 @@ if (process.argv.includes("--write")) {
     }`,
     "",
     `Runtime overrides: ${Object.entries(runtimeOverrides).map(([site, entry]) => `${site} (${entry.disposition})`).join(", ") || "none"}`,
-    "",
-  ].join("\n");
-  writeFileSync(OUT_MD, markdown);
+  ];
+  writeMarkdownArtifact(OUT_MD, markdown);
   console.log(`wrote ${OUT_JSON} and ${OUT_MD}`);
 } else {
-  process.stdout.write(text);
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }

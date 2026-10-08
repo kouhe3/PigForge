@@ -23,30 +23,20 @@
 // `force / mass = 23 / 0.1 = 230 m/s^2`.
 //
 // Usage: node tools/bple-lift/extract-lift.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { loadVanillaSettings, VANILLA_SETTINGS_NAME } from "../in-settings/vanilla-settings.mjs";
-import { fileURLToPath } from "node:url";
+import { CONTENT, bpleProject, gameObjects, reportJson, reportMd } from "../lib/paths.mjs";
+import { fail, fixed, round6, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, prefabText, readField } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-lift-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-lift-report.md")));
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("lift");
+const OUT_MD = reportMd("lift");
+const GAMEOBJECT = gameObjects(BPLE);
 const inSettingsSource = loadVanillaSettings(BPLE);
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`original GameObject folder not found: ${GAMEOBJECT}`);
-  process.exit(1);
+  fail(`original GameObject folder not found: ${GAMEOBJECT}`);
 }
 
 // The room's fixed tick rate. The content field is "per tick", so the force has to be divided by
@@ -59,23 +49,6 @@ const MASS_SOURCE = "Balloon.cs:129";
 const FORCE_SOURCE = "Balloon.cs:181 (m_force * BalloonForce)";
 
 const warnings = [];
-
-function prefabText(name) {
-  const path = join(GAMEOBJECT, `${name}.prefab`);
-  return existsSync(path) ? readFileSync(path, "utf8") : null;
-}
-
-/** Serialized `m_force` of the Balloon component. Every Part_Balloon* prefab carries 11.5. */
-function readForce(text) {
-  const match = /^\s*m_force:\s*(-?[0-9.]+)\s*$/m.exec(text);
-  return match ? Number(match[1]) : null;
-}
-
-/** Serialized `m_numberOfBalloons`: how many 0.1 kg balloons this one prefab spawns. */
-function readStack(text) {
-  const match = /^\s*m_numberOfBalloons:\s*(-?\d+)\s*$/m.exec(text);
-  return match ? Number(match[1]) : null;
-}
 
 /** `INSettings.GetFloat(INFeature.BalloonForce)` -- the global multiplier Balloon.cs:181 applies,
  * from the vanilla declaration defaults. */
@@ -90,23 +63,10 @@ function readBalloonForce() {
 
 /** partTypeId -> prefab name, reusing the mapping the shapes/textures extractors established so
  * this tool cannot drift into a second convention. */
-function loadAssignments() {
-  const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
-  const byPart = new Map();
-  for (const section of ["parts", "variants"]) {
-    for (const [partTypeId, prefab] of Object.entries(map[section] ?? {})) {
-      if (typeof prefab === "string" && prefab.length > 0) {
-        byPart.set(Number(partTypeId), prefab);
-      }
-    }
-  }
-
-  return byPart;
-}
+const assignments = loadAssignments();
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 
 const balloonForce = readBalloonForce();
-const assignments = loadAssignments();
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
 
 const parts = {};
 const unmapped = [];
@@ -121,14 +81,16 @@ for (const part of content.parts) {
     continue;
   }
 
-  const text = prefabText(prefab);
+  const text = prefabText(GAMEOBJECT, prefab);
   if (text === null) {
     warnings.push(`part ${part.partTypeId} (${prefab}): prefab file missing`);
     continue;
   }
 
-  const force = readForce(text);
-  const stack = readStack(text);
+  /** Serialized `m_force` of the Balloon component. Every Part_Balloon* prefab carries 11.5. */
+  const force = readField(text, "m_force");
+  /** Serialized `m_numberOfBalloons`: how many 0.1 kg balloons this one prefab spawns. */
+  const stack = readField(text, "m_numberOfBalloons");
   if (force === null || stack === null || balloonForce === null) {
     warnings.push(`part ${part.partTypeId} (${prefab}): m_force / m_numberOfBalloons / BalloonForce missing`);
     continue;
@@ -143,8 +105,8 @@ for (const part of content.parts) {
     balloonForce,
     tickRate: TICK_RATE,
     runtimeMassPerBalloon: RUNTIME_MASS,
-    mass: Number((RUNTIME_MASS * stack).toFixed(6)),
-    liftPerTick: Number(((forcePerBalloon * stack) / TICK_RATE).toFixed(6)),
+    mass: round6(RUNTIME_MASS * stack),
+    liftPerTick: round6((forcePerBalloon * stack) / TICK_RATE),
   };
 }
 
@@ -162,8 +124,7 @@ const report = {
   unmapped,
   parts,
 };
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(OUT_JSON, report);
 
 const md = [];
 md.push("# 原版气球升力报告（`m_force` × `BalloonForce`）", "");
@@ -171,14 +132,14 @@ md.push("来源：`tools/bple-lift/extract-lift.mjs`，读取原版 `Part_Balloo
 md.push("与 `INSettingsBExp.json` 的 `BalloonForce`。", "");
 md.push("原版真值：", "");
 md.push("- `Balloon.cs:7` `m_force` 默认 10，prefab 序列化 11.5；`Balloon.cs:181` 乘 `BalloonForce`。", "");
-md.push(`- 实测 feature 值：\`BalloonForce = ${balloonForce}\` → 单个气球 ${Number((11.5 * (balloonForce ?? 0)).toFixed(4))} N。`, "");
+md.push(`- 实测 feature 值：\`BalloonForce = ${balloonForce}\` → 单个气球 ${fixed(11.5 * (balloonForce ?? 0), 4)} N。`, "");
 md.push("- `Balloon.cs:207-210` `FixedUpdate` 对气球**自身刚体**执行 `AddForce(force * up, ForceMode.Force)`。", "");
 md.push(`- 容器每 tick 施加一次冲量，故内容值是 \`力 / ${TICK_RATE}\`（` + "`" + TICK_RATE_SOURCE + "`）。", "");
 md.push("- `Balloon.cs:129` 运行时把气球刚体质量改写为 0.1（prefab 的 `m_mass` 是 0），`Balloon.cs:112-120` 多气球是 N 个独立 0.1 kg 刚体。", "");
 md.push("", "| partTypeId | prefab | 叠加数 | 每气球力 (N) | 总力 (N) | 质量 (kg) | balloonLiftPerTick |", "|---|---|---|---|---|---|---|");
 for (const [partTypeId, entry] of Object.entries(parts).sort((a, b) => Number(a[0]) - Number(b[0]))) {
   md.push(
-    `| ${partTypeId} | \`${entry.prefab}\` | ${entry.stack} | ${entry.forcePerBalloon} | ${Number((entry.forcePerBalloon * entry.stack).toFixed(4))} | ${entry.mass} | ${entry.liftPerTick} |`,
+    `| ${partTypeId} | \`${entry.prefab}\` | ${entry.stack} | ${entry.forcePerBalloon} | ${fixed(entry.forcePerBalloon * entry.stack, 4)} | ${entry.mass} | ${entry.liftPerTick} |`,
   );
 }
 
@@ -193,7 +154,7 @@ if (warnings.length > 0) {
   }
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`balloonForce: ${balloonForce}; balloon-family parts: ${Object.keys(parts).length}; balloon prefabs: ${prefabCount}`);
 if (warnings.length > 0) {

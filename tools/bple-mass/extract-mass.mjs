@@ -24,39 +24,28 @@
 //   - `Part_Rope_05..08_SET` are HingePlates outside GameData.m_customParts and have no content
 //     row (see tools/bple-shapes/extract-shapes.mjs); they are absent from this report too.
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
+import { arg } from "../lib/args.mjs";
+import { bpleProject, gameObjects } from "../lib/paths.mjs";
+import { fail } from "../lib/report.mjs";
+import { assignments as loadAssignments, fieldOf, prefabText } from "../lib/unity.mjs";
 
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
+const BPLE = bpleProject();
 const OUT = arg("out", "");
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
+const GAMEOBJECT = gameObjects(BPLE);
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}`);
-  process.exit(1);
-}
-
-function field(body, name) {
-  const match = new RegExp(`^\\s*${name}:\\s*(.*)$`, "m").exec(body);
-  return match ? match[1].trim() : undefined;
+  fail(`BPLE project not found: ${GAMEOBJECT}`);
 }
 
 /** `m_mass` and `m_numberOfBalloons` of one prefab; both are plain serialized scalars. */
 function readPrefabMass(name) {
-  const path = join(GAMEOBJECT, `${name}.prefab`);
-  if (!existsSync(path)) return null;
-  const text = readFileSync(path, "utf8");
-  const mass = field(text, "m_mass");
-  const count = field(text, "m_numberOfBalloons");
+  const text = prefabText(GAMEOBJECT, name);
+  if (text === null) return null;
+  const mass = fieldOf(text, "m_mass");
+  const count = fieldOf(text, "m_numberOfBalloons");
   return {
     name,
     mass: mass === undefined ? null : Number(mass),
@@ -77,21 +66,20 @@ const FAMILIES = [
   },
 ];
 
-const map = JSON.parse(readFileSync(join(REPO, "tools", "bple-textures", "part-map.json"), "utf8"));
-const assignments = { ...map.parts, ...map.variants };
+const assignments = loadAssignments();
 const warnings = [];
 const families = {};
 
 for (const family of FAMILIES) {
   const members = [];
-  for (const [partTypeId, prefabName] of Object.entries(assignments)) {
-    if (typeof prefabName !== "string" || !family.pattern.test(prefabName)) continue;
+  for (const [partTypeId, prefabName] of assignments) {
+    if (!family.pattern.test(prefabName)) continue;
     const prefab = readPrefabMass(prefabName);
     if (!prefab) throw new Error(`${family.name}: mapped prefab missing on disk: ${prefabName} (part ${partTypeId})`);
     if (prefab.mass === null) throw new Error(`${family.name}: prefab declares no m_mass: ${prefabName}`);
     if (prefab.count === null) throw new Error(`${family.name}: prefab declares no m_numberOfBalloons: ${prefabName}`);
     members.push({
-      partTypeId: Number(partTypeId),
+      partTypeId,
       prefab: prefab.name,
       mass: prefab.mass,
       count: prefab.count,

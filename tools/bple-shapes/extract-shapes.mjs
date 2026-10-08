@@ -29,25 +29,20 @@
 //     X/Y extents and the shape kind are observable. Z sizes are reported but are
 //     design artefacts, not gameplay dimensions.
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
+import { arg } from "../lib/args.mjs";
+import { bpleProject, gameObjects } from "../lib/paths.mjs";
+import { fail, writeArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, fieldOf, prefabText } from "../lib/unity.mjs";
 
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
+const BPLE = bpleProject();
 const OUT = arg("out", "");
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
+const GAMEOBJECT = gameObjects(BPLE);
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}`);
 }
 
 // ---------------------------------------------------------------- prefab parsing
@@ -61,11 +56,6 @@ function vec3(body, name) {
 function quat(body, name) {
   const match = new RegExp(`^\\s*${name}: \\{x: ([^,]+), y: ([^,]+), z: ([^,]+), w: ([^}]+)\\}$`, "m").exec(body);
   return match ? [Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4])] : undefined;
-}
-
-function field(body, name) {
-  const match = new RegExp(`^\\s*${name}:\\s*(.*)$`, "m").exec(body);
-  return match ? match[1].trim() : undefined;
 }
 
 function parsePrefab(text) {
@@ -82,7 +72,7 @@ function parsePrefab(text) {
   let balloons = null;
   for (const { classId, fileId, body } of blocks) {
     if (classId === CLASS.GameObject) {
-      gameObjects.set(fileId, { name: field(body, "m_Name"), active: field(body, "m_IsActive") !== "0" });
+      gameObjects.set(fileId, { name: fieldOf(body, "m_Name"), active: fieldOf(body, "m_IsActive") !== "0" });
     } else if (classId === CLASS.Transform) {
       const rot = quat(body, "m_LocalRotation");
       transforms.set(fileId, {
@@ -93,19 +83,19 @@ function parsePrefab(text) {
         scale: vec3(body, "m_LocalScale") ?? [1, 1, 1],
       });
     } else if (classId === CLASS.BoxCollider) {
-      colliders.push({ kind: "box", gameObject: /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1], size: vec3(body, "m_Size"), center: vec3(body, "m_Center") ?? [0, 0, 0], trigger: field(body, "m_IsTrigger") === "1" });
+      colliders.push({ kind: "box", gameObject: /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1], size: vec3(body, "m_Size"), center: vec3(body, "m_Center") ?? [0, 0, 0], trigger: fieldOf(body, "m_IsTrigger") === "1" });
     } else if (classId === CLASS.SphereCollider) {
-      colliders.push({ kind: "sphere", gameObject: /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1], radius: Number(field(body, "m_Radius")), center: vec3(body, "m_Center") ?? [0, 0, 0], trigger: field(body, "m_IsTrigger") === "1" });
+      colliders.push({ kind: "sphere", gameObject: /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1], radius: Number(fieldOf(body, "m_Radius")), center: vec3(body, "m_Center") ?? [0, 0, 0], trigger: fieldOf(body, "m_IsTrigger") === "1" });
     } else if (classId === CLASS.CapsuleCollider) {
-      colliders.push({ kind: "capsule", gameObject: /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1], radius: Number(field(body, "m_Radius")), height: Number(field(body, "m_Height")), direction: Number(field(body, "m_Direction")), center: vec3(body, "m_Center") ?? [0, 0, 0], trigger: field(body, "m_IsTrigger") === "1" });
+      colliders.push({ kind: "capsule", gameObject: /m_GameObject: \{fileID: (\d+)\}/.exec(body)?.[1], radius: Number(fieldOf(body, "m_Radius")), height: Number(fieldOf(body, "m_Height")), direction: Number(fieldOf(body, "m_Direction")), center: vec3(body, "m_Center") ?? [0, 0, 0], trigger: fieldOf(body, "m_IsTrigger") === "1" });
     } else if (classId === 114) {
-      const mass = field(body, "m_mass");
+      const mass = fieldOf(body, "m_mass");
       if (mass !== undefined && part === null) {
-        part = { mass: Number(mass), partType: Number(field(body, "m_partType")), interactiveRadius: Number(field(body, "m_interactiveRadius")) };
+        part = { mass: Number(mass), partType: Number(fieldOf(body, "m_partType")), interactiveRadius: Number(fieldOf(body, "m_interactiveRadius")) };
       }
       // Sandbag.cs:10 / Balloon.cs:15 both serialize `m_numberOfBalloons`: the count of
       // bodies one placed part materializes into at START (Sandbag.cs:112-120 clone loop).
-      const count = field(body, "m_numberOfBalloons");
+      const count = fieldOf(body, "m_numberOfBalloons");
       if (count !== undefined && balloons === null) balloons = Number(count);
     }
   }
@@ -209,19 +199,17 @@ const CONDITION_NODES = {
 
 // ---------------------------------------------------------------------- main
 
-const map = JSON.parse(readFileSync(join(REPO, "tools", "bple-textures", "part-map.json"), "utf8"));
-const assignments = { ...map.parts, ...map.variants };
+const assignments = loadAssignments();
 const parts = {};
 const warnings = [];
 
-for (const [partTypeId, prefabName] of Object.entries(assignments)) {
-  if (!prefabName) continue;
-  const path = join(GAMEOBJECT, `${prefabName}.prefab`);
-  if (!existsSync(path)) {
+for (const [partTypeId, prefabName] of assignments) {
+  const prefabYaml = prefabText(GAMEOBJECT, prefabName);
+  if (prefabYaml === null) {
     warnings.push(`prefab missing: ${prefabName}`);
     continue;
   }
-  const prefab = parsePrefab(readFileSync(path, "utf8"));
+  const prefab = parsePrefab(prefabYaml);
   // Every non-trigger collider is reported. Joint attachment markers keep their collider but
   // are tagged `condition`, which keeps them out of physics and cell occupancy while drag
   // snapping and connection proximity still see them; script helper colliders (the King Pig's
@@ -254,7 +242,7 @@ const report = {
 };
 const text = `${JSON.stringify(report, null, 2)}\n`;
 if (OUT) {
-  writeFileSync(resolve(OUT), text);
+  writeArtifact(resolve(OUT), text);
   console.log(`wrote ${resolve(OUT)}`);
 } else {
   process.stdout.write(text);

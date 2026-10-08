@@ -34,22 +34,12 @@
 // Usage:
 //   node tools/bple-rockets/apply-rockets.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, canonicalCapabilities, renderCapabilities, rewriteCapabilitiesLines } from "../lib/parts.mjs";
+import { num6, numberOrNull6 } from "../lib/report.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-rockets-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
-
+const REPORT = applyReport("rockets");
 const REPORT_FORMAT = "pigforge.bple-rockets.report";
 
 /** The 18 rocket-family content parts this report is allowed to speak for (gap G101); a different
@@ -69,8 +59,6 @@ const parts = report.parts ?? {};
 if (Object.keys(parts).length === 0) {
   throw new Error(`${REPORT} carries no parts`);
 }
-
-const round6 = (value) => Number(value.toFixed(6));
 
 /** The rocket object the report declares for one part; the report is the only admissible source, so
  * a missing or malformed entry is a hard error rather than a silent fallback. */
@@ -140,13 +128,6 @@ function rocketOf(partTypeId) {
   return rocket;
 }
 
-/** JSON with at most six decimals, and an explicit `.0` for an integral value -- the same style the
- * hand-authored content uses (`4.0`, `1.0`), so an extracted float never looks like an int. */
-const num = (value) => {
-  const rounded = Number(value.toFixed(6));
-  return Number.isInteger(rounded) ? `${rounded}.0` : String(rounded);
-};
-
 /** The exact key order of the written object, which IS the contract. */
 const rocketKeys = (rocket) => [
   ...ROCKET_FIELDS,
@@ -156,16 +137,17 @@ const rocketKeys = (rocket) => [
 
 /** The rocket object as one line, keys in `rocketKeys` order. The direction is a plain integer
  * (the loader reads it with `TryGetInt32`); the tick counts are plain integers; `thrustPerTick` and
- * `maxSpeed` -- and a blast's radius/impulse -- go through `num`, so `18.0` never looks like a tick. */
+ * `maxSpeed` -- and a blast's radius/impulse -- go through `num6`, so `18.0` never looks like a
+ * tick. */
 const renderRocket = (rocket) => {
   const rendered = {
     directionX: String(rocket.directionX),
     directionY: String(rocket.directionY),
-    thrustPerTick: num(rocket.thrustPerTick),
+    thrustPerTick: num6(rocket.thrustPerTick),
     ignitionTicks: String(rocket.ignitionTicks),
     boostTicks: String(rocket.boostTicks),
     endTicks: String(rocket.endTicks),
-    maxSpeed: num(rocket.maxSpeed),
+    maxSpeed: num6(rocket.maxSpeed),
   };
 
   if (rocket.visualization === true) {
@@ -173,40 +155,33 @@ const renderRocket = (rocket) => {
   }
 
   if (rocket.explodeRadius !== undefined) {
-    rendered.explodeRadius = num(rocket.explodeRadius);
-    rendered.explodeImpulse = num(rocket.explodeImpulse);
+    rendered.explodeRadius = num6(rocket.explodeRadius);
+    rendered.explodeImpulse = num6(rocket.explodeImpulse);
   }
 
   return `{ ${rocketKeys(rocket).map((key) => `"${key}": ${rendered[key]}`).join(", ")} }`;
 };
 
-const renderValue = (value) =>
-  typeof value === "string" ? `"${value}"` : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
-const renderCapabilities = (object) => `{ ${Object.entries(object)
-  .map(([key, value]) => `"${key}": ${key === "rocket" ? renderRocket(value) : renderValue(value)}`)
-  .join(", ")} }`;
-
-/** A finite number rounded to six decimals, or null for anything else -- including the fields the
- * old hand-written shape does not have, so a stale `{ thrustPerTick, directionX, durationTicks }`
- * never compares equal to an extracted one. */
-const numberOrNull = (value) => (typeof value === "number" && Number.isFinite(value) ? round6(value) : null);
+const render = renderCapabilities({ rocket: renderRocket });
 
 /** Semantic form of one capabilities object, so "already applied" is a value comparison and not a
  * text one: `rocket` is reduced to the ten fields this tool owns. */
-const rocketSignature = (rocket) => ({
-  directionX: rocket.directionX ?? null,
-  directionY: rocket.directionY ?? null,
-  thrustPerTick: numberOrNull(rocket.thrustPerTick),
-  ignitionTicks: rocket.ignitionTicks ?? null,
-  boostTicks: rocket.boostTicks ?? null,
-  endTicks: rocket.endTicks ?? null,
-  maxSpeed: numberOrNull(rocket.maxSpeed),
-  visualization: rocket.visualization === true,
-  explodeRadius: numberOrNull(rocket.explodeRadius),
-  explodeImpulse: numberOrNull(rocket.explodeImpulse),
+const canonical = canonicalCapabilities({
+  rocket: (rocket) => (rocket !== null && typeof rocket === "object"
+    ? {
+      directionX: rocket.directionX ?? null,
+      directionY: rocket.directionY ?? null,
+      thrustPerTick: numberOrNull6(rocket.thrustPerTick),
+      ignitionTicks: rocket.ignitionTicks ?? null,
+      boostTicks: rocket.boostTicks ?? null,
+      endTicks: rocket.endTicks ?? null,
+      maxSpeed: numberOrNull6(rocket.maxSpeed),
+      visualization: rocket.visualization === true,
+      explodeRadius: numberOrNull6(rocket.explodeRadius),
+      explodeImpulse: numberOrNull6(rocket.explodeImpulse),
+    }
+    : rocket),
 });
-const canonical = (capabilities) =>
-  JSON.stringify(Object.entries(capabilities).map(([key, value]) => [key, key === "rocket" && value !== null && typeof value === "object" ? rocketSignature(value) : value]));
 
 /** The rewritten capabilities of one part: the report's `rocket` object in the slot the old one
  * occupied (or just before `activation`), everything else untouched and in place. */
@@ -242,101 +217,64 @@ function rewriteCapabilities(partTypeId, capabilities) {
   return next;
 }
 
-const isSameCapabilities = (left, right) => canonical(left) === canonical(right);
-
-let text = readFileSync(CONTENT, "utf8");
-const lines = text.split("\n");
-
-let updated = 0;
-let unchanged = 0;
-let partTypeId = null;
-const rewritten = new Map();
-
-for (let index = 0; index < lines.length; index++) {
-  const partMatch = /^\s*"partTypeId":\s*(\d+),\s*$/.exec(lines[index]);
-  if (partMatch) {
-    partTypeId = Number(partMatch[1]);
-    continue;
-  }
-
-  const capabilitiesMatch = /^(\s*)"capabilities":\s*(\{.*\}),\s*$/.exec(lines[index]);
-  if (!capabilitiesMatch || partTypeId === null) {
-    continue;
-  }
-
-  const current = JSON.parse(capabilitiesMatch[2]);
-  const next = rewriteCapabilities(partTypeId, current);
-  partTypeId = null;
-  if (next === null) {
-    continue;
-  }
-
-  if (isSameCapabilities(current, next)) {
-    unchanged++;
-    continue;
-  }
-
-  lines[index] = `${capabilitiesMatch[1]}"capabilities": ${renderCapabilities(next)},`;
-  updated++;
-}
-
-text = lines.join("\n");
-
-// Re-parse and re-derive: the rewrite must be valid JSON, carry exactly the report's rocket object
-// with exactly the required keys in order, leave no invented key behind, and be complete.
-const check = JSON.parse(text);
 const expected = new Set(Object.keys(parts).map(Number));
-for (const part of check.parts) {
-  if (!expected.has(part.partTypeId)) {
-    continue;
-  }
 
-  const rocket = rocketOf(part.partTypeId);
-  const written = part.capabilities?.rocket;
-  if (written === undefined) {
-    throw new Error(`part ${part.partTypeId}: capabilities.rocket was not written`);
-  }
+applyContent({
+  rewrite: (text) => rewriteCapabilitiesLines(text, { rewrite: rewriteCapabilities, canonical, render }),
+  // Re-parse and re-derive: the rewrite must be valid JSON, carry exactly the report's rocket object
+  // with exactly the required keys in order, leave no invented key behind, and be complete.
+  verify: (result) => {
+    const rewritten = new Set();
+    for (const part of JSON.parse(result.text).parts) {
+      if (!expected.has(part.partTypeId)) {
+        continue;
+      }
 
-  if (written.durationTicks !== undefined) {
-    throw new Error(`part ${part.partTypeId}: the replaced rocket key durationTicks is still present`);
-  }
+      const rocket = rocketOf(part.partTypeId);
+      const written = part.capabilities?.rocket;
+      if (written === undefined) {
+        throw new Error(`part ${part.partTypeId}: capabilities.rocket was not written`);
+      }
 
-  const keys = Object.keys(written);
-  const wanted = rocketKeys(rocket);
-  if (keys.join(", ") !== wanted.join(", ")) {
-    throw new Error(`part ${part.partTypeId}: written rocket keys ${keys.join(", ")}, expected ${wanted.join(", ")}`);
-  }
+      if (written.durationTicks !== undefined) {
+        throw new Error(`part ${part.partTypeId}: the replaced rocket key durationTicks is still present`);
+      }
 
-  for (const key of ["directionX", "directionY", "ignitionTicks", "boostTicks", "endTicks"]) {
-    if (written[key] !== rocket[key]) {
-      throw new Error(`part ${part.partTypeId}: written ${key} ${written[key]} does not match the report`);
+      if (Object.keys(written).join(", ") !== rocketKeys(rocket).join(", ")) {
+        throw new Error(`part ${part.partTypeId}: written rocket keys ${Object.keys(written).join(", ")}, expected ${rocketKeys(rocket).join(", ")}`);
+      }
+
+      for (const key of ["directionX", "directionY", "ignitionTicks", "boostTicks", "endTicks"]) {
+        if (written[key] !== rocket[key]) {
+          throw new Error(`part ${part.partTypeId}: written ${key} ${written[key]} does not match the report`);
+        }
+      }
+
+      for (const key of ["thrustPerTick", "maxSpeed", "explodeRadius", "explodeImpulse"]) {
+        if (rocket[key] !== undefined && written[key] !== numberOrNull6(rocket[key])) {
+          throw new Error(`part ${part.partTypeId}: written ${key} ${written[key]} does not match the report`);
+        }
+      }
+
+      if ((rocket.visualization === true) !== (written.visualization === true)) {
+        throw new Error(`part ${part.partTypeId}: written visualization does not match the report`);
+      }
+
+      rewritten.add(part.partTypeId);
     }
-  }
 
-  for (const key of ["thrustPerTick", "maxSpeed", "explodeRadius", "explodeImpulse"]) {
-    if (rocket[key] !== undefined && written[key] !== round6(rocket[key])) {
-      throw new Error(`part ${part.partTypeId}: written ${key} ${written[key]} does not match the report`);
+    if (rewritten.size !== expected.size) {
+      throw new Error(`rocket capabilities written for ${rewritten.size} parts, expected ${expected.size}`);
     }
-  }
 
-  if ((rocket.visualization === true) !== (written.visualization === true)) {
-    throw new Error(`part ${part.partTypeId}: written visualization does not match the report`);
-  }
+    if (expected.size !== EXPECTED_PARTS) {
+      throw new Error(`${REPORT} carries ${expected.size} parts, expected ${EXPECTED_PARTS} (gap G101)`);
+    }
 
-  rewritten.set(part.partTypeId, true);
-}
-
-if (rewritten.size !== expected.size) {
-  throw new Error(`rocket capabilities written for ${rewritten.size} parts, expected ${expected.size}`);
-}
-
-if (expected.size !== EXPECTED_PARTS) {
-  throw new Error(`${REPORT} carries ${expected.size} parts, expected ${EXPECTED_PARTS} (gap G101)`);
-}
-
-if (!DRY_RUN) {
-  writeFileSync(CONTENT, text);
-}
-
-console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTENT}`);
-console.log(`already matching: ${unchanged}; verified: ${rewritten.size}`);
+    return { verified: rewritten.size };
+  },
+  report: ({ updated, unchanged }, { verified }, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${updated} parts in ${content}`);
+    console.log(`already matching: ${unchanged}; verified: ${verified}`);
+  },
+});

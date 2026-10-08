@@ -21,59 +21,30 @@
 // Contraption.cs:1379-1380), and no prefab is both.
 //
 // Usage: node tools/bple-power/extract-power.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { CONTENT, bpleProject, gameObjects, reportJson, reportMd, scriptAssembly } from "../lib/paths.mjs";
+import { fail, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments as loadAssignments, buildClassBases, buildGuidIndex, derivesFromBasePart, prefabText, readField } from "../lib/unity.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE_Unity6")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-power-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-power-report.md")));
-const GAMEOBJECT = join(BPLE, "Assets", "GameObject");
-const SCRIPTS = join(BPLE, "Assets", "Scripts", "Assembly-CSharp");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
+const BPLE = bpleProject();
+const OUT_JSON = reportJson("power");
+const OUT_MD = reportMd("power");
+const GAMEOBJECT = gameObjects(BPLE);
+const SCRIPTS = scriptAssembly(BPLE);
 
 if (!existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${GAMEOBJECT}\nPass --bple <path to BPLE_Unity6>.`);
 }
 
 const warnings = [];
 
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
-
-function prefabText(name) {
-  const path = join(GAMEOBJECT, `${name}.prefab`);
-  return existsSync(path) ? readFileSync(path, "utf8") : null;
-}
-
 /** The first `m_powerConsumption`/`m_enginePower` in the file. Every part prefab carries
  * exactly one of each, on the BasePart MonoBehaviour that owns the part's physics behaviour
  * (BasePart.cs:162,164; the template assigns them at BasePart.cs:1445-1446). */
-function readPowerField(text, field) {
-  const match = new RegExp(`^\\s*${field}:\\s*(-?[0-9.]+)\\s*$`, "m").exec(text);
-  if (!match) {
-    return null;
-  }
-
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
-}
-
 function readPower(text) {
-  const powerConsumption = readPowerField(text, "m_powerConsumption");
-  const enginePower = readPowerField(text, "m_enginePower");
+  const powerConsumption = readField(text, "m_powerConsumption");
+  const enginePower = readField(text, "m_enginePower");
   if (powerConsumption === null || enginePower === null) {
     return null;
   }
@@ -100,51 +71,14 @@ function readPower(text) {
 // relative strengths: the sticky wheel carries `m_force` 100 against the motor wheel's 50, so it
 // drives twice as hard.
 
-/** guid -> script class name, so a prefab's `m_Script` references become class names
- * (the same index tools/bple-springs builds for the wheel-suspension extraction). */
-function buildGuidIndex() {
-  const byGuid = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs.meta")) continue;
-    const match = /^guid:\s*([0-9a-f]{32})/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
-    if (match) byGuid.set(match[1], basename(entry, ".cs.meta"));
-  }
-
-  return byGuid;
-}
-
-/** class name -> the class it derives from, for every script in the assembly. */
-function buildClassBases() {
-  const bases = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs")) continue;
-    const match = /^\s*public class (\w+)\s*:\s*([\w<>]+)/m.exec(readFileSync(join(SCRIPTS, entry), "utf8"));
-    if (match) bases.set(match[1], match[2]);
-  }
-
-  return bases;
-}
-
 /** Whether a class overrides BasePart's engine hook, i.e. is driven by the power factor. */
 function overridesInitializeEngine(scriptName) {
   const text = readFileSync(join(SCRIPTS, `${scriptName}.cs`), "utf8");
   return /public override void InitializeEngine\s*\(\s*\)/.test(text);
 }
 
-const guidIndex = buildGuidIndex();
-const classBases = buildClassBases();
-
-const derivesFromBasePart = (name) => {
-  const seen = new Set();
-  let current = name;
-  while (current && !seen.has(current)) {
-    if (current === "BasePart") return true;
-    seen.add(current);
-    current = classBases.get(current);
-  }
-
-  return false;
-};
+const guidIndex = buildGuidIndex(SCRIPTS);
+const classBases = buildClassBases(SCRIPTS);
 
 // Derived, not listed: a driven wheel is a BasePart subclass whose name ends in `Wheel` and
 // which overrides InitializeEngine (MotorWheel, OffRoadWheel, StickyWheel on 2.4.0 BPLE).
@@ -153,7 +87,7 @@ const derivesFromBasePart = (name) => {
 // owns its numbers. A part carrying both capabilities is a hard error below.
 const drivenWheelClasses = new Set(
   [...classBases.keys()]
-    .filter((name) => name.endsWith("Wheel") && derivesFromBasePart(name) && overridesInitializeEngine(name)),
+    .filter((name) => name.endsWith("Wheel") && derivesFromBasePart(classBases, name) && overridesInitializeEngine(name)),
 );
 
 /** The driven-wheel script a prefab instantiates, or null when it is a passive wheel
@@ -172,9 +106,9 @@ function drivenWheelScript(text) {
 /** The serialized `m_force` / `m_maximumSpeed` of a wheel MonoBehaviour, plus whether the prefab
  * carries the `m_enabled` switch field the original toggles. */
 function readDrive(text) {
-  const force = readPowerField(text, "m_force");
-  const maximumSpeed = readPowerField(text, "m_maximumSpeed");
-  const enabled = readPowerField(text, "m_enabled");
+  const force = readField(text, "m_force");
+  const maximumSpeed = readField(text, "m_maximumSpeed");
+  const enabled = readField(text, "m_enabled");
   if (force === null || force <= 0 || maximumSpeed === null || enabled === null) {
     return null;
   }
@@ -184,24 +118,8 @@ function readDrive(text) {
 
 /** partTypeId -> prefab name, reusing the mapping the shapes/textures extractors established so
  * this tool cannot drift into a second convention. */
-function loadAssignments() {
-  const map = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
-  const byPart = new Map();
-  // `parts` covers the 44 bases, `variants` the 223 imported skins; both map partTypeId -> the
-  // prefab the part was extracted from, and either may be null for a PigForge-only invention.
-  for (const section of ["parts", "variants"]) {
-    for (const [partTypeId, prefab] of Object.entries(map[section] ?? {})) {
-      if (typeof prefab === "string" && prefab.length > 0) {
-        byPart.set(Number(partTypeId), prefab);
-      }
-    }
-  }
-
-  return byPart;
-}
-
 const assignments = loadAssignments();
-const content = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
+const content = JSON.parse(readFileSync(CONTENT, "utf8"));
 const nameByPart = new Map(content.parts.map((part) => [part.partTypeId, part.name ?? ""]));
 
 // The drive anchor: the motor wheel is the one driven wheel whose PigForge impulse has been
@@ -209,7 +127,7 @@ const nameByPart = new Map(content.parts.map((part) => [part.partTypeId, part.na
 // so re-running this tool can never drift away from the number the game was tuned around.
 const DRIVE_ANCHOR_PREFAB = "Part_MotorWheel_01_SET";
 const DRIVE_ANCHOR_PART = 17;
-const anchorText = prefabText(DRIVE_ANCHOR_PREFAB);
+const anchorText = prefabText(GAMEOBJECT, DRIVE_ANCHOR_PREFAB);
 const anchorForce = anchorText === null ? null : readDrive(anchorText);
 const anchorPart = content.parts.find((part) => part.partTypeId === DRIVE_ANCHOR_PART);
 const anchorImpulse = anchorPart?.capabilities?.motor?.thrustPerTick;
@@ -232,7 +150,7 @@ for (const part of content.parts) {
     continue;
   }
 
-  const text = prefabText(prefab);
+  const text = prefabText(GAMEOBJECT, prefab);
   if (text === null) {
     warnings.push(`part ${part.partTypeId} (${prefab}): prefab file missing`);
     continue;
@@ -314,8 +232,7 @@ for (const entry of readdirSync(GAMEOBJECT)) {
 }
 
 const report = { bple: BPLE, distribution, warnings, unmapped, parts };
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(OUT_JSON, report);
 
 const byField = (field) =>
   Object.entries(parts)
@@ -391,7 +308,7 @@ if (warnings.length > 0) {
   md.push("");
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`prefabs: ${Object.values(distribution.classification).reduce((sum, count) => sum + count, 0)} (${JSON.stringify(distribution.classification)})`);
 console.log(`powerConsumption: ${JSON.stringify(distribution.powerConsumption)}`);

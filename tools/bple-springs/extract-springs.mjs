@@ -35,73 +35,38 @@
 // asserted, so a changed original cannot silently produce a wrong report.
 //
 // Usage: node tools/bple-springs/extract-springs.mjs [--bple <path>] [--json <path>] [--md <path>]
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join } from "node:path";
 import { loadVanillaSettings, VANILLA_SETTINGS_NAME } from "../in-settings/vanilla-settings.mjs";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  const value = index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-  return value;
-}
+import { CONTENT, assets, bpleProject, gameObjects, reportJson, reportMd, scriptAssembly } from "../lib/paths.mjs";
+import { checks, count, fail, numericHistogram, writeJsonArtifact, writeMarkdownArtifact } from "../lib/report.mjs";
+import { assignments, buildClassBases, buildGuidIndex, derivesFromBasePart, readField as readNumber } from "../lib/unity.mjs";
 
 /** `BPLE 2022.1.9` is the pristine original (the same editor the game shipped with,
  * 2021.3.45f2) and the copy whose `.cs` text this extractor asserts against; `BPLE_Unity6`
  * is the migrated copy some sibling tools default to and carries Unity 6 API names
  * (`linearVelocity`). The three families live in scripts/prefabs that are byte-identical
  * in both copies, but the pristine one is the source of record. */
-const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE 2022.1.9")));
-const OUT_JSON = resolve(arg("json", join(REPO, "tasks", "bple-springs-report.json")));
-const OUT_MD = resolve(arg("md", join(REPO, "tasks", "bple-springs-report.md")));
-const ASSETS = join(BPLE, "Assets");
-const SCRIPTS = join(ASSETS, "Scripts", "Assembly-CSharp");
-const GAMEOBJECT = join(ASSETS, "GameObject");
+const BPLE = bpleProject("BPLE 2022.1.9");
+const OUT_JSON = reportJson("springs");
+const OUT_MD = reportMd("springs");
+const ASSETS = assets(BPLE);
+const SCRIPTS = scriptAssembly(BPLE);
+const GAMEOBJECT = gameObjects(BPLE);
 const TEXTEXT = join(ASSETS, "TextAsset");
-const CONTENT_PARTS = join(REPO, "content", "parts.json");
-const TEXTURE_MAP = join(REPO, "tools", "bple-textures", "part-map.json");
 
 if (!existsSync(SCRIPTS) || !existsSync(GAMEOBJECT)) {
-  console.error(`BPLE project not found: ${SCRIPTS}\nPass --bple <path to the BPLE project>.`);
-  process.exit(1);
+  fail(`BPLE project not found: ${SCRIPTS}\nPass --bple <path to the BPLE project>.`);
 }
 
 const warnings = [];
-const fail = (message) => {
-  console.error(message);
-  process.exit(1);
-};
 
 // ------------------------------------------------------------------ script index
 /** guid -> script class name, so a prefab's `m_Script` guids become class names. */
-function buildGuidIndex() {
-  const byGuid = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs.meta")) continue;
-    const text = readFileSync(join(SCRIPTS, entry), "utf8");
-    const match = /^guid:\s*([0-9a-f]{32})/m.exec(text);
-    if (match) byGuid.set(match[1], basename(entry, ".cs.meta"));
-  }
-  return byGuid;
-}
+const guidIndex = buildGuidIndex(SCRIPTS);
 
 /** class name -> base class name, for every script in the assembly. */
-function buildClassBases() {
-  const bases = new Map();
-  for (const entry of readdirSync(SCRIPTS)) {
-    if (!entry.endsWith(".cs")) continue;
-    const text = readFileSync(join(SCRIPTS, entry), "utf8");
-    const match = /^\s*public class (\w+)\s*:\s*([\w<>]+)/m.exec(text);
-    if (match) bases.set(match[1], match[2]);
-  }
-  return bases;
-}
-
-const guidIndex = buildGuidIndex();
-const classBases = buildClassBases();
+const classBases = buildClassBases(SCRIPTS);
 
 /** prefab name -> guid, so a serialized `m_BoxingGlovePrefab: {guid: …}` reference
  *  resolves to the referenced prefab's name instead of an opaque guid. */
@@ -118,20 +83,9 @@ function buildPrefabGuidIndex() {
 
 const prefabGuidIndex = buildPrefabGuidIndex();
 
-const derivesFromBasePart = (name) => {
-  const seen = new Set();
-  let current = name;
-  while (current && !seen.has(current)) {
-    seen.add(current);
-    if (current === "BasePart") return true;
-    current = classBases.get(current);
-  }
-  return false;
-};
-
 // The wheel family is derived, not listed: every class whose name ends in `Wheel` and
 // that is a BasePart (CartWheel, MotorWheel, OffRoadWheel, StickyWheel on 2.4.0 BPLE).
-const wheelClasses = [...classBases.keys()].filter((name) => name.endsWith("Wheel") && derivesFromBasePart(name)).sort();
+const wheelClasses = [...classBases.keys()].filter((name) => name.endsWith("Wheel") && derivesFromBasePart(classBases, name)).sort();
 
 // ------------------------------------------------------------------ method bodies
 /** Body of `public override Joint CustomConnectToPart(...)` inside a class, or null. */
@@ -444,23 +398,13 @@ const boxingGloveDeclaration = (() => {
 })();
 
 // ------------------------------------------------------------------ prefab scan
-const CONTENT = JSON.parse(readFileSync(CONTENT_PARTS, "utf8"));
-const MAP = JSON.parse(readFileSync(TEXTURE_MAP, "utf8"));
+const contentParts = JSON.parse(readFileSync(CONTENT, "utf8"));
 const nameByPrefab = new Map();
 const partByPrefab = new Map();
-for (const [section, ids] of [["parts", MAP.parts], ["variants", MAP.variants]]) {
-  for (const [id, prefab] of Object.entries(ids ?? {})) {
-    if (typeof prefab === "string" && prefab.length > 0) {
-      nameByPrefab.set(prefab, Number(id));
-      partByPrefab.set(prefab, CONTENT.parts.find((part) => part.partTypeId === Number(id)) ?? null);
-    }
-  }
+for (const [partTypeId, prefab] of assignments()) {
+  nameByPrefab.set(prefab, partTypeId);
+  partByPrefab.set(prefab, contentParts.parts.find((part) => part.partTypeId === partTypeId) ?? null);
 }
-
-const readNumber = (text, field) => {
-  const match = new RegExp(`^\\s*${field}:\\s*(-?[0-9.]+)\\s*$`, "m").exec(text);
-  return match ? Number(match[1]) : null;
-};
 
 const prefabFiles = readdirSync(GAMEOBJECT).filter((entry) => entry.startsWith("Part_") && entry.endsWith(".prefab"));
 const prefabs = {};
@@ -782,11 +726,12 @@ const boxingGloveFamily = familyEntries(BOXING_GLOVE_FAMILY_PATTERN, BOXING_GLOV
 // Everything above is what the original does; the checks below turn a silent drift (a renamed
 // field, a retuned constant, a flipped IN switch, a different prefab family) into a failure
 // instead of a wrong report. Every failure prints the expected/actual diff and exits 1.
-const checks = [];
+const assertions = checks();
+const hardAssertions = [];
 const check = (label, actual, expected) => {
-  checks.push({ label, actual, expected, pass: JSON.stringify(actual) === JSON.stringify(expected) });
+  hardAssertions.push({ label, actual, expected, pass: JSON.stringify(actual) === JSON.stringify(expected) });
+  assertions.matches(label, actual, expected);
 };
-const histogram = (values) => values.reduce((counts, value) => ({ ...counts, [value]: (counts[value] ?? 0) + 1 }), {});
 
 const wheelDeclaringSprings = Object.entries(prefabs).filter(([, entry]) => entry.springClass).map(([name]) => name).sort();
 check("wheel prefabs scanned", wheelPrefabs.length, 39);
@@ -796,8 +741,12 @@ check("SpringBoxingGlove family prefab count", boxingGloveFamily.length, 5);
 check("Spring family customPartIndex", springFamily.map((entry) => entry.customPartIndex), [0, 1, 2, 3]);
 check("SpringBoxingGlove family customPartIndex", boxingGloveFamily.map((entry) => entry.customPartIndex), [0, 1, 2, 3, 4]);
 
-const springPathHistogram = histogram(springFamily.map((entry) => entry.jointPath.route));
-const boxingGlovePathHistogram = histogram(boxingGloveFamily.map((entry) => entry.jointPath.route));
+const springRoutes = new Map();
+for (const entry of springFamily) count(springRoutes, entry.jointPath.route);
+const springPathHistogram = numericHistogram(springRoutes);
+const boxingGloveRoutes = new Map();
+for (const entry of boxingGloveFamily) count(boxingGloveRoutes, entry.jointPath.route);
+const boxingGlovePathHistogram = numericHistogram(boxingGloveRoutes);
 // Declaration defaults: StableSpringConnection is false, so the SpringJoint (bungee) arm of
 // CustomConnectToPart never runs and every skin takes the ConfigurableJoint y-soft-limit branch.
 check("Spring joint-path histogram", springPathHistogram, { ConfigurableJointYLimit: 4 });
@@ -838,15 +787,8 @@ check("SpringBoxingGlove glove mass == Initialize mass", boxingGloveFamily.every
 check(`INDeclarationSettingsExp SwitchableBoxingGlove (${inFeatures.SwitchableBoxingGlove.file})`, inFeatures.SwitchableBoxingGlove.value, false);
 check("IN BoxingGloveLength", inFeatures.BoxingGloveLength.value, 1);
 
-const failures = checks.filter((entry) => !entry.pass);
-if (failures.length > 0) {
-  console.error(`\n${failures.length} hard assertion(s) failed -- the original changed, refusing to report:`);
-  for (const failure of failures) {
-    console.error(`  - ${failure.label}: expected ${JSON.stringify(failure.expected)}, got ${JSON.stringify(failure.actual)}`);
-  }
-  console.error("");
-  process.exit(1);
-}
+const failureCount = hardAssertions.filter((entry) => !entry.pass).length;
+assertions.verify(`\n${failureCount} hard assertion(s) failed -- the original changed, refusing to report:`, { trailingBlankLine: true });
 
 // StrongSpringConnection retunes the constants at Awake; StableSpringConnection overrides the
 // part's mass. Both are false in the declaration defaults, so a vanilla spring keeps
@@ -919,12 +861,11 @@ const report = {
     jointPathHistogram: boxingGlovePathHistogram,
     prefabs: boxingGloveFamily,
   },
-  hardAssertions: checks,
+  hardAssertions,
   warnings,
 };
 
-mkdirSync(dirname(OUT_JSON), { recursive: true });
-writeFileSync(OUT_JSON, `${JSON.stringify(report, null, 2)}\n`);
+writeJsonArtifact(OUT_JSON, report);
 
 const md = [];
 md.push("# 原版弹簧报告（轮子悬挂 / `Spring` / `SpringBoxingGlove`）", "");
@@ -1035,7 +976,7 @@ if (warnings.length > 0) {
   for (const warning of warnings) md.push(`- ${warning}`);
 }
 
-writeFileSync(OUT_MD, `${md.join("\n")}\n`);
+writeMarkdownArtifact(OUT_MD, md);
 
 console.log(`wheel classes: ${wheelClasses.join(", ")}`);
 console.log(`spring classes: ${springClasses.join(", ")}`);
@@ -1052,5 +993,5 @@ console.log(`boxing-glove joint-path histogram: ${JSON.stringify(boxingGlovePath
 console.log(`boxing-glove glove bodies: ${boxingGloveFamily.map((entry) => `${entry.prefab.replace(/^Part_SpringBoxingGlove_/, "").replace(/_SET$/, "")}=${entry.glove?.prefab}(${entry.glove?.shapes.map((shape) => `${shape.kind} r ${shape.radius} @ ${shape.center?.x ?? 0},${shape.center?.y ?? 0},${shape.center?.z ?? 0}`).join("+")}, mass ${entry.glove?.serializedMass})`).join(", ")}`);
 console.log(`IN features: StrongSpringConnection=${JSON.stringify(inFeatures.StrongSpringConnection.value)} StableSpringConnection=${JSON.stringify(inFeatures.StableSpringConnection.value)} BoxingGloveLength=${JSON.stringify(inFeatures.BoxingGloveLength.value)} (${inFeatures.BoxingGloveLength.file}${inFeatures.BoxingGloveLength.override ? "" : " declaration default"})`);
 console.log(`spring runtime: breakForce ${springRuntime.breakForce.value} (${springRuntime.breakForce.expression}), mass ${springRuntime.mass.value}, breakDistance ${springRuntime.breakDistance.value} m`);
-console.log(`hard assertions: ${checks.length} passed`);
+console.log(`hard assertions: ${hardAssertions.length} passed`);
 console.log(`report: ${OUT_JSON}\n        ${OUT_MD}`);

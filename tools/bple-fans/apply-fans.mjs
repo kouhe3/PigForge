@@ -22,21 +22,12 @@
 // Usage:
 //   node tools/bple-fans/apply-fans.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, canonicalCapabilities, renderCapabilities, rewriteCapabilitiesLines } from "../lib/parts.mjs";
+import { num6, numberOrNull6 } from "../lib/report.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-fans-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("fans");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8"));
 const parts = report.parts ?? {};
@@ -75,21 +66,16 @@ function fanOf(partTypeId) {
   return entry;
 }
 
-/** JSON with at most six decimals, and an explicit `.0` for an integral value -- the same style
- * the hand-authored content uses (`4.0`, `1.0`), so an extracted float never looks like an int. */
-const num = (value) => {
-  const rounded = Number(value.toFixed(6));
-  return Number.isInteger(rounded) ? `${rounded}.0` : String(rounded);
-};
-
+/// The fan object as one line: the direction is a plain integer, `rotor` and `maxSpeed` are
+/// written only when they apply.
 const renderFan = (entry) => {
   const pairs = [
-    `"thrustPerTick": ${num(entry.thrustPerTick)}`,
+    `"thrustPerTick": ${num6(entry.thrustPerTick)}`,
     `"directionX": ${entry.directionX}`,
     `"directionY": ${entry.directionY}`,
   ];
   if (entry.maxSpeed !== null) {
-    pairs.push(`"maxSpeed": ${num(entry.maxSpeed)}`);
+    pairs.push(`"maxSpeed": ${num6(entry.maxSpeed)}`);
   }
 
   if (entry.rotor) {
@@ -99,24 +85,19 @@ const renderFan = (entry) => {
   return `{ ${pairs.join(", ")} }`;
 };
 
-const renderValue = (value) =>
-  typeof value === "string" ? `"${value}"` : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
-const renderCapabilities = (object) => `{ ${Object.entries(object)
-  .map(([key, value]) => `"${key}": ${key === "fan" ? renderFan(value) : renderValue(value)}`)
-  .join(", ")} }`;
+const render = renderCapabilities({ fan: renderFan });
 
 /** Semantic form of one capabilities object, so "already applied" is a value comparison and not
  * a text one: `fan` is reduced to the five fields this tool owns. */
-const round6 = (value) => Number(value.toFixed(6));
-const fanSignature = (fan) => ({
-  thrustPerTick: round6(fan.thrustPerTick),
-  directionX: fan.directionX,
-  directionY: fan.directionY,
-  maxSpeed: fan.maxSpeed === null || fan.maxSpeed === undefined ? null : round6(fan.maxSpeed),
-  rotor: fan.rotor ?? false,
+const canonical = canonicalCapabilities({
+  fan: (fan) => ({
+    thrustPerTick: numberOrNull6(fan.thrustPerTick),
+    directionX: fan.directionX,
+    directionY: fan.directionY,
+    maxSpeed: fan.maxSpeed === null || fan.maxSpeed === undefined ? null : numberOrNull6(fan.maxSpeed),
+    rotor: fan.rotor ?? false,
+  }),
 });
-const canonical = (capabilities) =>
-  JSON.stringify(Object.entries(capabilities).map(([key, value]) => [key, key === "fan" ? fanSignature(value) : value]));
 
 /** The rewritten capabilities of one part: the report's `fan`, `activation` toggle, and the three
  * replaced keys gone. Key order is preserved so the diff stays a single line per part. */
@@ -136,12 +117,7 @@ function rewriteCapabilities(partTypeId, capabilities) {
   };
 
   for (const [key, value] of Object.entries(capabilities)) {
-    if (key === "balloon" || key === "wheel" || key === "motor") {
-      insertFan();
-      continue;
-    }
-
-    if (key === "fan") {
+    if (key === "balloon" || key === "wheel" || key === "motor" || key === "fan") {
       insertFan();
       continue;
     }
@@ -149,12 +125,6 @@ function rewriteCapabilities(partTypeId, capabilities) {
     if (key === "activation") {
       insertFan();
       next.activation = "toggle";
-      continue;
-    }
-
-    if (key === "jointConnectionType" || key === "enginePower") {
-      // Kept in place; the fan slot opens right after the fields the extractor owns.
-      next[key] = value;
       continue;
     }
 
@@ -166,88 +136,52 @@ function rewriteCapabilities(partTypeId, capabilities) {
   return next;
 }
 
-const isSameCapabilities = (left, right) => canonical(left) === canonical(right);
-
-const document = JSON.parse(readFileSync(CONTENT, "utf8"));
-let text = readFileSync(CONTENT, "utf8");
-const lines = text.split("\n");
-
-let updated = 0;
-let unchanged = 0;
-let partTypeId = null;
-const rewritten = new Map();
-
-for (let index = 0; index < lines.length; index++) {
-  const partMatch = /^\s*"partTypeId":\s*(\d+),\s*$/.exec(lines[index]);
-  if (partMatch) {
-    partTypeId = Number(partMatch[1]);
-    continue;
-  }
-
-  const capabilitiesMatch = /^(\s*)"capabilities":\s*(\{.*\}),\s*$/.exec(lines[index]);
-  if (!capabilitiesMatch || partTypeId === null) {
-    continue;
-  }
-
-  const current = JSON.parse(capabilitiesMatch[2]);
-  const next = rewriteCapabilities(partTypeId, current);
-  partTypeId = null;
-  if (next === null) {
-    continue;
-  }
-
-  if (isSameCapabilities(current, next)) {
-    unchanged++;
-    continue;
-  }
-
-  lines[index] = `${capabilitiesMatch[1]}"capabilities": ${renderCapabilities(next)},`;
-  updated++;
-}
-
-text = lines.join("\n");
-
-// Re-parse and re-derive: the rewrite must be valid JSON, match the report exactly, and be
-// idempotent (a second pass changes nothing).
-const check = JSON.parse(text);
 const expected = new Set(Object.keys(parts).map(Number));
-for (const part of check.parts) {
-  if (!expected.has(part.partTypeId)) {
-    continue;
-  }
 
-  const entry = fanOf(part.partTypeId);
-  const capabilities = part.capabilities ?? {};
-  if (capabilities.fan === undefined) {
-    throw new Error(`part ${part.partTypeId}: capabilities.fan was not written`);
-  }
+applyContent({
+  rewrite: (text) => rewriteCapabilitiesLines(text, { rewrite: rewriteCapabilities, canonical, render }),
+  // Re-parse and re-derive: the rewrite must be valid JSON and match the report exactly.
+  verify: (result) => {
+    const rewritten = new Set();
+    for (const part of JSON.parse(result.text).parts) {
+      if (!expected.has(part.partTypeId)) {
+        continue;
+      }
 
-  if (capabilities.fan.thrustPerTick !== Number(num(entry.thrustPerTick))
-    || capabilities.fan.directionX !== entry.directionX
-    || capabilities.fan.directionY !== entry.directionY
-    || (capabilities.fan.maxSpeed ?? null) !== (entry.maxSpeed === null ? null : Number(num(entry.maxSpeed)))
-    || (capabilities.fan.rotor ?? false) !== entry.rotor) {
-    throw new Error(`part ${part.partTypeId}: written fan does not match the report`);
-  }
+      const entry = fanOf(part.partTypeId);
+      const capabilities = part.capabilities ?? {};
+      const fan = capabilities.fan;
+      if (fan === undefined) {
+        throw new Error(`part ${part.partTypeId}: capabilities.fan was not written`);
+      }
 
-  if (capabilities.balloon !== undefined || capabilities.wheel !== undefined || capabilities.motor !== undefined) {
-    throw new Error(`part ${part.partTypeId}: the replaced capabilities are still present`);
-  }
+      if (fan.thrustPerTick !== numberOrNull6(entry.thrustPerTick)
+        || fan.directionX !== entry.directionX
+        || fan.directionY !== entry.directionY
+        || (fan.maxSpeed ?? null) !== (entry.maxSpeed === null ? null : numberOrNull6(entry.maxSpeed))
+        || (fan.rotor ?? false) !== entry.rotor) {
+        throw new Error(`part ${part.partTypeId}: written fan does not match the report`);
+      }
 
-  if (capabilities.activation !== "toggle") {
-    throw new Error(`part ${part.partTypeId}: activation must be toggle, got ${capabilities.activation}`);
-  }
+      if (capabilities.balloon !== undefined || capabilities.wheel !== undefined || capabilities.motor !== undefined) {
+        throw new Error(`part ${part.partTypeId}: the replaced capabilities are still present`);
+      }
 
-  rewritten.set(part.partTypeId, true);
-}
+      if (capabilities.activation !== "toggle") {
+        throw new Error(`part ${part.partTypeId}: activation must be toggle, got ${capabilities.activation}`);
+      }
 
-if (rewritten.size !== expected.size) {
-  throw new Error(`fan capabilities written for ${rewritten.size} parts, expected ${expected.size}`);
-}
+      rewritten.add(part.partTypeId);
+    }
 
-if (!DRY_RUN) {
-  writeFileSync(CONTENT, text);
-}
+    if (rewritten.size !== expected.size) {
+      throw new Error(`fan capabilities written for ${rewritten.size} parts, expected ${expected.size}`);
+    }
 
-console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTENT}`);
-console.log(`already matching: ${unchanged}; verified: ${rewritten.size}`);
+    return { verified: rewritten.size };
+  },
+  report: ({ updated, unchanged }, { verified }, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${updated} parts in ${content}`);
+    console.log(`already matching: ${unchanged}; verified: ${verified}`);
+  },
+});

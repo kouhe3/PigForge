@@ -29,50 +29,14 @@
 // Usage:
 //   node tools/bple-power/apply-power.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, capabilitiesSpan, partSpan, upsert } from "../lib/parts.mjs";
+import { num4 } from "../lib/report.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-power-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("power");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8")).parts;
-
-const num = (value) => (Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4))));
-
-/** Matches one property's value in the inline capabilities text (values nest at most one level). */
-const propertyPattern = (key) => new RegExp(`"${key}":\\s*(?:"[^"]*"|true|false|-?[0-9.]+|\\{(?:[^{}]|\\{[^{}]*\\})*\\})`);
-
-/** Applies each `[key, rendered, append]` field to a single-line capabilities object: missing
- * fields are inserted (at the front by default, at the end when `append` is set so the drive
- * fields land after `wheel` like the hand-authored motor-wheel line), existing ones replaced. */
-function upsert(capabilities, desired) {
-  let cap = capabilities;
-  const missingHead = desired.filter(([key, , append]) => !append && !propertyPattern(key).test(cap));
-  const missingTail = desired.filter(([key, , append]) => append && !propertyPattern(key).test(cap));
-  if (missingHead.length > 0) {
-    cap = `{ ${missingHead.map(([, rendered]) => rendered).join(", ")},${cap.slice(1)}`;
-  }
-
-  if (missingTail.length > 0) {
-    cap = `${cap.slice(0, -1).replace(/\s+$/, "")}, ${missingTail.map(([, rendered]) => rendered).join(", ")} }`;
-  }
-
-  for (const [key, rendered] of desired) {
-    cap = cap.replace(propertyPattern(key), rendered);
-  }
-
-  return cap;
-}
 
 /** Rewrites one document text with the report's power values, preserving everything else. */
 function rewrite(text) {
@@ -94,37 +58,29 @@ function rewrite(text) {
     }
 
     const desired = [
-      ["powerConsumption", `"powerConsumption": ${num(powerConsumption)}`],
-      ["enginePower", `"enginePower": ${num(enginePower)}`],
+      ["powerConsumption", `"powerConsumption": ${num4(powerConsumption)}`],
+      ["enginePower", `"enginePower": ${num4(enginePower)}`],
     ];
 
     const drive = entry.drive ?? null;
     if (drive !== null) {
       desired.push([
         "motor",
-        `"motor": { "thrustPerTick": ${num(drive.motorThrustPerTick)}, "directionX": 1 }`,
+        `"motor": { "thrustPerTick": ${num4(drive.motorThrustPerTick)}, "directionX": 1 }`,
         true,
       ]);
       desired.push(["activation", `"activation": "${drive.activation}"`, true]);
     }
 
-    const anchor = `"partTypeId": ${part.partTypeId},`;
-    const anchorIndex = text.indexOf(anchor);
-    if (anchorIndex < 0) throw new Error(`anchor missing for part ${part.partTypeId}`);
-    const shapesIndex = text.indexOf('"shapes":', anchorIndex);
-    if (shapesIndex < 0) throw new Error(`shapes missing for part ${part.partTypeId}`);
-
-    const capabilitiesIndex = text.indexOf('"capabilities":', anchorIndex);
-    const hasCapabilities = capabilitiesIndex >= 0 && capabilitiesIndex < shapesIndex;
-
-    if (!hasCapabilities) {
+    const span = capabilitiesSpan(text, part.partTypeId);
+    if (span === null) {
+      const { shapesIndex } = partSpan(text, part.partTypeId);
       const lineStart = text.lastIndexOf("\n", shapesIndex) + 1;
       const fields = desired.map(([, rendered]) => rendered).join(", ");
       text = `${text.slice(0, lineStart)}      "capabilities": { ${fields} },\n${text.slice(lineStart)}`;
     } else {
-      const open = text.indexOf("{", capabilitiesIndex);
-      const close = text.indexOf("}", open);
-      if (open < 0 || close < 0 || text.slice(open, close).includes("\n")) {
+      const { open, close } = span;
+      if (text.slice(open, close).includes("\n")) {
         throw new Error(`part ${part.partTypeId}: expected a single-line capabilities object`);
       }
 
@@ -166,7 +122,7 @@ function verify(text) {
       if (
         motor === null
         || motor === undefined
-        || num(motor.thrustPerTick) !== num(entry.drive.motorThrustPerTick)
+        || num4(motor.thrustPerTick) !== num4(entry.drive.motorThrustPerTick)
         || motor.directionX !== 1
         || capabilities.activation !== entry.drive.activation
       ) {
@@ -181,16 +137,22 @@ function verify(text) {
   return document;
 }
 
-const first = rewrite(readFileSync(CONTENT, "utf8"));
-verify(first.text);
+applyContent({
+  rewrite,
+  verify: (result) => {
+    verify(result.text);
 
-// Idempotence: a second application over the rewritten text must be a byte-for-byte no-op.
-const second = rewrite(first.text);
-if (second.text !== first.text) {
-  throw new Error("rewrite is not idempotent");
-}
+    // Idempotence: a second application over the rewritten text must be a byte-for-byte no-op.
+    const second = rewrite(result.text);
+    if (second.text !== result.text) {
+      throw new Error("rewrite is not idempotent");
+    }
 
-if (!DRY_RUN) writeFileSync(CONTENT, first.text);
-console.log(`${DRY_RUN ? "would update" : "updated"} ${first.updated} parts in ${CONTENT}`);
-console.log(`powered (powerConsumption > 0): ${first.powered}; engines (enginePower > 0): ${first.engines}`);
-console.log(`driven wheels (motor + toggle): ${first.driven}`);
+    return {};
+  },
+  report: ({ updated, powered, engines, driven }, _verified, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${updated} parts in ${content}`);
+    console.log(`powered (powerConsumption > 0): ${powered}; engines (enginePower > 0): ${engines}`);
+    console.log(`driven wheels (motor + toggle): ${driven}`);
+  },
+});

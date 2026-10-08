@@ -29,22 +29,12 @@
 // Usage:
 //   node tools/bple-bellows/apply-bellows.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, canonicalCapabilities, renderCapabilities, rewriteCapabilitiesLines } from "../lib/parts.mjs";
+import { num6, numberOrNull6 } from "../lib/report.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-bellows-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
-
+const REPORT = applyReport("bellows");
 const REPORT_FORMAT = "pigforge.bple-bellows.report";
 
 /** The 8 bellows-family content parts this report is allowed to speak for (gap G98, content ids
@@ -64,8 +54,6 @@ const parts = report.parts ?? {};
 if (Object.keys(parts).length === 0) {
   throw new Error(`${REPORT} carries no parts`);
 }
-
-const round6 = (value) => Number(value.toFixed(6));
 
 /** The bellows object the report declares for one part; the report is the only admissible source,
  * so a missing or malformed entry is a hard error rather than a silent fallback. */
@@ -113,39 +101,26 @@ function bellowsOf(partTypeId) {
   return bellows;
 }
 
-/** JSON with at most six decimals, and an explicit `.0` for an integral value -- the same style the
- * hand-authored content uses (`4.0`, `1.0`), so an extracted float never looks like an int. */
-const num = (value) => {
-  const rounded = Number(value.toFixed(6));
-  return Number.isInteger(rounded) ? `${rounded}.0` : String(rounded);
-};
-
 /** The bellows object as one line, keys in the contract order. The directions are plain integers
  * (the loader reads them with `TryGetInt32`), `inflateTicks` is a plain integer and `thrustPerTick`
- * goes through `num`, so `2.0` never looks like a tick count. */
+ * goes through `num6`, so `2.0` never looks like a tick count. */
 const renderBellows = (bellows) =>
-  `{ "directionX": ${bellows.directionX}, "directionY": ${bellows.directionY}, "thrustPerTick": ${num(bellows.thrustPerTick)}, "inflateTicks": ${bellows.inflateTicks} }`;
+  `{ "directionX": ${bellows.directionX}, "directionY": ${bellows.directionY}, "thrustPerTick": ${num6(bellows.thrustPerTick)}, "inflateTicks": ${bellows.inflateTicks} }`;
 
-const renderValue = (value) =>
-  typeof value === "string" ? `"${value}"` : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
-const renderCapabilities = (object) => `{ ${Object.entries(object)
-  .map(([key, value]) => `"${key}": ${key === "bellows" ? renderBellows(value) : renderValue(value)}`)
-  .join(", ")} }`;
-
-/** A finite number rounded to six decimals, or null for anything else -- so a stale scalar
- * (`"bellows": 8.0`), which is not an object at all, never compares equal to an extracted one. */
-const numberOrNull = (value) => (typeof value === "number" && Number.isFinite(value) ? round6(value) : null);
+const render = renderCapabilities({ bellows: renderBellows });
 
 /** Semantic form of one capabilities object, so "already applied" is a value comparison and not a
  * text one: `bellows` is reduced to the four fields this tool owns. */
-const bellowsSignature = (bellows) => ({
-  directionX: bellows.directionX ?? null,
-  directionY: bellows.directionY ?? null,
-  thrustPerTick: numberOrNull(bellows.thrustPerTick),
-  inflateTicks: bellows.inflateTicks ?? null,
+const canonical = canonicalCapabilities({
+  bellows: (bellows) => (bellows !== null && typeof bellows === "object"
+    ? {
+      directionX: bellows.directionX ?? null,
+      directionY: bellows.directionY ?? null,
+      thrustPerTick: numberOrNull6(bellows.thrustPerTick),
+      inflateTicks: bellows.inflateTicks ?? null,
+    }
+    : bellows),
 });
-const canonical = (capabilities) =>
-  JSON.stringify(Object.entries(capabilities).map(([key, value]) => [key, key === "bellows" && value !== null && typeof value === "object" ? bellowsSignature(value) : value]));
 
 /** The rewritten capabilities of one part: the report's `bellows` object in the slot the old one
  * occupied (or just before `activation`), everything else untouched and in place. */
@@ -181,92 +156,55 @@ function rewriteCapabilities(partTypeId, capabilities) {
   return next;
 }
 
-const isSameCapabilities = (left, right) => canonical(left) === canonical(right);
-
-let text = readFileSync(CONTENT, "utf8");
-const lines = text.split("\n");
-
-let updated = 0;
-let unchanged = 0;
-let partTypeId = null;
-const rewritten = new Map();
-
-for (let index = 0; index < lines.length; index++) {
-  const partMatch = /^\s*"partTypeId":\s*(\d+),\s*$/.exec(lines[index]);
-  if (partMatch) {
-    partTypeId = Number(partMatch[1]);
-    continue;
-  }
-
-  const capabilitiesMatch = /^(\s*)"capabilities":\s*(\{.*\}),\s*$/.exec(lines[index]);
-  if (!capabilitiesMatch || partTypeId === null) {
-    continue;
-  }
-
-  const current = JSON.parse(capabilitiesMatch[2]);
-  const next = rewriteCapabilities(partTypeId, current);
-  partTypeId = null;
-  if (next === null) {
-    continue;
-  }
-
-  if (isSameCapabilities(current, next)) {
-    unchanged++;
-    continue;
-  }
-
-  lines[index] = `${capabilitiesMatch[1]}"capabilities": ${renderCapabilities(next)},`;
-  updated++;
-}
-
-text = lines.join("\n");
-
-// Re-parse and re-derive: the rewrite must be valid JSON, carry exactly the report's bellows object
-// with exactly the required keys in order, leave no invented key (or the replaced scalar) behind,
-// and be complete.
-const check = JSON.parse(text);
 const expected = new Set(Object.keys(parts).map(Number));
-for (const part of check.parts) {
-  if (!expected.has(part.partTypeId)) {
-    continue;
-  }
 
-  const bellows = bellowsOf(part.partTypeId);
-  const written = part.capabilities?.bellows;
-  if (written === null || typeof written !== "object") {
-    throw new Error(`part ${part.partTypeId}: capabilities.bellows was not written as an object`);
-  }
+applyContent({
+  rewrite: (text) => rewriteCapabilitiesLines(text, { rewrite: rewriteCapabilities, canonical, render }),
+  // Re-parse and re-derive: the rewrite must be valid JSON, carry exactly the report's bellows
+  // object with exactly the required keys in order, leave no invented key (or the replaced scalar)
+  // behind, and be complete.
+  verify: (result) => {
+    const rewritten = new Set();
+    for (const part of JSON.parse(result.text).parts) {
+      if (!expected.has(part.partTypeId)) {
+        continue;
+      }
 
-  const keys = Object.keys(written);
-  const wanted = BELLOWS_FIELDS;
-  if (keys.join(", ") !== wanted.join(", ")) {
-    throw new Error(`part ${part.partTypeId}: written bellows keys ${keys.join(", ")}, expected ${wanted.join(", ")}`);
-  }
+      const bellows = bellowsOf(part.partTypeId);
+      const written = part.capabilities?.bellows;
+      if (written === null || typeof written !== "object") {
+        throw new Error(`part ${part.partTypeId}: capabilities.bellows was not written as an object`);
+      }
 
-  for (const key of ["directionX", "directionY", "inflateTicks"]) {
-    if (written[key] !== bellows[key]) {
-      throw new Error(`part ${part.partTypeId}: written ${key} ${written[key]} does not match the report`);
+      if (Object.keys(written).join(", ") !== BELLOWS_FIELDS.join(", ")) {
+        throw new Error(`part ${part.partTypeId}: written bellows keys ${Object.keys(written).join(", ")}, expected ${BELLOWS_FIELDS.join(", ")}`);
+      }
+
+      for (const key of ["directionX", "directionY", "inflateTicks"]) {
+        if (written[key] !== bellows[key]) {
+          throw new Error(`part ${part.partTypeId}: written ${key} ${written[key]} does not match the report`);
+        }
+      }
+
+      if (written.thrustPerTick !== numberOrNull6(bellows.thrustPerTick)) {
+        throw new Error(`part ${part.partTypeId}: written thrustPerTick ${written.thrustPerTick} does not match the report`);
+      }
+
+      rewritten.add(part.partTypeId);
     }
-  }
 
-  if (written.thrustPerTick !== round6(bellows.thrustPerTick)) {
-    throw new Error(`part ${part.partTypeId}: written thrustPerTick ${written.thrustPerTick} does not match the report`);
-  }
+    if (rewritten.size !== expected.size) {
+      throw new Error(`bellows capabilities written for ${rewritten.size} parts, expected ${expected.size}`);
+    }
 
-  rewritten.set(part.partTypeId, true);
-}
+    if (expected.size !== EXPECTED_PARTS) {
+      throw new Error(`${REPORT} carries ${expected.size} parts, expected ${EXPECTED_PARTS} (gap G98)`);
+    }
 
-if (rewritten.size !== expected.size) {
-  throw new Error(`bellows capabilities written for ${rewritten.size} parts, expected ${expected.size}`);
-}
-
-if (expected.size !== EXPECTED_PARTS) {
-  throw new Error(`${REPORT} carries ${expected.size} parts, expected ${EXPECTED_PARTS} (gap G98)`);
-}
-
-if (!DRY_RUN) {
-  writeFileSync(CONTENT, text);
-}
-
-console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTENT}`);
-console.log(`already matching: ${unchanged}; verified: ${rewritten.size}`);
+    return { verified: rewritten.size };
+  },
+  report: ({ updated, unchanged }, { verified }, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${updated} parts in ${content}`);
+    console.log(`already matching: ${unchanged}; verified: ${verified}`);
+  },
+});

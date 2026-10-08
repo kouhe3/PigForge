@@ -31,21 +31,11 @@
 // Usage:
 //   node tools/bple-springs/apply-springs.mjs [--report <file>] [--content <file>] [--dry-run]
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { applyReport } from "../lib/paths.mjs";
+import { applyContent, capabilitiesSpan, partSpan, removeKey, tidy, upsertKey } from "../lib/parts.mjs";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, "..", "..");
-
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
-}
-
-const REPORT = resolve(arg("report", join(REPO, "tasks", "bple-springs-report.json")));
-const CONTENT = resolve(arg("content", join(REPO, "content", "parts.json")));
-const DRY_RUN = process.argv.includes("--dry-run");
+const REPORT = applyReport("springs");
 
 const report = JSON.parse(readFileSync(REPORT, "utf8"));
 const parts = report.parts;
@@ -66,132 +56,6 @@ const same = (left, right) => Number(left) === Number(right);
 
 const renderSuspension = (suspension) =>
   `{ "stiffness": ${num(suspension.stiffness)}, "damper": ${num(suspension.damper)}, "restOffset": ${num(suspension.restOffset)} }`;
-
-/**
- * Index of the `}` that closes the object opening at `start`, skipping braces inside JSON
- * strings. A plain `indexOf("}")` stops at the first nested object's brace -- the glove's
- * `shoot`/`wind` are two levels deep, so that would splice at the wrong offset.
- */
-function matchingBrace(text, start) {
-  let depth = 0;
-  let inString = false;
-  for (let index = start; index < text.length; index += 1) {
-    const char = text[index];
-    if (inString) {
-      if (char === "\\") index += 1;
-      else if (char === '"') inString = false;
-      continue;
-    }
-
-    if (char === '"') inString = true;
-    else if (char === "{") depth += 1;
-    else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-
-  return -1;
-}
-
-/** Same as `matchingBrace`, for an array opening at `start`. */
-function matchingBracket(text, start) {
-  let depth = 0;
-  let inString = false;
-  for (let index = start; index < text.length; index += 1) {
-    const char = text[index];
-    if (inString) {
-      if (char === "\\") index += 1;
-      else if (char === '"') inString = false;
-      continue;
-    }
-
-    if (char === '"') inString = true;
-    else if (char === "[") depth += 1;
-    else if (char === "]") {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-
-  return -1;
-}
-
-/** End index (exclusive) of the JSON value starting at `start` inside a single-line object. */
-function valueEnd(text, start) {
-  const char = text[start];
-  if (char === "{") return matchingBrace(text, start) + 1;
-  if (char === "[") return matchingBracket(text, start) + 1;
-  if (char === '"') return text.indexOf('"', start + 1) + 1;
-  let index = start;
-  while (index < text.length && text[index] !== "," && text[index] !== "}") index += 1;
-  return index;
-}
-
-/** `{ ... }` with exactly one space inside each brace. */
-const tidy = (capabilities) => capabilities.replace(/^\{\s*/, "{ ").replace(/\s*\}$/, " }");
-
-/** The `"key":` at the capabilities object's TOP level, or null. The glove's drives also carry
- *  a `spring` key one level down, so a bare `/"spring":/` search would rewrite the wrong one. */
-function topLevelKeyIndex(capabilities, key) {
-  const wanted = `"${key}"`;
-  let depth = 0;
-  let inString = false;
-  let stringStart = -1;
-  for (let index = 0; index < capabilities.length; index += 1) {
-    const char = capabilities[index];
-    if (inString) {
-      if (char === "\\") index += 1;
-      else if (char === '"') {
-        inString = false;
-        if (depth === 1 && capabilities.slice(stringStart, index + 1) === wanted) {
-          let next = index + 1;
-          while (next < capabilities.length && /\s/.test(capabilities[next])) next += 1;
-          if (capabilities[next] === ":") return { start: stringStart, valueStart: next + 1 };
-        }
-      }
-
-      continue;
-    }
-
-    if (char === '"') {
-      stringStart = index;
-      inString = true;
-    } else if (char === "{" || char === "[") depth += 1;
-    else if (char === "}" || char === "]") depth -= 1;
-  }
-
-  return null;
-}
-
-/** Replace `key`'s value in the inline capabilities text, or append `key: rendered` before the
- *  closing brace (the hand-authored caps order is preserved: present keys stay in place). */
-function upsert(capabilities, key, rendered) {
-  const found = topLevelKeyIndex(capabilities, key);
-  if (!found) {
-    const body = capabilities.replace(/^\{\s*/, "").replace(/\s*\}$/, "");
-    return body.length === 0 ? `{ "${key}": ${rendered} }` : `{ ${body}, "${key}": ${rendered} }`;
-  }
-
-  let valueStart = found.valueStart;
-  while (/\s/.test(capabilities[valueStart])) valueStart += 1;
-  return capabilities.slice(0, found.start) + `"${key}": ${rendered}` + capabilities.slice(valueEnd(capabilities, valueStart));
-}
-
-/** Remove a property and one separating comma from the inline capabilities text. */
-function removeProperty(capabilities, key) {
-  const found = topLevelKeyIndex(capabilities, key);
-  if (!found) return capabilities;
-  const start = found.start;
-  let valueStart = found.valueStart;
-  while (/\s/.test(capabilities[valueStart])) valueStart += 1;
-  const end = valueEnd(capabilities, valueStart);
-  if (capabilities[end] === ",") {
-    return `${capabilities.slice(0, start).replace(/\s+$/, "")}${capabilities.slice(end + 1).replace(/^\s+/, " ")}`;
-  }
-
-  return `${capabilities.slice(0, start).replace(/,\s*$/, "")}${capabilities.slice(end)}`;
-}
 
 /** Numeric/structural equality, so a re-parsed capabilities object is compared by value. */
 function deepSame(left, right) {
@@ -332,152 +196,154 @@ if (report.unmappedSpringPrefabs.length > 0) {
   console.warn("  -> they are not in the catalog (IN extension parts); add them to tools/bple-variants/variant-overrides.json extras");
 }
 
-let text = readFileSync(CONTENT, "utf8");
-const document = JSON.parse(text);
-let updated = 0;
-let removed = 0;
-const changed = [];
+applyContent({
+  rewrite: (source) => {
+    let text = source;
+    const document = JSON.parse(text);
+    let updated = 0;
+    let removed = 0;
+    const changed = [];
 
-for (const part of document.parts) {
-  const springEntry = springByPart.get(part.partTypeId) ?? null;
-  const gloveEntry = gloveByPart.get(part.partTypeId) ?? null;
-  const suspension = expectedSuspension(part.partTypeId);
-  if (!springEntry && !gloveEntry && suspension === undefined) continue;
+    for (const part of document.parts) {
+      const springEntry = springByPart.get(part.partTypeId) ?? null;
+      const gloveEntry = gloveByPart.get(part.partTypeId) ?? null;
+      const suspension = expectedSuspension(part.partTypeId);
+      if (!springEntry && !gloveEntry && suspension === undefined) continue;
 
-  const anchor = `"partTypeId": ${part.partTypeId},`;
-  const anchorIndex = text.indexOf(anchor);
-  if (anchorIndex < 0) throw new Error(`anchor missing for part ${part.partTypeId}`);
-  const shapesIndex = text.indexOf('"shapes":', anchorIndex);
-  if (shapesIndex < 0) throw new Error(`shapes missing for part ${part.partTypeId}`);
+      const { shapesIndex } = partSpan(text, part.partTypeId);
+      const span = capabilitiesSpan(text, part.partTypeId);
+      let open = -1;
+      let close = -1;
+      let capabilities = "{ }";
+      if (span) {
+        ({ open, close } = span);
+        if (open < 0 || close < 0 || text.slice(open, close).includes("\n")) {
+          throw new Error(`part ${part.partTypeId}: expected a single-line capabilities object`);
+        }
 
-  const capabilitiesIndex = text.indexOf('"capabilities":', anchorIndex);
-  const hasCapabilities = capabilitiesIndex >= 0 && capabilitiesIndex < shapesIndex;
-  let open = -1;
-  let close = -1;
-  let capabilities = "{ }";
-  if (hasCapabilities) {
-    open = text.indexOf("{", capabilitiesIndex);
-    close = matchingBrace(text, open);
-    if (open < 0 || close < 0 || text.slice(open, close).includes("\n")) {
-      throw new Error(`part ${part.partTypeId}: expected a single-line capabilities object`);
-    }
-
-    capabilities = text.slice(open, close + 1);
-  }
-
-  const before = hasCapabilities ? capabilities : null;
-  let after = capabilities;
-  if (springEntry) after = upsert(after, "spring", renderSpring(springEntry));
-  if (gloveEntry) {
-    after = upsert(after, "glove", renderGlove(gloveEntry));
-    after = upsert(after, "activation", `"${activation}"`);
-    // Pre-G95 content carried the boxing glove as `"spring": 25.0`; the glove skin owns `glove`.
-    after = removeProperty(after, "spring");
-  }
-
-  if (suspension !== undefined) {
-    if (suspension === null) {
-      const stripped = removeProperty(after, "suspension");
-      if (stripped !== after) {
-        after = stripped;
-        removed += 1;
+        capabilities = text.slice(open, close + 1);
       }
-    } else {
-      after = upsert(after, "suspension", renderSuspension(suspension));
-    }
-  }
 
-  after = tidy(after);
-  if (after === "{ }" || after === before) continue;
+      const before = span ? capabilities : null;
+      let after = capabilities;
+      if (springEntry) after = upsertKey(after, "spring", renderSpring(springEntry));
+      if (gloveEntry) {
+        after = upsertKey(after, "glove", renderGlove(gloveEntry));
+        after = upsertKey(after, "activation", `"${activation}"`);
+        // Pre-G95 content carried the boxing glove as `"spring": 25.0`; the glove skin owns `glove`.
+        after = removeKey(after, "spring");
+      }
 
-  updated += 1;
-  if (hasCapabilities) {
-    text = text.slice(0, open) + after + text.slice(close + 1);
-  } else {
-    const lineStart = text.lastIndexOf("\n", shapesIndex) + 1;
-    text = `${text.slice(0, lineStart)}      "capabilities": ${after},\n${text.slice(lineStart)}`;
-  }
+      if (suspension !== undefined) {
+        if (suspension === null) {
+          const stripped = removeKey(after, "suspension");
+          if (stripped !== after) {
+            after = stripped;
+            removed += 1;
+          }
+        } else {
+          after = upsertKey(after, "suspension", renderSuspension(suspension));
+        }
+      }
 
-  changed.push({ partTypeId: part.partTypeId, name: part.name, before, after });
-}
+      after = tidy(after);
+      if (after === "{ }" || after === before) continue;
 
-// Re-parse and re-derive: the rewrite must be valid JSON, every value must match the report
-// exactly, and it must be idempotent (a second run changes nothing). A family prefab with no
-// content part is a hard error, never a silent skip.
-const check = JSON.parse(text);
-const seen = { spring: new Set(), glove: new Set() };
-for (const part of check.parts) {
-  const springEntry = springByPart.get(part.partTypeId);
-  if (springEntry) {
-    seen.spring.add(part.partTypeId);
-    const expected = JSON.parse(renderSpring(springEntry));
-    if (!deepSame(part.capabilities?.spring, expected)) {
-      throw new Error(`part ${part.partTypeId}: spring mismatch ${JSON.stringify(part.capabilities?.spring)} != ${JSON.stringify(expected)}`);
-    }
-  }
+      updated += 1;
+      if (span) {
+        text = text.slice(0, open) + after + text.slice(close + 1);
+      } else {
+        const lineStart = text.lastIndexOf("\n", shapesIndex) + 1;
+        text = `${text.slice(0, lineStart)}      "capabilities": ${after},\n${text.slice(lineStart)}`;
+      }
 
-  const gloveEntry = gloveByPart.get(part.partTypeId);
-  if (gloveEntry) {
-    seen.glove.add(part.partTypeId);
-    const expected = JSON.parse(renderGlove(gloveEntry));
-    if (!deepSame(part.capabilities?.glove, expected)) {
-      throw new Error(`part ${part.partTypeId}: glove mismatch ${JSON.stringify(part.capabilities?.glove)} != ${JSON.stringify(expected)}`);
+      changed.push({ partTypeId: part.partTypeId, name: part.name, before, after });
     }
 
-    if (part.capabilities?.activation !== activation) {
-      throw new Error(`part ${part.partTypeId}: activation ${JSON.stringify(part.capabilities?.activation)} != ${JSON.stringify(activation)}`);
+    return { text, updated, removed, changed };
+  },
+  // Re-parse and re-derive: the rewrite must be valid JSON, every value must match the report
+  // exactly, and it must be idempotent (a second run changes nothing). A family prefab with no
+  // content part is a hard error, never a silent skip.
+  verify: (result) => {
+    const check = JSON.parse(result.text);
+    const seen = { spring: new Set(), glove: new Set() };
+    for (const part of check.parts) {
+      const springEntry = springByPart.get(part.partTypeId);
+      if (springEntry) {
+        seen.spring.add(part.partTypeId);
+        const expected = JSON.parse(renderSpring(springEntry));
+        if (!deepSame(part.capabilities?.spring, expected)) {
+          throw new Error(`part ${part.partTypeId}: spring mismatch ${JSON.stringify(part.capabilities?.spring)} != ${JSON.stringify(expected)}`);
+        }
+      }
+
+      const gloveEntry = gloveByPart.get(part.partTypeId);
+      if (gloveEntry) {
+        seen.glove.add(part.partTypeId);
+        const expected = JSON.parse(renderGlove(gloveEntry));
+        if (!deepSame(part.capabilities?.glove, expected)) {
+          throw new Error(`part ${part.partTypeId}: glove mismatch ${JSON.stringify(part.capabilities?.glove)} != ${JSON.stringify(expected)}`);
+        }
+
+        if (part.capabilities?.activation !== activation) {
+          throw new Error(`part ${part.partTypeId}: activation ${JSON.stringify(part.capabilities?.activation)} != ${JSON.stringify(activation)}`);
+        }
+
+        if (part.capabilities?.spring !== undefined) {
+          throw new Error(`part ${part.partTypeId}: a glove skin must not carry a spring capability`);
+        }
+      }
+
+      const suspension = expectedSuspension(part.partTypeId);
+      if (suspension === undefined) continue;
+      const actual = part.capabilities?.suspension ?? null;
+      if (suspension === null) {
+        if (actual !== null) throw new Error(`part ${part.partTypeId}: unexpected suspension`);
+        continue;
+      }
+
+      if (actual === null
+        || !same(actual.stiffness, suspension.stiffness)
+        || !same(actual.damper, suspension.damper)
+        || !same(actual.restOffset, suspension.restOffset)) {
+        throw new Error(`part ${part.partTypeId}: suspension mismatch ${JSON.stringify(actual)} != ${JSON.stringify(suspension)}`);
+      }
     }
 
-    if (part.capabilities?.spring !== undefined) {
-      throw new Error(`part ${part.partTypeId}: a glove skin must not carry a spring capability`);
+    for (const [partTypeId, entry] of springByPart) {
+      if (!seen.spring.has(partTypeId)) throw new Error(`content has no part ${partTypeId} for spring prefab ${entry.prefab}`);
     }
-  }
 
-  const suspension = expectedSuspension(part.partTypeId);
-  if (suspension === undefined) continue;
-  const actual = part.capabilities?.suspension ?? null;
-  if (suspension === null) {
-    if (actual !== null) throw new Error(`part ${part.partTypeId}: unexpected suspension`);
-    continue;
-  }
+    for (const [partTypeId, entry] of gloveByPart) {
+      if (!seen.glove.has(partTypeId)) throw new Error(`content has no part ${partTypeId} for glove prefab ${entry.prefab}`);
+    }
 
-  if (actual === null
-    || !same(actual.stiffness, suspension.stiffness)
-    || !same(actual.damper, suspension.damper)
-    || !same(actual.restOffset, suspension.restOffset)) {
-    throw new Error(`part ${part.partTypeId}: suspension mismatch ${JSON.stringify(actual)} != ${JSON.stringify(suspension)}`);
-  }
-}
+    return { check };
+  },
+  report: (result, verified, { dryRun, content }) => {
+    console.log(`${dryRun ? "would update" : "updated"} ${result.updated} parts in ${content}${result.removed > 0 ? ` (dropped ${result.removed} stale suspensions)` : ""}`);
+    for (const entry of result.changed) {
+      console.log(`  ~ ${entry.partTypeId} ${entry.name}`);
+      console.log(`    - ${entry.before ?? "(no capabilities)"}`);
+      console.log(`    + ${entry.after}`);
+    }
 
-for (const [partTypeId, entry] of springByPart) {
-  if (!seen.spring.has(partTypeId)) throw new Error(`content has no part ${partTypeId} for spring prefab ${entry.prefab}`);
-}
+    for (const part of verified.check.parts) {
+      const springEntry = springByPart.get(part.partTypeId);
+      if (springEntry) {
+        console.log(`  - ${part.partTypeId} ${part.name}: spring ${springEntry.jointPath.route === "SpringJoint" ? "bungee" : "limit"}, breakForce ${report.spring.runtime.breakForce.value}, mass ${report.spring.runtime.mass.value}`);
+      }
 
-for (const [partTypeId, entry] of gloveByPart) {
-  if (!seen.glove.has(partTypeId)) throw new Error(`content has no part ${partTypeId} for glove prefab ${entry.prefab}`);
-}
+      const gloveEntry = gloveByPart.get(part.partTypeId);
+      if (gloveEntry) {
+        console.log(`  - ${part.partTypeId} ${part.name}: glove mass ${gloveEntry.glove.serializedMass}, activation ${activation} (IN SwitchableBoxingGlove ${switchableBoxingGlove} -- the momentary branch is chosen on purpose), distanceY ${part.capabilities.glove.shoot.distanceY}, driveSpring ${part.capabilities.glove.wind.driveSpring}`);
+      }
 
-if (!DRY_RUN) writeFileSync(CONTENT, text);
-console.log(`${DRY_RUN ? "would update" : "updated"} ${updated} parts in ${CONTENT}${removed > 0 ? ` (dropped ${removed} stale suspensions)` : ""}`);
-for (const entry of changed) {
-  console.log(`  ~ ${entry.partTypeId} ${entry.name}`);
-  console.log(`    - ${entry.before ?? "(no capabilities)"}`);
-  console.log(`    + ${entry.after}`);
-}
-
-for (const part of check.parts) {
-  const springEntry = springByPart.get(part.partTypeId);
-  if (springEntry) {
-    console.log(`  - ${part.partTypeId} ${part.name}: spring ${springEntry.jointPath.route === "SpringJoint" ? "bungee" : "limit"}, breakForce ${report.spring.runtime.breakForce.value}, mass ${report.spring.runtime.mass.value}`);
-  }
-
-  const gloveEntry = gloveByPart.get(part.partTypeId);
-  if (gloveEntry) {
-    console.log(`  - ${part.partTypeId} ${part.name}: glove mass ${gloveEntry.glove.serializedMass}, activation ${activation} (IN SwitchableBoxingGlove ${switchableBoxingGlove} -- the momentary branch is chosen on purpose), distanceY ${part.capabilities.glove.shoot.distanceY}, driveSpring ${part.capabilities.glove.wind.driveSpring}`);
-  }
-
-  const suspension = expectedSuspension(part.partTypeId);
-  if (suspension) {
-    console.log(`  - ${part.partTypeId} ${part.name}: stiffness ${suspension.stiffness}, damper ${suspension.damper}, restOffset ${suspension.restOffset}`);
-  }
-}
+      const suspension = expectedSuspension(part.partTypeId);
+      if (suspension) {
+        console.log(`  - ${part.partTypeId} ${part.name}: stiffness ${suspension.stiffness}, damper ${suspension.damper}, restOffset ${suspension.restOffset}`);
+      }
+    }
+  },
+});
