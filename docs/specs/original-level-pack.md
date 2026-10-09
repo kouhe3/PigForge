@@ -162,7 +162,7 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 | P1 ✅ | 解码工具 + 报告（本文档的证据面） | — |
 | P2 ◐ | 关卡内容格式 v2 + 搬运：契约（`terrain`: position/depth/**边界环**）、房间侧的静态网格体（无实体）、转换器 `tools/bple-levels/build-levels.mjs`、客户端 `GET /level` 侧通道与地形绘制 —— 见 `ADR-033`。**v3 已补**：每个地形对象的 `collider` 位（1648 碰撞 / 498 纯视觉）与 `fill`（`e2d/Fill` 的贴图/颜色/tile，17 张贴图复制到客户端资产目录）——见 `docs/specs/level-terrain-visuals.md`。**v4 已补**：`_curve` 边缘条带（两行顶点 + 两层贴图与 wrap + `uScale` + `splat1` 运行段；控制贴图在构建期折成运行段）。**v5 已补**：`PrefabOverrides` 的读取（`lib/overrides.mjs`）与 `cameraLimits`（277/277 关，即猪的边界与回建造态的后果）——见 `ADR-036`。**未做**：道具实例、其余 override 字段（建造网格行、挑战、道具行为） | 格式已定（§3） |
 | P3 ✅ | 地形进物理：契约 `TriangleMeshShapeDefinition` + 两个后端的静态网格形状（`ADR-032`） | 独立于 P2，已先行 |
-| P4 | 道具件：先做每关都需要的（`LevelStart`、`DessertPlace`、`StarBox`、`BoxChallenge`、`e2dTerrainBase`） | P2 |
+| P4 ◐ | 道具件（**2026-10-09 起 = 368 个道具 prefab，玩家已把 A1 扩到含道具件**）：按 `docs/specs/level-props.md` 的四类推进。**P4a ✅ 装饰四边面**（251 prefab / 15132 实例，2026-10-09 第三十轮：内容 **v6** 的 `props` + `tools/bple-props` 的 `level-props.json` + 客户端按 z 分段绘制）→ P4b 背景组与多面特殊件 → P4c 实心件（碰撞体） | P2 |
 | P5 | 目标/挑战/收集：星级 3 条（过关 + 两个 Challenge）、计时、收集计数 | P4 |
 | P6 | 进度持久化 + 关卡选择 + 结算页 | P5 |
 
@@ -171,6 +171,9 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 - **A1 搬运范围**：**已拍板**（2026-10-06，玩家选 ①）——**只做格式 + 地形：任意官方关卡能加载能玩，
   不做进度/星级**。② 先搬一个 episode（45 关）+ 星级/计时/收集 + 存档 + 选择/结算 UI；
   ③ 全 277 关（含 368 个道具 prefab 与全部挑战类型）留待后续。
+  **2026-10-09 扩范围**（玩家拍板）：A1 扩到**含道具件**——368 个道具 prefab 按「有没有渲染器 / 有没有碰撞体 /
+  有没有行为脚本」分四类，先做**装饰四边面**（251 个 prefab、15132 个实例，见 `docs/specs/level-props.md`），
+  其余（系统标记 / 实心件 / 背景组 / 行为件）按该规格 §6 的 P4b/P4c/P5 顺序推进。进度/星级仍在范围外。
 - **A2 地形物理**：**已拍板**（2026-10-06，玩家选 ①）——**真三角网格形状**，契约为静态专用、
   双面语义，两个后端各自实现；见 `ADR-032`（含双面与绕向的实测）。② 离线拆成静态凸体/盒子拼接、
   ③ 只做视觉网格两条不再考虑。
