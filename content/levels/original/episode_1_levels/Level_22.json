@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_22",
   "goalZone": {
     "min": [
@@ -28,6 +28,27 @@
   },
   "cameraLimits": {"topLeft":[-34.13,22.3],"size":[47.9,34.4]},
   "spawns": [],
+  "props": [
+    {"id":"Glow_01","x":-26.188501,"y":-2.1275752,"z":4,"rotation":0,"scaleX":4,"scaleY":4},
+    {"id":"Grass_01","x":-21.674053,"y":-5.8546295,"z":-5,"rotation":6.0171556,"scaleX":1,"scaleY":1},
+    {"id":"Grass_04","x":-27.817331,"y":14.675521,"z":-5,"rotation":0.59979224,"scaleX":1,"scaleY":0.75},
+    {"id":"Mushroom_01","x":2.0952692,"y":9.19703,"z":-4.5,"rotation":2.488816,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-8.856203,"y":5.5952544,"z":-5,"rotation":0.14045669,"scaleX":-1,"scaleY":1},
+    {"id":"Crystal_01","x":-25.448744,"y":-1.8023326,"z":-5,"rotation":3.744413,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_03","x":0.3500719,"y":10.214575,"z":-5,"rotation":3.0954773,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":-15.902197,"y":-7.2143164,"z":-5,"rotation":0,"scaleX":-0.75,"scaleY":0.75},
+    {"id":"Bottle_01","x":-17.620363,"y":-6.4939404,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-3.3897905,"y":16.074724,"z":-5,"rotation":0.41688162,"scaleX":1,"scaleY":1},
+    {"id":"Branch_01","x":-28.905025,"y":13.087626,"z":-5,"rotation":1.1065278,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_03","x":-2.1629677,"y":16.789312,"z":-5,"rotation":0.083228245,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-10.646999,"y":0.196702,"z":-5,"rotation":0.78669894,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":-27.70842,"y":-6.794097,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bush_01","x":0.3922863,"y":17.247366,"z":-5,"rotation":6.151191,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":2.871996,"y":8.6585,"z":-5,"rotation":2.7830255,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-15.819924,"y":9.379194,"z":-5,"rotation":5.4876833,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-1.5570145,"y":5.690333,"z":-5,"rotation":0.08742689,"scaleX":1,"scaleY":1},
+    {"id":"Crystal_02","x":-26.579445,"y":-2.5938256,"z":-5,"rotation":4.277801,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-29.086113,-0.23115352,5],

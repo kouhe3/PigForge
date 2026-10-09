@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "episode_6_level_3",
   "goalZone": {
     "min": [
@@ -28,6 +28,36 @@
   },
   "cameraLimits": {"topLeft":[-205.36,36.4],"size":[65.9,48.2]},
   "spawns": [],
+  "props": [
+    {"id":"Grass12","x":-160.931,"y":2.7957973,"z":-1,"rotation":0.20519893,"scaleX":1,"scaleY":1},
+    {"id":"Grass10","x":-166.97,"y":18.008799,"z":-1,"rotation":0.95495737,"scaleX":1,"scaleY":1},
+    {"id":"Grass17","x":-182.093,"y":24.161798,"z":0.9,"rotation":1.1669155,"scaleX":-1,"scaleY":1},
+    {"id":"Grass15","x":-194.216,"y":2.8267975,"z":-1,"rotation":5.977612,"scaleX":-1,"scaleY":1},
+    {"id":"Grass11","x":-191.24901,"y":21.335798,"z":-1,"rotation":0.19628376,"scaleX":1,"scaleY":1},
+    {"id":"Bush","x":-189.003,"y":2.127798,"z":-1,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Tree04","x":-192.213,"y":24.817797,"z":2,"rotation":6.06252,"scaleX":1,"scaleY":1},
+    {"id":"Tree03","x":-169.80301,"y":27.657797,"z":2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower2","x":-194.702,"y":31.220797,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower1","x":-167.793,"y":28.287798,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower3","x":-157.05501,"y":31.176798,"z":2,"rotation":0.20487815,"scaleX":1,"scaleY":1},
+    {"id":"MayanPot02","x":-156.77701,"y":30.463797,"z":2.5,"rotation":0.3358861,"scaleX":1,"scaleY":1},
+    {"id":"MayanPot01","x":-157.548,"y":30.463797,"z":2.5,"rotation":5.9096627,"scaleX":1,"scaleY":1},
+    {"id":"MayanArt1","x":-153.21301,"y":30.917799,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"MayanArt9","x":-162.623,"y":34.4878,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"MayanArt6","x":-164.08301,"y":29.657797,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom1","x":-160.24701,"y":31.5768,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom2","x":-159.41301,"y":31.787798,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom3","x":-160.473,"y":31.587797,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock2","x":-161.613,"y":-7.0122013,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock1","x":-172.222,"y":-7.0382023,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock3","x":-181.41301,"y":-7.2222023,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock4","x":-169.08301,"y":-6.922201,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock3","x":-195.253,"y":-6.912203,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock3","x":-145.07301,"y":-6.8122025,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock2","x":-165.05301,"y":-7.162203,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock2","x":-181.883,"y":-7.3612022,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower2","x":-148.224,"y":15.6458,"z":0.9,"rotation":0.5032356,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-178.22,18.73,0],

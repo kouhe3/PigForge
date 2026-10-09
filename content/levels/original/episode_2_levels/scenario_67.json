@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "scenario_67",
   "goalZone": {
     "min": [
@@ -28,6 +28,24 @@
   },
   "cameraLimits": {"topLeft":[-44.53,33.4],"size":[46.8,47.4]},
   "spawns": [],
+  "props": [
+    {"id":"Bottle","x":-18.222767,"y":-6.8916645,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Starfish","x":-35.253624,"y":-7.4363937,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bush_04","x":-20.236427,"y":-5.079672,"z":-5,"rotation":0.16614299,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_3","x":-4.079403,"y":-4.5484486,"z":-5,"rotation":6.1142516,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_07","x":-27.090479,"y":19.094675,"z":-5,"rotation":5.8626585,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_3","x":-30.081888,"y":15.30768,"z":-5,"rotation":3.9962926,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_04","x":-9.879997,"y":-6.677494,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_09","x":-3.1584873,"y":21.1205,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_2","x":-29.593836,"y":10.964865,"z":-5,"rotation":5.724634,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_05","x":-9.220236,"y":-7.037649,"z":-5.1236277,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Starfish","x":-32.573837,"y":-7.0409603,"z":-5,"rotation":0,"scaleX":-0.82,"scaleY":0.82},
+    {"id":"Cave_Mushroom_06","x":-5.3359013,"y":-7.10322,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Bush_02_0","x":-40.84514,"y":21.178015,"z":-5,"rotation":6.0747347,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_2","x":-7.0746384,"y":-3.6711102,"z":-5,"rotation":6.195695,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_1","x":-5.404749,"y":-4.275776,"z":-5,"rotation":6.1581697,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_08","x":-6.464712,"y":20.138174,"z":-5,"rotation":0.35416818,"scaleX":-1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-9.899733,-7.218362,0],

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_16",
   "goalZone": {
     "min": [
@@ -28,6 +28,27 @@
   },
   "cameraLimits": {"topLeft":[0.32,12.4],"size":[36.64,24.3]},
   "spawns": [],
+  "props": [
+    {"id":"Flower_01","x":5.91086,"y":-7.049799,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bush_01","x":23.372726,"y":-3.6484492,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":23.314972,"y":-4.6420865,"z":-4.5,"rotation":0.20100284,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_01","x":8.585657,"y":3.702722,"z":-5.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":17.460585,"y":-4.807693,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":28.009287,"y":-0.50536394,"z":-5,"rotation":6.212749,"scaleX":1,"scaleY":1},
+    {"id":"Wood_02","x":20.885496,"y":-6.6387377,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock_02","x":22.297216,"y":-6.75253,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_03","x":31.724327,"y":1.3244348,"z":-5,"rotation":0.9871016,"scaleX":1,"scaleY":1},
+    {"id":"Bush_02","x":7.2057095,"y":4.0980587,"z":-5,"rotation":0.08550084,"scaleX":1,"scaleY":1},
+    {"id":"Branch_02","x":35.561718,"y":-2.8482804,"z":-5,"rotation":6.124298,"scaleX":1,"scaleY":1},
+    {"id":"Rock_01","x":5.0971737,"y":-6.410504,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":2.1036263,"y":3.0761502,"z":-5,"rotation":6.0726066,"scaleX":1,"scaleY":1},
+    {"id":"Branch_01","x":9.741835,"y":-0.92197305,"z":-5,"rotation":3.9833353,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":9.212229,"y":3.2029564,"z":-4.5,"rotation":0.08526804,"scaleX":1,"scaleY":1},
+    {"id":"Flower_02","x":7.007059,"y":-6.792667,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower_02","x":15.868092,"y":-6.8980036,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_03","x":34.897938,"y":4.0909977,"z":-5,"rotation":0.031377103,"scaleX":-1,"scaleY":1},
+    {"id":"Tuft_02","x":23.024393,"y":-6.7745657,"z":-4.5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-0.57115746,-0.15,0],

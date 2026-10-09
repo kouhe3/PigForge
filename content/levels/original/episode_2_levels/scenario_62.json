@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "scenario_62",
   "goalZone": {
     "min": [
@@ -28,6 +28,38 @@
   },
   "cameraLimits": {"topLeft":[-35.7,18.87],"size":[105.2,33.1]},
   "spawns": [],
+  "props": [
+    {"id":"Gravel_03","x":3.3178291,"y":-6.7754784,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_03","x":-14.769162,"y":-1.2074051,"z":-5,"rotation":6.0440693,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_03","x":63.153362,"y":4.1039352,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Gravel_03","x":53.82114,"y":-6.853834,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Glow_01","x":-25.30981,"y":14.722855,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
+    {"id":"Gravel_02","x":67.29703,"y":-6.812504,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock_02","x":-18.195568,"y":-6.581398,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock_03","x":-16.735426,"y":-7.1126976,"z":-5.09176,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_03","x":-8.273386,"y":-6.6741123,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_02","x":58.74886,"y":-6.8536663,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_03","x":44.38995,"y":-6.8394394,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Cave_Mushroom_01","x":30.892414,"y":-7.3617077,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_02","x":-13.80963,"y":-1.9463081,"z":-5,"rotation":5.703366,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_02","x":47.461605,"y":-7.0742207,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_02","x":15.4002,"y":-6.8223476,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Cave_Mushroom_03","x":-28.730543,"y":-7.2716217,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Cave_Mushroom_03","x":48.17971,"y":-6.697401,"z":-4.753692,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_03","x":-15.070044,"y":-7.3028774,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Crystal_03","x":-25.33401,"y":14.671989,"z":-5,"rotation":2.813148,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":65.51796,"y":4.1700897,"z":-5,"rotation":0.30239576,"scaleX":-1,"scaleY":1},
+    {"id":"Gravel_02","x":-13.2308445,"y":-6.6849976,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_02","x":50.58012,"y":-6.886326,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_01","x":39.137688,"y":-6.8296623,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_01","x":-15.972078,"y":-6.782734,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_02","x":-30.897549,"y":-6.7726994,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Gravel_03","x":10.165924,"y":-7.29187,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Gravel_02","x":40.600094,"y":-6.926815,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Gravel_01","x":60.000538,"y":-7.092018,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_01","x":-11.835046,"y":-2.1868591,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_01","x":11.700569,"y":-6.7162285,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [53.66027,-2.27841,0],

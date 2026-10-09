@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_19",
   "goalZone": {
     "min": [
@@ -28,6 +28,34 @@
   },
   "cameraLimits": {"topLeft":[-86.7,15.7],"size":[152.2,26.8]},
   "spawns": [],
+  "props": [
+    {"id":"Grass_05","x":14.864568,"y":2.0379448,"z":-5,"rotation":0.0568285,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-8.739233,"y":2.2258925,"z":-5,"rotation":5.5281944,"scaleX":1,"scaleY":1},
+    {"id":"Branch_01","x":-79.31322,"y":-0.31993818,"z":-4.5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Flower_02","x":48.44423,"y":-6.9229217,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-20.467497,"y":2.7043033,"z":-5,"rotation":0.6700433,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":22.31411,"y":-0.26867962,"z":-5,"rotation":5.779106,"scaleX":1,"scaleY":1},
+    {"id":"Flower_01","x":-80.24943,"y":-6.8453918,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock_02","x":-81.80779,"y":-6.4898605,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":59.91469,"y":-4.830569,"z":-5,"rotation":0.49760324,"scaleX":1,"scaleY":1},
+    {"id":"Rock_02","x":36.16822,"y":-6.620073,"z":-5.0046387,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":-28.122076,"y":-1.6868267,"z":-5,"rotation":0.25018772,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_03","x":-5.424529,"y":-0.8666935,"z":-5,"rotation":5.863281,"scaleX":1,"scaleY":1},
+    {"id":"Wood_02","x":-55.080948,"y":-6.9580016,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-79.142365,"y":-2.0627208,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_02","x":50.78087,"y":-0.47247458,"z":-5,"rotation":2.6197028,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_03","x":59.836823,"y":-3.914965,"z":-4.5,"rotation":1.4148371,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":8.62683,"y":-0.59943414,"z":-5,"rotation":0.21845423,"scaleX":1,"scaleY":1},
+    {"id":"Bush_01","x":-80.79971,"y":-1.7893431,"z":-5,"rotation":0.34973887,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":-81.80779,"y":-3.3954375,"z":-5,"rotation":0.34443176,"scaleX":1,"scaleY":1},
+    {"id":"Tuft_01","x":-56.04933,"y":-6.6877356,"z":-4.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock_01","x":-52.053642,"y":-6.5902343,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_02","x":17.854635,"y":1.9866867,"z":-214.38086,"rotation":6.144023,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-3.9380379,"y":-1.7893431,"z":-5,"rotation":5.929912,"scaleX":-1,"scaleY":1},
+    {"id":"Wood_01","x":31.32454,"y":-7.2026615,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Tuft_02","x":35.461056,"y":-6.6301923,"z":-4.5046387,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_02","x":-56.998177,"y":-6.043784,"z":-5,"rotation":0.31781045,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-87.50841,-0.14368658,0],

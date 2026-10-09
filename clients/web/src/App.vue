@@ -12,6 +12,8 @@ import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
 import { createAnimationState, noteActivationEdges, resetAnimations, updateAnimations } from "./renderer/animation";
 import { createAnimationClock } from "./renderer/animation/clock";
 import { loadPartTextures, type PartTextureSet } from "./renderer/atlas";
+import { sharedAtlasImages } from "./renderer/atlasCache";
+import { LEVEL_PROPS_URL, loadLevelProps, type LevelPropsSet } from "./renderer/levelProps";
 import { partThumbnailDataUrl } from "./renderer/thumbnails";
 import { drawFrame } from "./renderer/draw";
 import { fitBounds } from "./renderer/camera";
@@ -55,6 +57,9 @@ const partTextures = shallowRef<PartTextureSet | null>(null);
 // The level's own ground textures: original art too, absent until `build-levels.mjs` ran. A terrain
 // whose texture is missing keeps the flat ground colour (`drawTerrain`), so this is never fatal.
 const groundTextures = shallowRef<GroundTextureSet | null>(null);
+// The level's decoration art: one manifest for every level (the props are prefab-derived), so it is
+// fetched once and re-decoded images are shared with the part atlases (`renderer/atlasCache`).
+const levelProps = shallowRef<LevelPropsSet | null>(null);
 // Animation state and its wall clock; both stay outside Vue reactivity like the view state.
 const animations = createAnimationState();
 const animationClock = createAnimationClock();
@@ -288,6 +293,7 @@ function paint(now: number): void {
     animations,
     level?.terrain ?? null,
     groundTextures.value,
+    level?.props !== undefined && levelProps.value !== null ? { props: level.props, set: levelProps.value } : null,
   );
   raf = requestAnimationFrame(paint);
 }
@@ -554,9 +560,12 @@ watch(
 
 onMounted(() => {
   session.loadContent(PLAY_PARTS);
-  void loadPartTextures().then((textures) => {
+  void loadPartTextures(undefined, undefined, sharedAtlasImages).then((textures) => {
     partIcons.clear();
     partTextures.value = textures;
+  });
+  void loadLevelProps(LEVEL_PROPS_URL, undefined, sharedAtlasImages).then((props) => {
+    levelProps.value = props;
   });
   const node = canvas.value;
   if (node) {

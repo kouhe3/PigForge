@@ -41,6 +41,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { arg, flag } from "../lib/args.mjs";
+import { openProps, PropException } from "../lib/props.mjs";
 import { buildGuidIndex, loadEpisodes, loadLoaders } from "./lib/unity-yaml.mjs";
 import { readLevel } from "./lib/reader.mjs";
 import { outlineLoops } from "./lib/outline.mjs";
@@ -170,11 +171,17 @@ const goalBoxOf = (prefabPath) => {
   return goalBoxCache.get(prefabPath);
 };
 
+// The level's non-part, non-terrain prefabs (`docs/specs/level-props.md`). One reader for the whole
+// run: building it walks the original's asset tree once.
+const props = openProps(BPLE);
+
 const dataFiles = discoverDataFiles(ASSETS);
 check(dataFiles.length === 277, `expected 277 level files, found ${dataFiles.length}`);
 
 const bundleCounts = {};
 const rows = [];
+/** How many instances of each prop class the pack places -- the census the report carries. */
+const propCensus = new Map();
 const skippedTerrains = [];
 const skippedFills = [];
 const skippedCurves = [];
@@ -188,6 +195,7 @@ const totals = {
   fillTextures: 0,
   fillTextureBytes: 0,
   spawns: 0,
+  propInstances: 0,
   goals: 0,
   levelsWithoutGoal: 0,
   cameraLimits: 0,
@@ -431,18 +439,55 @@ for (const { bundle, file } of dataFiles) {
   const cameraLimits = readCameraLimits(data.overrides, check);
   if (cameraLimits) totals.cameraLimits += 1;
 
+  // ---------------------------------------------------------------- decoration props
+  // The level's dressing: grass, mushrooms, crystals, wall art... one quad per instance, drawn by the
+  // client in the original's own depth order (`docs/specs/level-props.md`). Instances of every other
+  // prop class are counted instead of placed, so a family that stops being classified shows up as a
+  // number in the report rather than as silence.
+  const propInstances = [];
+  for (const instance of data.instanceList) {
+    const prefabPath = palette[instance.prefabIndex];
+    if (typeof prefabPath !== "string" || prefabPath.startsWith("<")) continue;
+    if (partMap.prefabToPartTypeId.get(basename(prefabPath, ".prefab")) !== undefined) continue;
+    let record;
+    try {
+      record = props.read(prefabPath);
+    } catch (error) {
+      check(error instanceof PropException, `${basename(file)}: ${error.stack}`);
+      check(false, `${basename(file)}: prop "${instance.name}" (${prefabPath}): ${error.message}`);
+      continue;
+    }
+    propCensus.set(record.kind, (propCensus.get(record.kind) ?? 0) + 1);
+    if (record.kind !== "decor") continue;
+    check(
+      instance.dataType === 0,
+      `${basename(file)}: decoration "${instance.name}" (${record.name}) carries a level data block ${instance.dataType}`,
+    );
+    propInstances.push({
+      id: record.name,
+      x: instance.position[0],
+      y: instance.position[1],
+      z: instance.position[2],
+      // Unity's `Quaternion.Euler` takes degrees; the client's canvas rotation is radians about z.
+      rotation: Math.fround((instance.euler[2] * Math.PI) / 180),
+      scaleX: instance.localScale[0],
+      scaleY: instance.localScale[1],
+    });
+  }
+
   // ---------------------------------------------------------------- write
   const contentVersion = contentVersionOf(sceneName);
   const area = areaOf(bundle);
   const relativePath = `content/levels/original/${area}/${contentVersion}.json`;
   const document = {
     format: "pigforge.level-content",
-    schemaVersion: 5,
+    schemaVersion: 6,
     contentVersion,
     goalZone,
     bounds: levelBounds,
     cameraLimits,
     spawns,
+    props: propInstances,
     terrain: terrainEntries,
   };
   const json = formatLevelDocument(document);
@@ -459,13 +504,14 @@ for (const { bundle, file } of dataFiles) {
   totals.loops += loops;
   totals.points += points;
   totals.spawns += spawns.length;
+  totals.propInstances += propInstances.length;
   totals.bytes += bytes;
 
   const state = DRY_RUN ? (changed ? "new" : "same") : changed ? "wrote" : "same";
   console.log(
     `${state.padEnd(5)} ${relativePath}  terrain=${terrainEntries.length} loops=${loops} points=${points}` +
       ` spawns=${spawns.length} goal=${data.goalInstances.length === 1 ? basename(palette[data.goalInstances[0].prefabIndex], ".prefab") : "none"}` +
-      ` skipped=${skippedHere} bytes=${bytes}`,
+      ` props=${propInstances.length} skipped=${skippedHere} bytes=${bytes}`,
   );
 
   rows.push({
@@ -482,6 +528,7 @@ for (const { bundle, file } of dataFiles) {
     colliderTerrains: terrainEntries.length + skippedHere,
     skipped: skippedHere,
     spawns: spawns.length,
+    props: propInstances.length,
     goalSource,
     changed,
   });
@@ -492,6 +539,11 @@ for (const [bundle, expected] of Object.entries(BUNDLE_EXPECT)) {
 }
 check(skippedTerrains.length === 0, `${skippedTerrains.length} terrain(s) have no closed outline and were skipped`);
 check(skippedCurves.length === 0, `${skippedCurves.length} terrain(s) have no usable curve mesh and were skipped`);
+// The census covers every prefab instance in the pack except the placed parts (`spawns`), so its sum
+// is the pack's own instance count -- a prop family that stops being classified cannot hide.
+check(totals.propInstances === 15132, `decoration instances: ${totals.propInstances}, expected 15132`);
+const cachedInstances = [...propCensus.values()].reduce((total, count) => total + count, 0) + totals.spawns;
+check(cachedInstances === 26072, `classified instances: ${cachedInstances}, expected 26072`);
 
 // ---------------------------------------------------------------- level textures
 
@@ -564,6 +616,8 @@ const report = {
     curveNodes: totals.curveNodes,
     curveRuns: totals.curveRuns,
     spawns: totals.spawns,
+    propInstances: totals.propInstances,
+    propKinds: Object.fromEntries([...propCensus.entries()].sort(([left], [right]) => left.localeCompare(right))),
     goals: totals.goals,
     levelsWithoutGoal: totals.levelsWithoutGoal,
     cameraLimits: totals.cameraLimits,

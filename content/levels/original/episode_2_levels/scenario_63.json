@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "scenario_63",
   "goalZone": {
     "min": [
@@ -28,6 +28,27 @@
   },
   "cameraLimits": {"topLeft":[-33.78,17.9],"size":[96.9,34.3]},
   "spawns": [],
+  "props": [
+    {"id":"Grass_08","x":-10.66378,"y":0.22341728,"z":-5,"rotation":0.17798367,"scaleX":-1,"scaleY":1},
+    {"id":"Shell","x":4.762825,"y":-6.9547825,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Shell","x":-21.82154,"y":-7.401018,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_11","x":1.677618,"y":-2.6253834,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Twig_1","x":-4.1080055,"y":-7.4114513,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Bush_04","x":-24.681276,"y":5.579851,"z":-5,"rotation":6.0497684,"scaleX":1,"scaleY":1},
+    {"id":"Bush_03","x":59.186,"y":-5.129915,"z":-5,"rotation":5.432136,"scaleX":1,"scaleY":1},
+    {"id":"Crystal_02","x":5.697098,"y":3.2020931,"z":-5,"rotation":3.4477148,"scaleX":1,"scaleY":1},
+    {"id":"Grass_08","x":-29.314579,"y":5.4255314,"z":-5,"rotation":6.075825,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_09","x":-29.109098,"y":5.9382153,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_07","x":0.3569889,"y":7.142687,"z":-5,"rotation":0.16341415,"scaleX":1,"scaleY":1},
+    {"id":"Grass_08","x":11.229404,"y":5.354677,"z":-5,"rotation":6.2781997,"scaleX":1,"scaleY":1},
+    {"id":"Starfish","x":19.604446,"y":-7.450571,"z":-5,"rotation":0,"scaleX":-0.7400929,"scaleY":0.7400929},
+    {"id":"Shell","x":9.275795,"y":-7.4321175,"z":-5,"rotation":0,"scaleX":0.8158578,"scaleY":0.8158578},
+    {"id":"Glow_01","x":5.6880913,"y":3.145258,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
+    {"id":"Starfish","x":59.571774,"y":-7.4585323,"z":-5,"rotation":0,"scaleX":-0.7317157,"scaleY":0.7317157},
+    {"id":"Grass_07","x":-22.427046,"y":1.1905518,"z":-5,"rotation":0.92252517,"scaleX":1,"scaleY":1},
+    {"id":"Bush_03","x":23.567791,"y":2.406721,"z":-5,"rotation":0.68451196,"scaleX":-1,"scaleY":1},
+    {"id":"Twig_2","x":57.45866,"y":-6.98172,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-26.131868,-0.573876,0],

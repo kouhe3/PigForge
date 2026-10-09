@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_49",
   "goalZone": {
     "min": [
@@ -28,6 +28,27 @@
   },
   "cameraLimits": {"topLeft":[-55.8,14.9],"size":[62.5,27.5]},
   "spawns": [],
+  "props": [
+    {"id":"Shell_01","x":1.4278507,"y":-6.9461303,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Wood_02","x":-53.935997,"y":-6.7660108,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Star_01","x":-46.01068,"y":-7.211577,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Wood_02","x":0.5177574,"y":-6.633286,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_02","x":-39.93383,"y":3.1776233,"z":-5,"rotation":6.212772,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-26.371275,"y":2.0124378,"z":-5,"rotation":5.8004804,"scaleX":1,"scaleY":1},
+    {"id":"Bush_02","x":-34.427048,"y":3.2541654,"z":-5,"rotation":6.1671076,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":-11.152283,"y":-7.040932,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":-44.86702,"y":8.360099,"z":-5,"rotation":0.43277064,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":-20.859945,"y":-7.3537774,"z":-5,"rotation":0,"scaleX":-0.75,"scaleY":0.75},
+    {"id":"Grass_05","x":-41.308678,"y":9.717045,"z":-5,"rotation":0.06446007,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":-24.20643,"y":-6.908213,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-35.846428,"y":2.9268937,"z":-4.5,"rotation":6.199559,"scaleX":1,"scaleY":1},
+    {"id":"Wood_01","x":-21.978598,"y":-7.003014,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Branch_01","x":-36.130306,"y":4.4882145,"z":-4.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":-42.345566,"y":2.55646,"z":-5,"rotation":0.70418185,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_03","x":-32.74563,"y":2.6976094,"z":-5.5,"rotation":6.1143613,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-15.145802,"y":-4.3360076,"z":-5,"rotation":6.1420302,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":-47.015575,"y":-6.9366517,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-35.650772,-0.15,0],

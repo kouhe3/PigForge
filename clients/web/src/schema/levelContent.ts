@@ -103,9 +103,27 @@ export interface LevelTerrain {
   loops: Array<Array<[number, number]>>;
 }
 
+/**
+ * v6: one decoration instance the level places -- the original's own props of this family are single
+ * sprite quads with no collider and no behaviour, so they only draw (`docs/specs/level-props.md`).
+ * `id` keys the client's own `level-props.json` (the art the quad uses, in world metres), `z` is the
+ * original's own depth and the sprite painter orders by it, and `scaleX`/`scaleY` are the instance's
+ * own localScale (a negative x is the original's mirroring, and the quad's z scale never matters).
+ */
+export interface LevelProp {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  /** The level file's `euler.z`, in radians (Unity takes degrees, levels are 2D). */
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
+}
+
 export interface LevelContentDocument {
   format: "pigforge.level-content";
-  schemaVersion: 1 | 2 | 3 | 4 | 5;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
   contentVersion: string;
   goalZone: LevelZone;
   bounds: LevelZone;
@@ -119,6 +137,8 @@ export interface LevelContentDocument {
   spawns: LevelSpawn[];
   /** v2 only; a v1 document omits it and the client draws no terrain. */
   terrain?: LevelTerrain[];
+  /** v6 only; an older document places no decorations. */
+  props?: LevelProp[];
 }
 
 /** A v5 level's own camera rectangle, in the original's own `topLeft` + `size` form. */
@@ -154,7 +174,7 @@ export function cameraLimitsRect(limits: LevelCameraLimits): WorldRect {
 const ROOT_REQUIRED_KEYS = ["format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns"];
 // v1 has no `terrain`, but the server parser accepts the v2 addition on either version, and the
 // client only ever decodes what the server already parsed.
-const ROOT_KEYS = [...ROOT_REQUIRED_KEYS, "terrain", "cameraLimits"];
+const ROOT_KEYS = [...ROOT_REQUIRED_KEYS, "terrain", "cameraLimits", "props"];
 const ZONE_KEYS = ["min", "max"];
 const CAMERA_LIMITS_KEYS = ["topLeft", "size"];
 const SPAWN_REQUIRED_KEYS = ["partTypeId", "position"];
@@ -169,6 +189,7 @@ const TERRAIN_KEYS = [...TERRAIN_V3_REQUIRED_KEYS, ...TERRAIN_V4_KEYS];
 const FILL_KEYS = ["texture", "color", "tileOffset", "tileSize"];
 const CURVE_KEYS = ["nodes", "stripe", "textures", "uScale", "splat1"];
 const CURVE_TEXTURE_KEYS = ["texture", "wrap"];
+const PROP_REQUIRED_KEYS = ["id", "x", "y", "z", "rotation", "scaleX", "scaleY"];
 const LEVEL_ROLES: readonly LevelActorRole[] = ["part", "pig", "tnt"];
 const LEVEL_WRAPS: readonly LevelCurveWrap[] = ["repeat", "clamp"];
 
@@ -184,23 +205,24 @@ export function validateLevelContent(value: unknown): string[] {
     errors.push("root.format: must be 'pigforge.level-content'.");
   }
   if (document.schemaVersion !== 1 && document.schemaVersion !== 2
-    && document.schemaVersion !== 3 && document.schemaVersion !== 4 && document.schemaVersion !== 5) {
-    errors.push("root.schemaVersion: versions 1 to 5 are supported.");
+    && document.schemaVersion !== 3 && document.schemaVersion !== 4 && document.schemaVersion !== 5
+    && document.schemaVersion !== 6) {
+    errors.push("root.schemaVersion: versions 1 to 6 are supported.");
   }
   if (!isContentVersion(document.contentVersion)) {
     errors.push("root.contentVersion: must contain 1 to 128 non-whitespace-padded characters.");
   }
   validateZone(document.goalZone, "root.goalZone", errors);
   validateZone(document.bounds, "root.bounds", errors);
-  // v5 carries the level's own camera rectangle and every v5 document must; older versions must not.
-  if (document.schemaVersion === 5) {
+  // v5 carries the level's own camera rectangle and every v5+ document must; older versions must not.
+  if (document.schemaVersion === 5 || document.schemaVersion === 6) {
     if (document.cameraLimits === undefined) {
-      errors.push("root.cameraLimits: required on a schemaVersion 5 document.");
+      errors.push(`root.cameraLimits: required on a schemaVersion ${document.schemaVersion} document.`);
     } else {
       validateCameraLimits(document.cameraLimits, "root.cameraLimits", errors);
     }
   } else if (document.cameraLimits !== undefined) {
-    errors.push("root.cameraLimits: only a schemaVersion 5 document carries the level's camera limits.");
+    errors.push("root.cameraLimits: only a schemaVersion 5 or 6 document carries the level's camera limits.");
   }
   if (!Array.isArray(document.spawns)) {
     errors.push("root.spawns: must be an array.");
@@ -220,6 +242,18 @@ export function validateLevelContent(value: unknown): string[] {
         validateTerrain(terrain, `root.terrain[${index}]`, modern, curved, errors);
       });
     }
+  }
+  // v6 carries the level's decoration instances and every v6 document must; older versions must not.
+  if (document.schemaVersion === 6) {
+    if (document.props === undefined) {
+      errors.push("root.props: required on a schemaVersion 6 document.");
+    } else if (!Array.isArray(document.props)) {
+      errors.push("root.props: must be an array.");
+    } else {
+      document.props.forEach((prop, index) => validateProp(prop, `root.props[${index}]`, errors));
+    }
+  } else if (document.props !== undefined) {
+    errors.push("root.props: only a schemaVersion 6 document places the level's props.");
   }
   return errors;
 }
@@ -287,6 +321,25 @@ function validateCameraLimits(value: unknown, path: string, errors: string[]): v
     errors.push(`${path}.size: must be [x, y] with finite numbers.`);
   } else if (limits.size[0] <= 0 || limits.size[1] <= 0) {
     errors.push(`${path}.size: must be positive on both axes.`);
+  }
+}
+
+/** One decoration instance: the sprite-manifest key plus the six numbers of its transform. */
+function validateProp(value: unknown, path: string, errors: string[]): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`${path}: prop must be a JSON object.`);
+    return;
+  }
+
+  const prop = value as Record<string, unknown>;
+  validateKeys(prop, PROP_REQUIRED_KEYS, PROP_REQUIRED_KEYS, path, errors);
+  if (typeof prop.id !== "string" || prop.id.length === 0 || /\s/.test(prop.id)) {
+    errors.push(`${path}.id: must be a non-empty string without whitespace.`);
+  }
+  for (const key of ["x", "y", "z", "rotation", "scaleX", "scaleY"]) {
+    if (!isFiniteNumber(prop[key])) {
+      errors.push(`${path}.${key}: must be a finite number.`);
+    }
   }
 }
 

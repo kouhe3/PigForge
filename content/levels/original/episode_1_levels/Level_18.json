@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_18",
   "goalZone": {
     "min": [
@@ -28,6 +28,26 @@
   },
   "cameraLimits": {"topLeft":[-9.3,20.38],"size":[40.51,31.7]},
   "spawns": [],
+  "props": [
+    {"id":"Wood_02","x":25.195553,"y":-6.899069,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":0.8498392,"y":-4.750418,"z":-5,"rotation":0.44843146,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":9.340285,"y":-0.76603985,"z":-5,"rotation":5.951699,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":-0.81362104,"y":-5.4153824,"z":-5,"rotation":0.43941733,"scaleX":1,"scaleY":1},
+    {"id":"Wood_01","x":-8.603688,"y":-6.8990307,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_02","x":11.630244,"y":12.592712,"z":-5,"rotation":0.26159713,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":-3.2307463,"y":-3.0310338,"z":-5,"rotation":4.713376,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":12.453052,"y":12.198824,"z":-4.5,"rotation":6.251499,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_03","x":-3.599381,"y":-4.601014,"z":-5,"rotation":5.2953534,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_01","x":-3.4278905,"y":-2.1338613,"z":-5,"rotation":4.6661463,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":21.43172,"y":6.794062,"z":-5,"rotation":1.3471473,"scaleX":1,"scaleY":1},
+    {"id":"Bush_01","x":9.892663,"y":13.21703,"z":-5,"rotation":6.272295,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":-3.0800896,"y":-5.1961656,"z":-5,"rotation":5.9779243,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":17.88372,"y":11.622696,"z":-5,"rotation":6.2087855,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_02","x":8.316544,"y":-2.6714296,"z":-5,"rotation":0.40018845,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":7.7337217,"y":-7.425849,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_01","x":-1.8579369,"y":-5.55554,"z":-5,"rotation":5.9509172,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":13.245547,"y":-0.23902416,"z":-5,"rotation":0.201379,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [22.30119,-0.14255548,0],

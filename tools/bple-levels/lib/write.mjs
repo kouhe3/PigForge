@@ -125,8 +125,21 @@ function terrainText(terrains, schemaVersion) {
   return `[\n${entries.join(",\n")}\n  ]`;
 }
 
+/// One `props` entry per line: a decoration instance is `{ id, x, y, z, rotation, scaleX, scaleY }`
+/// and a level carries tens of them, so the compact form (like a loop) keeps the readable header of
+/// the document short without hiding the data. v6 is the version that places props at all.
+function propsText(props, schemaVersion) {
+  if (schemaVersion < 6) {
+    if (props !== undefined) throw new Error("level props are a v6 field");
+    return null;
+  }
+  if (!Array.isArray(props)) throw new Error("a v6 document needs the level's props (an array, possibly empty)");
+  if (props.length === 0) return "[]";
+  return `[\n${props.map((prop) => `    ${compact(prop)}`).join(",\n")}\n  ]`;
+}
+
 /// A PigForge level-content document, in the schema's own key order: `format`, `schemaVersion`,
-/// `contentVersion`, `goalZone`, `bounds`, `cameraLimits` (v5), `spawns`, `terrain`.
+/// `contentVersion`, `goalZone`, `bounds`, `cameraLimits` (v5), `spawns`, `props` (v6), `terrain`.
 export function formatLevelDocument(document) {
   if (document.schemaVersion >= 5 && document.cameraLimits === undefined) {
     throw new Error("a v5 document needs the level's own cameraLimits");
@@ -134,6 +147,7 @@ export function formatLevelDocument(document) {
   if (document.schemaVersion < 5 && document.cameraLimits !== undefined) {
     throw new Error("cameraLimits is a v5 field");
   }
+  const props = propsText(document.props, document.schemaVersion);
   return `${[
     "{",
     `  "format": ${JSON.stringify(document.format)},`,
@@ -143,6 +157,7 @@ export function formatLevelDocument(document) {
     `  "bounds": ${pretty(document.bounds, 2)},`,
     ...(document.cameraLimits === undefined ? [] : [`  "cameraLimits": ${compact(document.cameraLimits)},`]),
     `  "spawns": ${pretty(document.spawns, 2)},`,
+    ...(props === null ? [] : [`  "props": ${props},`]),
     `  "terrain": ${terrainText(document.terrain, document.schemaVersion)}`,
     "}",
   ].join("\n")}\n`;

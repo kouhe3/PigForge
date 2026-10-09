@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "scenario_59",
   "goalZone": {
     "min": [
@@ -28,6 +28,19 @@
   },
   "cameraLimits": {"topLeft":[-30.78,16.7],"size":[59.6,31.04]},
   "spawns": [],
+  "props": [
+    {"id":"Shell","x":22.256838,"y":-7.4112263,"z":-5,"rotation":0,"scaleX":-0.83,"scaleY":0.83},
+    {"id":"Starfish","x":-28.222164,"y":-6.8942966,"z":-5,"rotation":0,"scaleX":-0.7317157,"scaleY":0.7317157},
+    {"id":"Bottle","x":4.005064,"y":-6.765024,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Shell","x":20.32168,"y":-7.082247,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Starfish","x":-26.053936,"y":-7.1052704,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bush_03","x":26.347391,"y":-4.946945,"z":-5,"rotation":4.27829,"scaleX":1,"scaleY":1},
+    {"id":"Twig_2","x":-19.93575,"y":-6.8187084,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_08","x":23.614618,"y":-3.9286594,"z":-5,"rotation":6.1985273,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_10","x":-15.113572,"y":-3.7094707,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Bush_04","x":5.492216,"y":-5.5164356,"z":-5,"rotation":0.23528633,"scaleX":-1,"scaleY":1},
+    {"id":"Bush_01_0","x":-27.166185,"y":-0.40659142,"z":-5,"rotation":2.8574321,"scaleX":1.5,"scaleY":1.5000001}
+  ],
   "terrain": [
     {
       "position": [19.446192,0,0],

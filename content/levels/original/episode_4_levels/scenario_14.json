@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "scenario_14",
   "goalZone": {
     "min": [
@@ -28,6 +28,27 @@
   },
   "cameraLimits": {"topLeft":[-36.16,17],"size":[40.4,32.5]},
   "spawns": [],
+  "props": [
+    {"id":"Gravel_03","x":-31.206419,"y":-6.8265705,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_12","x":-2.8245792,"y":-2.7453804,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_03","x":-11.950996,"y":-6.6683674,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Branch_04","x":-21.150894,"y":-2.2376842,"z":-5,"rotation":2.941141,"scaleX":-1,"scaleY":1},
+    {"id":"Gravel_03","x":-2.3152485,"y":-6.711355,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_06_0","x":-16.27311,"y":-7.3403378,"z":-5.190879,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_06","x":-20.269547,"y":4.7529716,"z":-5,"rotation":6.190773,"scaleX":1,"scaleY":1},
+    {"id":"Grass_11_0","x":-32.127956,"y":1.2057495,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Flower_02","x":-6.355791,"y":-7.2303295,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower_01","x":-7.3918667,"y":-6.767231,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Tuft_02","x":1.9920521,"y":-6.820345,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_04_0","x":-18.224163,"y":-6.644121,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_02","x":-32.854362,"y":-6.868288,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_05_0","x":-16.79955,"y":-6.8272266,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bush_03_0","x":-22.211763,"y":-5.9023094,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Gravel_02","x":-23.682596,"y":-6.8277283,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_09_0","x":-14.21895,"y":3.4612122,"z":-5,"rotation":5.358075,"scaleX":-1,"scaleY":1},
+    {"id":"Gravel_03","x":-19.765448,"y":-6.675617,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Gravel_02","x":-14.396231,"y":-6.710085,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-25.996635,-6.0867133,0],

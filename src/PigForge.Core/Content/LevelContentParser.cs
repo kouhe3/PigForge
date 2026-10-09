@@ -24,7 +24,7 @@ public static class LevelContentParser
     private static readonly string[] RequiredRootProperties = { "format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns" };
 
     /// <summary>Version-gated additions; an older document simply omits them.</summary>
-    private static readonly string[] OptionalRootProperties = { "terrain", "cameraLimits" };
+    private static readonly string[] OptionalRootProperties = { "terrain", "cameraLimits", "props" };
 
     /// <summary>The two halves of a v5 `cameraLimits` block, and nothing else.</summary>
     private static readonly string[] CameraLimitProperties = { "topLeft", "size" };
@@ -165,6 +165,39 @@ public static class LevelContentParser
             }
         }
 
+        // v6: the level's decoration instances. The original's props of this family are plain sprite
+        // quads with no collider and no behaviour, so the room only relays the document to the client
+        // (`docs/specs/level-props.md`); it still validates every field, because a malformed document
+        // is drift whether or not this process reads the data.
+        List<LevelPropDefinition> props = new();
+        if (seen.Contains("props") && root.TryGetProperty("props", out JsonElement propsElement))
+        {
+            if (schemaVersion >= 6)
+            {
+                if (propsElement.ValueKind != JsonValueKind.Array)
+                {
+                    errors.Add("root.props: must be an array.");
+                }
+                else
+                {
+                    int index = 0;
+                    foreach (JsonElement propElement in propsElement.EnumerateArray())
+                    {
+                        ParseProp(propElement, $"root.props[{index}]", props, errors);
+                        index++;
+                    }
+                }
+            }
+            else
+            {
+                errors.Add("root.props: only a schemaVersion 6 document places the level's props.");
+            }
+        }
+        else if (schemaVersion >= 6)
+        {
+            errors.Add("root.props: a schemaVersion 6 document must carry the level's props (an empty array is fine).");
+        }
+
         if (errors.Count > 0)
         {
             throw new LevelContentException(errors);
@@ -174,7 +207,83 @@ public static class LevelContentParser
         {
             Terrain = terrain,
             CameraLimits = cameraLimits,
+            Props = props,
         };
+    }
+
+    /// <summary>The seven properties one decoration instance carries, and nothing else.</summary>
+    private static readonly string[] PropProperties = { "id", "x", "y", "z", "rotation", "scaleX", "scaleY" };
+
+    /// <summary>
+    /// One decoration instance: the palette prefab's name plus the six numbers of its transform. The
+    /// id is a sprite-manifest key, so it is a non-empty, whitespace-free string like a texture name.
+    /// </summary>
+    private static void ParseProp(JsonElement element, string path, List<LevelPropDefinition> props, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be an object.");
+            return;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, PropProperties, path, errors);
+        foreach (string property in seen)
+        {
+            if (!PropProperties.Contains(property))
+            {
+                errors.Add($"{path}: unknown property '{property}'.");
+            }
+        }
+
+        string? id = null;
+        if (seen.Contains("id") && element.TryGetProperty("id", out JsonElement idElement))
+        {
+            id = idElement.ValueKind == JsonValueKind.String ? idElement.GetString() : null;
+            if (string.IsNullOrWhiteSpace(id) || id.Any(char.IsWhiteSpace))
+            {
+                errors.Add($"{path}.id: must be a non-empty string without whitespace.");
+                id = null;
+            }
+        }
+
+        float ReadNumber(string name)
+        {
+            if (!seen.Contains(name) || !element.TryGetProperty(name, out JsonElement numberElement))
+            {
+                return 0f;
+            }
+
+            if (numberElement.ValueKind != JsonValueKind.Number || !numberElement.TryGetSingle(out float value) || !IsFinite(numberElement))
+            {
+                errors.Add($"{path}.{name}: must be a finite number.");
+                return 0f;
+            }
+
+            return value;
+        }
+
+        float x = ReadNumber("x");
+        float y = ReadNumber("y");
+        float z = ReadNumber("z");
+        float rotation = ReadNumber("rotation");
+        float scaleX = ReadNumber("scaleX");
+        float scaleY = ReadNumber("scaleY");
+
+        if (id is null)
+        {
+            return;
+        }
+
+        props.Add(new LevelPropDefinition(id, x, y, z, rotation, scaleX, scaleY));
     }
 
     /// <summary>

@@ -2,9 +2,11 @@
 import { describe, expect, it } from "vitest";
 import { createAnimationState, noteActivationEdges, updateAnimations } from "./animation";
 import type { PartTexture, PartTextureSet } from "./atlas";
-import { drawFrame, drawOrder, wheelAxle } from "./draw";
+import { drawFrame, drawOrder, propDepthBuckets, wheelAxle } from "./draw";
 import { createCamera } from "./camera";
 import type { DrawEntity, PartContentDocument } from "@/schema/types";
+import type { LevelProp, LevelTerrain } from "@/schema/levelContent";
+import type { LevelPropsSet } from "./levelProps";
 
 function makeCtx() {
   const calls: Record<string, number> = {};
@@ -253,6 +255,123 @@ describe("drawFrame original-art textures", () => {
       [10, 20, 100, 100],
     ]);
   });
+
+describe("drawFrame level props", () => {
+  // A recorder that keeps the *order* of the paint calls, so the depth buckets can be checked against
+  // the ground's own fill and the entities without depending on call counts. Images carry a `tag` the
+  // recorder reads back, which is how a bucket is identified in the log.
+  function makeOrderCtx() {
+    const order: string[] = [];
+    const ctx = {
+      canvas: { clientWidth: 800, clientHeight: 600, width: 800, height: 600 },
+      globalAlpha: 1,
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 1,
+      font: "",
+      textAlign: "",
+      textBaseline: "",
+      fillRect: () => { order.push("fillRect"); },
+      strokeRect: () => { order.push("strokeRect"); },
+      beginPath: () => { order.push("beginPath"); },
+      moveTo: () => {},
+      lineTo: () => {},
+      closePath: () => {},
+      arc: () => { order.push("arc"); },
+      fill: () => { order.push("fill"); },
+      stroke: () => { order.push("stroke"); },
+      fillText: () => {},
+      drawImage: (image: unknown) => {
+        order.push(`image:${(image as { tag?: string } | null)?.tag ?? "?"}`);
+      },
+      save: () => {},
+      restore: () => {},
+      translate: () => {},
+      rotate: () => {},
+      scale: () => {},
+      setLineDash: () => {},
+      createRadialGradient: () => ({ addColorStop: () => {} }),
+      createPattern: () => ({ setTransform: () => {} }),
+    };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, order };
+  }
+
+  const terrain: LevelTerrain = { position: [0, 0, 0], depth: 10, loops: [[[0, 0], [4, 0], [0, 3]]] };
+  const textured = (image: CanvasImageSource): PartTextureSet => ({
+    atlases: new Map([["A.png", image]]),
+    parts: new Map([
+      [1, { bbox: [1, 1] as [number, number], sprites: [{ atlas: "A.png", x: 10, y: 20, w: 100, h: 100, cx: 0, cy: 0, sx: 2, sy: 3, rot: 0, rotates: false }] }],
+    ]),
+  });
+
+  const props: LevelProp[] = [
+    { id: "far", x: 0, y: 0, z: 15, rotation: 0, scaleX: 1, scaleY: 1 },
+    { id: "ground", x: 0, y: 0, z: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+    { id: "mid", x: 0, y: 0, z: -1, rotation: 0, scaleX: 1, scaleY: 1 },
+    { id: "plane", x: 0, y: 0, z: -5, rotation: 0, scaleX: 1, scaleY: 1 },
+    { id: "near", x: 0, y: 0, z: -6, rotation: 0, scaleX: 1, scaleY: 1 },
+  ];
+  const set: LevelPropsSet = {
+    atlases: new Map(props.map((prop) => [`${prop.id}.png`, { tag: prop.id } as unknown as CanvasImageSource])),
+    props: new Map(props.map((prop) => [prop.id, { atlas: `${prop.id}.png`, x: 0, y: 0, w: 1, h: 1, cx: 0, cy: 0, sx: 1, sy: 1 }])),
+  };
+
+  it("splits the level's own depths into the frame's four breaks", () => {
+    const buckets = propDepthBuckets([...props, { ...props[0], id: "hidden", z: -214 }]);
+    expect(buckets.far.map((prop) => prop.id)).toEqual(["far"]);
+    expect(buckets.ground.map((prop) => prop.id)).toEqual(["ground"]);
+    expect(buckets.mid.map((prop) => prop.id)).toEqual(["mid"]);
+    expect(buckets.plane.map((prop) => prop.id)).toEqual(["plane"]);
+    expect(buckets.near.map((prop) => prop.id)).toEqual(["near", "hidden"]);
+    // Farthest first inside a bucket, and the level's own order for equal depths.
+    expect(propDepthBuckets([{ ...props[0], z: 5 }, { ...props[0], id: "tie", z: 5 }]).far.map((prop) => prop.id))
+      .toEqual(["far", "tie"]);
+  });
+
+  it("paints the decorations at those breaks, around the ground and the entities", () => {
+    const { ctx, order } = makeOrderCtx();
+    drawFrame(
+      ctx,
+      createCamera(),
+      [block],
+      content,
+      [],
+      undefined,
+      undefined,
+      textured({ tag: "part" } as unknown as CanvasImageSource),
+      null,
+      null,
+      [terrain],
+      null,
+      { props, set },
+    );
+    const at = (marker: string): number => order.indexOf(marker);
+    // The ground's own flat fill is the marker between the two hemispheres: the far bucket lands
+    // behind it, the ground bucket in front of it, and the plane/near buckets past the cart.
+    expect(order.filter((entry) => entry.startsWith("image:"))).toEqual([
+      "image:far",
+      "image:ground",
+      "image:mid",
+      "image:part",
+      "image:plane",
+      "image:near",
+    ]);
+    expect(at("image:far")).toBeLessThan(at("fill"));
+    expect(at("fill")).toBeLessThan(at("image:ground"));
+    expect(at("image:ground")).toBeLessThan(at("image:part"));
+    expect(at("image:part")).toBeLessThan(at("image:plane"));
+    expect(at("image:plane")).toBeLessThan(at("image:near"));
+  });
+
+  it("draws the same frame when the level has no decorations", () => {
+    const withProps = makeOrderCtx();
+    const without = makeOrderCtx();
+    drawFrame(withProps.ctx, createCamera(), [block], content, [], undefined, undefined, textured({ tag: "part" } as unknown as CanvasImageSource), null, null, [terrain], null, { props, set });
+    drawFrame(without.ctx, createCamera(), [block], content, [], undefined, undefined, textured({ tag: "part" } as unknown as CanvasImageSource), null, null, [terrain], null, null);
+    expect(without.order).not.toContain("image:far");
+    expect(without.order.filter((entry) => entry === "fill").length).toBeGreaterThan(0);
+  });
+});
 
 describe("drawOrder", () => {
   const host: DrawEntity = { ...block, entityId: 5, partTypeId: 28 };
