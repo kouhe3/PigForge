@@ -15,10 +15,11 @@
 
 | 类 | prefab | 实例 | 是什么 | 处置 |
 |---|---|---|---|---|
-| **装饰四边面** | **269** | **15256** | 单/多四边面 + `Sprite`/`UnmanagedSprite` 脚本，无碰撞体 | **本片（P4a）** |
+| **可绘制（装饰四边面）** | **266** | **15430** | 每个带渲染器的对象都是 `Sprite`/`UnmanagedSprite` 四边面、且没有未建模的脚本：251 个单四边面 + 9 个多四边面（8 个背景组 + 2 个石头件）+ 6 个 `Lit*` | **P4a（251 个单件）+ P4b（15 个多件）已交付** |
 | 系统标记 | 21 | 6674 | 只有脚本没有渲染器：`LevelStart`/`LevelManager`/`CameraSystem`/`TimeChallenge`/`DontUsePartChallenge`/`DessertPlace`/`Cloud*Set`/`Bridge`… | 各自单独（相机界已收口；挑战/甜品归 P5） |
 | 地形 | 21 | 2146 | `e2dTerrain` 系列，**就是数据块的 2146 个地形对象** | 已交付（v2–v5） |
-| 实心/交互 | 57 | 1976 | 有碰撞体：`TNT_Box` 322（`TNTBox`，爆）+ `BoxChallenge` 269 / `StarBox` 262（挑战与收集）+ `BreakableWall`/`WoodenPlank2m`/`Fan`（`LevelRigidbody`）+ 8 个 `background_*_set` 背景组 + `GoalArea*` | **P4b/P4c/P5** |
+| 实心/交互 | 57 | 1976 | 有碰撞体：`TNT_Box` 322（`TNTBox`，爆）+ `BoxChallenge` 269 / `StarBox` 262（挑战与收集）+ `BreakableWall`/`WoodenPlank2m`/`Fan`（`LevelRigidbody`）+ `GoalArea*`/`Bridge`/`SecretPlace`/`PartBox` + `Slingshot`/`Bird_*`（`DynamicObject`/`SpriteAnimation`）+ `SpriteReference` 的窗户件 | **P4c/P5**（背景组已随 P4b 画出，它们的碰撞体仍留在这里） |
+> 一行里的数字按「脚本集合」分类，**同一个 prefab 只出现在一行**：`8 个 background_*_set` 因带碰撞体算在实心/交互里，但它们的**画面**已经在 P4b 交付（碰撞体归 P4c）。
 
 装饰类内部再分（实测）：
 
@@ -26,13 +27,20 @@
 |---|---|---|---|---|
 | `UnmanagedSprite` | 68 | 7769 | `Props_Generic_Sheet_01.png`（512²，16/32 网格） | 草地/蘑菇/水晶/岩石/砾石/贝壳/树枝… |
 | `Sprite`（走精灵库） | 183 | 7363 | `IngameAtlas.png`(73) / `IngameAtlas2.png`(127)（2048²） | 南瓜叶/玛雅壁画/奶油线/碎屑/金堆/星光… |
-| `Panel`+`SpriteReference` | 4 | 48 | — | 关卡里的"窗户"（UI 件）→ P4b |
-| `PointLightSource`+`Sprite` | 6 | 40 | — | 发光蘑菇/水晶（多一个点光源，我们不模拟光）→ P4b |
-| 多四边面特殊件 | 7 | 35 | — | `Slingshot`(20，带 `DynamicObject`)、`Bird_*`(9，`SpriteAnimation`)、`Stone5_2`/`Stone2_2`(6) → P4b |
+| `Panel`+`SpriteReference` | 4 | 48 | — | 关卡里的"窗户"（UI 件）→ **仍未画**（`SpriteReference` 的取值规则另说） |
+| `PointLightSource`+`Sprite` | 6 | 40 | — | 发光蘑菇/水晶：**已画**，多出的点光源不建模（§7 偏差 4） |
+| 多四边面特殊件 | 7 | 35 | — | `Stone5_2`/`Stone2_2`(6) **已画**；`Slingshot`(20，`DynamicObject`)、`Bird_*`(9，`SpriteAnimation`) **仍未画** |
 | `WindowTiny` | 1 | 1 | — | 有 `Panel` 但没有渲染器 → 不画 |
 
-**P4a = 前两行**（251 个 prefab、15132 个实例），判据是**一个 prefab 恰好一个四边面、没有碰撞体、
-脚本集合 ⊆ {`Sprite`, `UnmanagedSprite`}**。这样「只画不碰」与原版一致——它本来就没有碰撞体。
+**可绘制 = 前面的判据**（266 个 prefab、15430 个实例、**953 个四边面**）：每个带渲染器的 GameObject
+都带精灵组件、脚本集合 ⊆ {`Sprite`, `UnmanagedSprite`, `PointLightSource`}。`Lit*` 只多一个点光源
+（光晕不建模，§7 偏差 4）；多四边面的 15 个见下表。
+
+| 多四边面家族 | prefab | 实例 | 四边面 | 说明 |
+|---|---|---|---|---|
+| `background_*_set`（背景组） | 8 | 258 | 4…250 | 关卡的天幕/远景/近景/前景层，各自带视差标签与整层色块（§4.2） |
+| `Stone2_2`/`Stone5_2` | 2 | 6 | 2 | 两块石头叠一层 |
+| `Slingshot`/`Bird_*`/窗户件/`WindowTiny` | 8 | 74 | — | `DynamicObject`/`SpriteAnimation`/`SpriteReference` → **仍未画**（P4b 只收前两行） |
 
 ## 3. 画法真值（两个类，各自一条公式）
 
@@ -66,13 +74,24 @@
   解析不到任何资产，且没有任何代码把 `SpriteData.material` 赋给渲染器；实测 232/232 个管理件的 prefab 材质
   与 `db.materialId` 都不同）。
 
-### 3.3 实例变换
+### 3.3 实例变换与多层 prefab
 
 `LevelLoader.ReadPrefabInstance`：`position`（世界）、`rotation = Quaternion.Euler(euler)`（**euler 是度**）、
 `localScale`；随后 `ReadData` 把 `position.x/y` 与 `localScale.x/y` 各乘 `IN TerrainScale × user TerrainScale`
 （声明默认档 1.0 ⇒ 恒等）。四边面 `z` 恒 0 ⇒ **只有 `scale.x/y` 参与**；`scale.x = −1` 就是镜像
 （实测大量 `-1,1,1`：`Grass_*`/`Rock_*`/`Branch_01`/`Star_01`…），`scale.z = 0` 无影响。
 实测 `scale.y = −1` 也存在（`Grass_03` 一例 `1,-1,1`）。
+
+**一个 prefab 可以不止一个四边面**（15/266 个可绘制件是）。它们的层级靠 `Transform.m_Father` /
+`m_Children` 连起来，每个对象自己的 `m_LocalPosition`/`m_LocalRotation`/`m_LocalScale` 相对父级；
+`tools/lib/props.mjs` 从**根**往下把每一级合成（根自己的局部变换被关卡实例覆盖，所以根按单位阵起步），
+得到每个四边面**相对件原点**的 `{dx, dy, dz, rotation, scaleX, scaleY}`。合成后的 2D 矩阵必须能分解成
+`R(旋转)·diag(sx, sy)`（没有错切），否则工具**报错**而不是猜（非均匀缩放的父级 + 带旋转的子级会引入错切）。
+每个对象的 `m_IsActive` 沿着层级传下去：停用的对象（含其子树）不画。
+
+**有些四边面贴图集，有些只填色**：材质 `_Custom/Unlit_Monochrome`（背景层的 `*_Fill` 层，
+`Assets/Shader/_Custom_Unlit_Monochrome.shader` 的 `frag` 只 `return _Color`）没有 `_MainTex`，
+只有 `m_Colors._Color`（RGBA）——这种四边面在清单里带 `color` 而没有图集矩形，客户端 `fillRect`。
 
 ## 4. 深度（z）与绘制顺序
 
@@ -86,22 +105,47 @@
 | 边缘条带 z = −0.01 ⇒ 比地面**更近** | `LevelLoader.cs:299`、`e2dTerrainCurveMesh.cs:57` |
 | 游玩平面 = **z = −5** | 20 个关卡预置零件实例实测 z ≈ −5.00（`Part_WoodenFrame_01_SET`、`Part_CartWheel_01_SET`、`Part_Balloon_01_SET`…） |
 | 装饰件以 −5 为中心，z ∈ [−7.48, +7.00] | 15256 个装饰实例实测；−5.00 一个值就有 7207 个实例 |
-| 背景/云在 z ≥ 0（`background_*_set` z=0、`CloudJungleSet` z=15） | 实测 |
-| 被"藏起来"的实例在 z ≤ −100 | `Daisy_02` −214.38、`TimeChallenge` −123.69、背景组 −225.14（都在相机后面 ⇒ 不可见） |
+| 背景组**实例**在 z = 0，但组内每层各有自己的 z | `background_jungle_01_set` 的 102 个四边面 `dz ∈ [−15.31, +20]`（天幕 +20、近景 −15.3…） |
+| 云在 z ≥ 0（`CloudJungleSet` z=15） | 实测 |
+| 被"藏起来"的实例在 z ≤ −100 | `Daisy_02` −214.38、`TimeChallenge` −123.69（都在相机后面 ⇒ 不可见） |
 
 **客户端的绘制顺序 = z 降序（远的先画）**，同 z 用一个固定次序打破平局（原版的深度缓冲对同深度是未定义的：
-实测大量装饰件恰好落在 −5.00，与游玩平面同深）。本片采用：
+实测大量装饰件恰好落在 −5.00，与游玩平面同深）。**排序按四边面**（一个道具自己的四边面各在自己的深度上：
+背景组的天幕在 +20、近景在 −15）取 `实例 z + 四边面 dz`，落在下面这些分段里：
 
 ```
-背景网格 → [道具 z>0，z 降序] → 地面 fill（z=0） → goalZone（z=0，画在地面之上）
-        → [道具 z=0] → 边缘条带（z=-0.01） → [道具 -5<z<0] → 实体层（z=-5）
-        → [道具 z=-5] → [道具 z<-5] → 放置预览/选中框
+背景网格 → [四边面 z>0，z 降序] → 地面 fill（z=0） → [四边面 z=0]
+        → 边缘条带（z=-0.01） → goalZone → [四边面 -5<z<0] → 实体层（z=-5）
+        → [四边面 z=-5] → [四边面 z<-5] → 世界边界框 → 放置预览/选中框/框选
 ```
 
 - 实体层的 z 记作 **−5**（原版的游玩平面），所以 `z < −5` 的装饰（草、蘑菇、水晶的主体）画在车**之上**，
   `z = −5` 的画在车**之下**——这是本片的一个平局选择（§7 偏差 2）。
 - `z ≤ −100` 的实例照旧参与排序 ⇒ 画在所有东西之上（**与原版不同**，§7 偏差 3）——它们在原版里是
-  「藏起来的」实例，P4b 之前先如实上报数量。
+  「藏起来的」实例（装饰件里只剩 12 个），工具依旧如实上报数量。
+
+### 4.2 视差（背景层）——`ParallaxManager`
+
+原版 `CameraSystem` 上挂着 `ParallaxManager`，它在 `Start` 用 **tag** 找层
+（`GameObject.FindGameObjectsWithTag`：`ParallaxLayerFurther/Far/Near/Sky/Foreground/FixedFollowCamera`），
+之后每帧 `m_offset.x += 相机的 Δx`，再把每层设成 `x = 它自己的 x + m_offset.x × 系数`
+（`ParallaxManager.cs:82-99`）：
+
+| tag | 系数 x | 系数 y |
+|---|---|---|
+| `ParallaxLayerForeground` | **−0.4** | **0.2**（只往下、不超过自己的起始高度） |
+| `ParallaxLayerFurther` | 0.7 | 0 |
+| `ParallaxLayerFar` | 0.6 | 0 |
+| `ParallaxLayerNear` | 0.4 | 0 |
+| `ParallaxLayerSky` | 0.8 | 0 |
+| `ParallaxLayerFixedFollowCamera` | **1**（贴住屏幕） | 0 |
+
+系数 1 = 完全跟着相机（屏幕上不动）、0 = 钉在世界里（最远不了）；所以天幕 0.8、近景 0.4、
+前景 −0.4（比世界跑得还快）。客户端的参照点 = **关卡装载时的相机位置**（`App.vue` 按关卡相机界
+取景之后记下它），「相机相对装载时动了多少」就是 `m_offset`。
+
+**实测佐证**（浏览器里直接调 `drawProps`）：相机 x 平移 20 米时，`ParallaxLayerSky` 层的世界位移
+读数为 **16 米** = `0.8 × 20`，屏幕位移 `−88 px` = `(20 − 16) × 22 px/m`（§8）。
 
 ## 5. 内容契约
 
@@ -117,40 +161,47 @@
 
 | 字段 | 含义 |
 |---|---|
-| `id` | 道具清单里的键（关卡调色板 prefab 的名字，`basename(path, ".prefab")`） |
+| `id` | 道具清单里的键 = 关卡调色板 prefab 的名字，**空白折成下划线**（两个背景组原名带空格：`background_cave_01_set 1`；内容标识符不许有空白，`tools/lib/props.mjs` 的 `propId` 是唯一的转换点，提取器断言 id 唯一） |
 | `x` `y` `z` | 实例的世界位置（`TerrainScale` 声明默认档 1.0；float32 精确） |
 | `rotation` | 关卡文件 `euler.z`（**度**）换算的**弧度**（`Quaternion.Euler` 只有 z 分量非 0） |
 | `scaleX` `scaleY` | 实例的 `localScale.x/y`（`−1` = 镜像） |
 
-只有 §2 表里 P4a 那 251 个 id 会出现在这里；其余实例（系统/实心/背景/多面特殊件）由工具**统计上报**，
-不静默丢弃。
+只有 §2 里那 266 个**可绘制** id 会出现在这里（P4a 的 251 + P4b 的 15）；其余实例（系统/实心/行为件/
+`Slingshot`/`Bird_*`/窗户件）由工具**统计上报**，不静默丢弃。
 
 ### 5.2 客户端道具清单 `clients/web/public/assets/original/level-props.json`
 
-视觉面（图集 + 源矩形 + 世界尺寸 + 枢轴偏移）是**客户端资产**，与零件贴图清单同一条路线
-（`clients/web/public/assets/original/` 下的图片不入库）；键名与 `part-textures.json` 一致：
+视觉面（图集 + 源矩形 + 世界尺寸 + 枢轴偏移 + 四边面自己的层次帧）是**客户端资产**，与零件贴图清单
+同一条路线（`clients/web/public/assets/original/` 下的图片不入库）；键名与 `part-textures.json` 一致：
+**v2 起一个道具 = 一个 `quads` 数组**（P4b 的多层件需要），每个四边面带 `dx/dy/dz/rotation/scaleX/scaleY`
+（相对件原点，§3.3）、`parallax{x,y[,limitY]}`（§4.2），以及 `atlas`+`x/y/w/h` **或** `color`（§3.3 的纯色层）：
 
 ```json
 {
   "format": "pigforge.level-props",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "unitsPerPixel": 0.026041666666666668,
-  "atlases": { "Props_Generic_Sheet_01.png": { "width": 512, "height": 512 }, "IngameAtlas.png": { "width": 2048, "height": 2048 }, "IngameAtlas2.png": { "width": 2048, "height": 2048 } },
-  "props": { "Grass_02": { "atlas": "Props_Generic_Sheet_01.png", "x": 96, "y": 96, "w": 64, "h": 64, "cx": 0, "cy": 0, "sx": 0.99, "sy": 0.99 } }
+  "atlases": { "Props_Generic_Sheet_01.png": { "width": 512, "height": 512 }, "Background_Jungle_Sheet_01.png": { "width": 1024, "height": 1024 } },
+  "props": {
+    "Grass_02": { "quads": [ { "atlas": "Props_Generic_Sheet_01.png", "x": 64.25, "y": 320.25, "w": 63.5, "h": 63.5, "cx": 0, "cy": 0, "sx": 0.9896, "sy": 0.9896, "dx": 0, "dy": 0, "dz": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "parallax": { "x": 0, "y": 0 } } ] }
+  }
 }
 ```
 
-`x/y/w/h` 是图集里的像素源矩形，`cx/cy` 是四边面中心相对件原点的世界偏移（§3.2 的枢轴），`sx/sy` 是世界尺寸。
-`Props_Generic_Sheet_01.png`（512²，212 KB）与零件图集一起复制到该目录（不入库）。
+`x/y/w/h` 是图集里的像素源矩形，`cx/cy` 是四边面中心相对**它自己那一层**原点的世界偏移（§3.2 的枢轴），
+`sx/sy` 是世界尺寸；`color` 是 `[r,g,b,a]`（0…1，只对纯色层）。清单引用到的图集（P4b 之后 **19 张**：
+零件图集 + 3 张装饰图集 + 10 张 `Background_*_Sheet_01.png` + 6 张 `*_Sky_Texture.png`）全部复制到该目录
+（不入库）。
 
 ## 6. 分片
 
 | 片 | 内容 | 状态 |
 |---|---|---|
-| **P4a** | 251 个装饰四边面：清单工具 + 关卡 v6 的 `props` + 客户端按 z 排序绘制 | **本片** |
-| P4b | 多四边面与特殊件：8 个 `background_*_set` 背景组（各自 ~110 个 GameObject 的视差层）、`Slingshot`/`Bird_*`/`Stone*_2`/`Lit*`/`Window*`、`DessertPlace` 甜品生成 | 待做（清单已经是「一个 prefab = 若干带局部变换的四边面」，扩展的是 prefab 层级遍历） |
+| P4a ✅ | 251 个单四边面装饰件：清单工具 + 关卡 v6 的 `props` + 客户端按 z 分段绘制 | **2026-10-09 交付** |
+| **P4b ✅** | 15 个多四边面/多点光源件：8 个 `background_*_set` 背景组（4…250 个四边面、视差标签、纯色层）+ `Stone2_2`/`Stone5_2` + 6 个 `Lit*` —— prefab 层级遍历（`m_Father`/`m_Children`/`m_LocalPosition`）、四边面各自深度、`ParallaxManager` 的视差 | **本轮交付**（`Slingshot`/`Bird_*`/窗户件仍未画） |
 | P4c | 实心件：`TNT_Box`/`BreakableWall`/`WoodenPlank2m`/`Fan`/`GoalArea*` 的碰撞体进房间（静态盒）+ 画图 | 待做 |
 | P5 | 行为件：`BoxChallenge`/`StarBox`/`Collectable`/`WaypointChallenge`/`TNTBox`/`LevelRigidbody`/`TimeChallenge`/`DontUsePartChallenge` 与星级/计时/收集（`PrefabOverrides` 的挑战块） | 待做（`docs/specs/original-level-pack.md` §8 P5） |
+| P4b′ | `Slingshot`（`DynamicObject`）/`Bird_*`（`SpriteAnimation`，带帧动画）/4 个 `SpriteReference` 窗户件、`DessertPlace` 甜品生成 | 待做 |
 
 ## 7. 有意偏差
 
@@ -158,12 +209,17 @@
    （`Mushroom_02`：`m_textureWidth 128` / `m_spriteWidth 38` 是按 **1024** 图集算的，而
    `Props_Generic_Sheet_01.png` 是 512²；按 512 重算会得到 19.2）。原版 `Awake` 直接用序列化值建面，
    编辑器那条重算路径（`OnDrawGizmos`→`ResetSize`）只在 `m_spriteWidth == 0` 时写它，所以**序列化值就是线上值**。
-2. **同 z 的平局次序是我们的选择**：原版深度缓冲对同深度是未定义的（15132 个装饰实例里有 7207 个落在 −5.00，
-   与游玩平面同深）。本片让同 z 的道具画在实体**之下**、画在地面**之上**。
-3. **z ≤ −100 的"藏起来"的实例照旧画出**（原版它们在相机后面，不可见）。工具如实报告数量（实测 12 个实例），
-   等 P4b 处理背景与相机裁剪时一起收。
-4. **不模拟 `Lit*` 的点光源**、`SpriteAnimation`（鸟）、`DynamicObject`（弹弓）——它们不在 P4a 的家族里。
-5. 图集不入库（与零件图集同一条 `.gitignore`）；缺图时客户端按现有地形/零件的老规矩回退（不画、不报错）。
+2. **同 z 的平局次序是我们的选择**：原版深度缓冲对同深度是未定义的（装饰实例里有 7207 个落在 −5.00，
+   与游玩平面同深）。本片让同 z 的四边面画在实体**之下**、画在地面**之上**，同 z 内部按关卡文件顺序。
+3. **z ≤ −100 的"藏起来"的实例照旧画出**（原版它们在相机后面，不可见）。工具如实报告数量（装饰件里 12 个），
+   相机裁剪另说。
+4. **不模拟 `Lit*` 的点光源**、`SpriteAnimation`（鸟）、`DynamicObject`（弹弓）、`SpriteReference`（窗户件）
+   ——它们不在本轮的可绘制判据里。
+5. **视差是"参照装载时相机"的无状态近似**：原版逐帧累加并夹紧（前景层的 y 永不高于起始高度），
+   客户端按 `min(0, 0.2 × Δy)` 直接算，来回平移相机时与原版会有细微差别（`ParallaxManager.Update`）。
+6. **`tools/lib/props.mjs` 的 `propId`** 把 prefab 名里的空白折成下划线（内容/协议标识符不许有空白）；
+   15 个多四边面里只有两个背景组受影响（`background_*_set 1` → `background_*_set_1`），提取器断言 id 唯一。
+7. 图集不入库（与零件图集同一条 `.gitignore`）；缺图时客户端按现有地形/零件的老规矩回退（不画、不报错）。
 
 ## 8. 验收
 
@@ -174,15 +230,21 @@ dotnet test PigForge.slnx                        # 解析器 v6（v1–v5 出现
 cd clients/web; pnpm test                        # 客户端校验器 + 绘制顺序
 ```
 
-必须复核的数字（报告里断言；2026-10-09 实跑）：
+必须复核的数字（报告里断言；2026-10-09 实跑，P4a + P4b 同一轮）：
 
-- `palette prefabs 368` / `instances 26072`；`kinds: decor=251/15132 system=21/6674 solid=57/1976 special=18/124 terrain=21/2146`
-  （**26052** = 26072 − 20 个预置零件，`spawns` 里数）；`atlases = {Props_Generic_Sheet_01.png: 68, IngameAtlas.png: 73, IngameAtlas2.png: 127}`。
-- 每个装饰件都能解析出图集 + uv + 尺寸（0 个未解析：`tools/bple-props` 一份失败都不报）。
-- 关卡侧：277 个文件都写 v6，`props` 合计 **15132** 条（每关 10…478，无空关）；`bple-levels` 的同一份口径断言
-  `decor instances: 15132` 与 `classified instances: 26072`。
+- `palette prefabs 368` / `instances 26072`；`kinds: decor=261/15220 system=21/6674 solid=57/1976 special=8/36 terrain=21/2146`
+  （按「地形 / 有没有渲染器 / 有没有碰撞体 / 脚本集合」分类，同一 prefab 只算一行；`special` 只剩 8 个
+  ——`Slingshot`(1)/`Bird_*`(4)/窗户件(3)）。
+- **可绘制 266 个 prefab / 15430 个实例 / 953 个四边面 / 19 张图集**；其中单四边面 **257 个 / 15172 个实例**；
+  多四边面恰好是 `Stone2_2, Stone5_2, background_cave_01_set_1, background_forest_01_set_1, background_halloween,
+  background_jungle_01_set, background_mm_01_set, background_night_01_set_1, background_plateau_01_set`（工具硬断言这份名单）。
+- 每个四边面都能解析出图集 + uv + 尺寸（或纯色 + 尺寸）：`tools/bple-props` 0 失败；id 无空白且唯一。
+- 关卡侧：277 个文件都写 v6，`props` 合计 **15430** 条；`bple-levels` 的同一份口径断言
+  `drawable prop instances: 15430` 与 `classified instances: 26072`。
 - 客户端实机（真服务器 `--play --level original/episode_1_levels/Level_05.json` + 真 vite + 真 Chromium）：
-  真实关卡文档 + 真实清单走 `drawFrame` 一帧：**16 个装饰实例 → 16 次 `drawImage`**（关掉装饰时 0 次），
-  与「无装饰」帧相比 **8467 个像素**不同；应用本体（`建造` 页连上 `/play`）同屏画出贴图地面 + 边缘条带 +
-  水晶/蘑菇/贝壳/金堆/草/星等装饰，控制台 0 错误。把 `level-props.json` 挪走后重载只剩地形与条带（回退路径），
-  同样 0 错误。
+  `Level_05` 的 **17 个道具 → 118 个四边面**，一帧里 **116 次 `drawImage` + 3 次 `fillRect`**（关掉装饰时只有 2 次
+  地面着色），与「无装饰」帧相比 **1 054 785 个像素**不同（画布 1400×800）；应用本体（`建造` 页连上 `/play`）
+  同屏画出天幕/树线/沙滩带 + 贴图地面 + 边缘条带 + 水晶/蘑菇/贝壳/金堆/草/星，控制台 0 错误。
+- **视差**：浏览器里直接调 `drawProps`，相机 x 平移 20 米 → `ParallaxLayerSky` 层的世界位移 **16 米** = `0.8 × 20`，
+  屏幕位移 `−88 px` = `(20 − 16) × 22 px/m`；装饰件（`parallax = 0`）不移动 ✓。
+- 两个工具第二次运行都 **0 改动**；把 `level-props.json` 挪走后重载只剩地形与条带（回退路径），0 错误。
