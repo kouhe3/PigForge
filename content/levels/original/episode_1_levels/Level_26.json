@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_26",
   "goalZone": {
     "min": [
@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-4.484659,"y":-6.1000757,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Mushroom_01","x":-50.409904,"y":-0.5772085,"z":-4.5,"rotation":0.099778675,"scaleX":1,"scaleY":1},
     {"id":"Grass_05","x":-34.724915,"y":2.0123048,"z":-5,"rotation":5.670862,"scaleX":1,"scaleY":1},
     {"id":"Grass_02","x":-58.4702,"y":16.230717,"z":-5,"rotation":5.956372,"scaleX":1,"scaleY":1},

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_46",
   "goalZone": {
     "min": [
@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":6.6600738,"y":11.994439,"z":0,"rotation":1.8009261,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":2.9903762,"y":12.227454,"z":0,"rotation":6.235214,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":4.5620575,"y":10.790194,"z":0,"rotation":0.4227779,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Grass_03","x":-16.001278,"y":7.2732544,"z":-5,"rotation":0.047936987,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":-25.574848,"y":5.5388165,"z":-5,"rotation":5.260394,"scaleX":1,"scaleY":1},
     {"id":"Branch_01","x":-48.271706,"y":-0.44017163,"z":-5,"rotation":4.137383,"scaleX":1,"scaleY":1},

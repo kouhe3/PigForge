@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_37",
   "goalZone": {
     "min": [
@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":10.721268,"y":-6.077071,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-10.112437,"y":16.015255,"z":0,"rotation":0.17780016,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Crystal_03","x":-27.768835,"y":5.272111,"z":-5,"rotation":3.1581032,"scaleX":1,"scaleY":1},
     {"id":"Tuft_02","x":-25.247541,"y":-6.6306868,"z":-4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_03","x":-18.346943,"y":18.157219,"z":-5,"rotation":5.288983,"scaleX":-1,"scaleY":1},

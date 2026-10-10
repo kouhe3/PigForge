@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "test44",
   "goalZone": {
     "min": [
@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-16.392296,"y":-6.0957274,"z":0,"rotation":1.5711037,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-12.811243,"y":-2.6153913,"z":0,"rotation":0.063806124,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Grass_01","x":-34.43934,"y":1.2185478,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_02","x":-56.760086,"y":3.6835651,"z":-5,"rotation":6.1217046,"scaleX":1,"scaleY":1},
     {"id":"Grass_06","x":-2.2242355,"y":-0.47737312,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

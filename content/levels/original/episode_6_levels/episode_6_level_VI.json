@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_VI",
   "goalZone": {
     "min": [
@@ -29,6 +29,14 @@
   "cameraLimits": {"topLeft":[-191.07,59],"size":[49.3,72]},
   "spawns": [],
   "props": [
+    {"id":"PressureButtonGreen","x":-159.82,"y":35.808,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonYellow","x":-173.42,"y":45.8,"z":0.20000005,"rotation":6.05051,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonRed","x":-156.73,"y":39.52,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonBlue","x":-183.346,"y":33.385,"z":0.20000005,"rotation":5.3185725,"scaleX":1,"scaleY":1},
+    {"id":"ActivatedHingeDoorYellow","x":-174.05,"y":13.1,"z":0,"rotation":1.0471976,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorBlue","x":-170.998,"y":29.74,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen","x":-165.92,"y":19.79,"z":0,"rotation":1.9198622,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorRed","x":-173.05,"y":-0.01,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"Tree03","x":-173.35,"y":36.47,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower9","x":-152.66,"y":57.75,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoldPile01","x":-159.72,"y":-6.53,"z":-1.5,"rotation":0,"scaleX":1,"scaleY":1},

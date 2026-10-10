@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_21",
   "goalZone": {
     "min": [
@@ -29,6 +29,10 @@
   "cameraLimits": {"topLeft":[-228.68,44],"size":[69.1,55]},
   "spawns": [],
   "props": [
+    {"id":"PressureButtonRed","x":-182.86,"y":6.483,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"ActivatedHingeDoorYellow","x":-181.143,"y":38.97,"z":0,"rotation":4.7094574,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen","x":-206.05,"y":9.05,"z":0,"rotation":0.4384994,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorRed","x":-188.244,"y":3.389,"z":0,"rotation":4.7126126,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"GoldenPigNest","x":-186.855,"y":-2.716,"z":1.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoldenPigNest","x":-185.395,"y":-2.539,"z":1.5,"rotation":1.5707964,"scaleX":1,"scaleY":1},
     {"id":"Stone12","x":-192.99,"y":33.591,"z":-2,"rotation":6.152038,"scaleX":1,"scaleY":1},
@@ -92,7 +96,11 @@
     {"id":"Grass24","x":-214.866,"y":38.774,"z":-3,"rotation":3.1379428,"scaleX":-1,"scaleY":1},
     {"id":"Grass20","x":-204.612,"y":10.472,"z":0.9,"rotation":0.45396572,"scaleX":-1,"scaleY":1},
     {"id":"Grass23","x":-199.825,"y":6.638,"z":0.9,"rotation":4.414991,"scaleX":1,"scaleY":1},
-    {"id":"Grass21","x":-174.227,"y":6.341,"z":2.2,"rotation":0.08825749,"scaleX":-1,"scaleY":1}
+    {"id":"Grass21","x":-174.227,"y":6.341,"z":2.2,"rotation":0.08825749,"scaleX":-1,"scaleY":1},
+    {"id":"PressureButtonGreen","x":-194.89,"y":12.43,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonBlue","x":-204.928,"y":21.788,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonYellow","x":-177.42,"y":-6.73,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"ActivatedHingeDoorBlue","x":-206.911,"y":19.59,"z":0,"rotation":4.711619,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
   ],
   "terrain": [
     {

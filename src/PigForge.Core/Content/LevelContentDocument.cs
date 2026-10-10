@@ -28,7 +28,8 @@ public sealed record LevelSpawnDefinition(
 /// always zero) and <see cref="ScaleX"/>/<see cref="ScaleY"/> are the instance's own localScale --
 /// a negative x is the original's mirroring, and the quad's z scale never matters. A decoration has
 /// no collider and no behaviour in the original, so the room only needs this to relay it to the
-/// client: the server never builds anything from it.
+/// client; a *solid* instance (<see cref="Boxes"/>) is the level's own furniture, and the room turns
+/// each box into a static body (<c>docs/specs/level-props.md</c> §3.6).
 /// </summary>
 public sealed record LevelPropDefinition(
     string Id,
@@ -37,7 +38,33 @@ public sealed record LevelPropDefinition(
     float Z,
     float Rotation,
     float ScaleX,
-    float ScaleY);
+    float ScaleY)
+{
+    /// <summary>
+    /// The instance's solid geometry, one entry per non-trigger box collider the original's prefab
+    /// carries (schemaVersion 7; empty for a decoration). Each box is in the prop's own frame, the way
+    /// a quad is: <see cref="LevelPropBoxDefinition.X"/>/<c>Y</c>/<c>Z</c> offset its centre from the
+    /// prop's origin, <see cref="LevelPropBoxDefinition.Rotation"/> is its own angle in radians and the
+    /// three sizes are the collider's own <c>m_Size</c>, already folded through the prefab's own
+    /// transform chain -- the *instance's* scale and mirroring are applied by whoever builds the body.
+    /// A trigger (a challenge's box, a goal, a secret, a pressure plate) is not a wall and is left out.
+    /// </summary>
+    public IReadOnlyList<LevelPropBoxDefinition> Boxes { get; init; } = Array.Empty<LevelPropBoxDefinition>();
+}
+
+/// <summary>
+/// One solid box of a placed prop (<c>docs/specs/level-props.md</c> §3.6): the original's own box
+/// collider, in the prop's frame. The room places it at the prop's own position and rotation, mirrors
+/// its offset with a negative instance scale and builds a static box body out of it.
+/// </summary>
+public sealed record LevelPropBoxDefinition(
+    float X,
+    float Y,
+    float Z,
+    float SizeX,
+    float SizeY,
+    float SizeZ,
+    float Rotation);
 
 /// <summary>
 /// The ground's look of one terrain, as the original's <c>e2d/Fill</c> shader draws it:
@@ -132,14 +159,14 @@ public sealed record LevelContentDocument(
     /// <summary>
     /// The version this code writes: v3 gives every terrain its collider bit and its fill, v4 adds the
     /// edge trim (<see cref="LevelCurveDefinition"/>), v5 adds the level's own camera limits
-    /// (<see cref="CameraLimits"/>) and v6 adds the level's decoration instances
-    /// (<see cref="Props"/>).
+    /// (<see cref="CameraLimits"/>), v6 adds the level's decoration instances (<see cref="Props"/>)
+    /// and v7 gives a placed prop its solid boxes (<see cref="LevelPropDefinition.Boxes"/>).
     /// </summary>
-    public const ushort SchemaVersion = 6;
+    public const ushort SchemaVersion = 7;
 
     /// <summary>
-    /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill) and v3 ones
-    /// (fill, no edge trim), v4 ones (edge trim, no camera limits) and v5 ones (camera limits, no
+    /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill), v3 ones
+    /// (fill, no edge trim), v4 ones (edge trim, no camera limits), v5 ones (camera limits, no
     /// props).
     /// </summary>
     public const ushort LegacySchemaVersion = 1;

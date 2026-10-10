@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_IX",
   "goalZone": {
     "min": [
@@ -75,6 +75,32 @@
     {"id":"Bird_Yellow","x":-189.739,"y":26.228,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":-188.19,"y":27.98,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Blue","x":-161.24,"y":6.339,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BreakableWall","x":-166.354,"y":56.896,"z":0,"rotation":0,"scaleX":-1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-167.464,"y":54.8,"z":0,"rotation":1.5707966,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-165.323,"y":54.8,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-164.074,"y":55.75,"z":-2.9,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-168.63,"y":55.75,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-169.066,"y":56.894,"z":-3.1,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-163.694,"y":56.893,"z":-3.1,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-162.804,"y":55.729,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-169.91,"y":55.75,"z":-2.9,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-168.76,"y":53.5,"z":-3.1,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-166.73,"y":53.5,"z":-3.05,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-164.61,"y":53.5,"z":-3.1,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-163.26,"y":54.08,"z":0,"rotation":2.484251,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-169.9,"y":54.41,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenPlank2m","x":-162.2,"y":54,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.33,"sizeY":2.1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-163.442,"y":56.209,"z":1.0999999,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-163.45,"y":55.179,"z":1,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-169.275,"y":55.184,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-163.574,"y":54.403,"z":2,"rotation":0.91872144,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-164.22,"y":54.15,"z":-3,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-165.26,"y":54.15,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-166.27,"y":54.15,"z":-3,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-167.257,"y":54.15,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-168.269,"y":54.15,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-169.262,"y":54.15,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"WoodenBox","x":-169.27,"y":56.22,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
     {"id":"Grass17","x":-174.245,"y":50.676,"z":-3,"rotation":0.5568878,"scaleX":-1,"scaleY":1},
     {"id":"Flower3","x":-168.754,"y":52.638,"z":-3.1,"rotation":6.056918,"scaleX":-1,"scaleY":1},
     {"id":"Grass17","x":-149.807,"y":54.302998,"z":-3,"rotation":6.253963,"scaleX":-1,"scaleY":1},
@@ -119,7 +145,9 @@
     {"id":"FGMayanThing02","x":-210.29,"y":-6.74,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGMayanThing01","x":-217.40999,"y":-6.629999,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones01","x":-155.409,"y":-7.1049995,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"FGStones01","x":-195.09,"y":-6.879999,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1}
+    {"id":"FGStones01","x":-195.09,"y":-6.879999,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"BreakableWall","x":-167.416,"y":56.901,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-165.291,"y":56.9,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]}
   ],
   "terrain": [
     {

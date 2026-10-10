@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_05",
   "goalZone": {
     "min": [
@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":37.219105,"y":-5.3438964,"z":0,"rotation":0.28743806,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-4.0772076,"y":4.9303846,"z":0,"rotation":0.30290303,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-5.424301,"y":4.802361,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Star_01","x":37.530018,"y":-7.0505567,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_06","x":8.645143,"y":4.4807925,"z":-5,"rotation":6.060668,"scaleX":1,"scaleY":1},
     {"id":"Grass_03","x":35.19154,"y":-0.19360542,"z":-5,"rotation":0.3378547,"scaleX":1,"scaleY":1},

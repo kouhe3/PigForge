@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_56",
   "goalZone": {
     "min": [
@@ -30,11 +30,13 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-44.851387,"y":23.576866,"z":0,"rotation":6.224148,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Bird_Red","x":-9.9104185,"y":5.8325043,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Blue","x":-8.814992,"y":5.888316,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Blue","x":-11.012933,"y":5.616318,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":-13.7940235,"y":7.7494154,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Red","x":-12.0988,"y":5.7440896,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Secret_02","x":7.9555154,"y":11.571973,"z":-0.06706259,"rotation":6.139625,"scaleX":0.4,"scaleY":0.4},
     {"id":"Mushroom_06","x":8.823286,"y":10.0749855,"z":-5,"rotation":5.556214,"scaleX":-1,"scaleY":1},
     {"id":"Daisy_06","x":-14.349682,"y":5.6251144,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_04_0","x":-16.96562,"y":-7.11092,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

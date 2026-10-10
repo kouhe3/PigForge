@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Episode_6_Ice-Sandbox",
   "goalZone": {
     "min": [
@@ -29,6 +29,10 @@
   "cameraLimits": {"topLeft":[-230,135],"size":[201,150]},
   "spawns": [],
   "props": [
+    {"id":"PressureButtonBlue","x":-99.588,"y":54.575,"z":0.19999695,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonYellow","x":-95.454,"y":52.979,"z":0.19999695,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonRed","x":-96.918,"y":50.729,"z":0.19999695,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonGreen","x":-98.599,"y":53,"z":0.19999695,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower10","x":-211.719,"y":138.591,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower9","x":-211.221,"y":139.406,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower8","x":-212.222,"y":139.398,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
@@ -116,7 +120,23 @@
     {"id":"FGStones02","x":-163.49,"y":-7.200001,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones01","x":-156.79001,"y":-7.170002,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower9","x":-210.748,"y":57.51,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},
-    {"id":"RedArrow","x":-183.316,"y":60.564,"z":2.8,"rotation":4.721178,"scaleX":1,"scaleY":1}
+    {"id":"RedArrow","x":-183.316,"y":60.564,"z":2.8,"rotation":4.721178,"scaleX":1,"scaleY":1},
+    {"id":"ActivatedHingeDoorBlue_Ice","x":-92.29393,"y":38.06253,"z":-1,"rotation":3.4906588,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorBlue_Ice","x":-46.36993,"y":70.38153,"z":-1,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorBlue_Ice","x":-44.87693,"y":80.15253,"z":-1,"rotation":3.141593,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen_Ice","x":-49.49,"y":51.48,"z":-1,"rotation":0.7853982,"scaleX":0.99999994,"scaleY":0.99999994,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen_Ice","x":-76.31593,"y":37.473534,"z":-1,"rotation":4.0142574,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen_Ice","x":-72.87793,"y":69.792534,"z":-1,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen_Ice","x":-117.47093,"y":38.709534,"z":-1,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen_Ice","x":-169.68292,"y":56.052532,"z":-1,"rotation":0.1745329,"scaleX":1,"scaleY":0.99999994,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen_Ice","x":-109.77793,"y":26.442532,"z":-1,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorRed_Ice","x":-93.75793,"y":43.06253,"z":-1,"rotation":3.141593,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorRed_Ice","x":-134.86794,"y":101.082535,"z":-1,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorRed_Ice","x":-126.04793,"y":101.082535,"z":-1,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorYellow_Ice","x":-153.07693,"y":103.43753,"z":-1,"rotation":2.6179938,"scaleX":1,"scaleY":1.0000001,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorYellow_Ice","x":-93.02793,"y":29.772533,"z":-1,"rotation":2.9670596,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorYellow_Ice","x":-48.94,"y":36.536,"z":-1,"rotation":4.886922,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorBlue_Ice","x":-46.19793,"y":19.052532,"z":-1,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
   ],
   "terrain": [
     {

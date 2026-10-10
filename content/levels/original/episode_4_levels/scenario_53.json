@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_53",
   "goalZone": {
     "min": [
@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-8.307198,"y":6.6589646,"z":0,"rotation":0.45760116,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-5.5969095,"y":-3.709162,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Daisy_06","x":0.9006138,"y":7.1644745,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_04","x":-24.862413,"y":-5.094557,"z":-5,"rotation":0.12120195,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_04_0","x":-32.04059,"y":-7.6365604,"z":-5.2942924,"rotation":0,"scaleX":1,"scaleY":1},

@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Secret_02","x":-42.438644,"y":5.077842,"z":-1,"rotation":0.06289743,"scaleX":0.4,"scaleY":0.4},
     {"id":"Gravel_03","x":19.165981,"y":-6.886574,"z":-4.471342,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Rock_02","x":-25.622784,"y":-6.6837425,"z":-4.471342,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-43.0888,"y":-6.893326,"z":-4.471342,"rotation":0,"scaleX":1,"scaleY":1},

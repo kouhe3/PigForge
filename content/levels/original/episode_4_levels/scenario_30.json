@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_30",
   "goalZone": {
     "min": [
@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-13.419552,"y":-6.0795426,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-7.6739507,"y":18.735544,"z":0,"rotation":0.15428975,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"Secret_02","x":-73.15485,"y":16.71841,"z":-0.09296429,"rotation":0.040191874,"scaleX":0.4,"scaleY":0.4},
     {"id":"Gravel_02","x":-65.817,"y":-6.772732,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Glow_01","x":3.729578,"y":17.50565,"z":4,"rotation":0,"scaleX":3.9203067,"scaleY":3.9203067},
     {"id":"Cave_Mushroom_03","x":2.849619,"y":-7.150078,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

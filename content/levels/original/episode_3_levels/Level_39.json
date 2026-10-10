@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_39",
   "goalZone": {
     "min": [
@@ -30,6 +30,13 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":4.362555,"y":-6.1116934,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-15.116929,"y":-2.9837594,"z":0,"rotation":2.3413415,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-36.683872,"y":0.78957415,"z":0,"rotation":5.5702143,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-38.826725,"y":1.9664402,"z":0,"rotation":5.6107626,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-28.044353,"y":-0.44451088,"z":0,"rotation":0.7854617,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-21.728834,"y":-0.5604407,"z":0,"rotation":5.6024857,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-37.866993,"y":1.2778461,"z":0,"rotation":4.321223,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Branch_02","x":-54.64672,"y":7.0183477,"z":-5,"rotation":4.644574,"scaleX":1,"scaleY":1},
     {"id":"Flower_02","x":-56.934692,"y":-7.2055626,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Tuft_02","x":-6.9664555,"y":-6.5257597,"z":-4.5,"rotation":0,"scaleX":1,"scaleY":1},

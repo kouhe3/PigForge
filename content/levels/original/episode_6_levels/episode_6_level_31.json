@@ -79,7 +79,8 @@
     {"id":"Spear2","x":-171.979,"y":-1.8289948,"z":3,"rotation":0.09032075,"scaleX":1,"scaleY":1},
     {"id":"Mushroom3","x":-152.496,"y":4.3460007,"z":-3,"rotation":0.64402276,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom1","x":-152.888,"y":4.334999,"z":2,"rotation":0,"scaleX":-1,"scaleY":1},
-    {"id":"Spear2","x":-200.107,"y":51.317,"z":3,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"Spear2","x":-200.107,"y":51.317,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"SecretStatue","x":-198.556,"y":53.158,"z":1,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

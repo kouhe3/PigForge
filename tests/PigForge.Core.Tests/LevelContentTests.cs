@@ -124,7 +124,7 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 7,
+            "schemaVersion": 8,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
@@ -550,7 +550,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)6, LevelContentDocument.SchemaVersion);
+        Assert.Equal((ushort)7, LevelContentDocument.SchemaVersion);
         Assert.Empty(level.Terrain);
         Assert.Collection(
             level.Props,
@@ -570,14 +570,118 @@ public sealed class LevelContentTests
                 Assert.Equal(6.060668f, prop.Rotation);
             });
 
-        // The converted pack carries them: the 279 drawable props are placed 15542 times across the
+        // The converted pack carries them: the 309 drawable props are placed 16378 times across the
         // 277 levels, and Level_05's own first instance is its jungle backdrop at the origin.
         LevelContentDocument real =
             LevelContentLibrary.Parse(File.ReadAllText(FindRepositoryFile("content/levels/original/episode_1_levels/Level_05.json")));
-        Assert.Equal(17, real.Props.Count);
+        Assert.Equal(20, real.Props.Count);
         Assert.Equal(new LevelPropDefinition("background_jungle_01_set", 0f, 0f, 0f, 0f, 1f, 1f), real.Props[0]);
         Assert.Contains(real.Props, prop => prop.Id == "Star_01");
         Assert.All(real.Props, prop => Assert.False(string.IsNullOrWhiteSpace(prop.Id)));
+
+        // This level is one of the 123 that declares v7: its three TNT crates are solid, and the
+        // decoration beside them is not.
+        Assert.Equal(3, real.Props.Count(prop => prop.Id == "TNT_Box"));
+        Assert.All(real.Props.Where(prop => prop.Id == "TNT_Box"), prop => Assert.Single(prop.Boxes));
+        Assert.All(real.Props.Where(prop => prop.Id != "TNT_Box"), prop => Assert.Empty(prop.Boxes));
+    }
+
+    /// <summary>
+    /// v7 gives a placed prop its own solid boxes: the original's non-trigger box colliders, in the
+    /// prop's own frame (`docs/specs/level-props.md` §3.6). A decoration carries none, a v6 document
+    /// may not carry them at all, and a box with a non-positive size is not a shape.
+    /// </summary>
+    [Fact]
+    public void AVersionSevenLevelGivesItsPropsSolidBoxes()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 7,
+            "contentVersion": "props-v7",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "props": [
+                {
+                    "id": "TNT_Box", "x": -43.76694, "y": 8.584375, "z": 0, "rotation": 0.14654502, "scaleX": 1, "scaleY": 1,
+                    "boxes": [ { "dx": 0, "dy": 0, "dz": 0, "sizeX": 0.95, "sizeY": 0.95, "sizeZ": 0.95, "rotation": 0 } ]
+                },
+                { "id": "Grass_06", "x": 8.645143, "y": 4.4807925, "z": -5, "rotation": 6.060668, "scaleX": 1, "scaleY": 1 }
+            ],
+            "terrain": []
+        }
+        """;
+
+        LevelContentDocument level = LevelContentParser.Parse(json);
+
+        Assert.Equal((ushort)7, LevelContentDocument.SchemaVersion);
+        Assert.Collection(
+            level.Props,
+            prop =>
+            {
+                Assert.Equal("TNT_Box", prop.Id);
+                Assert.Equal(0.14654502f, prop.Rotation);
+                LevelPropBoxDefinition box = Assert.Single(prop.Boxes);
+                Assert.Equal(0f, box.X);
+                Assert.Equal(0f, box.Y);
+                Assert.Equal(0f, box.Z);
+                Assert.Equal(0.95f, box.SizeX);
+                Assert.Equal(0.95f, box.SizeY);
+                Assert.Equal(0.95f, box.SizeZ);
+                Assert.Equal(0f, box.Rotation);
+            },
+            prop =>
+            {
+                Assert.Equal("Grass_06", prop.Id);
+                Assert.Empty(prop.Boxes);
+            });
+
+        // The converted pack carries them: 658 solid boxes across the 123 levels that place a crate, a
+        // wall, a plank or a door, and every box is a shape.
+        int boxes = 0;
+        int levelsWithBoxes = 0;
+        foreach (string file in Directory.EnumerateFiles(FindRepositoryDirectory("content/levels/original"), "*.json", SearchOption.AllDirectories))
+        {
+            LevelContentDocument document = LevelContentLibrary.Parse(File.ReadAllText(file));
+            int here = document.Props.Sum(prop => prop.Boxes.Count);
+            boxes += here;
+            levelsWithBoxes += here > 0 ? 1 : 0;
+            Assert.All(
+                document.Props.SelectMany(prop => prop.Boxes),
+                box => Assert.True(box.SizeX > 0f && box.SizeY > 0f && box.SizeZ > 0f, $"{file}: a box with a non-positive size"));
+        }
+
+        Assert.Equal(658, boxes);
+        Assert.Equal(123, levelsWithBoxes);
+    }
+
+    [Theory]
+    // v7 lets a prop carry boxes, and the shapes have to be real.
+    [InlineData("""[{ "id": "TNT_Box", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "boxes": 3 }]""", 7, "boxes")]
+    [InlineData("""[{ "id": "TNT_Box", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "boxes": [{ "dx": 0, "dy": 0, "dz": 0, "sizeX": 0, "sizeY": 1, "sizeZ": 1, "rotation": 0 }] }]""", 7, "positive")]
+    [InlineData("""[{ "id": "TNT_Box", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "boxes": [{ "dx": 0, "dy": 0, "dz": 0, "sizeX": 1, "sizeY": 1, "sizeZ": 1 }] }]""", 7, "rotation")]
+    [InlineData("""[{ "id": "TNT_Box", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "boxes": [{ "dx": 0, "dy": 0, "dz": 0, "sizeX": 1, "sizeY": 1, "sizeZ": 1, "rotation": 0, "extra": 1 }] }]""", 7, "extra")]
+    [InlineData("""[{ "id": "TNT_Box", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "boxes": [{ "dx": 0, "dy": 0, "dz": 0, "sizeX": 1, "sizeY": 1, "sizeZ": 1, "rotation": 0 }] }]""", 6, "boxes")]
+    public void TheBoxesAreVersionBoundAndWellFormed(string props, int version, string expected)
+    {
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": {{version}},
+            "contentVersion": "versioned-boxes",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [0, 0], "size": [1, 1] },
+            "spawns": [],
+            "props": {{props}},
+            "terrain": []
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -608,6 +712,22 @@ public sealed class LevelContentTests
 
         LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
         Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
+    }
+
+    private static string FindRepositoryDirectory(string relativePath)
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, relativePath)))
+        {
+            directory = directory.Parent;
+        }
+
+        if (directory is null)
+        {
+            throw new XunitException($"Could not locate {relativePath} above {AppContext.BaseDirectory}.");
+        }
+
+        return Path.Combine(directory.FullName, relativePath);
     }
 
     private static string FindRepositoryFile(string relativePath)

@@ -172,7 +172,12 @@
     {"id":"Bush","x":-201.923,"y":11.397799,"z":-3,"rotation":0.23946072,"scaleX":1,"scaleY":1},
     {"id":"Flower7","x":-178.1,"y":78.6208,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower7","x":-206.233,"y":9.317797,"z":-3,"rotation":0.04587551,"scaleX":-1,"scaleY":1},
-    {"id":"WindowBgSmall","x":-127.52701,"y":20.727797,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"WindowBgSmall","x":-127.52701,"y":20.727797,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-203.09,"y":59.47,"z":0,"rotation":6.1373034,"scaleX":1.0000004,"scaleY":0.9999998},
+    {"id":"Fan","x":-154.9,"y":56.35,"z":0,"rotation":5.579539,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-107.75,"y":40.25,"z":0,"rotation":2.5968456,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-153.96,"y":16.36,"z":0,"rotation":0.960629,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-119.05,"y":21.38,"z":0,"rotation":1.7440699,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

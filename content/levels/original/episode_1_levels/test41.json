@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "test41",
   "goalZone": {
     "min": [
@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":1.9482296,"y":-6.080866,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Grass_02","x":-37.327328,"y":-3.5096264,"z":-5,"rotation":6.2429366,"scaleX":1,"scaleY":1},
     {"id":"Grass_02","x":17.882954,"y":4.9938526,"z":-5,"rotation":0.8811528,"scaleX":-1,"scaleY":1},
     {"id":"Grass_02","x":-35.048504,"y":-4.3773556,"z":-5,"rotation":6.089476,"scaleX":-1,"scaleY":1},

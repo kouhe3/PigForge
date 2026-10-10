@@ -72,7 +72,8 @@
     {"id":"Mushroom1","x":-137.011,"y":-4.8840027,"z":2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom2","x":-132.386,"y":-0.8600006,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom1","x":-132.761,"y":-1.0439987,"z":2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"LitCrystal_02","x":-180.434,"y":15.306,"z":-3,"rotation":6.0816083,"scaleX":1,"scaleY":1}
+    {"id":"LitCrystal_02","x":-180.434,"y":15.306,"z":-3,"rotation":6.0816083,"scaleX":1,"scaleY":1},
+    {"id":"SecretStatue","x":-198.37,"y":6.21,"z":1,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

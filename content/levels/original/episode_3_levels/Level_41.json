@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_41",
   "goalZone": {
     "min": [
@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-18.880491,"y":-6.0819488,"z":0,"rotation":4.7127914,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-1.9386547,"y":2.6011512,"z":0,"rotation":0.16743512,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Wood_02","x":-38.49163,"y":-6.6712823,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Rock_01","x":-21.329575,"y":-6.6131406,"z":-5.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_02","x":-10.998267,"y":15.602306,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_13",
   "goalZone": {
     "min": [
@@ -29,6 +29,8 @@
   "cameraLimits": {"topLeft":[-231.2,51.3],"size":[96.1,66.65]},
   "spawns": [],
   "props": [
+    {"id":"BreakableWall","x":-152.408,"y":-3.334,"z":0,"rotation":0,"scaleX":1.1,"scaleY":1.1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-153.6,"y":-3.46,"z":0,"rotation":0.19511485,"scaleX":1.1,"scaleY":1.1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"Bush","x":-183.321,"y":15.444,"z":-1,"rotation":0.06353551,"scaleX":1,"scaleY":1},
     {"id":"WindowBgSmall","x":-168.05,"y":25.74,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Stone8","x":-149.66,"y":0.6,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1},

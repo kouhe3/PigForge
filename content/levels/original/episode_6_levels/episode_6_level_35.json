@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_35",
   "goalZone": {
     "min": [
@@ -33,6 +33,11 @@
     {"id":"Bird_Red","x":-156.406,"y":13.395,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Yellow","x":-160.048,"y":14.106,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":-158.1587,"y":15.846098,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BreakableWall","x":-146.09456,"y":17.14331,"z":0,"rotation":1.455779,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-145.97275,"y":18.206356,"z":0,"rotation":4.597372,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-146.33049,"y":15.031434,"z":0,"rotation":1.455779,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-146.21655,"y":16.087334,"z":0,"rotation":4.597372,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-145.7448,"y":14.942631,"z":0,"rotation":4.880131,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"Flower1","x":-141.914,"y":7.45,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower2","x":-140.236,"y":3.6999998,"z":-3,"rotation":0.018334908,"scaleX":1,"scaleY":1},
     {"id":"Flower3","x":-127.690994,"y":-2.9770002,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},

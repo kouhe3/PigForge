@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "test08",
   "goalZone": {
     "min": [
@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-4.2795553,"y":-6.08599,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":13.318317,"y":0.08287239,"z":0,"rotation":0.085420236,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"Secret_02","x":-38.281475,"y":11.727672,"z":-0.25261456,"rotation":6.184663,"scaleX":0.4,"scaleY":0.4},
     {"id":"Rock_01","x":17.77974,"y":-6.577214,"z":-4.262127,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_01","x":11.074539,"y":-1.3646061,"z":-4.262127,"rotation":0.12664728,"scaleX":1,"scaleY":1},
     {"id":"Crystal_03","x":-61.32759,"y":6.764905,"z":-4.262127,"rotation":2.0360813,"scaleX":1,"scaleY":1},

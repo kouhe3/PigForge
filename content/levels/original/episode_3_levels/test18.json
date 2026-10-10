@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "test18",
   "goalZone": {
     "min": [
@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0.61234283,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":64.70099,"y":10.901083,"z":0,"rotation":5.104142,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"Secret_02","x":21.253168,"y":16.910318,"z":-0.13607322,"rotation":0.11848643,"scaleX":0.4,"scaleY":0.4},
     {"id":"Glow_01","x":40.406246,"y":5.1995597,"z":4,"rotation":0,"scaleX":4,"scaleY":4},
     {"id":"Mushroom_01","x":-92.45443,"y":63.8496,"z":-5,"rotation":3.5799575,"scaleX":1,"scaleY":1},
     {"id":"Glow_01","x":88.64786,"y":46.18995,"z":4,"rotation":0,"scaleX":16.04748,"scaleY":16.04748},

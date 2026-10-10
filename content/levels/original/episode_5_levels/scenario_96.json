@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_96",
   "goalZone": {
     "min": [
@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":20.439377,"y":-0.3729367,"z":0,"rotation":0.27194485,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Cream_Line_03","x":22.724827,"y":19.941467,"z":-5,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Pumpkin_Plant_02","x":-20.081451,"y":11.49552,"z":-5.2684593,"rotation":6.0803103,"scaleX":1.988909,"scaleY":1.988909},
     {"id":"Pumpkin_Leaf","x":-27.43676,"y":8.7249,"z":-5,"rotation":2.5429645,"scaleX":1.304393,"scaleY":1.304393},

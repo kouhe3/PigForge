@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_19",
   "goalZone": {
     "min": [
@@ -40,6 +40,9 @@
     }
   ],
   "props": [
+    {"id":"PressureButtonYellow","x":-187.223,"y":19.56,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonRed","x":-182.101,"y":11.846,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-161.06,"y":-5.08,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1},
     {"id":"MayanPot02","x":-182.6,"y":4.52,"z":3,"rotation":0.56004393,"scaleX":1,"scaleY":1},
     {"id":"MayanChest01","x":-184.92,"y":-5.99,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Spear2","x":-178.52,"y":-5.33,"z":3,"rotation":0.22092511,"scaleX":1,"scaleY":1},
@@ -91,7 +94,10 @@
     {"id":"Grass22","x":-165.51,"y":10.47,"z":-3,"rotation":1.5707964,"scaleX":1,"scaleY":1},
     {"id":"Grass21","x":-167.68,"y":-0.82,"z":-3,"rotation":5.996457,"scaleX":-1,"scaleY":1},
     {"id":"Grass20","x":-162.414,"y":-2.397,"z":-3,"rotation":0.35547897,"scaleX":-1,"scaleY":1},
+    {"id":"ActivatedHingeDoorRed","x":-169.784,"y":11.132,"z":0,"rotation":1.5651169,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"LitMushroom_03","x":-187.182,"y":19.465,"z":20,"rotation":0,"scaleX":0,"scaleY":0},
+    {"id":"ActivatedHingeDoorYellow","x":-169.8,"y":6.214,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"SecretStatue","x":-181.09,"y":-5.4,"z":1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-182.06,"y":11.74,"z":20,"rotation":0,"scaleX":0,"scaleY":0}
   ],
   "terrain": [

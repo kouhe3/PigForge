@@ -132,6 +132,10 @@ public sealed class GameRoom : IDisposable
 
     /// <summary>How many static terrain bodies the level brought (test-visible).</summary>
     internal int TerrainBodyCount => _terrainBodies.Count;
+    private readonly List<PhysicsBodyId> _propBodies = new();
+
+    /// <summary>How many static bodies the level's own solid props brought (test-visible).</summary>
+    internal int PropBodyCount => _propBodies.Count;
     private readonly List<CapturedPart> _retryLayout = new();
     private readonly Dictionary<uint, List<CapturedPart>> _startLayoutByPlayer = new();
     private bool _disposed;
@@ -292,6 +296,7 @@ public sealed class GameRoom : IDisposable
         ArgumentNullException.ThrowIfNull(level);
         _level = level;
         EnsureTerrainBodies(level);
+        EnsurePropBodies(level);
         foreach (LevelSpawnDefinition spawn in level.Spawns)
         {
             Spawn(new RoomSpawnSpec(
@@ -349,6 +354,52 @@ public sealed class GameRoom : IDisposable
                 mass: 0f,
                 new ShapeDefinition[] { LevelTerrainMesh.Build(terrain) });
             _terrainBodies.Add(_world.CreateBody(definition));
+        }
+    }
+
+    /// <summary>
+    /// Creates the level's own solid furniture (schemaVersion 7 props' <c>boxes</c>,
+    /// <c>docs/specs/level-props.md</c> §3.6): every non-trigger box collider the original's prop prefab
+    /// carries becomes one static body, placed at the prop instance's own position and rotation and
+    /// mirrored by a negative instance scale -- the original's crates, walls, planks and doors are what
+    /// a vehicle drives into. The original gives several of them a rigidbody (a plank falls, a wall
+    /// breaks); this slice keeps them still, so the deviation is that they cannot be pushed or broken
+    /// yet. Like the terrain, they have no entity: they never enter a snapshot, the rules layer skips
+    /// their contact events, and they survive RESET. Built once per room.
+    /// </summary>
+    private void EnsurePropBodies(LevelContentDocument level)
+    {
+        if (_propBodies.Count > 0 || level.Props.Count == 0)
+        {
+            return;
+        }
+
+        foreach (LevelPropDefinition prop in level.Props)
+        {
+            foreach (LevelPropBoxDefinition box in prop.Boxes)
+            {
+                bool mirrored = prop.ScaleX < 0f;
+                float scaleX = MathF.Abs(prop.ScaleX);
+                float scaleY = MathF.Abs(prop.ScaleY);
+                (float cos, float sin) = (MathF.Cos(prop.Rotation), MathF.Sin(prop.Rotation));
+                float offsetX = (mirrored ? -box.X : box.X) * scaleX;
+                float offsetY = box.Y * scaleY;
+                PhysicsVector3 position = new(
+                    prop.X + (offsetX * cos) - (offsetY * sin),
+                    prop.Y + (offsetX * sin) + (offsetY * cos),
+                    prop.Z + box.Z);
+                float rotation = prop.Rotation + (mirrored ? -box.Rotation : box.Rotation);
+                BoxShapeDefinition shape = new(
+                    0.5f * box.SizeX * scaleX,
+                    0.5f * box.SizeY * scaleY,
+                    0.5f * box.SizeZ);
+                _propBodies.Add(_world.CreateBody(new BodyDefinition(
+                    PhysicsBodyMode.Static,
+                    position,
+                    PhysicsQuaternion.FromZAngle(rotation),
+                    mass: 0f,
+                    [shape])));
+            }
         }
     }
 
@@ -3726,9 +3777,10 @@ public sealed class GameRoom : IDisposable
 
     private void EnsureBuffers()
     {
-        // A level's terrain bodies carry no entity, but `CopySnapshots` reports every body in the
-        // world, so the snapshot buffer has to have room for them too.
-        int bodyCount = Math.Max(1, _entitiesByBody.Count + _terrainBodies.Count);
+        // A level's own static bodies -- its terrain and its props' solid boxes -- carry no entity, but
+        // `CopySnapshots` reports every body in the world, so the snapshot buffer has to have room for
+        // them too.
+        int bodyCount = Math.Max(1, _entitiesByBody.Count + _terrainBodies.Count + _propBodies.Count);
         int entityCapacity = Math.Max(bodyCount, MaxSnapshotEntityCount);
         if (_snapshotBuffer.Length < entityCapacity)
         {

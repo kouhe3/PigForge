@@ -92,6 +92,7 @@ public sealed class OriginalLevelTests
         int levelsWithoutGoal = 0;
         int levelsWithCameraLimits = 0;
         int propInstances = 0;
+        int propBoxes = 0;
         HashSet<string> propIds = new(StringComparer.Ordinal);
         HashSet<CameraLimits> cameraLimits = new();
         HashSet<string> fillTextures = new(StringComparer.Ordinal);
@@ -113,12 +114,26 @@ public sealed class OriginalLevelTests
             levelsWithCameraLimits++;
             cameraLimits.Add(limits);
 
-            // v6: the level's decoration instances. Every level places some (10 to 478 of them), and
-            // each names a prop in the client's own `level-props.json` -- the 279 drawable props of the
-            // 368 (the single-quad decorations, the backdrop sets, the windows, the slingshot, the birds
-            // and two stones; `docs/specs/level-props.md`).
+            // v6/v7: the level's placed props. Every level places some (10 to 478 of them), and each
+            // names a prop in the client's own `level-props.json` -- the 309 drawable props of the 368
+            // (the decorations, the backdrops, the windows, the slingshot, the birds, the stones and the
+            // level's own solid furniture; `docs/specs/level-props.md`). A v7 prop also carries the
+            // boxes the room turns into static bodies, and every one of them is a real shape.
             Assert.NotEmpty(document.Props);
             propInstances += document.Props.Count;
+            foreach (LevelPropDefinition prop in document.Props)
+            {
+                propBoxes += prop.Boxes.Count;
+                foreach (LevelPropBoxDefinition box in prop.Boxes)
+                {
+                    Assert.True(
+                        box.SizeX > 0f && box.SizeY > 0f && box.SizeZ > 0f,
+                        $"{file}: {prop.Id} carries a box with a non-positive size");
+                    Assert.True(
+                        float.IsFinite(box.X) && float.IsFinite(box.Y) && float.IsFinite(box.Z) && float.IsFinite(box.Rotation),
+                        $"{file}: {prop.Id} carries a non-finite box offset");
+                }
+            }
             foreach (LevelPropDefinition prop in document.Props)
             {
                 Assert.False(string.IsNullOrWhiteSpace(prop.Id), $"{file}: an empty decoration id");
@@ -185,8 +200,9 @@ public sealed class OriginalLevelTests
         Assert.Equal(2154, loops);
         Assert.Equal(17, fillTextures.Count);
         Assert.Equal(20, spawns);
-        Assert.Equal(15542, propInstances);
-        Assert.Equal(279, propIds.Count);
+        Assert.Equal(16378, propInstances);
+        Assert.Equal(309, propIds.Count);
+        Assert.Equal(658, propBoxes);
         Assert.Equal(14, levelsWithoutGoal);
         // Every level overrides `LevelManager.m_cameraLimits` and no two read the same (measured
         // 2026-10-06: 277/277, 277 distinct rectangles).

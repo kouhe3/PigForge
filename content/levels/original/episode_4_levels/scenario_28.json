@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_28",
   "goalZone": {
     "min": [
@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":-25.39165,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-23.35852,"y":24.625551,"z":0,"rotation":6.076354,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-4.8462825,"y":24.831736,"z":0,"rotation":0.19003808,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-35.141403,"y":28.737694,"z":0,"rotation":1.7368442,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Daisy_06","x":-53.57152,"y":19.536411,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Glow_01","x":-35.02535,"y":19.811909,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Glow_01","x":-38.81857,"y":18.657448,"z":4,"rotation":0,"scaleX":4.887108,"scaleY":4.887108},

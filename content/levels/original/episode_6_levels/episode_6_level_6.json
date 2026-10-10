@@ -116,6 +116,7 @@
     {"id":"LitMushroom_05","x":-205.66,"y":14.05,"z":-2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-193.554,"y":14.244,"z":1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-188.73,"y":9.97,"z":-32.95,"rotation":6.062082,"scaleX":1,"scaleY":1},
+    {"id":"SecretStatue","x":-187.141,"y":11.236,"z":1,"rotation":0.019809868,"scaleX":1,"scaleY":1},
     {"id":"MayanArt16","x":-222.54,"y":1.87,"z":1.5,"rotation":6.2699394,"scaleX":1,"scaleY":1},
     {"id":"Mushroom4","x":-205.343,"y":14.224,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1}
   ],

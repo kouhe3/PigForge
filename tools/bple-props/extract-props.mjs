@@ -128,17 +128,27 @@ for (const path of [...palette].sort()) {
 // (or a background set that stops being drawable) shows up as a number here.
 const singleQuads = [...drawable.keys()].filter((name) => quadsByProp.get(name) === 1);
 const decorInstances = singleQuads.reduce((total, name) => total + (counts.get(name)?.instances ?? 0), 0);
-check(singleQuads.length === 257, `single-quad props: ${singleQuads.length}, expected 257`);
-check(decorInstances === 15172, `single-quad instances: ${decorInstances}, expected 15172`);
+check(singleQuads.length === 272, `single-quad props: ${singleQuads.length}, expected 272`);
+check(decorInstances === 15837, `single-quad instances: ${decorInstances}, expected 15837`);
 const multiQuads = [...drawable.keys()].filter((name) => quadsByProp.get(name) > 1).sort();
 const drawableInstances = [...drawable.keys()].reduce((total, name) => total + (counts.get(name)?.instances ?? 0), 0);
-check(drawable.size === 279, `drawable props: ${drawable.size}, expected 279`);
-check(drawableInstances === 15542, `drawable instances: ${drawableInstances}, expected 15542`);
+check(drawable.size === 309, `drawable props: ${drawable.size}, expected 309`);
+check(drawableInstances === 16378, `drawable instances: ${drawableInstances}, expected 16378`);
 const quadTotal = [...quadsByProp.values()].reduce((total, count) => total + count, 0);
-check(quadTotal === 1017, `quads: ${quadTotal}, expected 1017`);
-// The multi-quad families: the level's backdrop sets, its five windows, one slingshot, seven birds and
-// two stones; a family leaving or joining the list is a re-classification, not a detail.
+check(quadTotal === 1073, `quads: ${quadTotal}, expected 1073`);
+// The multi-quad families: the level's backdrop sets, its five windows, one slingshot, seven birds, two
+// stones, and the solid furniture that is more than one quad (the doors, the fan, the four buttons and
+// one of the two secret part boxes); a family leaving or joining the list is a re-classification, not a
+// detail.
 const EXPECTED_MULTI_QUADS = [
+  "ActivatedHingeDoorBlue",
+  "ActivatedHingeDoorBlue_Ice",
+  "ActivatedHingeDoorGreen",
+  "ActivatedHingeDoorGreen_Ice",
+  "ActivatedHingeDoorRed",
+  "ActivatedHingeDoorRed_Ice",
+  "ActivatedHingeDoorYellow",
+  "ActivatedHingeDoorYellow_Ice",
   "Bird_Black_01",
   "Bird_Blue",
   "Bird_Blue_01",
@@ -146,6 +156,13 @@ const EXPECTED_MULTI_QUADS = [
   "Bird_Red_01",
   "Bird_Yellow",
   "Bird_Yellow_01",
+  "Fan",
+  "HingeDoorToLeft4m",
+  "PressureButtonBlue",
+  "PressureButtonGreen",
+  "PressureButtonRed",
+  "PressureButtonYellow",
+  "SecretPartWilfred",
   "Slingshot",
   "Stone2_2",
   "Stone5_2",

@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Secret_03","x":-77.22068,"y":0.7111178,"z":-0.09270251,"rotation":6.0929155,"scaleX":0.4,"scaleY":0.4},
     {"id":"Mushroom_2","x":-79.23733,"y":0.84176826,"z":-5,"rotation":0.12006988,"scaleX":1,"scaleY":1},
     {"id":"Bush_04","x":-64.73528,"y":1.7284222,"z":-5,"rotation":6.150901,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_06","x":-45.07891,"y":-7.132492,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

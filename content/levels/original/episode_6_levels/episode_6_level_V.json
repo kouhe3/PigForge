@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_V",
   "goalZone": {
     "min": [
@@ -40,8 +40,13 @@
     }
   ],
   "props": [
+    {"id":"PressureButtonYellow","x":-135.04,"y":28.15,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-139.76,"y":7.267,"z":8,"rotation":0,"scaleX":0,"scaleY":0},
     {"id":"LitMushroom_03","x":-121.277,"y":0.365,"z":8,"rotation":0,"scaleX":0,"scaleY":0},
+    {"id":"ActivatedHingeDoorYellow","x":-148.982,"y":47.532,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorGreen","x":-121.43,"y":33.24,"z":0,"rotation":4.7996554,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"ActivatedHingeDoorBlue","x":-167.856,"y":4.595,"z":0,"rotation":2.425904,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"PressureButtonGreen","x":-121.331,"y":0.465,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"WindowBgSmall","x":-148.87,"y":44.72,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanChest01","x":-163.19,"y":43.57,"z":3.1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoldPile01","x":-159.86,"y":42.45,"z":-2,"rotation":0,"scaleX":1,"scaleY":1},
@@ -120,7 +125,11 @@
     {"id":"Mushroom3","x":-140.58,"y":40.75,"z":-3,"rotation":0.049434673,"scaleX":1,"scaleY":1},
     {"id":"Stone8","x":-170.551,"y":4.724,"z":-3,"rotation":6.100002,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-175.015,"y":4.941,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Stone8","x":-171.454,"y":5.207,"z":-3,"rotation":0.6018166,"scaleX":1,"scaleY":1}
+    {"id":"Stone8","x":-171.454,"y":5.207,"z":-3,"rotation":0.6018166,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonBlue","x":-173.28586,"y":5.0173974,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"SecretStatue","x":-114.06,"y":1.75,"z":1,"rotation":0.20188008,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonRed","x":-139.806,"y":7.365,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"ActivatedHingeDoorRed","x":-134.35,"y":18.81,"z":0,"rotation":3.1415932,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
   ],
   "terrain": [
     {

@@ -472,6 +472,21 @@ for (const { bundle, file } of dataFiles) {
       rotation: Math.fround((instance.euler[2] * Math.PI) / 180),
       scaleX: instance.localScale[0],
       scaleY: instance.localScale[1],
+      // A solid prop (schemaVersion 7) carries the original's own non-trigger box colliders, in the
+      // prop's frame: the room turns each into a static body (`docs/specs/level-props.md` §3.6).
+      ...(record.boxes.length > 0
+        ? {
+            boxes: record.boxes.map((box) => ({
+              dx: Math.fround(box.dx),
+              dy: Math.fround(box.dy),
+              dz: Math.fround(box.dz),
+              sizeX: Math.fround(box.sizeX),
+              sizeY: Math.fround(box.sizeY),
+              sizeZ: Math.fround(box.sizeZ),
+              rotation: Math.fround(box.rotation),
+            })),
+          }
+        : {}),
     });
   }
 
@@ -481,7 +496,8 @@ for (const { bundle, file } of dataFiles) {
   const relativePath = `content/levels/original/${area}/${contentVersion}.json`;
   const document = {
     format: "pigforge.level-content",
-    schemaVersion: 6,
+    // A document declares the highest version it needs: v7 only where a prop brought solid boxes.
+    schemaVersion: propInstances.some((prop) => prop.boxes !== undefined) ? 7 : 6,
     contentVersion,
     goalZone,
     bounds: levelBounds,
@@ -541,7 +557,7 @@ check(skippedTerrains.length === 0, `${skippedTerrains.length} terrain(s) have n
 check(skippedCurves.length === 0, `${skippedCurves.length} terrain(s) have no usable curve mesh and were skipped`);
 // The census covers every prefab instance in the pack except the placed parts (`spawns`), so its sum
 // is the pack's own instance count -- a prop family that stops being classified cannot hide.
-check(totals.propInstances === 15542, `drawable prop instances: ${totals.propInstances}, expected 15542`);
+check(totals.propInstances === 16378, `drawable prop instances: ${totals.propInstances}, expected 16378`);
 const cachedInstances = [...propCensus.values()].reduce((total, count) => total + count, 0) + totals.spawns;
 check(cachedInstances === 26072, `classified instances: ${cachedInstances}, expected 26072`);
 

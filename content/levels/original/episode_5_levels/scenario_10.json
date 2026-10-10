@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_10",
   "goalZone": {
     "min": [
@@ -30,6 +30,10 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":52.374184,"y":-6.118983,"z":0,"rotation":4.712636,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":40.077896,"y":-6.143431,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":36.683952,"y":-3.9485502,"z":0,"rotation":0.08129563,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-20.185675,"y":-4.9127336,"z":0,"rotation":0.17867091,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Crumbs_Line_02","x":21.03455,"y":-6.640115,"z":-5.1,"rotation":0,"scaleX":-1.5015088,"scaleY":1.5015088},
     {"id":"Crumbs_03","x":-39.267555,"y":-6.666589,"z":-5.1,"rotation":0,"scaleX":-1.5015088,"scaleY":1.5015088},
     {"id":"Crumbs_01","x":-22.27684,"y":-6.6992445,"z":-5.1,"rotation":0,"scaleX":-1.5015088,"scaleY":1.5015088},

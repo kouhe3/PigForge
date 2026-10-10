@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "test55",
   "goalZone": {
     "min": [
@@ -30,6 +30,10 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-76.31434,"y":-6.1985307,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":8.938149,"y":-5.355966,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":12.691404,"y":-6.1678863,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-24.296976,"y":-6.1926126,"z":0,"rotation":4.712392,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Colorful_Sparkles_02","x":45.013885,"y":3.8061836,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cream_Line_03","x":34.750355,"y":1.7906295,"z":-5,"rotation":0.31702694,"scaleX":2,"scaleY":2},
     {"id":"Cherry_Cut","x":-33.6192,"y":4.6048393,"z":4,"rotation":0.46081662,"scaleX":1.5000002,"scaleY":1.4999998},

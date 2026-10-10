@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_34",
   "goalZone": {
     "min": [
@@ -33,6 +33,21 @@
     {"id":"Bird_Yellow","x":-157.496,"y":26.039,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Red","x":-152.444,"y":25.997,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":-155.83,"y":25.85,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BreakableWall","x":-156.99,"y":32.13,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-156.167,"y":30.902,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-162.415,"y":27.255,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-160.28,"y":28.18,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-160.27,"y":26.02,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-157.69,"y":33.749,"z":0,"rotation":2.9644642,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-150.392,"y":26.918,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-152.925,"y":30.9,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-160.27,"y":27.09,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-160.28,"y":29.25,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-158.28,"y":32.29,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-160.29,"y":30.32,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-155.088,"y":30.905,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-162.415,"y":26.487,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-154.007,"y":30.902,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"Snow01","x":-178.54701,"y":49.002,"z":-3.1,"rotation":5.99291,"scaleX":1,"scaleY":1},
     {"id":"Flower6","x":-178.93001,"y":48.21,"z":-3,"rotation":1.8875893,"scaleX":-1,"scaleY":1},
     {"id":"Bush","x":-179.716,"y":40.098,"z":-3,"rotation":0.15935309,"scaleX":1,"scaleY":1},
@@ -71,7 +86,11 @@
     {"id":"Mushroom3","x":-163.324,"y":5.4070015,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom1","x":-163.09201,"y":5.6119995,"z":2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower3","x":-167.384,"y":8.298,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoldPile01","x":-159.228,"y":10.287001,"z":7,"rotation":0.11884996,"scaleX":1,"scaleY":1}
+    {"id":"GoldPile01","x":-159.228,"y":10.287001,"z":7,"rotation":0.11884996,"scaleX":1,"scaleY":1},
+    {"id":"BreakableWall","x":-150.389,"y":27.988,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-158.237,"y":33.054,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-162.423,"y":25.72,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-157.256,"y":32.902,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]}
   ],
   "terrain": [
     {

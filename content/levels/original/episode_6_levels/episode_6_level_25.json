@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_25",
   "goalZone": {
     "min": [
@@ -29,6 +29,10 @@
   "cameraLimits": {"topLeft":[-227.88,38.8],"size":[108.6,47.84]},
   "spawns": [],
   "props": [
+    {"id":"BreakableWall","x":-168.742,"y":1.665,"z":0,"rotation":5.957392,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-167.781,"y":2.874,"z":0,"rotation":1.592968,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-168.395,"y":2.371,"z":0,"rotation":1.1647954,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-167.99,"y":1.801,"z":0,"rotation":4.6544027,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"GoldenPigNest","x":-148.95709,"y":-4.7347183,"z":0.6,"rotation":6.1526046,"scaleX":1,"scaleY":1},
     {"id":"GoldenPigNest","x":-147.47635,"y":-4.747326,"z":0.6,"rotation":1.4402156,"scaleX":1,"scaleY":1},
     {"id":"Stone6","x":-222.942,"y":36.246,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
@@ -65,7 +69,10 @@
     {"id":"Flower5","x":-160.992,"y":-1.3800001,"z":0.6,"rotation":6.23042,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-139.10501,"y":1.6470003,"z":-1.5,"rotation":5.979513,"scaleX":1,"scaleY":1},
     {"id":"Flower4","x":-143.126,"y":-1.0579996,"z":-1.5,"rotation":0.28027433,"scaleX":1,"scaleY":1},
-    {"id":"Flower7","x":-120.79901,"y":-4.1970005,"z":-1.5,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"Flower7","x":-120.79901,"y":-4.1970005,"z":-1.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BreakableWall","x":-169.049,"y":2.512,"z":0,"rotation":0.9479671,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-168.065,"y":3.877,"z":0,"rotation":2.427947,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-168.58,"y":3.419,"z":0,"rotation":1.7426976,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]}
   ],
   "terrain": [
     {

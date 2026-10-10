@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_42",
   "goalZone": {
     "min": [
@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":47.368023,"y":14.88167,"z":0,"rotation":5.848885,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-33.60762,"y":3.6875153,"z":0,"rotation":2.751887,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":52.516468,"y":18.424957,"z":0,"rotation":0.09182569,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Mushroom_02","x":-46.646294,"y":11.622137,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_01","x":-50.60978,"y":-7.1673613,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_01","x":29.849989,"y":26.204117,"z":-4.5,"rotation":4.489631,"scaleX":1,"scaleY":1},

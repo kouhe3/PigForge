@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_31",
   "goalZone": {
     "min": [
@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":14.380439,"y":-2.9855819,"z":0,"rotation":6.2149014,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":17.361895,"y":-5.090839,"z":0,"rotation":1.4670036,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":25.026716,"y":-2.5089722,"z":0,"rotation":0.114516616,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Colorful_Sparkles_05","x":44.409134,"y":21.820198,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BonBon_01","x":9.131165,"y":-1.6410744,"z":-5.064512,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Pumpkin_Leaf","x":28.836159,"y":12.77321,"z":-5.063932,"rotation":4.751132,"scaleX":1.464087,"scaleY":1.4640872},
@@ -140,7 +143,8 @@
     {"id":"Colorful_Sparkles_04","x":26.458176,"y":10.248518,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},
     {"id":"Pumpkin_Leaf","x":56.801804,"y":66.48545,"z":-5,"rotation":5.8171973,"scaleX":1.304394,"scaleY":1.3043942},
     {"id":"Colorful_Sparkles_02","x":47.318024,"y":21.712631,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Pumpkin_Leaf","x":27.030373,"y":13.165362,"z":-5,"rotation":3.8884523,"scaleX":0.946803,"scaleY":0.946803}
+    {"id":"Pumpkin_Leaf","x":27.030373,"y":13.165362,"z":-5,"rotation":3.8884523,"scaleX":0.946803,"scaleY":0.946803},
+    {"id":"Secret_03","x":51.724453,"y":49.968395,"z":-0.145796,"rotation":6.092929,"scaleX":0.4,"scaleY":0.4}
   ],
   "terrain": [
     {

@@ -183,7 +183,7 @@ public static class LevelContentParser
                     int index = 0;
                     foreach (JsonElement propElement in propsElement.EnumerateArray())
                     {
-                        ParseProp(propElement, $"root.props[{index}]", props, errors);
+                        ParseProp(propElement, $"root.props[{index}]", schemaVersion, props, errors);
                         index++;
                     }
                 }
@@ -211,14 +211,19 @@ public static class LevelContentParser
         };
     }
 
-    /// <summary>The seven properties one decoration instance carries, and nothing else.</summary>
+    /// <summary>The seven properties one placed prop carries -- plus, on v7, its own solid boxes.</summary>
     private static readonly string[] PropProperties = { "id", "x", "y", "z", "rotation", "scaleX", "scaleY" };
 
+    /// <summary>The seven numbers one solid box carries.</summary>
+    private static readonly string[] BoxProperties = { "dx", "dy", "dz", "sizeX", "sizeY", "sizeZ", "rotation" };
+
     /// <summary>
-    /// One decoration instance: the palette prefab's name plus the six numbers of its transform. The
-    /// id is a sprite-manifest key, so it is a non-empty, whitespace-free string like a texture name.
+    /// One placed prop: the palette prefab's name plus the six numbers of its transform. The id is a
+    /// sprite-manifest key, so it is a non-empty, whitespace-free string like a texture name. A v7
+    /// document may also carry the prop's solid boxes (`docs/specs/level-props.md` §3.6); a v6 one may
+    /// not.
     /// </summary>
-    private static void ParseProp(JsonElement element, string path, List<LevelPropDefinition> props, List<string> errors)
+    private static void ParseProp(JsonElement element, string path, int schemaVersion, List<LevelPropDefinition> props, List<string> errors)
     {
         if (element.ValueKind != JsonValueKind.Object)
         {
@@ -236,9 +241,15 @@ public static class LevelContentParser
         }
 
         RequireExactly(seen, PropProperties, path, errors);
+        bool carriesBoxes = seen.Contains("boxes");
+        if (carriesBoxes && schemaVersion < 7)
+        {
+            errors.Add($"{path}.boxes: only a schemaVersion 7 document gives a prop its solid boxes.");
+        }
+
         foreach (string property in seen)
         {
-            if (!PropProperties.Contains(property))
+            if (!PropProperties.Contains(property) && !(property == "boxes" && schemaVersion >= 7))
             {
                 errors.Add($"{path}: unknown property '{property}'.");
             }
@@ -283,7 +294,91 @@ public static class LevelContentParser
             return;
         }
 
-        props.Add(new LevelPropDefinition(id, x, y, z, rotation, scaleX, scaleY));
+        List<LevelPropBoxDefinition> boxes = new();
+        if (carriesBoxes && schemaVersion >= 7 && element.TryGetProperty("boxes", out JsonElement boxesElement))
+        {
+            if (boxesElement.ValueKind != JsonValueKind.Array)
+            {
+                errors.Add($"{path}.boxes: must be an array.");
+            }
+            else
+            {
+                int boxIndex = 0;
+                foreach (JsonElement boxElement in boxesElement.EnumerateArray())
+                {
+                    ParsePropBox(boxElement, $"{path}.boxes[{boxIndex}]", boxes, errors);
+                    boxIndex++;
+                }
+            }
+        }
+
+        // A decoration keeps the record's own empty array, so two identical decoration entries stay
+        // equal (a record compares a list member by reference).
+        LevelPropDefinition prop = new(id, x, y, z, rotation, scaleX, scaleY);
+        props.Add(boxes.Count > 0 ? prop with { Boxes = boxes } : prop);
+    }
+
+    /// <summary>
+    /// One solid box of a placed prop: the offset of its centre in the prop's own frame, its three
+    /// sizes (the original's own collider size) and its own angle in radians. A box with a
+    /// non-positive size is not a shape, so it is refused.
+    /// </summary>
+    private static void ParsePropBox(JsonElement element, string path, List<LevelPropBoxDefinition> boxes, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be an object.");
+            return;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, BoxProperties, path, errors);
+        foreach (string property in seen)
+        {
+            if (!BoxProperties.Contains(property))
+            {
+                errors.Add($"{path}: unknown property '{property}'.");
+            }
+        }
+
+        float ReadNumber(string name)
+        {
+            if (!seen.Contains(name) || !element.TryGetProperty(name, out JsonElement numberElement))
+            {
+                return 0f;
+            }
+
+            if (numberElement.ValueKind != JsonValueKind.Number || !numberElement.TryGetSingle(out float value) || !IsFinite(numberElement))
+            {
+                errors.Add($"{path}.{name}: must be a finite number.");
+                return 0f;
+            }
+
+            return value;
+        }
+
+        float x = ReadNumber("dx");
+        float y = ReadNumber("dy");
+        float z = ReadNumber("dz");
+        float sizeX = ReadNumber("sizeX");
+        float sizeY = ReadNumber("sizeY");
+        float sizeZ = ReadNumber("sizeZ");
+        float rotation = ReadNumber("rotation");
+        if (sizeX <= 0f || sizeY <= 0f || sizeZ <= 0f)
+        {
+            errors.Add($"{path}: a solid box needs positive sizes ({sizeX}, {sizeY}, {sizeZ}).");
+            return;
+        }
+
+        boxes.Add(new LevelPropBoxDefinition(x, y, z, sizeX, sizeY, sizeZ, rotation));
     }
 
     /// <summary>

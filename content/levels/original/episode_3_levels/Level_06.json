@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_06",
   "goalZone": {
     "min": [
@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":3.7217033,"y":1.9055843,"z":0,"rotation":5.8806415,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":0.11630419,"y":-0.4197912,"z":0,"rotation":1.1695917,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"Secret_01","x":48.70542,"y":10.884745,"z":-0.16319457,"rotation":6.07774,"scaleX":0.4,"scaleY":0.4},
     {"id":"Grass_06","x":-14.571831,"y":2.882823,"z":-5,"rotation":0.54789275,"scaleX":1,"scaleY":1},
     {"id":"Tuft_01","x":-59.370754,"y":-6.575264,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower_02","x":-43.91671,"y":-7.0463533,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

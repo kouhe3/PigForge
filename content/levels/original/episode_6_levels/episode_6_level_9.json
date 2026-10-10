@@ -29,6 +29,8 @@
   "cameraLimits": {"topLeft":[-229.9,52.2],"size":[97.6,63.9]},
   "spawns": [],
   "props": [
+    {"id":"Fan","x":-155.4,"y":-5.64,"z":0,"rotation":6.0946026,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-188.22,"y":20.31,"z":0,"rotation":6.036771,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-165.69,"y":17.4858,"z":0.9,"rotation":1.2018741,"scaleX":-1,"scaleY":1},
     {"id":"Grass08","x":-146.388,"y":18.074797,"z":0.9,"rotation":0.0010112079,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-141.37901,"y":7.622797,"z":0.9,"rotation":0.27512357,"scaleX":1,"scaleY":1},
@@ -103,7 +105,9 @@
     {"id":"WindowSmall","x":-134,"y":30.711,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-167.55301,"y":36.0288,"z":-3,"rotation":6.2824774,"scaleX":-1,"scaleY":1},
     {"id":"Grass17","x":-178.213,"y":35.3378,"z":-3,"rotation":6.2824774,"scaleX":1,"scaleY":1},
-    {"id":"WindowBgLarge","x":-177.34,"y":11.19,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"Fan","x":-174.06,"y":18.45,"z":0,"rotation":5.736724,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgLarge","x":-177.34,"y":11.19,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-212.5,"y":23.17,"z":0,"rotation":6.049336,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

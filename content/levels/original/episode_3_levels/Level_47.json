@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_47",
   "goalZone": {
     "min": [
@@ -30,6 +30,12 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-33.965527,"y":-2.8494823,"z":0,"rotation":0.12462232,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-6.3399677,"y":3.8039532,"z":0,"rotation":0.40742514,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-26.404257,"y":2.6070886,"z":0,"rotation":4.0814486,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-16.45939,"y":3.433825,"z":0,"rotation":1.4685074,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-19.096996,"y":3.156033,"z":0,"rotation":6.18225,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-21.42855,"y":2.7723198,"z":0,"rotation":6.0212393,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Mushroom_02","x":-39.964832,"y":-1.7900181,"z":-5,"rotation":4.778086,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_01","x":-39.664803,"y":-3.1101418,"z":-5,"rotation":5.9136147,"scaleX":1,"scaleY":1},
     {"id":"Crystal_02","x":-8.353639,"y":9.179006,"z":-5,"rotation":3.231934,"scaleX":1,"scaleY":1},

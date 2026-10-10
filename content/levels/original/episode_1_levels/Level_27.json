@@ -62,7 +62,8 @@
     {"id":"Gravel_01","x":-27.317163,"y":-7.0674577,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_03","x":-52.867867,"y":-6.7933435,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_03","x":37.76501,"y":-7.2096434,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Gravel_02","x":21.181053,"y":-7.4035335,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"Gravel_02","x":21.181053,"y":-7.4035335,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Secret_01","x":-63.06201,"y":17.27864,"z":-1,"rotation":0,"scaleX":0.4,"scaleY":0.4}
   ],
   "terrain": [
     {

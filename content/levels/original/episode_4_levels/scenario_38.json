@@ -32,6 +32,7 @@
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":0.7462059,"y":11.877511,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Yellow","x":2.6175585,"y":9.877832,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Secret_03","x":-39.140327,"y":13.837661,"z":-0.08333485,"rotation":0.19347638,"scaleX":0.4,"scaleY":0.4},
     {"id":"Mushroom_05","x":-12.785032,"y":11.816299,"z":-5,"rotation":6.1533613,"scaleX":1,"scaleY":1},
     {"id":"Daisy_06","x":35.78074,"y":-5.1284523,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-7.9158287,"y":-6.795906,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},

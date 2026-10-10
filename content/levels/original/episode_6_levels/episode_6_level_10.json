@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_10",
   "goalZone": {
     "min": [
@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-211.4,51],"size":[75.1,62.9]},
   "spawns": [],
   "props": [
+    {"id":"TNT_Box","x":-178.41,"y":-1.021,"z":0,"rotation":0.457641,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"MayanArt9","x":-190.673,"y":38.3378,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt4","x":-188.753,"y":37.5178,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt7","x":-163.843,"y":40.127792,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},

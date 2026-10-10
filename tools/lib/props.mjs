@@ -60,9 +60,46 @@ const ALLOWED_EXTRA = [
 /// and the one quad it writes to the same `MeshFilter` first -- is not what stays on screen.
 const PANEL_CLASSES = ["Panel", "SpriteReference"];
 
+/// Scripts the level's own *solid* furniture may carry: a crate, a wall, a plank, a door, a fan, the
+/// goal's flag, a secret, a button, a challenge box. Each was read for what it does between `Awake` and
+/// the first frame, and each leaves the prefab's own pose alone there:
+///
+///   `TNTBox`/`DynamicTNTBox`  art changes only when the charge blows (`TNTBox.cs:125-154`)
+///   `LevelRigidbody`          `Awake` reads joints and a material, nothing visual (`LevelRigidbody.cs:93`)
+///   `RigidbodyFreezer`        `Start` collects rigidbodies and their constraints (`RigidbodyFreezer.cs:19`)
+///   `RigidbodyRotationConstraints`  a constraint, no renderer
+///   `Fan`                     `Awake` caches `fanSprite`; the blades turn only while it is blowing
+///   `ActivatedHingeDoor`      no `Awake`/`Start` at all -- it turns when the level activates it
+///   `GoalBox`                 `Start` reads a material and a light (`GoalBox.cs:36-42`)
+///   `SecretPlace`/`SecretStatue`  hide only when the save already found the secret
+///   `PartBox`                 adds a *disabled* part preview child (`PartBox.cs:36-47`)
+///   `PartSecret`              destroys itself only when the save already collected it
+///   `PressureButton`          the button's own child is toggled by its press handler, not at load
+///
+/// The families whose art is *generated* at load (`AncestorPig`'s autoplaying eyes, `LevelBalloon`'s and
+/// `RopeVisualization`'s rope and balloon, `RandomChildActivator`'s pick of one goal child) stay out, and
+/// so do the challenge boxes (`Collectable`/`WaypointChallenge`/`StarBox`) -- those are P5's own slice,
+/// where the art arrives together with the collecting it stands for.
+const SOLID_CLASSES = [
+  "TNTBox",
+  "DynamicTNTBox",
+  "LevelRigidbody",
+  "RigidbodyFreezer",
+  "RigidbodyRotationConstraints",
+  "Fan",
+  "ActivatedHingeDoor",
+  "GoalBox",
+  "SecretPlace",
+  "SecretStatue",
+  "PartBox",
+  "PartSecret",
+  "PressureButton",
+];
+
 /// The component classes that make a prop physical, by Unity's class id. The picture never depends on
-/// them; the census does (a background set carries the level's own ground collider, `TNT_Box` its crate).
-const COLLIDER_IDS = [64, 65, 68, 135, 136];
+/// them; the census does (a background set carries the level's own ground collider, `TNT_Box` its crate),
+/// and `solid boxes` are written out of the box colliders among them.
+const COLLIDER_IDS = { 64: "MeshCollider", 65: "BoxCollider", 68: "SphereCollider", 135: "CapsuleCollider", 136: "CapsuleCollider" };
 
 /// The frame the level instance itself establishes: its own transform is what
 /// `LevelLoader.ReadPrefabInstance` writes over the prefab root's.
@@ -163,7 +200,18 @@ function readHierarchy(text, guidToClass) {
       spriteAnimation: parts.find((part) => part.classId === 114 && classOf(part) === "SpriteAnimation"),
       renderer: parts.find((part) => part.classId === 23 || part.classId === 212),
       renderers: parts.filter((part) => part.classId === 23 || part.classId === 212).length,
-      collider: parts.some((part) => COLLIDER_IDS.includes(part.classId)),
+      collider: parts.some((part) => COLLIDER_IDS[part.classId] !== undefined),
+      /// Every collider the object itself carries, so the solid props' own boxes can be written out
+      /// (a trigger is the original's own "someone walked through here" marker, not a wall).
+      colliders: parts
+        .filter((part) => COLLIDER_IDS[part.classId] !== undefined)
+        .map((part) => ({
+          kind: COLLIDER_IDS[part.classId],
+          trigger: (fieldOf(part.body, "m_IsTrigger") ?? "0") === "1",
+          size: numbersOf(part.body, "m_Size"),
+          center: numbersOf(part.body, "m_Center"),
+          radius: Number(fieldOf(part.body, "m_Radius") ?? "NaN"),
+        })),
       transformAnchor: transform?.anchor ?? null,
       father: transform === undefined ? null : referenceOf(transform.body, "m_Father"),
       children: transform === undefined ? [] : [...transform.body.matchAll(/- \{fileID: (\d+)\}/g)].map((entry) => entry[1]),
@@ -517,6 +565,33 @@ export function openProps(bpleRoot) {
   };
 
   /**
+   * One solid box: a non-trigger `BoxCollider` of `props.mjs`'s walk, in the prop's own frame, the way
+   * the quads are -- `dx/dy/dz` and `rotation` place it, `sizeX/sizeY/sizeZ` are the collider's own
+   * `m_Size` folded through the transform chain's scale (its `m_Center` is the box's own offset). The
+   * chain's scale is what makes a `BreakableWall` at instance scale 1.1 a 1.2 m box, and a mirrored
+   * chain (`det < 0`) is a half turn of a box, which the box's own symmetry already covers.
+   */
+  const boxQuad = (name, object, frame, depth, collider) => {
+    const [a, b, c, d] = frame;
+    const determinant = a * d - b * c;
+    must(Math.abs(determinant) > 1e-12, `${name}/${object.name}: a collapsing collider frame`);
+    const scaleX = Math.hypot(a, b);
+    const scaleY = determinant / scaleX;
+    const [centreX, centreY, centreZ] = collider.center.length === 3 ? collider.center : [0, 0, 0];
+    // Raw numbers, not the manifest's four decimals: these land in *content*, which is float32-exact
+    // (`lib/write.mjs`), so the level builder folds them with `Math.fround` instead.
+    return {
+      dx: a * centreX + c * centreY + frame[4],
+      dy: b * centreX + d * centreY + frame[5],
+      dz: depth + (centreZ ?? 0),
+      sizeX: Math.abs(scaleX) * collider.size[0],
+      sizeY: Math.abs(scaleY) * collider.size[1],
+      sizeZ: collider.size[2],
+      rotation: Math.atan2(b, a),
+    };
+  };
+
+  /**
    * What one prop prefab is. `kind` is one of
    *
    *   terrain  the `e2dTerrain` family -- the level file's own terrain objects (see `docs/specs/original-level-pack.md`)
@@ -575,23 +650,34 @@ export function openProps(bpleRoot) {
       rendererObjects.length > 0 &&
       rendererObjects.every((object) => object.renderers === 1 && (object.sprite !== undefined || object.panel !== undefined)) &&
       scripts.every(
-        (className) => SPRITE_CLASSES.includes(className) || ALLOWED_EXTRA.includes(className) || PANEL_CLASSES.includes(className),
+        (className) =>
+          SPRITE_CLASSES.includes(className) ||
+          ALLOWED_EXTRA.includes(className) ||
+          PANEL_CLASSES.includes(className) ||
+          SOLID_CLASSES.includes(className),
       );
 
-    const record = { name, id: propId(name), path: prefabPath, kind, drawable, scripts, gameObjects: objects.length, quads: [] };
+    const record = { name, id: propId(name), path: prefabPath, kind, drawable, scripts, gameObjects: objects.length, quads: [], boxes: [] };
     if (drawable) {
-      // A bird carries a particle system as well as its face: the sleeping-dust emitter is rotated a
-      // quarter turn out of the play plane and draws no mesh, so its subtree is not part of the
-      // picture and must not be composed (an out-of-plane transform is refused, not flattened).
-      const renders = new Set();
+      // What the walk has to visit: everything that draws, plus every object whose *own* box collider
+      // is part of the prop's solid geometry. A trigger is the original's own "someone came through
+      // here" marker -- a challenge's box, a goal, a secret, a pressure plate -- and the backdrop sets'
+      // own ground strip (`GroundCollider`, 188 m wide, in the backdrop's plane behind the level) is
+      // the backdrop's business: our terrain is the floor.
+      const skippedColliderObjects = ["GroundCollider", "CloudCollider"];
+      const relevant = new Set();
       const collect = (object) => {
-        let drawn = object.renderers > 0;
-        // Every child is visited: `some`/`||` would stop at the first one that draws.
+        let needed =
+          object.renderers > 0 ||
+          object.colliders.some(
+            (collider) => collider.kind === "BoxCollider" && !collider.trigger && !skippedColliderObjects.includes(object.name),
+          );
+        // Every child is visited: `some`/`||` would stop at the first one that would be walked.
         for (const child of childrenOf.get(object.transformAnchor) ?? []) {
-          if (collect(child)) drawn = true;
+          if (collect(child)) needed = true;
         }
-        if (drawn) renders.add(object.anchor);
-        return renders.has(object.anchor);
+        if (needed) relevant.add(object.anchor);
+        return relevant.has(object.anchor);
       };
       collect(roots[0]);
       // Depth first from the root, carrying the active flag and the nearest parallax tag down. The
@@ -622,8 +708,17 @@ export function openProps(bpleRoot) {
           painted.add(object.anchor);
           if (parallax.y !== 0) foreground.push({ y: frame[5], quad: record.quads[record.quads.length - 1] });
         }
+        // The solid boxes sit on the transform chain just like the quads do, so an off-origin child
+        // collider (`BreakableWall`'s own `Collider`) lands where the original put it.
+        if (active) {
+          for (const collider of object.colliders) {
+            if (collider.kind !== "BoxCollider" || collider.trigger || skippedColliderObjects.includes(object.name)) continue;
+            must(collider.size.length === 3, `${name}/${object.name}: a box collider without a size`);
+            record.boxes.push(boxQuad(name, object, frame, depth, collider));
+          }
+        }
         for (const child of childrenOf.get(object.transformAnchor) ?? []) {
-          if (renders.has(child.anchor)) walk(child, frame, depth, parallax, active);
+          if (relevant.has(child.anchor)) walk(child, frame, depth, parallax, active);
         }
       };
       walk(roots[0], null, 0, { x: 0, y: 0 }, true);

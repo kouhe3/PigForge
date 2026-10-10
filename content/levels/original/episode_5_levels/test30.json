@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "test30",
   "goalZone": {
     "min": [
@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-26.82719,"y":8.874982,"z":0,"rotation":6.10706,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Cream_Line_03","x":2.1676636,"y":2.3986578,"z":-5,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"IceCream_02","x":-47.63925,"y":4.338293,"z":-4.920978,"rotation":0.04536682,"scaleX":2,"scaleY":2},
     {"id":"Crumbs_Line_02","x":-17.07721,"y":-6.698277,"z":-5.1,"rotation":0,"scaleX":-1.5217067,"scaleY":1.5217067},
@@ -125,7 +126,8 @@
     {"id":"Cream_Line_01","x":-10.591576,"y":-6.0048776,"z":-5,"rotation":0.32869065,"scaleX":2,"scaleY":2},
     {"id":"Cream_Line_03","x":6.043022,"y":-5.7782965,"z":-5,"rotation":6.269009,"scaleX":2,"scaleY":2},
     {"id":"Colorful_Sparkles_02","x":-10.008362,"y":-5.7869205,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Cracker_03_Part_02","x":-34.752457,"y":-4.430379,"z":-5,"rotation":0.19386828,"scaleX":2,"scaleY":2}
+    {"id":"Cracker_03_Part_02","x":-34.752457,"y":-4.430379,"z":-5,"rotation":0.19386828,"scaleX":2,"scaleY":2},
+    {"id":"Secret_01","x":-54.855442,"y":-6.2876043,"z":-0.05020386,"rotation":5.770677,"scaleX":0.4,"scaleY":0.4}
   ],
   "terrain": [
     {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_Sandbox_09",
   "goalZone": {
     "min": [
@@ -30,6 +30,12 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":5.777321,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":38.6527,"y":113.54314,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-84.99366,"y":2.4329402,"z":0,"rotation":6.2008286,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-81.25951,"y":-0.9275491,"z":0,"rotation":6.250873,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-75.48757,"y":2.0586567,"z":0,"rotation":0.21344644,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":34.2035,"y":115.42175,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":77.20389,"y":128.98679,"z":0,"rotation":4.7567945,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Shell","x":-40.135944,"y":-7.3094044,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_07","x":-59.730705,"y":146.77014,"z":-5,"rotation":0.35063034,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_2","x":16.575214,"y":92.58452,"z":-5,"rotation":4.9340405,"scaleX":-1,"scaleY":1},

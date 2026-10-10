@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_Sandbox_07",
   "goalZone": {
     "min": [
@@ -72,6 +72,12 @@
   "props": [
     {"id":"background_night_01_set_1","x":-0.15712309,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_night_01_set_1","x":186.29036,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-73.038086,"y":-4.818112,"z":0,"rotation":6.1801724,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-83.04111,"y":41.630745,"z":0,"rotation":6.1036096,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-81.658585,"y":29.012995,"z":0,"rotation":5.972211,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-89.266495,"y":42.1755,"z":0,"rotation":0.087166056,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-79.68075,"y":21.802933,"z":0,"rotation":5.9805427,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-74.943596,"y":29.10929,"z":0,"rotation":4.970394,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Gravel_03","x":-10.76479,"y":-6.758501,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush_03_0","x":-6.635044,"y":49.45233,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Branch_04","x":43.32582,"y":43.46724,"z":-5,"rotation":4.9163837,"scaleX":1,"scaleY":1},

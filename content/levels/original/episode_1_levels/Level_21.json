@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_21",
   "goalZone": {
     "min": [
@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-5.9090185,"y":-6.1014795,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Bush_02","x":-38.843277,"y":7.111471,"z":-5,"rotation":0.02650449,"scaleX":1,"scaleY":1},
     {"id":"Star_01","x":-20.71808,"y":-7.0354815,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Star_01","x":-40.845417,"y":-7.2107315,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

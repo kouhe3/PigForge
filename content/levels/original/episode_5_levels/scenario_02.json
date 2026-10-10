@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_02",
   "goalZone": {
     "min": [
@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-6.3526235,"y":7.1802936,"z":0,"rotation":0.14562118,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Colorful_Sparkles_05","x":-45.73613,"y":1.5733985,"z":-5.2,"rotation":0.13680269,"scaleX":0.681137,"scaleY":0.681137},
     {"id":"Crumbs_Line_01","x":42.038387,"y":-6.5836744,"z":-5.1,"rotation":0,"scaleX":1.519574,"scaleY":1.519574},
     {"id":"Colorful_Sparkles_05","x":23.032215,"y":31.521164,"z":-5.2,"rotation":0,"scaleX":0.681137,"scaleY":0.681137},

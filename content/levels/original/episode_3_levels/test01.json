@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Secret_01","x":-22.681383,"y":7.7255535,"z":-2,"rotation":6.144771,"scaleX":0.39999995,"scaleY":0.4},
     {"id":"Grass_02","x":-26.722137,"y":9.940535,"z":-5,"rotation":6.003249,"scaleX":1,"scaleY":1},
     {"id":"Daisy_01","x":10.500786,"y":4.084934,"z":-6,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":3.2769547,"y":4.526312,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

@@ -65,7 +65,7 @@ describe("validateLevelContent root", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expectRejected({ schemaVersion: 7 }, "root.schemaVersion");
+    expectRejected({ schemaVersion: 8 }, "root.schemaVersion");
   });
 
   it("rejects an empty, padded or non-string contentVersion", () => {
@@ -444,6 +444,54 @@ describe("validateLevelContent props", () => {
       .toContain("root.props[0]: unknown property 'extra'.");
     expect(withProps([{ id: "Grass_01", x: Number.NaN, y: 0, z: 0, rotation: 0, scaleX: 1, scaleY: 1 }]))
       .toContain("root.props[0].x: must be a finite number.");
+  });
+});
+
+/** The v7 document: the v6 one with its first prop carrying the original's own solid box. */
+const v7 = {
+  ...structuredClone(v6),
+  schemaVersion: 7,
+  props: [
+    {
+      ...structuredClone(v6.props[0]),
+      id: "TNT_Box",
+      boxes: [{ dx: 0, dy: 0, dz: 0, sizeX: 0.95, sizeY: 0.95, sizeZ: 0.95, rotation: 0 }],
+    },
+    structuredClone(v6.props[1]),
+  ],
+};
+
+describe("validateLevelContent solid boxes", () => {
+  it("accepts a v7 document whose prop carries a box", () => {
+    expect(validateLevelContent(v7)).toEqual([]);
+  });
+
+  it("accepts a v7 document whose props carry none", () => {
+    const bare = structuredClone(v7) as Record<string, unknown>;
+    bare.props = structuredClone(v6.props);
+    expect(validateLevelContent(bare)).toEqual([]);
+  });
+
+  it("refuses boxes on a v6 document and malformed boxes on a v7 one", () => {
+    const older = structuredClone(v7) as Record<string, unknown>;
+    older.schemaVersion = 6;
+    expect(validateLevelContent(older)).toContain("root.props[0]: unknown property 'boxes'.");
+
+    const malformed = (boxes: unknown): string[] =>
+      validateLevelContent({ ...structuredClone(v7), props: [{ ...structuredClone(v7.props[0]), boxes }] });
+    expect(malformed(3)).toContain("root.props[0].boxes: must be an array.");
+    expect(malformed([{ dx: 0, dy: 0, dz: 0, sizeX: 0, sizeY: 1, sizeZ: 1, rotation: 0 }]))
+      .toContain("root.props[0].boxes[0].sizeX: a solid box needs a positive size.");
+    expect(malformed([{ dx: 0, dy: 0, dz: 0, sizeX: 1, sizeY: 1 }]))
+      .toContain("root.props[0].boxes[0]: missing required property 'sizeZ'.");
+    expect(malformed([{ dx: 0, dy: 0, dz: 0, sizeX: 1, sizeY: 1, sizeZ: 1, rotation: 0, extra: 1 }]))
+      .toContain("root.props[0].boxes[0]: unknown property 'extra'.");
+  });
+
+  it("requires the level's props on a v7 document", () => {
+    const missing = structuredClone(v7) as Record<string, unknown>;
+    delete missing.props;
+    expect(validateLevelContent(missing)).toContain("root.props: required on a schemaVersion 7 document.");
   });
 });
 

@@ -88,7 +88,8 @@
     {"id":"Grass_01","x":41.02929,"y":2.2313976,"z":-5,"rotation":0.2210097,"scaleX":1,"scaleY":1},
     {"id":"Crystal_03","x":-33.371277,"y":7.3398757,"z":-5,"rotation":2.0680354,"scaleX":1,"scaleY":1},
     {"id":"Grass_02","x":-8.206459,"y":17.718952,"z":-5,"rotation":0.10657812,"scaleX":-1,"scaleY":1},
-    {"id":"Grass_05","x":21.194258,"y":17.342882,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"Grass_05","x":21.194258,"y":17.342882,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Secret_01","x":-0.12838718,"y":8.032336,"z":-1,"rotation":0.08450325,"scaleX":0.4,"scaleY":0.4}
   ],
   "terrain": [
     {

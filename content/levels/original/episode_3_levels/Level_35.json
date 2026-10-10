@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_35",
   "goalZone": {
     "min": [
@@ -30,6 +30,11 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-21.022118,"y":27.99407,"z":0,"rotation":0.35256016,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-11.276884,"y":35.62666,"z":0,"rotation":5.705107,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":2.698444,"y":-6.0879817,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-2.7536626,"y":-4.4859395,"z":0,"rotation":5.662855,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-9.558159,"y":35.51208,"z":0,"rotation":0.0042533744,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Mushroom_02","x":-21.793549,"y":44.712654,"z":-5,"rotation":1.9809674,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":-18.812714,"y":22.84895,"z":-5,"rotation":5.0419726,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":4.078026,"y":8.436103,"z":-5,"rotation":0.9874201,"scaleX":1,"scaleY":1},

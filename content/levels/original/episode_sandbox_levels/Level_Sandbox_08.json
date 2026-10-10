@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_Sandbox_08",
   "goalZone": {
     "min": [
@@ -31,6 +31,14 @@
   "props": [
     {"id":"background_night_01_set_1","x":141.6158,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_night_01_set_1","x":-44.831676,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":16.56419,"y":42.12062,"z":0,"rotation":6.2686253,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-92.59415,"y":54.297783,"z":0,"rotation":6.0976596,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-77.04407,"y":29.856514,"z":0,"rotation":6.117372,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-83.46276,"y":18.492918,"z":0,"rotation":5.842045,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-68.65645,"y":69.47574,"z":0,"rotation":0.059331268,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-81.746086,"y":36.085396,"z":0,"rotation":6.119786,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":141.01895,"y":49.7494,"z":0,"rotation":0.46177378,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-95.418594,"y":59.643005,"z":0,"rotation":1.6933094,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Rock_01","x":-85.3148,"y":-6.997452,"z":-5.150438,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_05","x":190.70247,"y":15.849487,"z":-5,"rotation":0.26483092,"scaleX":-1,"scaleY":1},
     {"id":"Crystal_03","x":14.681509,"y":77.959465,"z":-5,"rotation":0.5259967,"scaleX":-1,"scaleY":1},

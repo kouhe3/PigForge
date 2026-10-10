@@ -140,7 +140,8 @@
     {"id":"LitMushroom_05","x":-171.41,"y":61.439,"z":-1,"rotation":5.6325707,"scaleX":1,"scaleY":1},
     {"id":"LitCrystal_01","x":-160.44,"y":47.675,"z":-1,"rotation":6.1203184,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_05","x":-172.617,"y":50.761,"z":-1,"rotation":6.266294,"scaleX":1,"scaleY":1},
-    {"id":"LitMushroom_05","x":-169.977,"y":35.925,"z":-1,"rotation":5.688231,"scaleX":1,"scaleY":1}
+    {"id":"LitMushroom_05","x":-169.977,"y":35.925,"z":-1,"rotation":5.688231,"scaleX":1,"scaleY":1},
+    {"id":"SecretStatue","x":-157.56,"y":92.211,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

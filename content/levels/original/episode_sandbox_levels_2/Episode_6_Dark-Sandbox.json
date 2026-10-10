@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Episode_6_Dark-Sandbox",
   "goalZone": {
     "min": [
@@ -29,6 +29,10 @@
   "cameraLimits": {"topLeft":[-308.26,149.5],"size":[279.3,166.2]},
   "spawns": [],
   "props": [
+    {"id":"SecretPartWilfred","x":-187.59,"y":-6.6,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1.18,"sizeY":1.72,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-185.35345,"y":64.92661,"z":-0.0050001144,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-183.21846,"y":64.93961,"z":-0.0050001144,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"BreakableWall","x":-184.28746,"y":64.94061,"z":-0.0050001144,"rotation":3.1415927,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"LitCrystal_01","x":-69.7,"y":31.27,"z":0.9,"rotation":0.5140012,"scaleX":1,"scaleY":1},
     {"id":"LitCrystal_02","x":-245.41,"y":72.37,"z":0.9,"rotation":5.2252436,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-268.53546,"y":117.05961,"z":-2.875,"rotation":0,"scaleX":1,"scaleY":1},
@@ -38,6 +42,10 @@
     {"id":"LitCrystal_02","x":-272.36047,"y":57.98661,"z":0.9,"rotation":0.28950962,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-105.833466,"y":84.02261,"z":8,"rotation":0,"scaleX":0,"scaleY":0},
     {"id":"LitMushroom_03","x":-233.297,"y":113.919,"z":8,"rotation":0,"scaleX":0,"scaleY":0},
+    {"id":"ActivatedHingeDoorBlue","x":-215.03,"y":-2.829999,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"PressureButtonRed","x":-105.856995,"y":84.12,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonBlue","x":-233.305,"y":114.02,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"ActivatedHingeDoorRed","x":-71.51001,"y":68.05,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"Ruby01","x":-186.41,"y":85.12,"z":-3,"rotation":1.6580627,"scaleX":1,"scaleY":1},
     {"id":"Pole","x":-123.674,"y":79.846,"z":3,"rotation":5.9288087,"scaleX":1,"scaleY":1},
     {"id":"Pole","x":-114.527,"y":79.912,"z":3,"rotation":0.35046738,"scaleX":1,"scaleY":1},

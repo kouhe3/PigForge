@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-271.4,87.22],"size":[163.9,112.2]},
   "spawns": [],
   "props": [
+    {"id":"SecretStatue","x":-254.53,"y":17.045,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGMayanThing02","x":-226.37,"y":-7.5200005,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-252.206,"y":46.958,"z":0.9,"rotation":1.1145211,"scaleX":1,"scaleY":1},
     {"id":"Grass07","x":-217.15991,"y":15.607162,"z":0.9,"rotation":0.10118545,"scaleX":1,"scaleY":1},

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_Sandbox_02",
   "goalZone": {
     "min": [
@@ -32,6 +32,13 @@
     {"id":"background_jungle_01_set","x":314.24615,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_jungle_01_set","x":-58.647526,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_jungle_01_set","x":127.63154,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-103.879684,"y":-6.0804267,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-93.80458,"y":-4.246076,"z":0,"rotation":0.11230075,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-96.265366,"y":-6.0905147,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-111.22593,"y":-3.8807416,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":354.72534,"y":-6.1058855,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-95.29442,"y":-5.147504,"z":0,"rotation":1.3150293,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-88.53099,"y":-3.0292635,"z":0,"rotation":4.4595175,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Bottle_01","x":-5.7346,"y":-7.0161123,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Star_01","x":257.7661,"y":-7.1352224,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_03","x":-119.07441,"y":-3.1069367,"z":-5,"rotation":0.02006108,"scaleX":1,"scaleY":1},

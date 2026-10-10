@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_18",
   "goalZone": {
     "min": [
@@ -30,6 +30,11 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":44.48693,"y":-6.0861053,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-22.460218,"y":-4.5034533,"z":0,"rotation":0.06253575,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":7.819865,"y":-3.2826767,"z":0,"rotation":6.038747,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":49.157257,"y":-3.737656,"z":0,"rotation":6.005696,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":33.249687,"y":-3.3836951,"z":0,"rotation":5.9676123,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Branch_03","x":37.08585,"y":10.541307,"z":-5,"rotation":4.2181425,"scaleX":-1,"scaleY":-1},
     {"id":"Gravel_01","x":26.775812,"y":-6.8431625,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_04","x":-32.418587,"y":-2.2642937,"z":-5,"rotation":6.0763288,"scaleX":1,"scaleY":1},
@@ -97,7 +102,8 @@
     {"id":"Mushroom_05","x":-30.820282,"y":-3.2967377,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-25.42285,"y":-7.3989677,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_06","x":13.880178,"y":-1.9120274,"z":-5,"rotation":1.4370124,"scaleX":-1,"scaleY":1},
-    {"id":"Grass_07_0","x":-35.04145,"y":1.9852104,"z":-5,"rotation":5.8792567,"scaleX":-1,"scaleY":1}
+    {"id":"Grass_07_0","x":-35.04145,"y":1.9852104,"z":-5,"rotation":5.8792567,"scaleX":-1,"scaleY":1},
+    {"id":"Secret_02","x":76.39527,"y":22.097942,"z":-0.40700293,"rotation":6.175382,"scaleX":0.4,"scaleY":0.4}
   ],
   "terrain": [
     {

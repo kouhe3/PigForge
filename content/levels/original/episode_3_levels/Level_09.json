@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "Level_09",
   "goalZone": {
     "min": [
@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":38.73606,"y":6.873626,"z":0,"rotation":4.998171,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":14.878602,"y":-5.9990554,"z":0,"rotation":0.2575144,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Mushroom_01","x":-7.7039156,"y":9.04913,"z":-5,"rotation":4.0305443,"scaleX":1,"scaleY":1},
     {"id":"Rock_02","x":-33.684883,"y":-6.7913713,"z":-5.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crystal_01","x":17.442043,"y":12.473368,"z":-5,"rotation":2.471182,"scaleX":-1,"scaleY":1},

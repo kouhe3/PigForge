@@ -119,11 +119,28 @@ export interface LevelProp {
   rotation: number;
   scaleX: number;
   scaleY: number;
+  /**
+   * v7: the prop's solid geometry, one entry per non-trigger box collider the original's prefab
+   * carries (`docs/specs/level-props.md` §3.6). The room builds the bodies; the client only has to
+   * know the field is legal, so it validates the shape and keeps the numbers.
+   */
+  boxes?: readonly LevelPropBox[];
+}
+
+/** One solid box of a placed prop, in the prop's own frame (v7). */
+export interface LevelPropBox {
+  dx: number;
+  dy: number;
+  dz: number;
+  sizeX: number;
+  sizeY: number;
+  sizeZ: number;
+  rotation: number;
 }
 
 export interface LevelContentDocument {
   format: "pigforge.level-content";
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   contentVersion: string;
   goalZone: LevelZone;
   bounds: LevelZone;
@@ -190,6 +207,8 @@ const FILL_KEYS = ["texture", "color", "tileOffset", "tileSize"];
 const CURVE_KEYS = ["nodes", "stripe", "textures", "uScale", "splat1"];
 const CURVE_TEXTURE_KEYS = ["texture", "wrap"];
 const PROP_REQUIRED_KEYS = ["id", "x", "y", "z", "rotation", "scaleX", "scaleY"];
+const PROP_KEYS_WITH_BOXES = [...PROP_REQUIRED_KEYS, "boxes"];
+const PROP_BOX_KEYS = ["dx", "dy", "dz", "sizeX", "sizeY", "sizeZ", "rotation"];
 const LEVEL_ROLES: readonly LevelActorRole[] = ["part", "pig", "tnt"];
 const LEVEL_WRAPS: readonly LevelCurveWrap[] = ["repeat", "clamp"];
 
@@ -206,8 +225,8 @@ export function validateLevelContent(value: unknown): string[] {
   }
   if (document.schemaVersion !== 1 && document.schemaVersion !== 2
     && document.schemaVersion !== 3 && document.schemaVersion !== 4 && document.schemaVersion !== 5
-    && document.schemaVersion !== 6) {
-    errors.push("root.schemaVersion: versions 1 to 6 are supported.");
+    && document.schemaVersion !== 6 && document.schemaVersion !== 7) {
+    errors.push("root.schemaVersion: versions 1 to 7 are supported.");
   }
   if (!isContentVersion(document.contentVersion)) {
     errors.push("root.contentVersion: must contain 1 to 128 non-whitespace-padded characters.");
@@ -215,14 +234,14 @@ export function validateLevelContent(value: unknown): string[] {
   validateZone(document.goalZone, "root.goalZone", errors);
   validateZone(document.bounds, "root.bounds", errors);
   // v5 carries the level's own camera rectangle and every v5+ document must; older versions must not.
-  if (document.schemaVersion === 5 || document.schemaVersion === 6) {
+  if (document.schemaVersion === 5 || document.schemaVersion === 6 || document.schemaVersion === 7) {
     if (document.cameraLimits === undefined) {
       errors.push(`root.cameraLimits: required on a schemaVersion ${document.schemaVersion} document.`);
     } else {
       validateCameraLimits(document.cameraLimits, "root.cameraLimits", errors);
     }
   } else if (document.cameraLimits !== undefined) {
-    errors.push("root.cameraLimits: only a schemaVersion 5 or 6 document carries the level's camera limits.");
+    errors.push("root.cameraLimits: only a schemaVersion 5 or newer document carries the level's camera limits.");
   }
   if (!Array.isArray(document.spawns)) {
     errors.push("root.spawns: must be an array.");
@@ -243,17 +262,19 @@ export function validateLevelContent(value: unknown): string[] {
       });
     }
   }
-  // v6 carries the level's decoration instances and every v6 document must; older versions must not.
-  if (document.schemaVersion === 6) {
+  // v6 carries the level's props and every v6+ document must; older versions must not. v7 also lets a
+  // prop carry its own solid boxes.
+  if (document.schemaVersion === 6 || document.schemaVersion === 7) {
     if (document.props === undefined) {
-      errors.push("root.props: required on a schemaVersion 6 document.");
+      errors.push(`root.props: required on a schemaVersion ${document.schemaVersion} document.`);
     } else if (!Array.isArray(document.props)) {
       errors.push("root.props: must be an array.");
     } else {
-      document.props.forEach((prop, index) => validateProp(prop, `root.props[${index}]`, errors));
+      const withBoxes = document.schemaVersion === 7;
+      document.props.forEach((prop, index) => validateProp(prop, `root.props[${index}]`, withBoxes, errors));
     }
   } else if (document.props !== undefined) {
-    errors.push("root.props: only a schemaVersion 6 document places the level's props.");
+    errors.push("root.props: only a schemaVersion 6 or newer document places the level's props.");
   }
   return errors;
 }
@@ -325,20 +346,49 @@ function validateCameraLimits(value: unknown, path: string, errors: string[]): v
 }
 
 /** One decoration instance: the sprite-manifest key plus the six numbers of its transform. */
-function validateProp(value: unknown, path: string, errors: string[]): void {
+function validateProp(value: unknown, path: string, withBoxes: boolean, errors: string[]): void {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     errors.push(`${path}: prop must be a JSON object.`);
     return;
   }
 
   const prop = value as Record<string, unknown>;
-  validateKeys(prop, PROP_REQUIRED_KEYS, PROP_REQUIRED_KEYS, path, errors);
+  validateKeys(prop, PROP_REQUIRED_KEYS, withBoxes ? PROP_KEYS_WITH_BOXES : PROP_REQUIRED_KEYS, path, errors);
   if (typeof prop.id !== "string" || prop.id.length === 0 || /\s/.test(prop.id)) {
     errors.push(`${path}.id: must be a non-empty string without whitespace.`);
   }
   for (const key of ["x", "y", "z", "rotation", "scaleX", "scaleY"]) {
     if (!isFiniteNumber(prop[key])) {
       errors.push(`${path}.${key}: must be a finite number.`);
+    }
+  }
+  if (prop.boxes === undefined) {
+    return;
+  }
+  if (!Array.isArray(prop.boxes)) {
+    errors.push(`${path}.boxes: must be an array.`);
+    return;
+  }
+  prop.boxes.forEach((box, index) => validatePropBox(box, `${path}.boxes[${index}]`, errors));
+}
+
+/** One solid box: the seven numbers, and a box with a non-positive size is not a shape. */
+function validatePropBox(value: unknown, path: string, errors: string[]): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`${path}: box must be a JSON object.`);
+    return;
+  }
+
+  const box = value as Record<string, unknown>;
+  validateKeys(box, PROP_BOX_KEYS, PROP_BOX_KEYS, path, errors);
+  for (const key of PROP_BOX_KEYS) {
+    if (!isFiniteNumber(box[key])) {
+      errors.push(`${path}.${key}: must be a finite number.`);
+    }
+  }
+  for (const key of ["sizeX", "sizeY", "sizeZ"]) {
+    if (isFiniteNumber(box[key]) && box[key] <= 0) {
+      errors.push(`${path}.${key}: a solid box needs a positive size.`);
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "test17",
   "goalZone": {
     "min": [
@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-50.385044,"y":-6.078493,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Grass_02","x":-29.678144,"y":25.115126,"z":-5,"rotation":0.17760798,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_01","x":-20.352968,"y":0.22340465,"z":-5,"rotation":4.3919497,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":-18.769056,"y":12.298227,"z":-5,"rotation":0.19582592,"scaleX":1,"scaleY":1},

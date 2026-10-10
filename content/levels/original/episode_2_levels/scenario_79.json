@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "scenario_79",
   "goalZone": {
     "min": [
@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"TNT_Box","x":-54.738316,"y":-6.1088753,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Crystal_02","x":-57.646317,"y":30.960714,"z":-5,"rotation":3.107642,"scaleX":1,"scaleY":1},
     {"id":"Bush_02_0","x":-103.62479,"y":34.274956,"z":-5,"rotation":0.2255148,"scaleX":1,"scaleY":1},
     {"id":"Grass_11","x":-97.13736,"y":33.009674,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
