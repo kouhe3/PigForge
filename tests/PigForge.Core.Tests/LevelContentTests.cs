@@ -124,7 +124,7 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 6,
+            "schemaVersion": 7,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
@@ -481,7 +481,6 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)5, LevelContentDocument.SchemaVersion);
         CameraLimits limits = Assert.IsType<CameraLimits>(level.CameraLimits);
         Assert.Equal(-10.46f, limits.TopLeftX);
         Assert.Equal(13.45f, limits.TopLeftY);
@@ -514,6 +513,94 @@ public sealed class LevelContentTests
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
             {{limitsLine}}
+            "spawns": []
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// v6 places the level's decoration instances (`docs/specs/level-props.md`). The original's own
+    /// props of this family are single sprite quads -- no collider, no behaviour -- so the client draws
+    /// them and the room only relays the document; the parser still validates every field, and the
+    /// values are the level file's own transform (`rotation` is `euler.z` in degrees, as radians, and
+    /// a negative `scaleX` is the original's mirroring).
+    /// </summary>
+    [Fact]
+    public void AVersionSixLevelPlacesItsDecorations()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 6,
+            "contentVersion": "props-v6",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "props": [
+                { "id": "Star_01", "x": 37.530018, "y": -7.0505567, "z": -5, "rotation": 0, "scaleX": -1, "scaleY": 1 },
+                { "id": "Grass_06", "x": 8.645143, "y": 4.4807925, "z": -5, "rotation": 6.060668, "scaleX": 1, "scaleY": 1 }
+            ],
+            "terrain": []
+        }
+        """;
+
+        LevelContentDocument level = LevelContentParser.Parse(json);
+
+        Assert.Equal((ushort)6, LevelContentDocument.SchemaVersion);
+        Assert.Empty(level.Terrain);
+        Assert.Collection(
+            level.Props,
+            prop =>
+            {
+                Assert.Equal("Star_01", prop.Id);
+                Assert.Equal(37.530018f, prop.X);
+                Assert.Equal(-7.0505567f, prop.Y);
+                Assert.Equal(-5f, prop.Z);
+                Assert.Equal(0f, prop.Rotation);
+                Assert.Equal(-1f, prop.ScaleX);
+                Assert.Equal(1f, prop.ScaleY);
+            },
+            prop =>
+            {
+                Assert.Equal("Grass_06", prop.Id);
+                Assert.Equal(6.060668f, prop.Rotation);
+            });
+
+        // The converted pack carries them: the 251 decoration prefabs are placed 15132 times across the
+        // 277 levels, and Level_05's first instance is the star the original's own level file has.
+        LevelContentDocument real =
+            LevelContentLibrary.Parse(File.ReadAllText(FindRepositoryFile("content/levels/original/episode_1_levels/Level_05.json")));
+        Assert.Equal(16, real.Props.Count);
+        Assert.Equal(new LevelPropDefinition("Star_01", 37.530018f, -7.0505567f, -5f, 0f, -1f, 1f), real.Props[0]);
+        Assert.All(real.Props, prop => Assert.False(string.IsNullOrWhiteSpace(prop.Id)));
+    }
+
+    [Theory]
+    // v6 requires the array at the root, and older versions forbid it.
+    [InlineData("", 6, "props")]
+    [InlineData("""[{ "id": "Grass_01", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 }]""", 5, "props")]
+    [InlineData("""5""", 6, "props")]
+    [InlineData("""[{ "id": "Grass_01", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1 }]""", 6, "scaleY")]
+    [InlineData("""[{ "id": "", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 }]""", 6, "id")]
+    [InlineData("""[{ "id": "Grass 01", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 }]""", 6, "id")]
+    [InlineData("""[{ "id": "Grass_01", "x": null, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 }]""", 6, "x")]
+    [InlineData("""[{ "id": "Grass_01", "x": 0, "y": 0, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "extra": 1 }]""", 6, "extra")]
+    public void ThePropsAreVersionBoundAndWellFormed(string props, int version, string expected)
+    {
+        string propsLine = props.Length == 0 ? string.Empty : $$""" "props": {{props}}, """;
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": {{version}},
+            "contentVersion": "versioned-props",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            {{propsLine}}
             "spawns": []
         }
         """;

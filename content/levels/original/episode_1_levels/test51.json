@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "test51",
   "goalZone": {
     "min": [
@@ -28,6 +28,25 @@
   },
   "cameraLimits": {"topLeft":[-67.2,11.4],"size":[97.5,23.5]},
   "spawns": [],
+  "props": [
+    {"id":"Crystal_03","x":-57.13759,"y":-2.3730593,"z":-5.6572666,"rotation":2.512117,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-54.52906,"y":2.3644366,"z":-5.474988,"rotation":0.4727189,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":21.944859,"y":-4.4125752,"z":-5.6572666,"rotation":0.58345586,"scaleX":-1,"scaleY":1},
+    {"id":"Daisy_03","x":-54.252754,"y":2.822195,"z":-5.6572666,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":-57.36789,"y":-7.3538985,"z":-5,"rotation":0,"scaleX":-0.81,"scaleY":0.81},
+    {"id":"Star_01","x":-58.44285,"y":-6.954627,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Glow_01","x":-57.082855,"y":-2.3561406,"z":2.0952744,"rotation":0,"scaleX":2,"scaleY":2},
+    {"id":"Bottle_01","x":-49.629517,"y":-6.812315,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Wood_02","x":-32.53663,"y":-7.041481,"z":-5.6572666,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Wood_01","x":1.728219,"y":-6.991941,"z":-5.6572666,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":-57.5736,"y":4.9376597,"z":-5.6572666,"rotation":6.157102,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_02","x":24.987541,"y":-0.9936421,"z":-5.6572666,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bush_02","x":-59.52392,"y":6.198146,"z":-5.6572666,"rotation":6.160574,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-1.5052319,"y":-5.070209,"z":-5.6572666,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":-47.29445,"y":2.0208259,"z":-5.657267,"rotation":6.2042994,"scaleX":1,"scaleY":1},
+    {"id":"Branch_02","x":23.009212,"y":-0.8313148,"z":-5.6572666,"rotation":6.118673,"scaleX":-1,"scaleY":1},
+    {"id":"Shell_01","x":20.343637,"y":-7.6088924,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-55.218964,-0.6160563,5],

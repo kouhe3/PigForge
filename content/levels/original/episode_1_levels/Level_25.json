@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_25",
   "goalZone": {
     "min": [
@@ -28,6 +28,25 @@
   },
   "cameraLimits": {"topLeft":[0.58,25.6],"size":[37.33,38.72]},
   "spawns": [],
+  "props": [
+    {"id":"Star_01","x":33.142235,"y":-7.1347594,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_05","x":21.01872,"y":8.486047,"z":-5,"rotation":5.8156896,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":11.087337,"y":21.957865,"z":-5,"rotation":6.150645,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":5.7668896,"y":-6.997644,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bush_01","x":7.317156,"y":4.256603,"z":-5,"rotation":0.18879889,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":16.55236,"y":-7.206577,"z":-5,"rotation":0,"scaleX":-0.75,"scaleY":0.75},
+    {"id":"Grass_02","x":19.612942,"y":22.956524,"z":-5,"rotation":6.1853294,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":21.301561,"y":15.559612,"z":-5,"rotation":5.984769,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":18.577707,"y":8.567363,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_04","x":9.108141,"y":3.9512277,"z":-5,"rotation":0.68458366,"scaleX":-1,"scaleY":-1},
+    {"id":"Grass_03","x":32.92081,"y":-5.842151,"z":-5,"rotation":0.6457038,"scaleX":-1,"scaleY":1},
+    {"id":"Daisy_01","x":25.34964,"y":-4.6041446,"z":-5,"rotation":5.47961,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":24.672865,"y":-4.331783,"z":-5,"rotation":5.421356,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":22.558685,"y":6.6072927,"z":-5,"rotation":5.512686,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":3.4050522,"y":2.8122606,"z":-5,"rotation":0.16318627,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":17.879732,"y":23.583782,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":17.026562,"y":14.757612,"z":-5,"rotation":1.128575,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [17.228844,-0.160438,0],

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_21",
   "goalZone": {
     "min": [
@@ -28,6 +28,20 @@
   },
   "cameraLimits": {"topLeft":[-42.68,14.6],"size":[45.3,26.9]},
   "spawns": [],
+  "props": [
+    {"id":"Bush_02","x":-38.843277,"y":7.111471,"z":-5,"rotation":0.02650449,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":-20.71808,"y":-7.0354815,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Star_01","x":-40.845417,"y":-7.2107315,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":-11.9149065,"y":-7.197258,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Wood_02","x":-13.026862,"y":-6.907963,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_02","x":-40.92974,"y":6.5516577,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Wood_01","x":-0.039531708,"y":-6.9269876,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":2.5245886,"y":-6.9368706,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_05","x":-25.823881,"y":4.910371,"z":-5,"rotation":5.4391346,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-15.352028,"y":-4.554017,"z":-5,"rotation":5.8204117,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":-42.46315,"y":-6.873703,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Branch_02","x":-37.224625,"y":8.494142,"z":-5,"rotation":6.0404425,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-6.4244256,-0.15914828,0],

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "test03",
   "goalZone": {
     "min": [
@@ -28,6 +28,28 @@
   },
   "cameraLimits": {"topLeft":[-49.79,14.51],"size":[71.55,26.6]},
   "spawns": [],
+  "props": [
+    {"id":"Tuft_01","x":-43.89121,"y":-6.474176,"z":-4.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-23.321903,"y":0.07435441,"z":-5,"rotation":0.29062203,"scaleX":1,"scaleY":1},
+    {"id":"Rock_02","x":-43.20477,"y":-6.484422,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":-47.976948,"y":-4.241111,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Branch_02","x":-17.169685,"y":2.7766638,"z":-5,"rotation":5.4686823,"scaleX":1,"scaleY":1},
+    {"id":"Branch_01","x":-22.0327,"y":2.9028115,"z":-5,"rotation":6.1860337,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_03","x":-3.933381,"y":-3.6627998,"z":-5,"rotation":5.975557,"scaleX":-0.84585786,"scaleY":0.84585786},
+    {"id":"Daisy_02","x":-43.605507,"y":-3.661025,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Wood_01","x":-4.9808702,"y":-7.1908727,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower_01","x":-32.534008,"y":-6.668656,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":-32.154396,"y":-4.8253508,"z":-5,"rotation":0.033662185,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_01","x":-31.990578,"y":-4.5131598,"z":-5.5,"rotation":0.0034930299,"scaleX":0.7046268,"scaleY":0.7046268},
+    {"id":"Tuft_02","x":-48.796547,"y":-6.459281,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_06","x":-7.820081,"y":-2.8439922,"z":-5,"rotation":5.8505473,"scaleX":1,"scaleY":1},
+    {"id":"Tuft_02","x":4.038376,"y":-6.664527,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_04","x":-26.642986,"y":-0.31060207,"z":-5,"rotation":0.2487187,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":-17.82548,"y":0.09983635,"z":-5,"rotation":0.34851247,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":-43.050972,"y":-4.0946527,"z":-4.5,"rotation":0.056225326,"scaleX":1,"scaleY":1},
+    {"id":"Tuft_02","x":18.610943,"y":-6.5028415,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower_02","x":17.179577,"y":-6.8130455,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [16.337126,-0.15,0],

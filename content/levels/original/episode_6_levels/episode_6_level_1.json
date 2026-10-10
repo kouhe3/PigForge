@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "episode_6_level_1",
   "goalZone": {
     "min": [
@@ -28,6 +28,21 @@
   },
   "cameraLimits": {"topLeft":[-207.8,42.2],"size":[50,54]},
   "spawns": [],
+  "props": [
+    {"id":"Grass14","x":-179.468,"y":14.254797,"z":-1,"rotation":0.07408462,"scaleX":-1,"scaleY":1},
+    {"id":"Grass08","x":-171.099,"y":28.824797,"z":0.9,"rotation":5.5954113,"scaleX":1,"scaleY":1},
+    {"id":"Grass06","x":-202.442,"y":-1.1792011,"z":0.9,"rotation":1.0684583,"scaleX":1,"scaleY":1},
+    {"id":"Grass19","x":-198.133,"y":-1.2222023,"z":0.9,"rotation":0.9384918,"scaleX":-1,"scaleY":1},
+    {"id":"Grass12","x":-176.944,"y":-3.3012028,"z":-1,"rotation":0.45094052,"scaleX":1,"scaleY":1},
+    {"id":"Rock2","x":-199.283,"y":-7.0122013,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock1","x":-197.183,"y":-6.7622013,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock3","x":-198.283,"y":-6.882202,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Rock4","x":-184.533,"y":-7.141203,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Tree03","x":-172.733,"y":35.757797,"z":2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower1","x":-180.403,"y":7.697798,"z":-1,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Flower2","x":-177.843,"y":27.837797,"z":0.9,"rotation":6.2477984,"scaleX":-1,"scaleY":1},
+    {"id":"FGMayanThing01","x":-165.003,"y":-7.1422024,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-206.4,-0.29,5],

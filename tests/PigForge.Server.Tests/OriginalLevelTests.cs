@@ -91,6 +91,8 @@ public sealed class OriginalLevelTests
         int levelsWithoutTerrain = 0;
         int levelsWithoutGoal = 0;
         int levelsWithCameraLimits = 0;
+        int propInstances = 0;
+        HashSet<string> propIds = new(StringComparer.Ordinal);
         HashSet<CameraLimits> cameraLimits = new();
         HashSet<string> fillTextures = new(StringComparer.Ordinal);
         foreach (string file in files)
@@ -110,6 +112,18 @@ public sealed class OriginalLevelTests
             Assert.True(limits.SizeX > 0f && limits.SizeY > 0f, $"{file}: camera limits size {limits.SizeX} x {limits.SizeY}");
             levelsWithCameraLimits++;
             cameraLimits.Add(limits);
+
+            // v6: the level's decoration instances. Every level places some (10 to 478 of them), and
+            // each names a sprite in the client's own `level-props.json` -- the 251 decoration prefabs
+            // of the 368 props (`docs/specs/level-props.md`).
+            Assert.NotEmpty(document.Props);
+            propInstances += document.Props.Count;
+            foreach (LevelPropDefinition prop in document.Props)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(prop.Id), $"{file}: an empty decoration id");
+                Assert.Equal(prop.Id, prop.Id.Trim());
+                propIds.Add(prop.Id);
+            }
 
             if (document.Terrain.Count == 0)
             {
@@ -170,6 +184,8 @@ public sealed class OriginalLevelTests
         Assert.Equal(2154, loops);
         Assert.Equal(17, fillTextures.Count);
         Assert.Equal(20, spawns);
+        Assert.Equal(15132, propInstances);
+        Assert.Equal(251, propIds.Count);
         Assert.Equal(14, levelsWithoutGoal);
         // Every level overrides `LevelManager.m_cameraLimits` and no two read the same (measured
         // 2026-10-06: 277/277, 277 distinct rectangles).

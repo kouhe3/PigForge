@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_30",
   "goalZone": {
     "min": [
@@ -28,6 +28,29 @@
   },
   "cameraLimits": {"topLeft":[-72.63,22.9],"size":[115.21,35.8]},
   "spawns": [],
+  "props": [
+    {"id":"Daisy_03","x":38.661026,"y":3.1272602,"z":-5,"rotation":0.10661016,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-29.04105,"y":11.624402,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":-59.416294,"y":-6.919079,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Star_01","x":31.290089,"y":-7.0072956,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-1.0744896,"y":10.362634,"z":-5,"rotation":6.025021,"scaleX":1,"scaleY":1},
+    {"id":"Grass_04","x":33.487286,"y":2.1152124,"z":-5,"rotation":0.5612377,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-34.6413,"y":-5.2718697,"z":-5,"rotation":0.37973422,"scaleX":1,"scaleY":1},
+    {"id":"Grass_01","x":14.361786,"y":-5.1939125,"z":-5,"rotation":5.507555,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-9.444626,"y":0.7791252,"z":-5,"rotation":0.22948891,"scaleX":1,"scaleY":1},
+    {"id":"Shell_01","x":-44.950214,"y":-6.9290237,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Wood_02","x":-10.679948,"y":-6.973591,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Daisy_02","x":6.013525,"y":10.5262785,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_01","x":-14.669454,"y":11.931271,"z":-5,"rotation":0.09518319,"scaleX":1,"scaleY":1},
+    {"id":"Bottle_01","x":-45.849377,"y":-6.4434776,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-19.914454,"y":-1.826252,"z":-5,"rotation":0.30670014,"scaleX":1,"scaleY":1},
+    {"id":"Bush_01","x":4.005146,"y":11.074732,"z":-5,"rotation":6.2056646,"scaleX":1,"scaleY":1},
+    {"id":"Wood_01","x":34.12465,"y":-7.0883274,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Branch_01","x":-60.59809,"y":-3.3000526,"z":-5,"rotation":5.979872,"scaleX":-1,"scaleY":1},
+    {"id":"Shell_01","x":4.6220093,"y":-6.9612236,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-25.946806,"y":12.148635,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":-4.943303,"y":1.1597795,"z":-5,"rotation":0.16228132,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-31.194815,5.3926697,0],

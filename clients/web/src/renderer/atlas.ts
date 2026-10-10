@@ -563,6 +563,7 @@ async function loadImageElement(url: string): Promise<CanvasImageSource> {
 export async function loadPartTextures(
   url: string = PART_TEXTURE_URL,
   loadImage: ImageLoader = loadImageElement,
+  cache: Map<string, CanvasImageSource> = new Map(),
 ): Promise<PartTextureSet | null> {
   try {
     const response = await fetch(url);
@@ -585,7 +586,12 @@ export async function loadPartTextures(
     }
     await Promise.all(
       [...names].map(async (name) => {
-        atlases.set(name, await loadImage(`${base}${name}`));
+        // A caller may share its images with another manifest (the level's props draw from the same
+        // two atlases the parts use): an atlas is 16 MB decoded, so it is loaded once per name.
+        const existing = cache.get(name);
+        const source = existing ?? (await loadImage(`${base}${name}`));
+        cache.set(name, source);
+        atlases.set(name, source);
       }),
     );
     return { atlases, parts };

@@ -6,6 +6,39 @@ import { type Camera, worldToScreen } from "./camera";
 import { conditionalSpriteVisible, connectableSides } from "./connectionVisuals";
 import { drawTerrain, GROUND_FILL, type GroundTextureSet } from "./terrain";
 import { drawTerrainCurves } from "./terrainCurve";
+import { drawProps, sortPropsForDepth, type LevelPropsSet } from "./levelProps";
+import type { LevelProp } from "@/schema/levelContent";
+
+/** The level's decorations: the document's own instances plus the art manifest they draw from. */
+export interface DecorationLayer {
+  props: readonly LevelProp[];
+  set: LevelPropsSet;
+}
+
+/**
+ * The level's decorations split at the depths the frame itself has: `far` behind the ground, `ground`
+ * on the ground's own plane (z = 0), `mid` between the ground and the game plane, `plane` level with
+ * the contraption (the original's z = -5, measured on its own pre-placed parts) and `near` in front of
+ * it. The original tests depth per pixel; the plane renderer only has each instance's own z, so the
+ * painter paints one bucket at each of those breaks. Every bucket keeps the level file's order for
+ * equal depths (`sort` is stable), which is all the original's depth test can do too.
+ */
+export function propDepthBuckets(props: readonly LevelProp[]): {
+  far: LevelProp[];
+  ground: LevelProp[];
+  mid: LevelProp[];
+  plane: LevelProp[];
+  near: LevelProp[];
+} {
+  const sorted = sortPropsForDepth(props);
+  return {
+    far: sorted.filter((prop) => prop.z > 0),
+    ground: sorted.filter((prop) => prop.z === 0),
+    mid: sorted.filter((prop) => prop.z < 0 && prop.z > GAME_PLANE_Z),
+    plane: sorted.filter((prop) => prop.z === GAME_PLANE_Z),
+    near: sorted.filter((prop) => prop.z < GAME_PLANE_Z),
+  };
+}
 
 /** A static part is drawn in the ground's own green; the terrain painter owns that colour. */
 const STATIC_FILL = GROUND_FILL;
@@ -13,6 +46,10 @@ const DYNAMIC_FILL = "#c4a574";
 const SELECT_STROKE = "#f0d090";
 const PREVIEW_ALPHA = 0.45;
 const ACTIVE_STROKE = "#ffd166";
+/** The original's game plane, where its contraption and its pre-placed parts sit (z = -5, measured on
+ * the level pack's own part instances -- `docs/specs/level-props.md` §4). The decorations are sorted
+ * around it so the grass the original draws over the cart is drawn over it here too. */
+const GAME_PLANE_Z = -5;
 /** Placeholder shape for entities whose content entry is unknown. */
 const DEFAULT_SHAPE: PartShape = { kind: "box", halfExtents: [0.5, 0.5, 0.5] };
 
@@ -202,14 +239,30 @@ export function drawFrame(
   animations?: AnimationState | null,
   terrains?: readonly LevelTerrain[] | null,
   groundTextures?: GroundTextureSet | null,
+  decorations?: DecorationLayer | null,
 ): void {
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  // The level's decorations are split once per frame: the painter then paints one bucket at each
+  // depth break (`propDepthBuckets`).
+  const decorationSet = decorations?.set ?? null;
+  const props = decorations ? propDepthBuckets(decorations.props) : null;
+  const paintProps = (bucket: readonly LevelProp[] | undefined): void => {
+    if (props === null || bucket === undefined) return;
+    drawProps(ctx, camera, bucket, decorationSet, width, height);
+  };
   ctx.fillStyle = "#1c211c";
   ctx.fillRect(0, 0, width, height);
   drawGrid(ctx, camera, width, height);
+  // Behind the ground: the level's own backdrop layers (clouds, sky fills).
+  paintProps(props?.far);
   if (terrains && terrains.length > 0) {
     drawTerrain(ctx, camera, terrains, groundTextures ?? null, width, height);
+  }
+  // On the ground's own plane: the props the original places at z = 0 (crates, goal art, ground
+  // dressing that must sit on the fill rather than under it).
+  paintProps(props?.ground);
+  if (terrains && terrains.length > 0) {
     drawTerrainCurves(ctx, camera, terrains, groundTextures ?? null, width, height);
   }
   if (goal) {
@@ -218,6 +271,8 @@ export function drawFrame(
     ctx.fillStyle = "rgba(80, 160, 90, 0.25)";
     ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
   }
+  // Between the ground's edge band and the contraption: the level's own dressing.
+  paintProps(props?.mid);
   if (bounds) {
     const a = worldToScreen(camera, bounds.minX, bounds.maxY, width, height);
     const b = worldToScreen(camera, bounds.maxX, bounds.minY, width, height);
@@ -441,6 +496,12 @@ export function drawFrame(
     }
     ctx.restore();
   }
+
+  // Level with the contraption (the original's own z = -5): drawn after the parts, because the
+  // original's depth test cannot separate them and the cart is what a player looks at. In front of
+  // the contraption: the level's own foreground dressing.
+  paintProps(props?.plane);
+  paintProps(props?.near);
 
   if (marquee) {
     const a = worldToScreen(camera, marquee.minX, marquee.maxY, width, height);

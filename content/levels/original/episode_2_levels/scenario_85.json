@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "scenario_85",
   "goalZone": {
     "min": [
@@ -28,6 +28,18 @@
   },
   "cameraLimits": {"topLeft":[-68.33,17],"size":[55.5,30.8]},
   "spawns": [],
+  "props": [
+    {"id":"Bush_04","x":-49.40902,"y":7.2820644,"z":-5,"rotation":0.018773181,"scaleX":-1,"scaleY":1},
+    {"id":"Starfish","x":-48.240738,"y":-7.110094,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_04","x":-20.586386,"y":-7.054056,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Cave_Mushroom_05","x":-19.976376,"y":-7.4533825,"z":-5.1545725,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Shell","x":-58.645622,"y":-7.3700275,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Cave_Mushroom_06","x":-16.205284,"y":-6.8930893,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Bush_02_0","x":-35.448433,"y":9.468191,"z":-5,"rotation":6.2654505,"scaleX":-1,"scaleY":1},
+    {"id":"Starfish","x":-46.346222,"y":-7.5951824,"z":-5,"rotation":0,"scaleX":-0.76686287,"scaleY":0.76686287},
+    {"id":"Bush_03","x":-62.20013,"y":9.9760685,"z":-5,"rotation":5.2755656,"scaleX":1,"scaleY":1},
+    {"id":"Twig_2","x":-64.17143,"y":-6.7961254,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-22.51184,-0.09894395,0],

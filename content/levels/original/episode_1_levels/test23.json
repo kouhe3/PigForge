@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "test23",
   "goalZone": {
     "min": [
@@ -28,6 +28,27 @@
   },
   "cameraLimits": {"topLeft":[-59.4,25.3],"size":[95.84,36.55]},
   "spawns": [],
+  "props": [
+    {"id":"Mushroom_02","x":-14.711305,"y":-2.4002674,"z":-5.029297,"rotation":4.79376,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":-6.2870054,"y":-5.541829,"z":-5,"rotation":1.1654145,"scaleX":1,"scaleY":1},
+    {"id":"Wood_01","x":2.474391,"y":-7.0001707,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_01","x":-15.027216,"y":-1.5578375,"z":-5,"rotation":5.4298005,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":28.556587,"y":-6.384978,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":-0.8970113,"y":6.110241,"z":-5,"rotation":6.2340236,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_03","x":-6.1992526,"y":-4.945108,"z":-4.5,"rotation":1.2751187,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":10.319096,"y":-4.9999313,"z":-5,"rotation":5.98815,"scaleX":1,"scaleY":1},
+    {"id":"Wood_02","x":30.208923,"y":-7.1854973,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_01","x":-47.371803,"y":12.3669405,"z":-5,"rotation":0.056769002,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-37.341484,"y":11.776862,"z":-5,"rotation":6.0304546,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-18.3584,"y":6.543743,"z":-5,"rotation":6.1854916,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_02","x":-23.827194,"y":6.9412203,"z":-5,"rotation":6.1280956,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-3.2363844,"y":6.8796167,"z":-5,"rotation":6.206486,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_04","x":-6.203077,"y":6.385232,"z":-5,"rotation":0.54849076,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":1.9184036,"y":-0.38609385,"z":-5,"rotation":0.4333439,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":-11.624281,"y":5.6936083,"z":-5,"rotation":6.1739354,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":22.083694,"y":-6.089022,"z":-5,"rotation":0.26537323,"scaleX":-1,"scaleY":1},
+    {"id":"Wood_02","x":-35.23258,"y":-6.954551,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-7.771783,-0.15,0],

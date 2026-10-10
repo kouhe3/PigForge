@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "Level_26",
   "goalZone": {
     "min": [
@@ -28,6 +28,28 @@
   },
   "cameraLimits": {"topLeft":[-62.03,23.5],"size":[67.4,34.6]},
   "spawns": [],
+  "props": [
+    {"id":"Mushroom_01","x":-50.409904,"y":-0.5772085,"z":-4.5,"rotation":0.099778675,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":-34.724915,"y":2.0123048,"z":-5,"rotation":5.670862,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":-58.4702,"y":16.230717,"z":-5,"rotation":5.956372,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-20.78552,"y":-3.7339625,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-56.64688,"y":15.512204,"z":-5,"rotation":6.228411,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":-42.693462,"y":11.659497,"z":-5,"rotation":5.906619,"scaleX":1,"scaleY":1},
+    {"id":"Grass_02","x":-6.823525,"y":-3.3261628,"z":-5,"rotation":5.3104663,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-54.382793,"y":15.512204,"z":-5,"rotation":6.0744286,"scaleX":1,"scaleY":1},
+    {"id":"Crystal_01","x":-49.513653,"y":2.5157652,"z":-5,"rotation":3.4031253,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":-44.199913,"y":-6.7244945,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Mushroom_03","x":-49.10942,"y":-1.7370734,"z":-5,"rotation":5.725557,"scaleX":1,"scaleY":1},
+    {"id":"Crystal_02","x":-48.266155,"y":3.025402,"z":-5,"rotation":3.391483,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":-50.023346,"y":-1.1219935,"z":-5,"rotation":5.831065,"scaleX":1,"scaleY":1},
+    {"id":"Branch_01","x":-57.02565,"y":17.020031,"z":-5,"rotation":6.2786446,"scaleX":-1,"scaleY":1},
+    {"id":"Shell_01","x":-0.8779092,"y":-7.1693673,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Wood_01","x":-51.243515,"y":-7.033225,"z":-7.0839844,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":-15.200085,"y":-7.268228,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_03","x":-41.85398,"y":6.1710215,"z":-5,"rotation":5.8216147,"scaleX":1,"scaleY":1},
+    {"id":"Glow_01","x":-49.250698,"y":2.3993945,"z":4,"rotation":0,"scaleX":4,"scaleY":4},
+    {"id":"Wood_02","x":-18.545937,"y":-6.9056387,"z":-7.0839844,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [-31.796612,-0.1560021,0],

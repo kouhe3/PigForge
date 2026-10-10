@@ -65,7 +65,7 @@ describe("validateLevelContent root", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expectRejected({ schemaVersion: 6 }, "versions 1 to 5");
+    expectRejected({ schemaVersion: 7 }, "root.schemaVersion");
   });
 
   it("rejects an empty, padded or non-string contentVersion", () => {
@@ -381,8 +381,7 @@ describe("validateLevelContent camera limits", () => {
     for (const schemaVersion of [1, 2, 3, 4]) {
       const older = structuredClone(v5) as Record<string, unknown>;
       older.schemaVersion = schemaVersion;
-      expect(validateLevelContent(older))
-        .toContain("root.cameraLimits: only a schemaVersion 5 document carries the level's camera limits.");
+      expect(validateLevelContent(older).some((error) => error.startsWith("root.cameraLimits:"))).toBe(true);
     }
   });
 
@@ -398,6 +397,53 @@ describe("validateLevelContent camera limits", () => {
       .toContain("root.cameraLimits.topLeft: must be [x, y] with finite numbers.");
     expect(withCameraLimits({ topLeft: [0, 0], size: [0, 1] }))
       .toContain("root.cameraLimits.size: must be positive on both axes.");
+  });
+});
+
+/** The v6 document: the v5 one plus the level's own decoration instances. */
+const v6 = {
+  ...structuredClone(v5),
+  schemaVersion: 6,
+  props: [
+    { id: "Star_01", x: 37.530018, y: -7.0505567, z: -5, rotation: 0, scaleX: -1, scaleY: 1 },
+    { id: "Grass_06", x: 8.645143, y: 4.4807925, z: -5, rotation: 6.060668, scaleX: 1, scaleY: 1 },
+  ],
+};
+
+/** The v6 document with its `props` replaced by `value`. */
+function withProps(value: unknown): string[] {
+  return validateLevelContent({ ...structuredClone(v6), props: value });
+}
+
+describe("validateLevelContent props", () => {
+  it("accepts a v6 document with the level's decorations", () => {
+    expect(validateLevelContent(v6)).toEqual([]);
+  });
+
+  it("requires props on a v6 document and refuses them on an older one", () => {
+    const missing = structuredClone(v6) as Record<string, unknown>;
+    delete missing.props;
+    expect(validateLevelContent(missing)).toContain("root.props: required on a schemaVersion 6 document.");
+    for (const schemaVersion of [1, 2, 3, 4, 5]) {
+      const older = structuredClone(v6) as Record<string, unknown>;
+      older.schemaVersion = schemaVersion;
+      expect(validateLevelContent(older).some((error) => error.startsWith("root.props:"))).toBe(true);
+    }
+  });
+
+  it("rejects a malformed decoration", () => {
+    expect(withProps(3)).toContain("root.props: must be an array.");
+    expect(withProps([3])).toContain("root.props[0]: prop must be a JSON object.");
+    expect(withProps([{ id: "", x: 0, y: 0, z: 0, rotation: 0, scaleX: 1, scaleY: 1 }]))
+      .toContain("root.props[0].id: must be a non-empty string without whitespace.");
+    expect(withProps([{ id: "Grass 01", x: 0, y: 0, z: 0, rotation: 0, scaleX: 1, scaleY: 1 }]))
+      .toContain("root.props[0].id: must be a non-empty string without whitespace.");
+    expect(withProps([{ id: "Grass_01", x: 0, y: 0, z: 0, rotation: 0, scaleX: 1 }]))
+      .toContain("root.props[0]: missing required property 'scaleY'.");
+    expect(withProps([{ id: "Grass_01", x: 0, y: 0, z: 0, rotation: 0, scaleX: 1, scaleY: 1, extra: 1 }]))
+      .toContain("root.props[0]: unknown property 'extra'.");
+    expect(withProps([{ id: "Grass_01", x: Number.NaN, y: 0, z: 0, rotation: 0, scaleX: 1, scaleY: 1 }]))
+      .toContain("root.props[0].x: must be a finite number.");
   });
 });
 

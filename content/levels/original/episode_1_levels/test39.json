@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contentVersion": "test39",
   "goalZone": {
     "min": [
@@ -28,6 +28,29 @@
   },
   "cameraLimits": {"topLeft":[-76.4,20.1],"size":[121.72,31.9]},
   "spawns": [],
+  "props": [
+    {"id":"Shell_01","x":-45.800262,"y":-7.128599,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Mushroom_02","x":-12.364666,"y":-5.654131,"z":-5,"rotation":5.533549,"scaleX":1,"scaleY":1},
+    {"id":"Grass_06","x":-17.514183,"y":-1.5849609,"z":-5,"rotation":0.25170997,"scaleX":1,"scaleY":1},
+    {"id":"Wood_02","x":-29.346315,"y":-6.9667645,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":2.0816612,"y":-7.4869003,"z":-5,"rotation":0,"scaleX":0.7917157,"scaleY":0.7917157},
+    {"id":"Grass_06","x":-31.370731,"y":-0.28954697,"z":-5,"rotation":6.167939,"scaleX":-1,"scaleY":1},
+    {"id":"Wood_01","x":37.104744,"y":-7.093014,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Grass_05","x":40.95751,"y":-1.3926258,"z":-5.5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_02","x":-22.320358,"y":-3.3684635,"z":-5,"rotation":0.34788105,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_02","x":5.105816,"y":-5.1332016,"z":-5,"rotation":6.1190453,"scaleX":-1,"scaleY":1},
+    {"id":"Daisy_02","x":-42.637863,"y":-3.6577854,"z":-5,"rotation":0.33770877,"scaleX":-0.79999995,"scaleY":0.79999995},
+    {"id":"Daisy_01","x":-21.00418,"y":-2.4634876,"z":-5.5,"rotation":0.2300943,"scaleX":1,"scaleY":1},
+    {"id":"Bush_01","x":34.77717,"y":-0.9548683,"z":-5.5,"rotation":6.258986,"scaleX":-0.68472046,"scaleY":0.68472046},
+    {"id":"Branch_02","x":43.201775,"y":-2.2059898,"z":-5,"rotation":5.505291,"scaleX":1,"scaleY":1},
+    {"id":"Glow_01","x":-7.918564,"y":-2.5397167,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
+    {"id":"Grass_01","x":-4.776699,"y":-0.67347336,"z":-5,"rotation":5.7040653,"scaleX":1,"scaleY":1},
+    {"id":"Wood_01","x":-72.68507,"y":-7.0707836,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Star_01","x":-0.34104538,"y":-7.09153,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Grass_02","x":34.071014,"y":-1.7185936,"z":-5,"rotation":0.13774525,"scaleX":-1,"scaleY":1},
+    {"id":"Crystal_03","x":-7.9436836,"y":-2.5425205,"z":-5,"rotation":2.4894993,"scaleX":1,"scaleY":1},
+    {"id":"Daisy_03","x":8.118187,"y":-5.1392994,"z":-5,"rotation":6.126307,"scaleX":-1,"scaleY":1}
+  ],
   "terrain": [
     {
       "position": [32.84214,-0.15,0],

@@ -20,6 +20,26 @@ public sealed record LevelSpawnDefinition(
     float Angle = 0f);
 
 /// <summary>
+/// One decoration instance the level places: a single sprite quad the original draws in its own
+/// depth order (<c>docs/specs/level-props.md</c>). <see cref="Id"/> keys the client's own
+/// <c>level-props.json</c> (the palette prefab's name, the art that quad uses), the position is the
+/// instance's own transform (<c>LevelLoader.ReadPrefabInstance</c>), <see cref="Rotation"/> is the
+/// level file's <c>euler.z</c> in radians (Unity takes degrees and levels are 2D, so euler x/y are
+/// always zero) and <see cref="ScaleX"/>/<see cref="ScaleY"/> are the instance's own localScale --
+/// a negative x is the original's mirroring, and the quad's z scale never matters. A decoration has
+/// no collider and no behaviour in the original, so the room only needs this to relay it to the
+/// client: the server never builds anything from it.
+/// </summary>
+public sealed record LevelPropDefinition(
+    string Id,
+    float X,
+    float Y,
+    float Z,
+    float Rotation,
+    float ScaleX,
+    float ScaleY);
+
+/// <summary>
 /// The ground's look of one terrain, as the original's <c>e2d/Fill</c> shader draws it:
 /// <c>tex2D(_MainTex, uv) * _Color</c> with <c>uv = (world - tileOffset) / tileSize</c>
 /// (<c>LevelLoader.cs:214-230</c> writes the fill material and <c>:279-290</c> computes the UVs per
@@ -111,14 +131,16 @@ public sealed record LevelContentDocument(
 
     /// <summary>
     /// The version this code writes: v3 gives every terrain its collider bit and its fill, v4 adds the
-    /// edge trim (<see cref="LevelCurveDefinition"/>), and v5 adds the level's own camera limits
-    /// (<see cref="CameraLimits"/>).
+    /// edge trim (<see cref="LevelCurveDefinition"/>), v5 adds the level's own camera limits
+    /// (<see cref="CameraLimits"/>) and v6 adds the level's decoration instances
+    /// (<see cref="Props"/>).
     /// </summary>
-    public const ushort SchemaVersion = 5;
+    public const ushort SchemaVersion = 6;
 
     /// <summary>
     /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill) and v3 ones
-    /// (fill, no edge trim) and v4 ones (edge trim, no camera limits).
+    /// (fill, no edge trim), v4 ones (edge trim, no camera limits) and v5 ones (camera limits, no
+    /// props).
     /// </summary>
     public const ushort LegacySchemaVersion = 1;
 
@@ -133,4 +155,11 @@ public sealed record LevelContentDocument(
     /// <see cref="MapBounds"/> instead.
     /// </summary>
     public CameraLimits? CameraLimits { get; init; }
+
+    /// <summary>
+    /// The level's decoration instances, drawn by the client only: the original's own props carry no
+    /// collider and no behaviour (251 of the 368 prop prefabs, 15132 of the pack's 26072 instances),
+    /// so nothing here reaches the physics world. Empty on a v1-v5 document.
+    /// </summary>
+    public IReadOnlyList<LevelPropDefinition> Props { get; init; } = Array.Empty<LevelPropDefinition>();
 }
