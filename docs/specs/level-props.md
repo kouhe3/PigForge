@@ -15,10 +15,10 @@
 
 | 类 | prefab | 实例 | 是什么 | 处置 |
 |---|---|---|---|---|
-| **可绘制** | **279** | **15542** | 每个带渲染器的对象都画得出图：`Sprite`/`UnmanagedSprite` 四边面、或 `Panel` 自己生成的九宫格，且带的其他脚本在装载那一刻不改画面 | **P4a（251 个单四边面）+ P4b（8 个背景组、2 个石头、6 个 `Lit*`）+ P4b′（5 个窗户、1 个弹弓、7 只鸟）已交付** |
+| **可绘制** | **309** | **16378** | 每个带渲染器的对象都画得出图：`Sprite`/`UnmanagedSprite` 四边面、或 `Panel` 自己生成的九宫格，且带的其他脚本在装载那一刻不改画面 | **P4a（251 个单四边面）+ P4b（8 个背景组、2 个石头、6 个 `Lit*`）+ P4b′（5 个窗户、1 个弹弓、7 只鸟）+ P4c（30 个实心家具）已交付** |
 | 系统标记 | 21 | 6674 | 只有脚本没有渲染器：`LevelStart`/`LevelManager`/`CameraSystem`/`TimeChallenge`/`DontUsePartChallenge`/`DessertPlace`/`Cloud*Set`/`Bridge`… | 各自单独（相机界已收口；挑战归 P5；**甜品点见 §7 偏差 7**） |
 | 地形 | 21 | 2146 | `e2dTerrain` 系列，**就是数据块的 2146 个地形对象** | 已交付（v2–v5） |
-| 实心/交互 | 57 | 1976 | 有碰撞体：`TNT_Box` 322（`TNTBox`，爆）+ `BoxChallenge` 269 / `StarBox` 262（挑战与收集）+ `BreakableWall`/`WoodenPlank2m`/`Fan`（`LevelRigidbody`）+ `GoalArea*`/`Bridge`/`SecretPlace`/`PartBox` + 三只**会飞的**鸟（`Bird_Red`/`Bird_Blue`/`Bird_Yellow`，`Bird` + 碰撞体） | **P4c/P5**（画面已随 P4b′ 画出，碰撞体与飞行行为仍留在这里） |
+| 实心/交互 | 57 | 1976 | 有碰撞体：`TNT_Box` 322 + `BoxChallenge` 269 / `StarBox` 262（挑战与收集）+ `BreakableWall`/`WoodenPlank2m`/`WoodenBox`/`MetalBar*`/`MetalBox`（`LevelRigidbody` 家具）+ `Fan` + `ActivatedHingeDoor*` + `GoalArea*`/`Bridge`/`SecretPlace`/`PartBox`/`PressureButton*` + 三只会飞的鸟 | **P4c 交付了 30 个（836 个实例）的画面与盒体**；挑战件、`GoalArea*`、`Floating*`、`AncestorPig`、`Bridge` 留 P5/P6（§3.6 末逐条记原因） |
 > 一行里的数字按「脚本集合」分类，**同一个 prefab 只出现在一行**：`8 个 background_*_set` 因带碰撞体算在实心/交互里，但它们的**画面**已经在 P4b 交付（碰撞体归 P4c）。
 
 装饰类内部再分（实测）：
@@ -142,6 +142,37 @@ MeshRenderer → `Sprite` → `SpriteReference` → `Panel`），所以**最后�
 工具从 `Slingshot.cs` 里**解析**这四个常量与宽度（断言数量与数值），从 `.mat` 里取颜色，不信手抄。
 实测每个弹弓 5 个四边面（3 精灵 + 2 筋），20 个实例。
 
+### 3.6 实心件：原版自己的盒碰撞体 → 房间里的静态体（P4c）
+
+关卡里那些"家具"——`TNT_Box` 的箱子、`BreakableWall` 的墙、`WoodenPlank2m`/`MetalBar*` 的板、`WoodenBox`/
+`MetalBox`、`ActivatedHingeDoor*` 的门、`Fan`、四个 `PressureButton*`、`Secret_*`/`SecretStatue`、
+`PartBox_0`/`DynamicPartBox`/`SecretPart*`——的**画面**按 §3 的同一套画法画（它们只是多了几个"装载那一刻
+不改画面"的脚本，见 `SOLID_CLASSES` 的逐条证据）；**物理**则取 prefab 自己带的**非 trigger `BoxCollider`**：
+`m_Size` 三个分量 + `m_Center` 偏移，按对象自己的变换链折进件坐标（与四边面同一条链路），写进关卡内容
+**v7** 的 `props[i].boxes`，由房间建**静态盒体**（`GameRoom.EnsurePropBodies`）。
+
+- **只有盒体**：`Fan` 的两片叶片是 `CapsuleCollider`（`Colliders` 子对象，半径 0.7）、鸟是 capsule —— 本片
+  不建模（§7 偏差 11）。
+- **trigger 不是墙**：`BoxChallenge`（1.33² 的 trigger）、`GoalArea*` 的终点区、`Secret_*`、
+  `PressureButton*` 的按下区都是 trigger —— 原版里它们只是"有人经过这里"的标记，本片不建体（终点区另有
+  `goalZone` ✓）。
+- **背景组自己的 `GroundCollider` 跳过**：`background_*_set` 里那个 188 m 宽的盒体在背景自己的 z 平面上
+  （关卡平面之后），原版用它兜住飞出去的猪；本片的地板是地形（§4 表），所以按对象名
+  （`GroundCollider`/`CloudCollider`）跳过，不当成关卡里的墙。
+- **装的是"静态"**：原版给木板/箱子/墙/门挂了 `Rigidbody`（`WoodenPlank2m` 质量 4、`BreakableWall` 质量 4
+  但 `m_UseGravity: 0`、门 4），`RigidbodyFreezer.Start` 只是记录原约束、**不冻结**（`RigidbodyFreezer.cs:19-30`）
+  —— 也就是原版里它们会掉、会被推、会碎。本片按规格 §6 P4c 的约定把它们建成**静态盒**：位置就是关卡放的
+  那一帧，行为差异见 §7 偏差 10。
+- **实测**：30 个 prefab / 836 个实例的画面 + **658 个盒体分布在 123 个关卡**（`TNT_Box` 322、`BreakableWall`
+  116、`WoodenPlank2m` 67、`Fan` 0（全 capsule）、门 74、`WoodenBox`/`Metal*` 65、其余按钮/秘密/件箱只有
+  trigger）。房间侧：`PropSolidRoomTests` 让猪落在盒体上（对照：去掉盒体就掉出世界）✓。
+
+**P4c 之外（逐条理由）**：`GoalArea_*`（7 个 prefab / ~203 实例）的旗子是**序列化的网格 + 材质**（`GoalBox.cs:39`
+直接拿 `Renderer.material`），不是运行时生成的四边面 —— 要网格支持；`FloatingStarBox`/`FloatingPartBox` 的
+绳与气球是运行时生成的（`RopeVisualization`/`LevelBalloon`）；`AncestorPig` 的眼睛会自动播动画（工具断言
+拒绝）；`RandomChildActivator` 的终点件每次随机挑一个子对象显示；`Bridge`/`BridgeStep`、挑战件
+（`BoxChallenge`/`StarBox`/`Collectable`/`WaypointChallenge`）归 P5。
+
 ## 4. 深度（z）与绘制顺序
 
 原版是 3D 渲染 + 深度测试，2D 客户端必须自己排序。**近 = z 小**（相机 `IngameCamera.cs:423`
@@ -198,7 +229,7 @@ MeshRenderer → `Sprite` → `SpriteReference` → `Panel`），所以**最后�
 
 ## 5. 内容契约
 
-### 5.1 关卡内容 **v6**（`schemas/level-content-v6.schema.json`）
+### 5.1 关卡内容 **v7**（`schemas/level-content-v7.schema.json`）
 
 在 v5 之上加一个顶层 `props` 数组（**必填**，可以是空数组；v1–v5 出现 `props` 是硬错误）：
 
@@ -250,10 +281,10 @@ MeshRenderer → `Sprite` → `SpriteReference` → `Panel`），所以**最后�
 | P4a ✅ | 251 个单四边面装饰件：清单工具 + 关卡 v6 的 `props` + 客户端按 z 分段绘制 | **2026-10-09 交付** |
 | P4b ✅ | 15 个多四边面/多点光源件：8 个 `background_*_set` 背景组（53…250 个四边面、视差标签、纯色层）+ `Stone2_2`/`Stone5_2` + 6 个 `Lit*` —— prefab 层级遍历（`m_Father`/`m_Children`/`m_LocalPosition`）、四边面各自深度、`ParallaxManager` 的视差 | **2026-10-09 交付** |
 | **P4b′ ✅** | 13 个剩余可绘制件：5 个窗户（`Panel` 九宫格，§3.4）+ 1 个 `Slingshot`（3 精灵 + 2 条橡皮筋，§3.5）+ 4 只栖鸟（`SpriteAnimation` 不播那一帧）+ 3 只会飞的鸟（装载姿态）—— 加上**图集源矩形 y 方向的修正**（§3.3 末） | **2026-10-10 交付** |
-| P4c | 实心件：`TNT_Box`/`BreakableWall`/`WoodenPlank2m`/`Fan`/`GoalArea*` 的碰撞体进房间（静态盒）+ 画图 | 待做 |
-| P5 | 行为件：`BoxChallenge`/`StarBox`/`Collectable`/`WaypointChallenge`/`TNTBox`/`LevelRigidbody`/`TimeChallenge`/`DontUsePartChallenge` 与星级/计时/收集（`PrefabOverrides` 的挑战块） | 待做（`docs/specs/original-level-pack.md` §8 P5） |
+| **P4c ✅** | 实心件：30 个 prefab / 836 个实例的画面（`TNTBox`/`LevelRigidbody`/`RigidbodyFreezer`/`Fan`/`ActivatedHingeDoor`/`GoalBox`/`SecretPlace`/`SecretStatue`/`PartBox`/`PartSecret`/`PressureButton` 各自的装载期证据）+ 关卡内容 **v7** 的 `boxes`（658 个盒体 / 123 关）+ 房间的**静态盒体**（`EnsurePropBodies`） | **2026-10-10 交付** |
+| P5 | 行为件：`BoxChallenge`/`StarBox`/`Collectable`/`WaypointChallenge` 与星级/计时/收集（`PrefabOverrides` 的挑战块）+ 实心件的**动态/破坏**行为（原版它们有 `Rigidbody`） | 待做（`docs/specs/original-level-pack.md` §8 P5） |
 | P5 的甜品 | `DessertPlace` 的 5339 个生成点**不画**：原版在 `BaseGameMode.PlaceDesserts` 里用 `Random` 抽点心与地点、只在 `ChiefPigExploded`（通关后）或 IN 的 `EnableDesserts` 打开时才放、还要读存档里的摆放串 —— 静态复刻不出这一帧（§7 偏差 7） | 归 P5 |
-| P6 | 云（5 个 `Cloud*Set` 的 `CloudGenerator`，193 个实例）、`backgroundobject`（48）等在 `system` 里的可见件 | 待做 |
+| P6 | 云（5 个 `Cloud*Set` 的 `CloudGenerator`，193 个实例）、`backgroundobject`（48）、`GoalArea_*` 的旗子网格、`Bridge`、`AncestorPig`、`Floating*`、`RandomChildActivator` 的终点件 | 待做 |
 
 ## 7. 有意偏差
 
@@ -289,17 +320,18 @@ dotnet test PigForge.slnx                        # 解析器 v6（v1–v5 出现
 cd clients/web; pnpm test                        # 客户端校验器 + 绘制顺序
 ```
 
-必须复核的数字（报告里断言；2026-10-10 实跑，P4a + P4b + P4b′ 同一轮）：
+必须复核的数字（报告里断言；2026-10-10 实跑，P4a + P4b + P4b′ + P4c 同一轮）：
 
 - `palette prefabs 368` / `instances 26072`；`kinds: decor=261/15220 system=21/6674 solid=57/1976 special=8/36 terrain=21/2146`
   （按「地形 / 有没有渲染器 / 有没有碰撞体 / 脚本集合」分类，同一 prefab 只算一行；`special` 的 8 个
   ——`Slingshot`(1)/栖鸟(4)/`Stone*_2`(2)/`WindowTiny`(1)，**都会画**）。
-- **可绘制 279 个 prefab / 15542 个实例 / 1017 个四边面 / 19 张图集**；其中单四边面 **257 个 / 15172 个实例**；
-  多四边面恰好是那 22 个（工具硬断言这份名单：`Bird_*` 7 个、`Slingshot`、`Stone*_2`、5 个窗户、
-  9 个背景组）。
+- **可绘制 309 个 prefab / 16378 个实例 / 1073 个四边面 / 20 张图集**（新增 `IngameAtlas3.png`）；其中单四边面
+  **272 个 / 15837 个实例**；多四边面恰好是那 37 个（工具硬断言这份名单：`Bird_*` 7、`Slingshot`、
+  `Stone*_2`、5 个窗户、9 个背景组、8 个门、`Fan`、4 个按钮、`SecretPartWilfred`、`HingeDoorToLeft4m`）。
+- **关卡侧 v7**：123 个文档声明 v7 并带 `boxes`，**658 个盒体**，每个尺寸为正、偏移有限（Core 与 Server 各断言一遍）。
 - 每个四边面都能解析出图集 + uv + 尺寸（或纯色 + 尺寸）：`tools/bple-props` 0 失败；id 无空白且唯一。
-- 关卡侧：277 个文件都写 v6，`props` 合计 **15542** 条；`bple-levels` 的同一份口径断言
-  `drawable prop instances: 15542` 与 `classified instances: 26072`。
+- 关卡侧：277 个文件都写 v6/v7，`props` 合计 **16378** 条；`bple-levels` 的同一份口径断言
+  `drawable prop instances: 16378` 与 `classified instances: 26072`。
 - 客户端实机（真 vite + 真 Chromium，`/level` 取自真服务器）：
   `scenario_56`（69 个道具：1 弹弓 + 4 只飞鸟 + 64 个装饰）一帧里 **131 次 `drawImage`**，
   与"每个实例 × 它的图集四边面"逐项相等（131/131）；`Episode_6_Tower-Sandbox`（485 个道具、7 个窗户）
