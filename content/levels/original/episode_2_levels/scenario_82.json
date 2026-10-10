@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-76.78,14.6],"size":[84.4,30.1]},
   "spawns": [],
   "props": [
+    {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_2","x":-5.825215,"y":-3.0294342,"z":-5,"rotation":4.3867474,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_3","x":-2.916638,"y":-3.7810268,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Crystal_03","x":-47.172447,"y":9.361727,"z":-5,"rotation":2.8372087,"scaleX":-1,"scaleY":1},

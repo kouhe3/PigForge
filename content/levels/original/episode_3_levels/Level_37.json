@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-42.45,27.1],"size":[56.1,37.8]},
   "spawns": [],
   "props": [
+    {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crystal_03","x":-27.768835,"y":5.272111,"z":-5,"rotation":3.1581032,"scaleX":1,"scaleY":1},
     {"id":"Tuft_02","x":-25.247541,"y":-6.6306868,"z":-4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_03","x":-18.346943,"y":18.157219,"z":-5,"rotation":5.288983,"scaleX":-1,"scaleY":1},

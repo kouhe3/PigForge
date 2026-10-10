@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-61.9,50.9],"size":[133.9,63.94]},
   "spawns": [],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crumbs_Line_02","x":21.03455,"y":-6.640115,"z":-5.1,"rotation":0,"scaleX":-1.5015088,"scaleY":1.5015088},
     {"id":"Crumbs_03","x":-39.267555,"y":-6.666589,"z":-5.1,"rotation":0,"scaleX":-1.5015088,"scaleY":1.5015088},
     {"id":"Crumbs_01","x":-22.27684,"y":-6.6992445,"z":-5.1,"rotation":0,"scaleX":-1.5015088,"scaleY":1.5015088},

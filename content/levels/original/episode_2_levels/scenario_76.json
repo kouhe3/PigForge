@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-101.19,27.34],"size":[98.5,40.2]},
   "spawns": [],
   "props": [
+    {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-67.23714,"y":-7.030079,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-5.8107452,"y":-6.7697697,"z":-5,"rotation":6.1632724,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_02","x":-97.863655,"y":14.18581,"z":-5,"rotation":3.9660704,"scaleX":1,"scaleY":1},

@@ -113,6 +113,10 @@
     {"id":"Grass12","x":-200.95801,"y":32.396797,"z":3,"rotation":5.0714583,"scaleX":-1,"scaleY":1},
     {"id":"MayanArt18","x":-193.991,"y":18.2848,"z":0.9,"rotation":6.0798693,"scaleX":1,"scaleY":1},
     {"id":"MayanPot02","x":-194.842,"y":64.8958,"z":3,"rotation":6.0178714,"scaleX":1,"scaleY":1},
+    {"id":"Stone5_2","x":-190.424,"y":53.2958,"z":2.44,"rotation":0.2529057,"scaleX":1,"scaleY":1},
+    {"id":"Stone5_2","x":-190.388,"y":53.2958,"z":3,"rotation":0.2529057,"scaleX":1,"scaleY":1},
+    {"id":"Stone2_2","x":-190.192,"y":52.483795,"z":2.443,"rotation":1.8365026,"scaleX":1,"scaleY":1},
+    {"id":"Stone2_2","x":-190.2,"y":52.4638,"z":3,"rotation":0.26570624,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_05_0","x":-190.783,"y":49.3808,"z":-3,"rotation":0.9892716,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-172.098,"y":96.191795,"z":-1,"rotation":6.2506394,"scaleX":-1,"scaleY":1},
     {"id":"Grass17","x":-156.89801,"y":16.4168,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
@@ -127,7 +131,16 @@
     {"id":"Grass17","x":-173.651,"y":63.981796,"z":-3,"rotation":0.12521534,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom4","x":-170.418,"y":35.975998,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom5","x":-172.256,"y":50.9338,"z":3,"rotation":0.13156292,"scaleX":1,"scaleY":1},
-    {"id":"Mushroom4","x":-170.973,"y":61.438797,"z":-3,"rotation":5.8797903,"scaleX":1,"scaleY":1}
+    {"id":"Mushroom4","x":-170.973,"y":61.438797,"z":-3,"rotation":5.8797903,"scaleX":1,"scaleY":1},
+    {"id":"LitCrystal_01","x":-154.615,"y":32.754,"z":-1,"rotation":4.841255,"scaleX":1,"scaleY":1},
+    {"id":"LitCrystal_03","x":-174.766,"y":81.542,"z":-1,"rotation":6.1134768,"scaleX":1,"scaleY":1},
+    {"id":"LitCrystal_02","x":-168.993,"y":65.416,"z":-1,"rotation":5.8883414,"scaleX":1,"scaleY":1},
+    {"id":"LitMushroom_04","x":-161.63,"y":97.052,"z":-1,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"LitCrystal_01","x":-185.82,"y":34.63,"z":-1,"rotation":5.4113293,"scaleX":1,"scaleY":1},
+    {"id":"LitMushroom_05","x":-171.41,"y":61.439,"z":-1,"rotation":5.6325707,"scaleX":1,"scaleY":1},
+    {"id":"LitCrystal_01","x":-160.44,"y":47.675,"z":-1,"rotation":6.1203184,"scaleX":1,"scaleY":1},
+    {"id":"LitMushroom_05","x":-172.617,"y":50.761,"z":-1,"rotation":6.266294,"scaleX":1,"scaleY":1},
+    {"id":"LitMushroom_05","x":-169.977,"y":35.925,"z":-1,"rotation":5.688231,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

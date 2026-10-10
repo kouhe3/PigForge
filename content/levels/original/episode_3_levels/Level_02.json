@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-20.12,18.47],"size":[51.5,31.1]},
   "spawns": [],
   "props": [
+    {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_03","x":-11.565003,"y":-0.8588171,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":14.089373,"y":4.409317,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Branch_01","x":18.340797,"y":6.9073734,"z":-4.5,"rotation":0.160408,"scaleX":1,"scaleY":1},

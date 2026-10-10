@@ -570,12 +570,13 @@ public sealed class LevelContentTests
                 Assert.Equal(6.060668f, prop.Rotation);
             });
 
-        // The converted pack carries them: the 251 decoration prefabs are placed 15132 times across the
-        // 277 levels, and Level_05's first instance is the star the original's own level file has.
+        // The converted pack carries them: the 266 drawable props are placed 15430 times across the
+        // 277 levels, and Level_05's own first instance is its jungle backdrop at the origin.
         LevelContentDocument real =
             LevelContentLibrary.Parse(File.ReadAllText(FindRepositoryFile("content/levels/original/episode_1_levels/Level_05.json")));
-        Assert.Equal(16, real.Props.Count);
-        Assert.Equal(new LevelPropDefinition("Star_01", 37.530018f, -7.0505567f, -5f, 0f, -1f, 1f), real.Props[0]);
+        Assert.Equal(17, real.Props.Count);
+        Assert.Equal(new LevelPropDefinition("background_jungle_01_set", 0f, 0f, 0f, 0f, 1f, 1f), real.Props[0]);
+        Assert.Contains(real.Props, prop => prop.Id == "Star_01");
         Assert.All(real.Props, prop => Assert.False(string.IsNullOrWhiteSpace(prop.Id)));
     }
 

@@ -60,6 +60,7 @@
     }
   ],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crumbs_01","x":-37.795563,"y":-6.791958,"z":-5.1,"rotation":0,"scaleX":1.5182841,"scaleY":1.5182841},
     {"id":"Lollipop_Stick_01","x":15.907566,"y":31.993793,"z":0.8,"rotation":3.042118,"scaleX":2,"scaleY":0.795933},
     {"id":"Lollipop_Stick_01","x":14.500559,"y":32.283867,"z":0.8,"rotation":5.4439397,"scaleX":2,"scaleY":0.7042307},

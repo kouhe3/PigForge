@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-87.32,22.5],"size":[117.7,36.2]},
   "spawns": [],
   "props": [
+    {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_06","x":18.846762,"y":9.130749,"z":-5,"rotation":0.65400255,"scaleX":-1,"scaleY":1},
     {"id":"Daisy_06","x":0.14813614,"y":8.536839,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_07_0","x":-49.796375,"y":2.983677,"z":-5,"rotation":0.2863807,"scaleX":1,"scaleY":1},

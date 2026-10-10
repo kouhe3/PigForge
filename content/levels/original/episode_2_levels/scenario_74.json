@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-85.34,49.4],"size":[114.2,65.4]},
   "spawns": [],
   "props": [
+    {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Twig_2","x":-19.671846,"y":-7.336334,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Cave_Mushroom_06","x":-32.60389,"y":-7.0459957,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_3","x":-25.547277,"y":38.814552,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

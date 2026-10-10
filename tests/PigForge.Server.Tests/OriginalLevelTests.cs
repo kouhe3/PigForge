@@ -114,8 +114,9 @@ public sealed class OriginalLevelTests
             cameraLimits.Add(limits);
 
             // v6: the level's decoration instances. Every level places some (10 to 478 of them), and
-            // each names a sprite in the client's own `level-props.json` -- the 251 decoration prefabs
-            // of the 368 props (`docs/specs/level-props.md`).
+            // each names a prop in the client's own `level-props.json` -- the 266 drawable props of the
+            // 368 (the single-quad decorations, the backdrop sets and two stones;
+            // `docs/specs/level-props.md`).
             Assert.NotEmpty(document.Props);
             propInstances += document.Props.Count;
             foreach (LevelPropDefinition prop in document.Props)
@@ -184,8 +185,8 @@ public sealed class OriginalLevelTests
         Assert.Equal(2154, loops);
         Assert.Equal(17, fillTextures.Count);
         Assert.Equal(20, spawns);
-        Assert.Equal(15132, propInstances);
-        Assert.Equal(251, propIds.Count);
+        Assert.Equal(15430, propInstances);
+        Assert.Equal(266, propIds.Count);
         Assert.Equal(14, levelsWithoutGoal);
         // Every level overrides `LevelManager.m_cameraLimits` and no two read the same (measured
         // 2026-10-06: 277/277, 277 distinct rectangles).

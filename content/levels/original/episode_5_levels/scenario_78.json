@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-73.4,35.2],"size":[52.6,48.35]},
   "spawns": [],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gummy_Bear_01","x":-70.255646,"y":6.0240045,"z":-5,"rotation":0.12354456,"scaleX":1,"scaleY":1},
     {"id":"Colorful_Sparkles_01","x":-58.403324,"y":17.504936,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},
     {"id":"Colorful_Sparkles_01","x":-66.95096,"y":5.4855504,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},

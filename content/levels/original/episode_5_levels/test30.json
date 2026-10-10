@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-59.34,20.6],"size":[75.6,33.28]},
   "spawns": [],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cream_Line_03","x":2.1676636,"y":2.3986578,"z":-5,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"IceCream_02","x":-47.63925,"y":4.338293,"z":-4.920978,"rotation":0.04536682,"scaleX":2,"scaleY":2},
     {"id":"Crumbs_Line_02","x":-17.07721,"y":-6.698277,"z":-5.1,"rotation":0,"scaleX":-1.5217067,"scaleY":1.5217067},

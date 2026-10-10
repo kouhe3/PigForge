@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-227.35,54.6],"size":[72.4,77.93]},
   "spawns": [],
   "props": [
+    {"id":"LitMushroom_03","x":-177.902,"y":22.64,"z":8,"rotation":0,"scaleX":0,"scaleY":0},
     {"id":"WoodenSign","x":-195.86,"y":24.18,"z":3,"rotation":3.524077,"scaleX":1,"scaleY":1},
     {"id":"Mushroom6","x":-177.72,"y":22.58,"z":0,"rotation":6.100755,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom5","x":-174.08,"y":22.79,"z":2.6,"rotation":0,"scaleX":1,"scaleY":1},

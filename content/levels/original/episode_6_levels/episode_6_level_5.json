@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"Mushroom6","x":-158.516,"y":21.746,"z":-2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"LitMushroom_03","x":-158.326,"y":22.058,"z":-1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass10","x":-201.59999,"y":23.64,"z":2,"rotation":1.09333,"scaleX":1,"scaleY":1},
     {"id":"Grass15","x":-182.44798,"y":14.599007,"z":-1,"rotation":0.081343584,"scaleX":-1,"scaleY":1},
     {"id":"Grass14","x":-173.23601,"y":9.572006,"z":-1,"rotation":5.407256,"scaleX":-1,"scaleY":1},

@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-22.51,36.5],"size":[73.6,52]},
   "spawns": [],
   "props": [
+    {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_08","x":12.548672,"y":-1.7747059,"z":-5,"rotation":0.11286537,"scaleX":1,"scaleY":1},
     {"id":"Bush_04","x":14.356743,"y":11.888002,"z":-5,"rotation":6.2344384,"scaleX":-1,"scaleY":1},
     {"id":"Bush_02_0","x":41.76582,"y":11.8218975,"z":-5,"rotation":0.14337425,"scaleX":-1,"scaleY":1},

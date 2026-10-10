@@ -29,6 +29,8 @@
   "cameraLimits": {"topLeft":[-95.1,34.69],"size":[365.9,50.1]},
   "spawns": [],
   "props": [
+    {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"background_jungle_01_set","x":186.24332,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":178.24362,"y":-1.5632744,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Star_01","x":233.58531,"y":-7.122843,"z":-5,"rotation":0,"scaleX":-0.8805394,"scaleY":0.8805394},
     {"id":"Star_01","x":135.78223,"y":-6.890997,"z":-5,"rotation":0,"scaleX":-0.7720049,"scaleY":0.7720049},

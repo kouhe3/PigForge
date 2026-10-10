@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-123.1,19.8],"size":[224.19,33.1]},
   "spawns": [],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cream_Line_02","x":-30.269093,"y":0.4399491,"z":-5,"rotation":0.0996574,"scaleX":2,"scaleY":2},
     {"id":"Cream_Line_03","x":-45.714443,"y":0.1826585,"z":-5,"rotation":0.06672594,"scaleX":2,"scaleY":2},
     {"id":"Pumpkin_Plant_01","x":87.42656,"y":-0.59721017,"z":-5,"rotation":0.85104746,"scaleX":1.988909,"scaleY":1.988909},

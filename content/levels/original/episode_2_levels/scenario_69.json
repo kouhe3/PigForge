@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-100,36],"size":[57,52.3]},
   "spawns": [],
   "props": [
+    {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Shell","x":-59.74232,"y":-7.6437397,"z":-5,"rotation":0,"scaleX":-0.7729111,"scaleY":0.7729111},
     {"id":"Grass_07","x":-72.04345,"y":-1.042284,"z":-5,"rotation":0.5325994,"scaleX":-1,"scaleY":1},
     {"id":"Bottle","x":-91.05156,"y":-6.728163,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

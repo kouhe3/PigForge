@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-215,62.8],"size":[65.5,77.2]},
   "spawns": [],
   "props": [
+    {"id":"LitCrystal_02","x":-187.858,"y":28.007,"z":-3,"rotation":6.069952,"scaleX":1,"scaleY":1},
     {"id":"Tree03","x":-170.72,"y":58.59,"z":1.9,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Tree03","x":-189.64,"y":55.410004,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Spear2","x":-196.877,"y":52.474,"z":3,"rotation":0,"scaleX":1,"scaleY":1},

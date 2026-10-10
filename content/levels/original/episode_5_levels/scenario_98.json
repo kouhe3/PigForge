@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-93.67,28.15],"size":[70.2,41.06]},
   "spawns": [],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Strawberry_Half","x":-58.68474,"y":2.9472408,"z":4,"rotation":0,"scaleX":1.5,"scaleY":1.5},
     {"id":"Strawberry_Half","x":-40.509323,"y":-2.0613756,"z":4,"rotation":1.8928972,"scaleX":1.5,"scaleY":1.5},
     {"id":"Cream_Line_03","x":-59.686356,"y":-3.2367547,"z":-5,"rotation":0.101214014,"scaleX":2,"scaleY":2},

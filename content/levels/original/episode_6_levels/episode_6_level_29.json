@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-224.7,55.2],"size":[195.3,70.07]},
   "spawns": [],
   "props": [
+    {"id":"LitCrystal_01","x":-82.781,"y":34.664,"z":-3,"rotation":2.849709,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-194.85,"y":41.559998,"z":-3,"rotation":5.8383512,"scaleX":1,"scaleY":1},
     {"id":"Mushroom2","x":-180.58,"y":42.86,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom1","x":-181.04,"y":42.67,"z":3,"rotation":0,"scaleX":-1,"scaleY":1},
@@ -119,7 +120,8 @@
     {"id":"Grass17","x":-218.634,"y":6.5960007,"z":-3,"rotation":0.44113374,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom3","x":-39.615997,"y":-1.118,"z":-3,"rotation":0.18905875,"scaleX":-1,"scaleY":1},
     {"id":"Grass07","x":-135.959,"y":1.7619991,"z":-3,"rotation":5.870644,"scaleX":1,"scaleY":1},
-    {"id":"Mushroom3","x":-122.555,"y":54.242,"z":-3,"rotation":5.9337244,"scaleX":-1,"scaleY":1}
+    {"id":"Mushroom3","x":-122.555,"y":54.242,"z":-3,"rotation":5.9337244,"scaleX":-1,"scaleY":1},
+    {"id":"LitCrystal_02","x":-138.729,"y":16.134,"z":0.9,"rotation":0.26277718,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

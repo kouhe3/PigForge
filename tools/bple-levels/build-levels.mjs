@@ -439,11 +439,11 @@ for (const { bundle, file } of dataFiles) {
   const cameraLimits = readCameraLimits(data.overrides, check);
   if (cameraLimits) totals.cameraLimits += 1;
 
-  // ---------------------------------------------------------------- decoration props
-  // The level's dressing: grass, mushrooms, crystals, wall art... one quad per instance, drawn by the
-  // client in the original's own depth order (`docs/specs/level-props.md`). Instances of every other
-  // prop class are counted instead of placed, so a family that stops being classified shows up as a
-  // number in the report rather than as silence.
+  // ---------------------------------------------------------------- drawable props
+  // The level's dressing: grass, mushrooms, crystals, wall art, and the backdrop sets with their
+  // parallax layers -- one entry per instance, drawn by the client in the original's own depth order
+  // (`docs/specs/level-props.md`). Instances of every other prop class are counted instead of placed,
+  // so a family that stops being classified shows up as a number in the report rather than as silence.
   const propInstances = [];
   for (const instance of data.instanceList) {
     const prefabPath = palette[instance.prefabIndex];
@@ -458,13 +458,13 @@ for (const { bundle, file } of dataFiles) {
       continue;
     }
     propCensus.set(record.kind, (propCensus.get(record.kind) ?? 0) + 1);
-    if (record.kind !== "decor") continue;
+    if (!record.drawable) continue;
     check(
       instance.dataType === 0,
-      `${basename(file)}: decoration "${instance.name}" (${record.name}) carries a level data block ${instance.dataType}`,
+      `${basename(file)}: prop "${instance.name}" (${record.name}) carries a level data block ${instance.dataType}`,
     );
     propInstances.push({
-      id: record.name,
+      id: record.id,
       x: instance.position[0],
       y: instance.position[1],
       z: instance.position[2],
@@ -541,7 +541,7 @@ check(skippedTerrains.length === 0, `${skippedTerrains.length} terrain(s) have n
 check(skippedCurves.length === 0, `${skippedCurves.length} terrain(s) have no usable curve mesh and were skipped`);
 // The census covers every prefab instance in the pack except the placed parts (`spawns`), so its sum
 // is the pack's own instance count -- a prop family that stops being classified cannot hide.
-check(totals.propInstances === 15132, `decoration instances: ${totals.propInstances}, expected 15132`);
+check(totals.propInstances === 15430, `drawable prop instances: ${totals.propInstances}, expected 15430`);
 const cachedInstances = [...propCensus.values()].reduce((total, count) => total + count, 0) + totals.spawns;
 check(cachedInstances === 26072, `classified instances: ${cachedInstances}, expected 26072`);
 

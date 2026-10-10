@@ -29,6 +29,9 @@
   "cameraLimits": {"topLeft":[-134.8,171.26],"size":[515.8,184.47]},
   "spawns": [],
   "props": [
+    {"id":"background_night_01_set_1","x":314.4,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"background_night_01_set_1","x":127.788315,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"background_night_01_set_1","x":-58.8,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crystal_01","x":286.99893,"y":119.89494,"z":-5,"rotation":3.3327334,"scaleX":1,"scaleY":1},
     {"id":"Branch_04","x":-113.593445,"y":36.219837,"z":-5,"rotation":4.208067,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_05","x":-119.8981,"y":47.68184,"z":-5,"rotation":4.331999,"scaleX":1,"scaleY":1},

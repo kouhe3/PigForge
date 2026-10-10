@@ -6,7 +6,7 @@ import { drawFrame, drawOrder, propDepthBuckets, wheelAxle } from "./draw";
 import { createCamera } from "./camera";
 import type { DrawEntity, PartContentDocument } from "@/schema/types";
 import type { LevelProp, LevelTerrain } from "@/schema/levelContent";
-import type { LevelPropsSet } from "./levelProps";
+import type { DecorationQuad, LevelPropsSet } from "./levelProps";
 
 function makeCtx() {
   const calls: Record<string, number> = {};
@@ -313,19 +313,25 @@ describe("drawFrame level props", () => {
   ];
   const set: LevelPropsSet = {
     atlases: new Map(props.map((prop) => [`${prop.id}.png`, { tag: prop.id } as unknown as CanvasImageSource])),
-    props: new Map(props.map((prop) => [prop.id, { atlas: `${prop.id}.png`, x: 0, y: 0, w: 1, h: 1, cx: 0, cy: 0, sx: 1, sy: 1 }])),
+    props: new Map(
+      props.map((prop) => [
+        prop.id,
+        [{ atlas: `${prop.id}.png`, x: 0, y: 0, w: 1, h: 1, cx: 0, cy: 0, sx: 1, sy: 1, dx: 0, dy: 0, dz: 0, rotation: 0, scaleX: 1, scaleY: 1, parallax: { x: 0, y: 0 } }],
+      ]),
+    ),
   };
 
   it("splits the level's own depths into the frame's four breaks", () => {
-    const buckets = propDepthBuckets([...props, { ...props[0], id: "hidden", z: -214 }]);
-    expect(buckets.far.map((prop) => prop.id)).toEqual(["far"]);
-    expect(buckets.ground.map((prop) => prop.id)).toEqual(["ground"]);
-    expect(buckets.mid.map((prop) => prop.id)).toEqual(["mid"]);
-    expect(buckets.plane.map((prop) => prop.id)).toEqual(["plane"]);
-    expect(buckets.near.map((prop) => prop.id)).toEqual(["near", "hidden"]);
+    const buckets = propDepthBuckets(props, set);
+    const ids = (bucket: readonly DecorationQuad[]) => bucket.map((entry) => entry.prop.id);
+    expect(ids(buckets.far)).toEqual(["far"]);
+    expect(ids(buckets.ground)).toEqual(["ground"]);
+    expect(ids(buckets.mid)).toEqual(["mid"]);
+    expect(ids(buckets.plane)).toEqual(["plane"]);
+    expect(ids(buckets.near)).toEqual(["near"]);
     // Farthest first inside a bucket, and the level's own order for equal depths.
-    expect(propDepthBuckets([{ ...props[0], z: 5 }, { ...props[0], id: "tie", z: 5 }]).far.map((prop) => prop.id))
-      .toEqual(["far", "tie"]);
+    const tied = propDepthBuckets([{ ...props[0], id: "plane" }, { ...props[0], id: "ground" }].map((prop) => ({ ...prop, z: 5 })), set);
+    expect(ids(tied.far)).toEqual(["plane", "ground"]);
   });
 
   it("paints the decorations at those breaks, around the ground and the entities", () => {

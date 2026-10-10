@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-67.2,11.4],"size":[97.5,23.5]},
   "spawns": [],
   "props": [
+    {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crystal_03","x":-57.13759,"y":-2.3730593,"z":-5.6572666,"rotation":2.512117,"scaleX":1,"scaleY":1},
     {"id":"Grass_03","x":-54.52906,"y":2.3644366,"z":-5.474988,"rotation":0.4727189,"scaleX":1,"scaleY":1},
     {"id":"Grass_01","x":21.944859,"y":-4.4125752,"z":-5.6572666,"rotation":0.58345586,"scaleX":-1,"scaleY":1},

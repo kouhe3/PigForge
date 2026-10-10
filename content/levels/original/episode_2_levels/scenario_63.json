@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-33.78,17.9],"size":[96.9,34.3]},
   "spawns": [],
   "props": [
+    {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_08","x":-10.66378,"y":0.22341728,"z":-5,"rotation":0.17798367,"scaleX":-1,"scaleY":1},
     {"id":"Shell","x":4.762825,"y":-6.9547825,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Shell","x":-21.82154,"y":-7.401018,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

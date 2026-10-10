@@ -29,6 +29,9 @@
   "cameraLimits": {"topLeft":[-100,46.7],"size":[557.5,62.21]},
   "spawns": [],
   "props": [
+    {"id":"background_plateau_01_set","x":185.4102,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"background_plateau_01_set","x":371.8412,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Glow_01","x":156.37741,"y":13.766842,"z":4,"rotation":0,"scaleX":3.057957,"scaleY":3.057957},
     {"id":"Grass_05","x":110.614746,"y":3.8030453,"z":-5,"rotation":0.21252772,"scaleX":1,"scaleY":1},
     {"id":"Branch_02","x":-92.54741,"y":3.4567776,"z":-5,"rotation":4.0691643,"scaleX":-1,"scaleY":1},

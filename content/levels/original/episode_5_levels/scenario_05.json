@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-92.44,23.96],"size":[177.8,37.7]},
   "spawns": [],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cream_Line_02","x":49.972687,"y":3.0417278,"z":-5,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Lollipop_Stick_01","x":80.77029,"y":14.476827,"z":-4.9832234,"rotation":6.0866985,"scaleX":1,"scaleY":1},
     {"id":"Colorful_Sparkles_03","x":50.281475,"y":3.3062654,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},

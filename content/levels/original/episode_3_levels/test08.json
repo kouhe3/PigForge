@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-87.79,28],"size":[154.6,39.22]},
   "spawns": [],
   "props": [
+    {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Rock_01","x":17.77974,"y":-6.577214,"z":-4.262127,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_01","x":11.074539,"y":-1.3646061,"z":-4.262127,"rotation":0.12664728,"scaleX":1,"scaleY":1},
     {"id":"Crystal_03","x":-61.32759,"y":6.764905,"z":-4.262127,"rotation":2.0360813,"scaleX":1,"scaleY":1},

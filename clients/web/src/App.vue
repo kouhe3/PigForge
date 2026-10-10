@@ -60,6 +60,9 @@ const groundTextures = shallowRef<GroundTextureSet | null>(null);
 // The level's decoration art: one manifest for every level (the props are prefab-derived), so it is
 // fetched once and re-decoded images are shared with the part atlases (`renderer/atlasCache`).
 const levelProps = shallowRef<LevelPropsSet | null>(null);
+// The camera the loaded level was framed on: the reference a backdrop layer's parallax is measured
+// from (`ParallaxManager.Update` accumulates the camera's own movement since the level loaded).
+const parallaxFrom = ref<{ x: number; y: number } | undefined>(undefined);
 // Animation state and its wall clock; both stay outside Vue reactivity like the view state.
 const animations = createAnimationState();
 const animationClock = createAnimationClock();
@@ -293,7 +296,9 @@ function paint(now: number): void {
     animations,
     level?.terrain ?? null,
     groundTextures.value,
-    level?.props !== undefined && levelProps.value !== null ? { props: level.props, set: levelProps.value } : null,
+    level?.props !== undefined && levelProps.value !== null
+      ? { props: level.props, set: levelProps.value, parallaxFrom: parallaxFrom.value }
+      : null,
   );
   raf = requestAnimationFrame(paint);
 }
@@ -536,6 +541,9 @@ watch(
     }
     const rect = level.cameraLimits ? cameraLimitsRect(level.cameraLimits) : zoneRect(level.bounds);
     Object.assign(viewState.camera, fitBounds(rect, node.clientWidth, node.clientHeight));
+    // The original's `ParallaxManager` offsets every tagged backdrop layer from the camera the level
+    // started on, so that camera is what the backdrop's own movement is measured from.
+    parallaxFrom.value = { x: viewState.camera.x, y: viewState.camera.y };
   },
 );
 

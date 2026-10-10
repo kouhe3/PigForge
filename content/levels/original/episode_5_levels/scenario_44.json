@@ -60,6 +60,7 @@
     }
   ],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Colorful_Sparkles_03","x":0.8566971,"y":14.058647,"z":-5,"rotation":0,"scaleX":0.82,"scaleY":0.82},
     {"id":"Cream_Line_03","x":-18.347313,"y":1.8981452,"z":-5,"rotation":0.43108457,"scaleX":2,"scaleY":2},
     {"id":"Colorful_Sparkles_02","x":-47.672813,"y":-0.9977627,"z":-5.2,"rotation":0,"scaleX":0.70000005,"scaleY":0.70000005},

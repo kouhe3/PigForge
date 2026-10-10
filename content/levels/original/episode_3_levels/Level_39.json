@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-59.6,17],"size":[69.57,27.9]},
   "spawns": [],
   "props": [
+    {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Branch_02","x":-54.64672,"y":7.0183477,"z":-5,"rotation":4.644574,"scaleX":1,"scaleY":1},
     {"id":"Flower_02","x":-56.934692,"y":-7.2055626,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Tuft_02","x":-6.9664555,"y":-6.5257597,"z":-4.5,"rotation":0,"scaleX":1,"scaleY":1},

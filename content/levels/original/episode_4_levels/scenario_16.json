@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-157.1,16.3],"size":[143.2,30.6]},
   "spawns": [],
   "props": [
+    {"id":"background_night_01_set_1","x":-72.95457,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-48.479397,"y":-6.9304085,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_03","x":-32.32495,"y":-6.6682224,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Wood_01","x":-93.84736,"y":-7.254734,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

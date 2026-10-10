@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-47.98,42.6],"size":[86.6,56.8]},
   "spawns": [],
   "props": [
+    {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crystal_03","x":-1.2168236,"y":9.683395,"z":-5,"rotation":3.202267,"scaleX":1,"scaleY":1},
     {"id":"Bush_03_0","x":-15.426044,"y":-3.915512,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Cave_Mushroom_04_0","x":15.341269,"y":-6.789196,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

@@ -6,37 +6,51 @@ import { type Camera, worldToScreen } from "./camera";
 import { conditionalSpriteVisible, connectableSides } from "./connectionVisuals";
 import { drawTerrain, GROUND_FILL, type GroundTextureSet } from "./terrain";
 import { drawTerrainCurves } from "./terrainCurve";
-import { drawProps, sortPropsForDepth, type LevelPropsSet } from "./levelProps";
+import { drawProps, type DecorationQuad, type LevelPropsSet } from "./levelProps";
 import type { LevelProp } from "@/schema/levelContent";
 
 /** The level's decorations: the document's own instances plus the art manifest they draw from. */
 export interface DecorationLayer {
   props: readonly LevelProp[];
   set: LevelPropsSet;
+  /** The camera the level started on: what a backdrop layer's parallax is measured from. */
+  parallaxFrom?: { x: number; y: number };
 }
 
 /**
- * The level's decorations split at the depths the frame itself has: `far` behind the ground, `ground`
- * on the ground's own plane (z = 0), `mid` between the ground and the game plane, `plane` level with
- * the contraption (the original's z = -5, measured on its own pre-placed parts) and `near` in front of
- * it. The original tests depth per pixel; the plane renderer only has each instance's own z, so the
- * painter paints one bucket at each of those breaks. Every bucket keeps the level file's order for
- * equal depths (`sort` is stable), which is all the original's depth test can do too.
+ * The level's decoration quads split at the depths the frame itself has: `far` behind the ground,
+ * `ground` on the ground's own plane (z = 0), `mid` between the ground and the game plane, `plane`
+ * level with the contraption (the original's z = -5, measured on its own pre-placed parts) and `near`
+ * in front of it. The original tests depth per pixel, and a prop's own quads sit on their own depths
+ * (a backdrop's sky is 20 units behind the level, its beach bands 15 in front), so the split is per
+ * quad: the painter paints one bucket at each of those breaks. Equal depths keep the level file's own
+ * order and then the prefab's own quad order, because `sort` is stable -- which is all the original's
+ * depth test can do for a tie either.
  */
-export function propDepthBuckets(props: readonly LevelProp[]): {
-  far: LevelProp[];
-  ground: LevelProp[];
-  mid: LevelProp[];
-  plane: LevelProp[];
-  near: LevelProp[];
+export function propDepthBuckets(
+  props: readonly LevelProp[],
+  set: LevelPropsSet,
+): {
+  far: DecorationQuad[];
+  ground: DecorationQuad[];
+  mid: DecorationQuad[];
+  plane: DecorationQuad[];
+  near: DecorationQuad[];
 } {
-  const sorted = sortPropsForDepth(props);
+  const quads: DecorationQuad[] = [];
+  for (const prop of props) {
+    for (const quad of set.props.get(prop.id) ?? []) {
+      quads.push({ prop, quad });
+    }
+  }
+  const sorted = quads.sort((left, right) => right.prop.z + right.quad.dz - (left.prop.z + left.quad.dz));
+  const depthOf = (entry: DecorationQuad): number => entry.prop.z + entry.quad.dz;
   return {
-    far: sorted.filter((prop) => prop.z > 0),
-    ground: sorted.filter((prop) => prop.z === 0),
-    mid: sorted.filter((prop) => prop.z < 0 && prop.z > GAME_PLANE_Z),
-    plane: sorted.filter((prop) => prop.z === GAME_PLANE_Z),
-    near: sorted.filter((prop) => prop.z < GAME_PLANE_Z),
+    far: sorted.filter((entry) => depthOf(entry) > 0),
+    ground: sorted.filter((entry) => depthOf(entry) === 0),
+    mid: sorted.filter((entry) => depthOf(entry) < 0 && depthOf(entry) > GAME_PLANE_Z),
+    plane: sorted.filter((entry) => depthOf(entry) === GAME_PLANE_Z),
+    near: sorted.filter((entry) => depthOf(entry) < GAME_PLANE_Z),
   };
 }
 
@@ -246,10 +260,10 @@ export function drawFrame(
   // The level's decorations are split once per frame: the painter then paints one bucket at each
   // depth break (`propDepthBuckets`).
   const decorationSet = decorations?.set ?? null;
-  const props = decorations ? propDepthBuckets(decorations.props) : null;
-  const paintProps = (bucket: readonly LevelProp[] | undefined): void => {
+  const props = decorations ? propDepthBuckets(decorations.props, decorations.set) : null;
+  const paintProps = (bucket: readonly DecorationQuad[] | undefined): void => {
     if (props === null || bucket === undefined) return;
-    drawProps(ctx, camera, bucket, decorationSet, width, height);
+    drawProps(ctx, camera, bucket, decorationSet, width, height, decorations?.parallaxFrom);
   };
   ctx.fillStyle = "#1c211c";
   ctx.fillRect(0, 0, width, height);

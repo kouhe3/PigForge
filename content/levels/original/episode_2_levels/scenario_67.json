@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-44.53,33.4],"size":[46.8,47.4]},
   "spawns": [],
   "props": [
+    {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bottle","x":-18.222767,"y":-6.8916645,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Starfish","x":-35.253624,"y":-7.4363937,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush_04","x":-20.236427,"y":-5.079672,"z":-5,"rotation":0.16614299,"scaleX":-1,"scaleY":1},

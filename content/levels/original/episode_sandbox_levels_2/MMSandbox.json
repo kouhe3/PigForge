@@ -40,6 +40,8 @@
     }
   ],
   "props": [
+    {"id":"background_mm_01_set","x":-169.7056,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"background_mm_01_set","x":64.2944,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Propeller","x":-80.23451,"y":-27.233858,"z":-0.099609375,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BlueArrow","x":-81.23451,"y":-27.233858,"z":-0.099609375,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Spear","x":-75.23451,"y":-34.233856,"z":-0.099609375,"rotation":0,"scaleX":1,"scaleY":1},

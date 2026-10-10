@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-85.64,34.76],"size":[145.65,46.5]},
   "spawns": [],
   "props": [
+    {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":-46.646294,"y":11.622137,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_01","x":-50.60978,"y":-7.1673613,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_01","x":29.849989,"y":26.204117,"z":-4.5,"rotation":4.489631,"scaleX":1,"scaleY":1},

@@ -36,6 +36,26 @@ const HALF_TEXEL = 1 / 2048;
 /// decoration and is left to another slice.
 const SPRITE_CLASSES = ["Sprite", "UnmanagedSprite"];
 
+/// Scripts a drawable prop may carry besides its own sprite components: `LitMushroom_*`/`LitCrystal_*`
+/// add a point light whose glow this slice does not model (the quad itself is the picture).
+const ALLOWED_EXTRA = ["PointLightSource"];
+
+/// The component classes that make a prop physical, by Unity's class id. The picture never depends on
+/// them; the census does (a background set carries the level's own ground collider, `TNT_Box` its crate).
+const COLLIDER_IDS = [64, 65, 68, 135, 136];
+
+/// The frame the level instance itself establishes: its own transform is what
+/// `LevelLoader.ReadPrefabInstance` writes over the prefab root's.
+const IDENTITY_FRAME = [1, 0, 0, 1, 0, 0];
+
+/**
+ * The id a prop is named by in the level content and the client's manifest: the prefab's name with
+ * whitespace folded to underscores, because a content identifier may not contain any (two of the
+ * backdrop sets are `background_cave_01_set 1` and `background_night_01_set 1` -- the original's own
+ * file names). Both tools go through here, and the extractor asserts the ids stay unique.
+ */
+export const propId = (prefabName) => prefabName.replace(/\s+/g, "_");
+
 /// Unity's class ids, as far as the props need them.
 const CLASS_IDS = {
   1: "GameObject",
@@ -52,6 +72,145 @@ const CLASS_IDS = {
 /// (a prefab saved before a field existed does not carry it).
 const UNMANAGED_FIELDS = { m_scale: 1, m_spriteWidth: 0, m_spriteHeight: 0, m_UVx: 0, m_UVy: 0, m_width: 16, m_height: 16, m_atlasGridSubdivisions: 16, m_border: 0 };
 const MANAGED_FIELDS = { m_scaleX: 1, m_scaleY: 1, m_pivotX: 0, m_pivotY: 0 };
+
+/// `ParallaxManager.Update`'s per-layer factors, by the tag the manager finds the layer with
+/// (`GameObject.FindGameObjectsWithTag`). `x` is how much of the camera's own horizontal movement the
+/// layer takes with it -- 1 means "locked to the screen" -- and `y` the same vertically (only the
+/// foreground follows, at 0.2, and only downwards from its own start height).
+const PARALLAX_TAGS = {
+  ParallaxLayerForeground: { x: -0.4, y: 0.2 },
+  ParallaxLayerFurther: { x: 0.7, y: 0 },
+  ParallaxLayerFar: { x: 0.6, y: 0 },
+  ParallaxLayerNear: { x: 0.4, y: 0 },
+  ParallaxLayerSky: { x: 0.8, y: 0 },
+  ParallaxLayerFixedFollowCamera: { x: 1, y: 0 },
+};
+
+/// A component block's own header: `--- !u!<class> &<fileID>`, split off by the callers.
+const BLOCK_HEADER = /^(\d+) &(\d+)/;
+
+/** The `<fileID>` of a `{fileID: N}` reference field, or null. */
+function referenceOf(body, field) {
+  const match = new RegExp(`^\\s*${field}: \\{fileID: (\\d+)\\}`, "m").exec(body);
+  return match === null ? null : match[1];
+}
+
+/** The numbers of a `{x: .., y: ..}`-style field (Unity writes them on one line). */
+function numbersOf(body, field) {
+  const match = new RegExp(`^\\s*${field}: \\{([^}]*)\\}`, "m").exec(body);
+  if (match === null) return [];
+  return [...match[1].matchAll(/(-?[0-9.eE+-]+)/g)].map((entry) => Number(entry[1]));
+}
+
+/**
+ * One prefab as the props need it: every GameObject with its tag, active flag, component classes and
+ * Transform, keyed by the fileID the GameObject's `m_Component` list points at. The root's own
+ * local transform is kept out of the way: `LevelLoader.ReadPrefabInstance` overwrites it with the
+ * level instance's transform, so only the children's own frames matter.
+ */
+function readHierarchy(text, guidToClass) {
+  const blocks = text.split(/\n--- !u!/).slice(1).map((body) => {
+    const header = BLOCK_HEADER.exec(body);
+    return { classId: Number(header?.[1]), anchor: header?.[2] ?? null, body };
+  });
+  const byAnchor = new Map(blocks.map((block) => [block.anchor, block]));
+  const objects = [];
+  for (const block of blocks) {
+    if (block.classId !== 1) continue;
+    const components = [...block.body.matchAll(/- component: \{fileID: (\d+)\}/g)].map((entry) => entry[1]);
+    const parts = components.map((anchor) => byAnchor.get(anchor)).filter(Boolean);
+    const transform = parts.find((part) => part.classId === 4);
+    objects.push({
+      anchor: block.anchor,
+      name: /^\s*m_Name: (.*)$/m.exec(block.body)?.[1]?.trim() ?? "",
+      tag: /^\s*m_TagString: (.*)$/m.exec(block.body)?.[1]?.trim() ?? "",
+      active: (/^\s*m_IsActive: (\d)/m.exec(block.body)?.[1] ?? "1") === "1",
+      classes: parts
+        .filter((part) => part.classId === 114)
+        .map((part) => guidToClass.get(/m_Script: \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(part.body)?.[1]) ?? "?unknown"),
+      sprite: parts.find((part) => {
+        const guid = /m_Script: \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(part.body)?.[1];
+        return part.classId === 114 && SPRITE_CLASSES.includes(guidToClass.get(guid));
+      }),
+      renderer: parts.find((part) => part.classId === 23 || part.classId === 212),
+      renderers: parts.filter((part) => part.classId === 23 || part.classId === 212).length,
+      collider: parts.some((part) => COLLIDER_IDS.includes(part.classId)),
+      transformAnchor: transform?.anchor ?? null,
+      father: transform === undefined ? null : referenceOf(transform.body, "m_Father"),
+      children: transform === undefined ? [] : [...transform.body.matchAll(/- \{fileID: (\d+)\}/g)].map((entry) => entry[1]),
+      position: transform === undefined ? [0, 0, 0] : numbersOf(transform.body, "m_LocalPosition"),
+      rotation: transform === undefined ? [0, 0, 0, 1] : numbersOf(transform.body, "m_LocalRotation"),
+      scale: transform === undefined ? [1, 1, 1] : numbersOf(transform.body, "m_LocalScale"),
+    });
+  }
+  return objects;
+}
+
+/** `parent` applied after `child` (the child's local frame, expressed in the parent's). */
+function composeFrame(parent, child) {
+  return [
+    parent[0] * child[0] + parent[2] * child[1],
+    parent[1] * child[0] + parent[3] * child[1],
+    parent[0] * child[2] + parent[2] * child[3],
+    parent[1] * child[2] + parent[3] * child[3],
+    parent[0] * child[4] + parent[2] * child[5] + parent[4],
+    parent[1] * child[4] + parent[3] * child[5] + parent[5],
+  ];
+}
+
+/**
+ * A GameObject's own local frame as `[a, b, c, d, tx, ty]` (the canvas-ordered matrix
+ * `[[a, c, tx], [b, d, ty]]`). Every prop transform is 2D -- a rotation about z around a non-uniform
+ * scale, or the half turn about y a mirrored child uses -- so the frame is exact; anything else is
+ * refused rather than silently flattened. The z scale never reaches the picture (the quad lies in the
+ * xy plane) and is accepted as-is.
+ */
+function localFrame(object, describe) {
+  const [x, y, z, w] = object.rotation;
+  const [sx, sy] = object.scale;
+  const [px, py] = object.position;
+  if (Math.abs(x) <= 1e-6 && Math.abs(z) <= 1e-6 && Math.abs(Math.abs(y) - 1) <= 1e-6) {
+    // A half turn about y: inside the xy plane it is a mirror in x.
+    return [-sx, 0, 0, sy, px, py];
+  }
+
+  if (Math.abs(x) > 1e-6 || Math.abs(y) > 1e-6) {
+    throw new PropException(`${describe}: out-of-plane rotation ${object.rotation.join(",")}`);
+  }
+
+  // The quaternion is (0, 0, z, w): a rotation of 2*atan2(z, w) about z.
+  const angle = 2 * Math.atan2(z, w);
+  const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+  return [sx * cos, sx * sin, -sy * sin, sy * cos, px, py];
+}
+
+/**
+ * A composed frame as the numbers a painter can apply -- `translate(dx, dy)`, `rotate(-rotation)`
+ * and `scale(scaleX, scaleY)` -- around the quad's own art, plus `dz`, the depth the transform chain
+ * puts the quad on (an in-plane transform never changes z, and the original's depth test is what
+ * layers a backdrop's own children: its sky sits 20 units behind the level and its beach bands 20 in
+ * front). Any invertible 2D matrix factors as
+ * `R(rotation) * diag(scaleX, scaleY)` exactly when it has no shear; a composed hierarchy can introduce
+ * one (a non-uniformly scaled parent above a rotated child), so the factorisation is verified and a
+ * sheared frame is reported instead of drawn wrong.
+ */
+function frameToQuad(frame, depth, describe) {
+  const [a, b, c, d, tx, ty] = frame;
+  const determinant = a * d - b * c;
+  if (Math.abs(determinant) < 1e-12) throw new PropException(`${describe}: the transform collapses (determinant ${determinant})`);
+  const scaleX = Math.hypot(a, b);
+  const rotation = Math.atan2(b, a);
+  const scaleY = determinant / scaleX;
+  const [cos, sin] = [Math.cos(rotation), Math.sin(rotation)];
+  const residual = Math.max(
+    Math.abs(a - cos * scaleX),
+    Math.abs(b - sin * scaleX),
+    Math.abs(c + sin * scaleY),
+    Math.abs(d - cos * scaleY),
+  );
+  if (residual > 1e-6) throw new PropException(`${describe}: the transform shears (residual ${residual})`);
+  return { dx: round(tx), dy: round(ty), dz: round(depth), rotation: round(rotation), scaleX: round(scaleX), scaleY: round(scaleY) };
+}
 
 export class PropException extends Error {}
 
@@ -114,6 +273,8 @@ export function openProps(bpleRoot) {
   const database = readSpriteDatabase(assetsRoot);
   const materialCache = new Map();
   const propCache = new Map();
+  /** Atlas file name -> its absolute path in the original project (what the extractor copies). */
+  const atlases = new Map();
 
   const must = (condition, message) => {
     if (!condition) throw new PropException(message);
@@ -129,6 +290,14 @@ export function openProps(bpleRoot) {
     return guid;
   };
 
+  /** An `.mat`'s own `_Color`, for the materials that sample no texture at all. */
+  const materialColor = (materialGuid) => {
+    const path = guidToPath.get(materialGuid);
+    const text = path && /\.mat$/i.test(path) ? readFileSync(path, "utf8") : null;
+    const match = text === null ? null : /^\s*_Color: \{r: (-?[0-9.eE+-]+), g: (-?[0-9.eE+-]+), b: (-?[0-9.eE+-]+), a: (-?[0-9.eE+-]+)\}/m.exec(text);
+    return match === null ? null : match.slice(1, 5).map((value) => round(Number(value)));
+  };
+
   /** A number out of a component block, falling back to the C# field initializer. */
   const field = (name, block, className, fallback) => {
     const value = fieldOf(block, name);
@@ -138,22 +307,36 @@ export function openProps(bpleRoot) {
     return number;
   };
 
-  /** The atlas a renderer's first material points at, as `{ name, path, size }`. */
-  const atlasOf = (name, rendererBlock) => {
+  /**
+   * What a renderer's first material paints with: the atlas it samples, or -- for the background
+   * layers' `*_Fill` quads, whose material is `_Custom/Unlit_Monochrome` and samples nothing -- the
+   * solid colour the shader returns (`_Color`, alpha included).
+   */
+  const paintOf = (name, rendererBlock) => {
     const materialGuid = /m_Materials:\s*\n\s*- \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(rendererBlock)?.[1];
     must(Boolean(materialGuid), `${name}: renderer with no material`);
     const textureGuid = materialTextureGuid(materialGuid);
-    must(Boolean(textureGuid), `${name}: material ${materialGuid} has no _MainTex`);
+    if (textureGuid === null) {
+      const color = materialColor(materialGuid);
+      must(color !== null, `${name}: material ${materialGuid} has neither a _MainTex nor a _Color`);
+      return { color };
+    }
     const path = guidToPath.get(textureGuid);
     must(Boolean(path), `${name}: texture ${textureGuid} resolves to no asset`);
     const size = pngSize(path);
     must(Boolean(size), `${name}: texture ${path} is not a PNG`);
-    return { name: basename(path), path, size };
+    atlases.set(basename(path), path);
+    return { atlas: basename(path), path, size };
   };
 
   /** One `UnmanagedSprite`'s quad: its own fields decide the uv cell and the mesh size. */
-  const unmanagedArt = (name, block, atlas) => {
+  const unmanagedArt = (name, block, paint) => {
     const value = (key) => field(key, block, "UnmanagedSprite", UNMANAGED_FIELDS[key]);
+    const [sx, sy] = [value("m_spriteWidth"), value("m_spriteHeight")];
+    must(sx > 0 && sy > 0, `${name}: UnmanagedSprite has no serialized quad size (${sx}x${sy})`);
+    const size = { cx: 0, cy: 0, sx: round(sx * UNITS_PER_PIXEL), sy: round(sy * UNITS_PER_PIXEL) };
+    if (paint.color !== undefined) return { color: paint.color, ...size };
+
     const grid = value("m_atlasGridSubdivisions");
     const border = value("m_border");
     const [u, v, columns, rows] = [value("m_UVx"), value("m_UVy"), value("m_width"), value("m_height")];
@@ -162,23 +345,18 @@ export function openProps(bpleRoot) {
     const v0 = v / grid + inset;
     const du = columns / grid - 2 * inset;
     const dv = rows / grid - 2 * inset;
-    const [sx, sy] = [value("m_spriteWidth"), value("m_spriteHeight")];
-    must(sx > 0 && sy > 0, `${name}: UnmanagedSprite has no serialized quad size (${sx}x${sy})`);
     return {
-      atlas: atlas.name,
-      x: round(u0 * atlas.size[0]),
-      y: round(v0 * atlas.size[1]),
-      w: round(du * atlas.size[0]),
-      h: round(dv * atlas.size[1]),
-      cx: 0,
-      cy: 0,
-      sx: round(sx * UNITS_PER_PIXEL),
-      sy: round(sy * UNITS_PER_PIXEL),
+      atlas: paint.atlas,
+      x: round(u0 * paint.size[0]),
+      y: round(v0 * paint.size[1]),
+      w: round(du * paint.size[0]),
+      h: round(dv * paint.size[1]),
+      ...size,
     };
   };
 
   /** One `Sprite`'s quad: the library row decides the size and the pivot, the mapping the uv rect. */
-  const managedArt = (name, block, atlas) => {
+  const managedArt = (name, block, paint) => {
     const id = fieldOf(block, "m_id") ?? "";
     const row = database.sprites.get(id);
     must(Boolean(row), `${name}: sprite id "${id}" is not in the sprite library`);
@@ -193,16 +371,20 @@ export function openProps(bpleRoot) {
     // centre, plus the row's and the prefab's own pivots.
     const pivotX = Math.trunc(scaleX * (row.selectionX + row.selectionWidth / 2 - (row.uvX + row.width / 2) + row.pivotX + value("m_pivotX")));
     const pivotY = Math.trunc(scaleY * (row.selectionY + row.selectionHeight / 2 - (row.uvY + row.height / 2) + row.pivotY + value("m_pivotY")));
-    return {
-      atlas: atlas.name,
-      x: round((uv[0] + insetU) * atlas.size[0]),
-      y: round((uv[1] + insetV) * atlas.size[1]),
-      w: round((uv[2] - 2 * insetU) * atlas.size[0]),
-      h: round((uv[3] - 2 * insetV) * atlas.size[1]),
+    const size = {
       cx: round(-2 * pivotX * UNITS_PER_PIXEL),
       cy: round(-2 * pivotY * UNITS_PER_PIXEL),
       sx: round(Math.trunc(scaleX * row.width) * UNITS_PER_PIXEL),
       sy: round(Math.trunc(scaleY * row.height) * UNITS_PER_PIXEL),
+    };
+    if (paint.color !== undefined) return { color: paint.color, ...size };
+    return {
+      atlas: paint.atlas,
+      x: round((uv[0] + insetU) * paint.size[0]),
+      y: round((uv[1] + insetV) * paint.size[1]),
+      w: round((uv[2] - 2 * insetU) * paint.size[0]),
+      h: round((uv[3] - 2 * insetV) * paint.size[1]),
+      ...size,
     };
   };
 
@@ -212,50 +394,84 @@ export function openProps(bpleRoot) {
    *   terrain  the `e2dTerrain` family -- the level file's own terrain objects (see `docs/specs/original-level-pack.md`)
    *   system   no renderer at all: `LevelStart`, `LevelManager`, `CameraSystem`, challenges, `DessertPlace`, clouds...
    *   solid    carries a collider: `TNT_Box`, `BoxChallenge`, `StarBox`, `BreakableWall`, the background sets...
-   *   decor    exactly one decoration quad and nothing else -- the family `art` is for
-   *   special  anything else that draws: multi-quad prefabs, `SpriteReference`/`PointLightSource` variants, birds, the slingshot
+   *   decor    exactly one quad, one GameObject and no collider -- the family the props document places first
+   *   special  anything else that draws: behaviour props and the families whose art comes from elsewhere
+   *
+   * and `drawable` says whether `quads` is the whole picture: every renderer-bearing GameObject of the
+   * active hierarchy carries a `Sprite`/`UnmanagedSprite` and the prefab's scripts stay inside
+   * `SPRITE_CLASSES` plus `ALLOWED_EXTRA`. A drawable prop may be many quads (the background sets are
+   * 50 to 250 of them) and may still carry a collider -- the room owns its colliders, the picture stays
+   * whole.
    */
   const read = (prefabPath) => {
     if (propCache.has(prefabPath)) return propCache.get(prefabPath);
     const name = basename(prefabPath, ".prefab");
     const file = join(bpleRoot, prefabPath);
     must(existsSync(file), `${name}: no prefab at ${prefabPath}`);
-    const blocks = readFileSync(file, "utf8").split(/\n--- !u!/).slice(1);
-    const id = (block) => Number(/^(\d+)/.exec(block)?.[1]);
-    const classesOf = (wanted) =>
-      blocks.filter((block) => wanted.includes(CLASS_IDS[id(block)])).map((block) => ({ block, class: CLASS_IDS[id(block)] }));
-    const monos = blocks
-      .filter((block) => id(block) === 114)
-      .map((block) => ({
-        block,
-        class: guidToClass.get(/m_Script: \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(block)?.[1]) ?? "?unknown",
-      }));
-    const scripts = monos.map((mono) => mono.class);
-    const renderers = classesOf(["MeshRenderer", "SpriteRenderer"]);
-    const colliders = classesOf(["MeshCollider", "BoxCollider", "SphereCollider", "CapsuleCollider"]);
-    const gameObjects = blocks.filter((block) => id(block) === 1).length;
+    const objects = readHierarchy(readFileSync(file, "utf8"), guidToClass);
+    const roots = objects.filter((object) => object.father === null || object.father === "0");
+    must(roots.length === 1, `${name}: ${roots.length} root GameObjects, expected 1`);
+    const childrenOf = new Map();
+    for (const object of objects) {
+      if (object.father === null) continue;
+      childrenOf.set(object.father, [...(childrenOf.get(object.father) ?? []), object]);
+    }
+
+    const scripts = [...new Set(objects.flatMap((object) => object.classes))];
+    const rendererObjects = objects.filter((object) => object.renderers > 0);
     const kind = scripts.includes("e2dTerrain")
       ? "terrain"
-      : renderers.length === 0
+      : rendererObjects.length === 0
         ? "system"
-        : colliders.length > 0
+        : objects.some((object) => object.collider)
           ? "solid"
-          : renderers.length === 1 && gameObjects === 1 && monos.length === 1 && SPRITE_CLASSES.includes(scripts[0])
+          : rendererObjects.length === 1 && objects.length === 1 && SPRITE_CLASSES.includes(scripts[0])
             ? "decor"
             : "special";
+    const drawable =
+      rendererObjects.length > 0 &&
+      rendererObjects.every((object) => object.renderers === 1 && object.sprite !== undefined) &&
+      scripts.every((className) => SPRITE_CLASSES.includes(className) || ALLOWED_EXTRA.includes(className));
 
-    const record = { name, path: prefabPath, kind, scripts, gameObjects, quads: renderers.length, colliders: colliders.length };
-    if (kind === "decor") {
-      const atlas = atlasOf(name, renderers[0].block);
-      record.class = scripts[0];
-      record.atlasPath = atlas.path;
-      record.art = scripts[0] === "UnmanagedSprite" ? unmanagedArt(name, monos[0].block, atlas) : managedArt(name, monos[0].block, atlas);
+    const record = { name, id: propId(name), path: prefabPath, kind, drawable, scripts, gameObjects: objects.length, quads: [] };
+    if (drawable) {
+      // Depth first from the root, carrying the active flag and the nearest parallax tag down. The
+      // root's own transform is what `LevelLoader.ReadPrefabInstance` overwrites with the level
+      // instance's, so it starts at identity and every child frame lands in that same world frame.
+      const foreground = [];
+      const walk = (object, parentFrame, parentDepth, inheritedParallax, inheritedActive) => {
+        const active = inheritedActive && object.active;
+        const frame = parentFrame === null ? IDENTITY_FRAME : composeFrame(parentFrame, localFrame(object, `${name}/${object.name}`));
+        // An in-plane transform never changes z, so a quad's depth is the sum of the chain's own z.
+        // The root contributes nothing: the level instance overwrites its whole transform, z included.
+        const depth = parentFrame === null ? 0 : (parentDepth ?? 0) + (object.position[2] ?? 0);
+        const parallax = PARALLAX_TAGS[object.tag] ?? inheritedParallax;
+        if (object.renderers > 0 && active) {
+          must(object.sprite !== undefined, `${name}: renderer object "${object.name}" carries no sprite component`);
+          const paint = paintOf(name, object.renderer.body);
+          const art = object.classes.includes("UnmanagedSprite")
+            ? unmanagedArt(name, object.sprite.body, paint)
+            : managedArt(name, object.sprite.body, paint);
+          const quad = { ...art, ...frameToQuad(frame, depth, `${name}/${object.name}`), parallax: { x: parallax.x, y: parallax.y } };
+          record.quads.push(quad);
+          if (parallax.y !== 0) foreground.push({ y: frame[5], quad });
+        }
+        for (const child of childrenOf.get(object.transformAnchor) ?? []) walk(child, frame, depth, parallax, active);
+      };
+      walk(roots[0], null, 0, { x: 0, y: 0 }, true);
+      // `ParallaxManager.Start` takes the first foreground layer's own height as the limit the whole
+      // foreground layer tracks the camera down to.
+      if (foreground.length > 0) {
+        const limit = round(foreground[0].y);
+        for (const entry of foreground) entry.quad.parallax.limitY = limit;
+      }
+      must(record.quads.length === rendererObjects.length, `${name}: ${record.quads.length} quads for ${rendererObjects.length} renderers`);
     }
     propCache.set(prefabPath, record);
     return record;
   };
 
-  return { read, database, guidToPath, assetsRoot };
+  return { read, database, atlases, guidToPath, assetsRoot };
 }
 
 /// Four decimals, the precision `part-textures.json` already uses: the manifest is a client asset,

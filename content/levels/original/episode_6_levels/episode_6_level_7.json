@@ -29,6 +29,11 @@
   "cameraLimits": {"topLeft":[-215.7,59.4],"size":[93.1,69.78]},
   "spawns": [],
   "props": [
+    {"id":"LitMushroom_03","x":-160.599,"y":22.543552,"z":-1.25,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"LitMushroom_03","x":-164.62099,"y":39.113556,"z":0.75,"rotation":1.8288696,"scaleX":1,"scaleY":1},
+    {"id":"LitMushroom_03","x":-126.5,"y":23.86,"z":-1.25,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"LitCrystal_01","x":-167.517,"y":43.76055,"z":-4.15,"rotation":2.039623,"scaleX":1,"scaleY":1},
+    {"id":"LitMushroom_03","x":-210.48,"y":28.324553,"z":-1.25,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones01","x":-151.84,"y":-3.699997,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones02","x":-150.84,"y":-3.699997,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanChest01","x":-178.39001,"y":45.719994,"z":0.9,"rotation":0,"scaleX":-1,"scaleY":1},

@@ -70,6 +70,8 @@
     }
   ],
   "props": [
+    {"id":"background_night_01_set_1","x":-0.15712309,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"background_night_01_set_1","x":186.29036,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-10.76479,"y":-6.758501,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush_03_0","x":-6.635044,"y":49.45233,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Branch_04","x":43.32582,"y":43.46724,"z":-5,"rotation":4.9163837,"scaleX":1,"scaleY":1},

@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[3.62,20.42],"size":[56.47,31.3]},
   "spawns": [],
   "props": [
+    {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_03","x":36.109203,"y":-4.025111,"z":-5,"rotation":3.8668773,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":35.359413,"y":-5.0861387,"z":-5,"rotation":4.935641,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_01","x":35.585766,"y":-5.8642244,"z":-5.5,"rotation":5.1955476,"scaleX":1,"scaleY":1},

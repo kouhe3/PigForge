@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-23.01,35.9],"size":[61.5,47]},
   "spawns": [],
   "props": [
+    {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_11_0","x":-0.6737232,"y":13.73612,"z":-5,"rotation":3.4109972,"scaleX":1,"scaleY":1},
     {"id":"Rock_02","x":-13.490708,"y":-6.871635,"z":-0.062187195,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Rock_01","x":-21.118534,"y":-6.9583097,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

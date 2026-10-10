@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-74.3,26.3],"size":[65.94,39.3]},
   "spawns": [],
   "props": [
+    {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crumbs_Line_01","x":-42.647476,"y":-6.666358,"z":-5.1,"rotation":0,"scaleX":-1.5082068,"scaleY":1.5082068},
     {"id":"Strawberry_Half","x":-23.858406,"y":-0.6628403,"z":4,"rotation":2.998511,"scaleX":1.5,"scaleY":1.5},
     {"id":"Drop_01","x":-27.111053,"y":-6.7976866,"z":-5.15,"rotation":0,"scaleX":1.5082068,"scaleY":1.5082068},
