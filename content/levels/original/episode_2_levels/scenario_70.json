@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-40.288734,"y":9.617643,"z":0,"rotation":6.1231055,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-30.206383,"y":15.548164,"z":0,"rotation":0.5711497,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_2","x":-30.17214,"y":3.0544682,"z":-5,"rotation":5.124236,"scaleX":-1,"scaleY":1},
     {"id":"Grass_09","x":-41.555992,"y":9.582392,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Twig_1","x":-19.614233,"y":-6.9962635,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},

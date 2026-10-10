@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":1.882565,"y":17.460518,"z":0,"rotation":5.670797,"scaleX":1,"scaleY":1},
     {"id":"Secret_01","x":-3.0853047,"y":23.864092,"z":-1.1595764,"rotation":6.069511,"scaleX":0.4,"scaleY":0.4},
     {"id":"Daisy_01","x":6.251307,"y":14.692853,"z":-7.4784255,"rotation":5.916324,"scaleX":1,"scaleY":1},
     {"id":"Daisy_03","x":19.425806,"y":5.212188,"z":-6.9780273,"rotation":0.06626857,"scaleX":1,"scaleY":1},
@@ -49,7 +50,15 @@
     {"id":"Bush_01","x":13.442841,"y":4.718375,"z":-7.4780273,"rotation":0.16148362,"scaleX":1,"scaleY":1},
     {"id":"Grass_01","x":12.003532,"y":3.4714227,"z":-2.53,"rotation":0.19836552,"scaleX":1,"scaleY":1},
     {"id":"Wood_01","x":2.0542212,"y":-6.829464,"z":-7.4780273,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Mushroom_02","x":14.531991,"y":-3.9600296,"z":-7.477552,"rotation":0.54690695,"scaleX":1,"scaleY":1}
+    {"id":"Mushroom_02","x":14.531991,"y":-3.9600296,"z":-7.477552,"rotation":0.54690695,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":50.04816,"y":13.881093,"z":15.841622,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":24.98075,"y":20.526688,"z":15.56657,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":71.40339,"y":13.049208,"z":15.603862,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":63.820774,"y":16.231302,"z":15.294846,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":-4.204117,"y":19.679192,"z":15.752635,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_0","x":63.78318,"y":20.300056,"z":15.530249,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":77.12519,"y":18.448668,"z":15.2192545,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_0","x":-2.6083891,"y":17.39411,"z":15.086624,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

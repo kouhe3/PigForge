@@ -31,6 +31,8 @@
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":51.77111,"y":-6.0882716,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"BoxChallenge","x":48.25274,"y":4.899586,"z":0,"rotation":5.928432,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":85.48716,"y":-4.580908,"z":0,"rotation":0.3985095,"scaleX":1,"scaleY":1},
     {"id":"Cream_Line_02","x":-30.269093,"y":0.4399491,"z":-5,"rotation":0.0996574,"scaleX":2,"scaleY":2},
     {"id":"Cream_Line_03","x":-45.714443,"y":0.1826585,"z":-5,"rotation":0.06672594,"scaleX":2,"scaleY":2},
     {"id":"Pumpkin_Plant_01","x":87.42656,"y":-0.59721017,"z":-5,"rotation":0.85104746,"scaleX":1.988909,"scaleY":1.988909},
@@ -112,7 +114,12 @@
     {"id":"GiningerBread_Man","x":92.98854,"y":5.1995254,"z":-4.9510093,"rotation":0.14350112,"scaleX":1.5,"scaleY":1.5},
     {"id":"Cream_Line_01","x":47.590343,"y":4.321617,"z":-5,"rotation":6.022822,"scaleX":2,"scaleY":2},
     {"id":"Cream_Line_01","x":-4.639221,"y":7.317258,"z":-5,"rotation":5.8899,"scaleX":2,"scaleY":2},
-    {"id":"Colorful_Sparkles_01","x":-43.220203,"y":-0.2616291,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427}
+    {"id":"Colorful_Sparkles_01","x":-43.220203,"y":-0.2616291,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},
+    {"id":"Background_Cloud_02_SET_2","x":-32.701633,"y":8.454446,"z":12.524271,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":16.98774,"y":14.691001,"z":12.949767,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":-56.385635,"y":12.022237,"z":12.021356,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":71.80664,"y":14.40272,"z":12.094509,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_2","x":-90.58963,"y":10.439063,"z":12.908252,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

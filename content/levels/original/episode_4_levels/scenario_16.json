@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":-72.95457,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-43.480385,"y":-0.7887143,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-38.316956,"y":0.9808521,"z":0,"rotation":0.51296014,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-48.479397,"y":-6.9304085,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_03","x":-32.32495,"y":-6.6682224,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Wood_01","x":-93.84736,"y":-7.254734,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
@@ -74,7 +76,12 @@
     {"id":"Gravel_03","x":-116.079216,"y":-7.262371,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Daisy_06","x":-26.555,"y":1.8240814,"z":-5,"rotation":0.073573016,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_02","x":-106.92011,"y":-6.8173485,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
-    {"id":"Rock_01","x":-125.49847,"y":-6.7394657,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+    {"id":"Rock_01","x":-125.49847,"y":-6.7394657,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_1","x":-79.066826,"y":13.973809,"z":15.236461,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_1","x":-48.3202,"y":11.063178,"z":15.073615,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_1","x":-104.100784,"y":14.632623,"z":15.846608,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_1","x":-102.577385,"y":11.817967,"z":15.78178,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-109.694954,"y":15.122923,"z":15.222445,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

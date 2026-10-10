@@ -82,6 +82,7 @@ check(levels === 277, `levels: ${levels}, expected 277`);
 
 // ---------------------------------------------------------------- classify + extract
 const props = openProps(BPLE);
+const cloudSets = [];
 const byKind = new Map();
 const drawable = new Map();
 const quadsByProp = new Map();
@@ -99,6 +100,10 @@ for (const path of [...palette].sort()) {
     check(false, `${name}: ${error.message}`);
     continue;
   }
+  if (record.clouds !== null) {
+    cloudSets.push({ name, clouds: record.clouds });
+  }
+
   const kind = byKind.get(record.kind) ?? { props: 0, instances: 0, levelRefs: 0 };
   kind.props += 1;
   kind.instances += usage?.instances ?? 0;
@@ -132,14 +137,14 @@ check(singleQuads.length === 272, `single-quad props: ${singleQuads.length}, exp
 check(decorInstances === 15837, `single-quad instances: ${decorInstances}, expected 15837`);
 const multiQuads = [...drawable.keys()].filter((name) => quadsByProp.get(name) > 1).sort();
 const drawableInstances = [...drawable.keys()].reduce((total, name) => total + (counts.get(name)?.instances ?? 0), 0);
-check(drawable.size === 309, `drawable props: ${drawable.size}, expected 309`);
-check(drawableInstances === 16378, `drawable instances: ${drawableInstances}, expected 16378`);
+check(drawable.size === 313, `drawable props: ${drawable.size}, expected 313`);
+check(drawableInstances === 16922, `drawable instances: ${drawableInstances}, expected 16922`);
 const quadTotal = [...quadsByProp.values()].reduce((total, count) => total + count, 0);
-check(quadTotal === 1073, `quads: ${quadTotal}, expected 1073`);
+check(quadTotal === 1081, `quads: ${quadTotal}, expected 1081`);
 // The multi-quad families: the level's backdrop sets, its five windows, one slingshot, seven birds, two
-// stones, and the solid furniture that is more than one quad (the doors, the fan, the four buttons and
-// one of the two secret part boxes); a family leaving or joining the list is a re-classification, not a
-// detail.
+// stones, the solid furniture that is more than one quad (the doors, the fan, the four buttons and one of
+// the two secret part boxes) and the four challenge boxes; a family leaving or joining the list is a
+// re-classification, not a detail. The cloud sets are not here: their clouds are separate props.
 const EXPECTED_MULTI_QUADS = [
   "ActivatedHingeDoorBlue",
   "ActivatedHingeDoorBlue_Ice",
@@ -156,6 +161,9 @@ const EXPECTED_MULTI_QUADS = [
   "Bird_Red_01",
   "Bird_Yellow",
   "Bird_Yellow_01",
+  "BoxChallenge",
+  "DynamicBoxChallenge",
+  "DynamicStarBox",
   "Fan",
   "HingeDoorToLeft4m",
   "PressureButtonBlue",
@@ -164,6 +172,7 @@ const EXPECTED_MULTI_QUADS = [
   "PressureButtonYellow",
   "SecretPartWilfred",
   "Slingshot",
+  "StarBox",
   "Stone2_2",
   "Stone5_2",
   "WindowBgLarge",
@@ -184,6 +193,49 @@ console.log(`multi-quad props: ${multiQuads.join(", ")}`);
 const classified = [...byKind.values()].reduce((total, row) => total + row.instances, 0);
 check(classified === 26052, `classified instances: ${classified}, expected 26052 (the pack's 26072 minus the 20 placed parts)`);
 
+// The cloud sets' own cloud prefabs are not in the level palette: `CloudGenerator` names them, and the
+// level builder turns each spawned cloud into a prop instance (`docs/specs/level-props.md` §3.7). They
+// still need art, so they join the manifest as props of their own -- and every set that names one has
+// to agree about the parallax it draws with, because the manifest is keyed by the prefab.
+const cloudProps = new Map();
+const cloudParallax = new Map();
+for (const { name, clouds } of cloudSets) {
+  for (const variant of clouds.variants) {
+    const id = propId(basename(variant, ".prefab"));
+    const agreed = cloudParallax.get(id);
+    check(
+      agreed === undefined || (agreed.x === clouds.parallax.x && agreed.y === clouds.parallax.y),
+      `${name}: cloud ${id} is used with two different parallax settings (${JSON.stringify(agreed)} vs ${JSON.stringify(clouds.parallax)})`,
+    );
+    cloudParallax.set(id, clouds.parallax);
+  }
+}
+// One pass per distinct cloud prefab: `read` caches, so a variant shared by two sets costs one read.
+for (const variant of [...new Set(cloudSets.flatMap((entry) => entry.clouds.variants))].sort()) {
+  const name = basename(variant, ".prefab");
+  let cloud;
+  try {
+    cloud = props.read(variant);
+  } catch (error) {
+    check(error instanceof PropException, `${name}: ${error.stack}`);
+    check(false, `${name}: ${error.message}`);
+    continue;
+  }
+
+  check(cloud.drawable, `cloud ${name}: not drawable`);
+  check(cloud.quads.length > 0, `cloud ${name}: no quads`);
+  const parallax = cloudParallax.get(propId(name));
+  for (const quad of cloud.quads) {
+    check(quad.atlas !== undefined && props.atlases.has(quad.atlas), `cloud ${name}: atlas ${quad.atlas} has no file in the project`);
+  }
+  const id = propId(name);
+  check(!cloudProps.has(id), `cloud ${id}: two prefabs fold onto one id`);
+  // The same shape a palette prop has in `props`: `{ quads: [...] }`.
+  cloudProps.set(id, { quads: cloud.quads.map((quad) => ({ ...quad, parallax: { ...parallax } })) });
+  console.log(`cloud: ${id} (${cloud.quads.length} quad(s), parallax ${parallax.x})`);
+}
+check(cloudProps.size === 13, `cloud prefabs: ${cloudProps.size}, expected 13`);
+
 const atlasSizes = {};
 for (const [name, path] of props.atlases) {
   const size = pngSize(path);
@@ -197,7 +249,11 @@ const manifest = {
   schemaVersion: 2,
   unitsPerPixel: 20 / 768,
   atlases: Object.fromEntries(Object.entries(atlasSizes).sort(([a], [b]) => (a < b ? -1 : 1))),
-  props: Object.fromEntries([...drawable.keys()].sort().map((name) => [drawable.get(name).id, { quads: drawable.get(name).quads }])),
+  props: Object.fromEntries(
+    [...drawable.keys()].sort().map((name) => [drawable.get(name).id, { quads: drawable.get(name).quads }]),
+  ),
+  // The cloud prefabs the sets name: not palette props, but the level places them per spawned cloud.
+  cloudProps: Object.fromEntries([...cloudProps.entries()].sort()),
 };
 const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
 

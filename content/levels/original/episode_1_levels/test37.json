@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":33.90668,"y":22.360147,"z":0,"rotation":1.7484555e-7,"scaleX":1,"scaleY":1},
     {"id":"Crystal_01","x":-18.793303,"y":26.7484,"z":-5,"rotation":3.6271167,"scaleX":1,"scaleY":1},
     {"id":"Crystal_01","x":-17.757084,"y":10.24795,"z":-5,"rotation":3.6104107,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":-5.971407,"y":23.636187,"z":-5,"rotation":3.6085184,"scaleX":1,"scaleY":1},

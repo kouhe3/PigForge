@@ -29,6 +29,8 @@
   "cameraLimits": {"topLeft":[-181.9,53.4],"size":[74.6,67]},
   "spawns": [],
   "props": [
+    {"id":"BoxChallenge","x":-126.778,"y":-4.495001,"z":0,"rotation":6.195919,"scaleX":1,"scaleY":1},
+    {"id":"DynamicBoxChallenge","x":-115.060005,"y":25.619999,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-127.542,"y":-2.578,"z":0,"rotation":0.1745329,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-126.744,"y":-2.976,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"Bush","x":-150.659,"y":42.314,"z":-3,"rotation":6.1517134,"scaleX":1,"scaleY":1},

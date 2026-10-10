@@ -570,13 +570,18 @@ public sealed class LevelContentTests
                 Assert.Equal(6.060668f, prop.Rotation);
             });
 
-        // The converted pack carries them: the 309 drawable props are placed 16378 times across the
-        // 277 levels, and Level_05's own first instance is its jungle backdrop at the origin.
+        // The converted pack carries them: the 313 drawable props are placed 17942 times across the
+        // 277 levels (the cloud sets' own 1020 clouds among them), and Level_05's own first instance is
+        // its jungle backdrop at the origin.
         LevelContentDocument real =
             LevelContentLibrary.Parse(File.ReadAllText(FindRepositoryFile("content/levels/original/episode_1_levels/Level_05.json")));
-        Assert.Equal(20, real.Props.Count);
+        Assert.Equal(29, real.Props.Count);
         Assert.Equal(new LevelPropDefinition("background_jungle_01_set", 0f, 0f, 0f, 0f, 1f, 1f), real.Props[0]);
         Assert.Contains(real.Props, prop => prop.Id == "Star_01");
+
+        // Its cloud set is one of the 152 the pack places, and its 8 clouds are their own instances --
+        // in world coordinates, so the set's own scale never reaches them.
+        Assert.Equal(8, real.Props.Count(prop => prop.Id.StartsWith("Background_Cloud", StringComparison.Ordinal)));
         Assert.All(real.Props, prop => Assert.False(string.IsNullOrWhiteSpace(prop.Id)));
 
         // This level is one of the 123 that declares v7: its three TNT crates are solid, and the
@@ -638,8 +643,8 @@ public sealed class LevelContentTests
                 Assert.Empty(prop.Boxes);
             });
 
-        // The converted pack carries them: 658 solid boxes across the 123 levels that place a crate, a
-        // wall, a plank or a door, and every box is a shape.
+        // The converted pack carries them: 671 solid boxes across the 126 levels that place a crate, a
+        // wall, a plank, a door or a challenge box, and every box is a shape.
         int boxes = 0;
         int levelsWithBoxes = 0;
         foreach (string file in Directory.EnumerateFiles(FindRepositoryDirectory("content/levels/original"), "*.json", SearchOption.AllDirectories))
@@ -653,8 +658,8 @@ public sealed class LevelContentTests
                 box => Assert.True(box.SizeX > 0f && box.SizeY > 0f && box.SizeZ > 0f, $"{file}: a box with a non-positive size"));
         }
 
-        Assert.Equal(658, boxes);
-        Assert.Equal(123, levelsWithBoxes);
+        Assert.Equal(671, boxes);
+        Assert.Equal(126, levelsWithBoxes);
     }
 
     [Theory]

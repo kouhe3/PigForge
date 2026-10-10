@@ -29,6 +29,8 @@
   "cameraLimits": {"topLeft":[-200.21,65.4],"size":[70,79.5]},
   "spawns": [],
   "props": [
+    {"id":"BoxChallenge","x":-156.93001,"y":29.539999,"z":0,"rotation":4.496732,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-194.21,"y":38.29,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1},
     {"id":"Grass10","x":-168.403,"y":58.287796,"z":-1,"rotation":5.175931,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-160.547,"y":29.238798,"z":0.9,"rotation":6.149586,"scaleX":-1,"scaleY":1},
     {"id":"Grass14","x":-182.239,"y":29.0908,"z":-1,"rotation":4.855304,"scaleX":-1,"scaleY":1},

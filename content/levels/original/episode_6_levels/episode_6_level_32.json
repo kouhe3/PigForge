@@ -33,6 +33,8 @@
     {"id":"TNT_Box","x":-168.219,"y":60.645,"z":0,"rotation":0.5718056,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-190.125,"y":50.937,"z":0,"rotation":6.0585217,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-204.29,"y":40.69,"z":0,"rotation":5.9678025,"scaleX":1,"scaleY":0.99999994,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"BoxChallenge","x":-173.895,"y":39.043,"z":0,"rotation":0.24792641,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-170.21,"y":26.869999,"z":0,"rotation":0.507553,"scaleX":1,"scaleY":1},
     {"id":"SecretStatue","x":-190.454,"y":21.952,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass07","x":-173.938,"y":21.305,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-181.7,"y":60.47,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},

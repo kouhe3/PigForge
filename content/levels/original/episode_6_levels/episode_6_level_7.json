@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_7",
   "goalZone": {
     "min": [
@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-215.7,59.4],"size":[93.1,69.78]},
   "spawns": [],
   "props": [
+    {"id":"DynamicBoxChallenge","x":-173.17,"y":42.480846,"z":0,"rotation":0.0076977843,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
     {"id":"LitMushroom_03","x":-160.599,"y":22.543552,"z":-1.25,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-164.62099,"y":39.113556,"z":0.75,"rotation":1.8288696,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-126.5,"y":23.86,"z":-1.25,"rotation":0,"scaleX":1,"scaleY":1},

@@ -30,6 +30,12 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":-73.15795,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-36.81938,"y":2.5117135,"z":0,"rotation":0.4589067,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":1.1637086,"y":14.51051,"z":15.505628,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_1","x":-7.470665,"y":12.603781,"z":15.37764,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-27.046728,"y":12.3498125,"z":15.024996,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.89214,"y":10.533974,"z":15.928262,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Secret_03","x":-82.343445,"y":7.882011,"z":-0.07444531,"rotation":0.24093114,"scaleX":0.4,"scaleY":0.4},
     {"id":"Daisy_06","x":-91.093185,"y":13.10891,"z":-5,"rotation":5.9770064,"scaleX":1,"scaleY":1},
     {"id":"Glow_01","x":-40.093414,"y":3.6212692,"z":4,"rotation":0,"scaleX":5.2189913,"scaleY":5.2189913},

@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-5.2884207,"y":-6.0687284,"z":0,"rotation":6.2176037,"scaleX":1,"scaleY":1},
     {"id":"Shell","x":22.256838,"y":-7.4112263,"z":-5,"rotation":0,"scaleX":-0.83,"scaleY":0.83},
     {"id":"Starfish","x":-28.222164,"y":-6.8942966,"z":-5,"rotation":0,"scaleX":-0.7317157,"scaleY":0.7317157},
     {"id":"Bottle","x":4.005064,"y":-6.765024,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

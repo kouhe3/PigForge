@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "contentVersion": "episode_6_level_II",
   "goalZone": {
     "min": [
@@ -29,6 +29,8 @@
   "cameraLimits": {"topLeft":[-271.4,87.22],"size":[163.9,112.2]},
   "spawns": [],
   "props": [
+    {"id":"BoxChallenge","x":-179.92401,"y":33.721,"z":0,"rotation":6.048076,"scaleX":1,"scaleY":1},
+    {"id":"DynamicBoxChallenge","x":-201.896,"y":16.468376,"z":0,"rotation":5.530832,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
     {"id":"SecretStatue","x":-254.53,"y":17.045,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGMayanThing02","x":-226.37,"y":-7.5200005,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-252.206,"y":46.958,"z":0.9,"rotation":1.1145211,"scaleX":1,"scaleY":1},

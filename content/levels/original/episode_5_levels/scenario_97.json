@@ -30,6 +30,12 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":31.849663,"y":9.695458,"z":0,"rotation":4.559329,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_2","x":-32.701633,"y":8.454446,"z":12.524271,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":16.98774,"y":14.691001,"z":12.949767,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":-56.385635,"y":12.022237,"z":12.021356,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":71.80664,"y":14.40272,"z":12.094509,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_2","x":-90.58963,"y":10.439063,"z":12.908252,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cream_02_Pink","x":-25.223915,"y":44.31282,"z":-5,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Colorful_Sparkles_05","x":32.01899,"y":4.676339,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},
     {"id":"Cherry_Cut","x":-58.409485,"y":25.539034,"z":4,"rotation":0,"scaleX":1.5,"scaleY":1.5},

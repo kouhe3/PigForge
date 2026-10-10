@@ -577,7 +577,17 @@
     {"id":"DynamicPartBox","x":-130.90953,"y":-4.982506,"z":0,"rotation":0,"scaleX":0.4,"scaleY":0.4,"boxes":[{"dx":-0.02,"dy":-0.02,"dz":0,"sizeX":2.5,"sizeY":2.5,"sizeZ":2.5,"rotation":0}]},
     {"id":"PartBox_0","x":63.03444,"y":167.44661,"z":0,"rotation":0.0024862092,"scaleX":0.40000004,"scaleY":0.40000004},
     {"id":"PartBox_0","x":19.673025,"y":59.81534,"z":0,"rotation":0.122229084,"scaleX":0.39999998,"scaleY":0.39999998},
-    {"id":"PartBox_0","x":114.956375,"y":248.22238,"z":0,"rotation":0.12223008,"scaleX":0.4,"scaleY":0.4}
+    {"id":"PartBox_0","x":114.956375,"y":248.22238,"z":0,"rotation":0.12223008,"scaleX":0.4,"scaleY":0.4},
+    {"id":"Background_Cloud_03_SET_2","x":-167.62314,"y":-1.1132691,"z":17.994614,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_2","x":-209.50371,"y":-2.143001,"z":17.844807,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_2","x":-219.15782,"y":-0.6712075,"z":18.315176,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_3","x":-196.022,"y":-2.0171573,"z":18.034903,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_3","x":-271.7104,"y":-1.4949427,"z":18.292406,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_2","x":-118.508,"y":-0.6496775,"z":17.69767,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_2","x":30.340515,"y":-1.6943744,"z":17.730953,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_2","x":-163.43526,"y":-0.9870646,"z":18.314886,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_2","x":70.51806,"y":-2.1374173,"z":17.95517,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_3","x":-238.20131,"y":-1.4375303,"z":18.363726,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

@@ -20,7 +20,7 @@
 // serialize falls back to the C# field initializer, which is where the defaults below come from.
 
 import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { assets, scriptAssembly } from "./paths.mjs";
 import { buildGuidIndex, fieldOf, indexAssetGuids } from "./unity.mjs";
 
@@ -45,6 +45,11 @@ const SPRITE_CLASSES = ["Sprite", "UnmanagedSprite"];
 /// two runtime `LineRenderer`s and leaves the sprites to its children, and `bandQuads` models those).
 const ALLOWED_EXTRA = [
   "PointLightSource",
+  // `CloudMover` drifts a generated cloud and wraps it at the set's own limits, and
+  // `ParallaxCloudMover : CloudMover` only overrides `Update` to do the same in the parent's frame; the
+  // quad they move is the prefab's own, so a still picture of it is the prefab's own pose.
+  "CloudMover",
+  "ParallaxCloudMover",
   "DynamicObject",
   "SpriteAnimation",
   "AnimationHandler",
@@ -59,6 +64,10 @@ const ALLOWED_EXTRA = [
 /// false (`SpriteReference.cs:3-6`) so the plain `Sprite` component that also sits on those objects --
 /// and the one quad it writes to the same `MeshFilter` first -- is not what stays on screen.
 const PANEL_CLASSES = ["Panel", "SpriteReference"];
+
+/// The one class that *is* a prop's picture without drawing it itself: `CloudGenerator` spawns the
+/// clouds out of its own `m_cloudSet` at load, and `cloudQuads` turns that into quads.
+const GENERATOR_CLASSES = ["CloudGenerator"];
 
 /// Scripts the level's own *solid* furniture may carry: a crate, a wall, a plank, a door, a fan, the
 /// goal's flag, a secret, a button, a challenge box. Each was read for what it does between `Awake` and
@@ -76,10 +85,12 @@ const PANEL_CLASSES = ["Panel", "SpriteReference"];
 ///   `PartSecret`              destroys itself only when the save already collected it
 ///   `PressureButton`          the button's own child is toggled by its press handler, not at load
 ///
+///   `Collectable`/`WaypointChallenge`/`StarBox`  a challenge box (P5's own slice): no `Awake`/`Start`/
+///                            `OnEnable` at all, so its load-time picture is the prefab's own -- the
+///                            *collecting* it stands for is the room's business, not the picture's
+///
 /// The families whose art is *generated* at load (`AncestorPig`'s autoplaying eyes, `LevelBalloon`'s and
-/// `RopeVisualization`'s rope and balloon, `RandomChildActivator`'s pick of one goal child) stay out, and
-/// so do the challenge boxes (`Collectable`/`WaypointChallenge`/`StarBox`) -- those are P5's own slice,
-/// where the art arrives together with the collecting it stands for.
+/// `RopeVisualization`'s rope and balloon, `RandomChildActivator`'s pick of one goal child) stay out.
 const SOLID_CLASSES = [
   "TNTBox",
   "DynamicTNTBox",
@@ -94,6 +105,9 @@ const SOLID_CLASSES = [
   "PartBox",
   "PartSecret",
   "PressureButton",
+  "Collectable",
+  "WaypointChallenge",
+  "StarBox",
 ];
 
 /// The component classes that make a prop physical, by Unity's class id. The picture never depends on
@@ -142,6 +156,30 @@ const PARALLAX_TAGS = {
   ParallaxLayerSky: { x: 0.8, y: 0 },
   ParallaxLayerFixedFollowCamera: { x: 1, y: 0 },
 };
+
+/**
+/// A deterministic little generator for the one family the original fills in with `Random.Range` (the
+/// cloud sets): mulberry32, seeded per prop, so the same prefab lays out the same clouds on every run
+/// and on every machine.
+ */
+function propSeed(name) {
+  let hash = 0x9e3779b9;
+  for (let index = 0; index < name.length; index += 1) {
+    hash = Math.imul(hash ^ name.charCodeAt(index), 0x85ebca6b);
+  }
+  return hash >>> 0;
+}
+
+/** mulberry32: a 32-bit PRNG in ten lines, deterministic and platform independent. */
+function seeded(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 /// A component block's own header: `--- !u!<class> &<fileID>`, split off by the callers.
 const BLOCK_HEADER = /^(\d+) &(\d+)/;
@@ -197,6 +235,8 @@ function readHierarchy(text, guidToClass) {
       /// The runtime pieces the picture has to be told about: a slingshot's own component (its bands)
       /// and every frame animation (refused unless it stays off).
       slingshot: parts.find((part) => part.classId === 114 && classOf(part) === "Slingshot"),
+      /// The cloud sets' own component: it spawns the clouds at load (`cloudQuads`).
+      generator: parts.find((part) => part.classId === 114 && classOf(part) === "CloudGenerator"),
       spriteAnimation: parts.find((part) => part.classId === 114 && classOf(part) === "SpriteAnimation"),
       renderer: parts.find((part) => part.classId === 23 || part.classId === 212),
       renderers: parts.filter((part) => part.classId === 23 || part.classId === 212).length,
@@ -592,6 +632,37 @@ export function openProps(bpleRoot) {
   };
 
   /**
+   * The cloud sets (`CloudGenerator`): a set prefab spawns `m_maxClouds` clouds at load, each one a
+   * random prefab out of `m_cloudSet` at a random point of the set's own box -- x in `±m_cloudLimits`,
+   * y in `±m_height`, z in `[0, m_farPlane]` -- and, with `useCustomParallax`, registers the whole set
+   * as a parallax layer at `speedX = 1` (locked to the camera).
+   *
+   * `SpawnCloud` writes each cloud's **world** position (`base.transform.position + offset`) and only
+   * then parents it, and Unity's `SetParent` keeps the world scale -- so an instance's own scale never
+   * reaches the clouds. That is why this tool only reads the *generator* here: the level builder turns
+   * the spec into one prop instance per cloud, in world coordinates (`docs/specs/level-props.md` §3.7).
+   */
+  const cloudSpec = (name, objects) => {
+    const generator = objects.find((object) => object.generator !== undefined)?.generator.body;
+    must(generator !== undefined, `${name}: no CloudGenerator component`);
+    const value = (field_, fallback) => field(field_, generator, "CloudGenerator", fallback);
+    // The same reference scan the sprite panels use: a prefab reference carries a guid and a type.
+    const variants = [...generator.matchAll(/- \{fileID: \d+, guid: ([0-9a-f]{32}), type: \d\}/g)]
+      .map((match) => guidToPath.get(match[1]))
+      .filter((path) => typeof path === "string" && path.endsWith(".prefab"))
+      .map((path) => relative(bpleRoot, path).replaceAll("\\", "/"));
+    must(variants.length > 0, `${name}: a cloud set with no cloud prefabs`);
+    return {
+      maxClouds: value("m_maxClouds", 10),
+      limits: value("m_cloudLimits", 1000),
+      height: value("m_height", 100),
+      farPlane: value("m_farPlane", 100),
+      parallax: (fieldOf(generator, "useCustomParallax") ?? "1") === "1" ? { x: 1, y: 0 } : { x: 0, y: 0 },
+      variants,
+    };
+  };
+
+  /**
    * What one prop prefab is. `kind` is one of
    *
    *   terrain  the `e2dTerrain` family -- the level file's own terrain objects (see `docs/specs/original-level-pack.md`)
@@ -646,18 +717,34 @@ export function openProps(bpleRoot) {
         );
       }
     }
+    // A cloud set carries no picture of its own: `CloudGenerator` spawns the clouds out of
+    // `m_cloudSet` at load, so the record carries the *generator* and the level builder turns it into
+    // one prop per cloud (`docs/specs/level-props.md` §3.7).
+    const cloudSet = objects.some((object) => object.generator !== undefined);
     const drawable =
-      rendererObjects.length > 0 &&
-      rendererObjects.every((object) => object.renderers === 1 && (object.sprite !== undefined || object.panel !== undefined)) &&
+      (!cloudSet && rendererObjects.length > 0) &&
+      (cloudSet || rendererObjects.every((object) => object.renderers === 1 && (object.sprite !== undefined || object.panel !== undefined))) &&
       scripts.every(
         (className) =>
           SPRITE_CLASSES.includes(className) ||
           ALLOWED_EXTRA.includes(className) ||
           PANEL_CLASSES.includes(className) ||
-          SOLID_CLASSES.includes(className),
+          SOLID_CLASSES.includes(className) ||
+          GENERATOR_CLASSES.includes(className),
       );
 
-    const record = { name, id: propId(name), path: prefabPath, kind, drawable, scripts, gameObjects: objects.length, quads: [], boxes: [] };
+    const record = {
+      name,
+      id: propId(name),
+      path: prefabPath,
+      kind,
+      drawable,
+      scripts,
+      gameObjects: objects.length,
+      quads: [],
+      boxes: [],
+      clouds: cloudSet ? cloudSpec(name, objects) : null,
+    };
     if (drawable) {
       // What the walk has to visit: everything that draws, plus every object whose *own* box collider
       // is part of the prop's solid geometry. A trigger is the original's own "someone came through

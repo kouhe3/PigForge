@@ -32,6 +32,8 @@
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":-31.057674,"y":-3.4158325,"z":0,"rotation":0.0371525,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-31.568188,"y":2.687995,"z":0,"rotation":0.062005483,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"BoxChallenge","x":-26.948565,"y":2.2445958,"z":0,"rotation":5.8679976,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":29.268635,"y":22.871836,"z":0,"rotation":4.8953056,"scaleX":1,"scaleY":1},
     {"id":"Secret_02","x":64.9339,"y":64.0339,"z":-0.18918395,"rotation":0.0870697,"scaleX":0.4,"scaleY":0.4},
     {"id":"Crumbs_02","x":-69.53659,"y":-6.815567,"z":-5.1,"rotation":0,"scaleX":1.5044389,"scaleY":1.5044389},
     {"id":"Colorful_Sparkles_01","x":-22.200165,"y":-3.2913706,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},
@@ -113,7 +115,12 @@
     {"id":"Pumpkin_Plant_01","x":37.676582,"y":52.136383,"z":-5,"rotation":2.1592286,"scaleX":1.988909,"scaleY":1.988909},
     {"id":"Colorful_Sparkles_02","x":-30.60508,"y":-4.128643,"z":-5.2,"rotation":0,"scaleX":0.914142,"scaleY":0.914142},
     {"id":"Colorful_Sparkles_05","x":-30.725807,"y":-4.115711,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Cream_Line_03","x":-22.083366,"y":-3.3605855,"z":-5,"rotation":0.12051881,"scaleX":2,"scaleY":2}
+    {"id":"Cream_Line_03","x":-22.083366,"y":-3.3605855,"z":-5,"rotation":0.12051881,"scaleX":2,"scaleY":2},
+    {"id":"Background_Cloud_02_SET_2","x":-32.701633,"y":8.454446,"z":12.524271,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":16.98774,"y":14.691001,"z":12.949767,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":-56.385635,"y":12.022237,"z":12.021356,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":71.80664,"y":14.40272,"z":12.094509,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_2","x":-90.58963,"y":10.439063,"z":12.908252,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

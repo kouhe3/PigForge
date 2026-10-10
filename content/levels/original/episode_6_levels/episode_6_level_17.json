@@ -29,6 +29,8 @@
   "cameraLimits": {"topLeft":[-227.35,54.6],"size":[72.4,77.93]},
   "spawns": [],
   "props": [
+    {"id":"BoxChallenge","x":-185.33101,"y":25.914,"z":0,"rotation":6.1364036,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-181.925,"y":29.484,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"ActivatedHingeDoorYellow","x":-181.35,"y":35.83,"z":0,"rotation":3.15247,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue","x":-185.98,"y":16.16,"z":0,"rotation":4.146531,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"LitMushroom_03","x":-177.902,"y":22.64,"z":8,"rotation":0,"scaleX":0,"scaleY":0},

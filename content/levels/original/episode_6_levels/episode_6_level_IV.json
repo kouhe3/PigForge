@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-225.11,42.8],"size":[87.9,57.8]},
   "spawns": [],
   "props": [
+    {"id":"DynamicBoxChallenge","x":-175.95001,"y":29.43,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorGreen","x":-179.757,"y":4.954,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorRed","x":-178.449,"y":21.852,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorGreen","x":-188.6,"y":4.954,"z":0,"rotation":1.5707965,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},

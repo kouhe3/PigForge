@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-52.3306,"y":2.2237263,"z":0,"rotation":6.264331,"scaleX":1,"scaleY":1},
     {"id":"Shell_01","x":-36.43299,"y":-7.191452,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":-7.055649,"y":-3.4188251,"z":-5,"rotation":1.0653421,"scaleX":1,"scaleY":1},
     {"id":"Star_01","x":-9.494173,"y":-6.9951124,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
@@ -51,7 +52,15 @@
     {"id":"Mushroom_02","x":-7.8174305,"y":-5.3067207,"z":-5,"rotation":0.32833323,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_03","x":-7.166052,"y":-2.8778496,"z":-4.5,"rotation":1.2897391,"scaleX":1,"scaleY":1},
     {"id":"Daisy_01","x":-12.226982,"y":9.499485,"z":-5.5,"rotation":0.24494532,"scaleX":1,"scaleY":1},
-    {"id":"Grass_02","x":-6.34853,"y":9.3646145,"z":-5,"rotation":0.6178757,"scaleX":1,"scaleY":1}
+    {"id":"Grass_02","x":-6.34853,"y":9.3646145,"z":-5,"rotation":0.6178757,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":29.294434,"y":8.190034,"z":15.785136,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET","x":-23.67267,"y":27.456562,"z":15.751725,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":-51.8294,"y":20.440205,"z":15.583803,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":-34.14115,"y":8.224913,"z":15.799625,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":23.277514,"y":10.167976,"z":15.28783,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET","x":-57.84322,"y":24.606417,"z":15.381782,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":-6.9417324,"y":18.82712,"z":15.536638,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":57.390476,"y":10.223583,"z":15.57816,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

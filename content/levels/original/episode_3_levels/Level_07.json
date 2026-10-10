@@ -58,6 +58,14 @@
     {"id":"Grass_03","x":-31.20893,"y":3.9702444,"z":-5,"rotation":0.671948,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":-4.810878,"y":8.661633,"z":-5.00046,"rotation":0.4588986,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":-16.241978,"y":-4.2488804,"z":-5,"rotation":4.5450687,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":50.04816,"y":13.881093,"z":15.841622,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":24.98075,"y":20.526688,"z":15.56657,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":71.40339,"y":13.049208,"z":15.603862,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":63.820774,"y":16.231302,"z":15.294846,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":-4.204117,"y":19.679192,"z":15.752635,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_0","x":63.78318,"y":20.300056,"z":15.530249,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":77.12519,"y":18.448668,"z":15.2192545,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_0","x":-2.6083891,"y":17.39411,"z":15.086624,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Secret_01","x":-29.574263,"y":-3.8214154,"z":-1,"rotation":0.06784567,"scaleX":0.4,"scaleY":0.4}
   ],
   "terrain": [

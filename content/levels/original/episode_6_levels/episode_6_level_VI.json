@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-191.07,59],"size":[49.3,72]},
   "spawns": [],
   "props": [
+    {"id":"BoxChallenge","x":-175.43001,"y":34.936996,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"PressureButtonGreen","x":-159.82,"y":35.808,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"PressureButtonYellow","x":-173.42,"y":45.8,"z":0.20000005,"rotation":6.05051,"scaleX":1,"scaleY":1},
     {"id":"PressureButtonRed","x":-156.73,"y":39.52,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1},

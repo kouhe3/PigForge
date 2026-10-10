@@ -30,6 +30,12 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":5.9813037,"y":40.5849,"z":0,"rotation":0.44243845,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":1.1637086,"y":14.51051,"z":15.505628,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_1","x":-7.470665,"y":12.603781,"z":15.37764,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-27.046728,"y":12.3498125,"z":15.024996,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.89214,"y":10.533974,"z":15.928262,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Secret_03","x":-72.51811,"y":23.995752,"z":-0.119451344,"rotation":0.026529314,"scaleX":0.4,"scaleY":0.4},
     {"id":"Crystal_01","x":-77.31182,"y":36.1243,"z":-5,"rotation":4.147135,"scaleX":-1,"scaleY":1},
     {"id":"Cave_Mushroom_02","x":-75.38373,"y":-6.8421803,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

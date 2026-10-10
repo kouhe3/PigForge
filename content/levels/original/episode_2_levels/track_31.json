@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-45.594936,"y":18.686892,"z":-1.6391277e-7,"rotation":0.62448454,"scaleX":1,"scaleY":1},
     {"id":"Crystal_03","x":-18.771017,"y":20.927114,"z":-5,"rotation":2.577684,"scaleX":-1,"scaleY":1},
     {"id":"Glow_01","x":-35.77513,"y":24.856188,"z":4,"rotation":0,"scaleX":3.4526155,"scaleY":3.4526155},
     {"id":"Bush_02_0","x":-45.29479,"y":7.614397,"z":-5,"rotation":0.1360911,"scaleX":1,"scaleY":1},

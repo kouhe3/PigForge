@@ -107,6 +107,21 @@ describe("parseLevelProps", () => {
     expect(parsed?.atlasNames).toEqual(["Props_Generic_Sheet_01.png"]);
   });
 
+  it("resolves the cloud props a level's cloud sets name", () => {
+    // `cloudProps` carries the cloud prefabs (docs/specs/level-props.md §3.7): a level places one
+    // instance per spawned cloud, so they resolve like any palette prop.
+    const withClouds = { ...manifest, cloudProps: { Background_Cloud_01_SET: { quads: [{ ...quad, parallax: { x: 1, y: 0 } }] } } };
+    const parsed = parseLevelProps(withClouds);
+    expect(parsed?.props.get("Background_Cloud_01_SET")).toEqual([{ ...quad, parallax: { x: 1, y: 0 } }]);
+    expect(parsed?.props.get("Grass_02")).toEqual([quad]);
+
+    // A manifest with no cloud section still parses; one whose cloud entry is malformed drops it.
+    expect(parseLevelProps(manifest)?.props.has("Background_Cloud_01_SET")).toBe(false);
+    const broken = { ...manifest, cloudProps: { Background_Cloud_01_SET: { quads: [{ ...quad, sx: 0 }] } } };
+    expect(parseLevelProps(broken)?.props.get("Grass_02")).toEqual([quad]);
+    expect(parseLevelProps(broken)?.props.has("Background_Cloud_01_SET")).toBe(false);
+  });
+
   it("rejects a document it cannot trust", () => {
     expect(parseLevelProps(null)).toBeNull();
     expect(parseLevelProps([])).toBeNull();

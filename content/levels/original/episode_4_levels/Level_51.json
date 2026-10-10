@@ -30,7 +30,13 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":4.242465,"y":6.785754,"z":0,"rotation":0.24943712,"scaleX":1,"scaleY":1},
     {"id":"Bird_Blue_01","x":14.7536545,"y":27.787361,"z":-8.841553,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":1.1637086,"y":14.51051,"z":15.505628,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_1","x":-7.470665,"y":12.603781,"z":15.37764,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-27.046728,"y":12.3498125,"z":15.024996,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.89214,"y":10.533974,"z":15.928262,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Red_01","x":13.693246,"y":27.850481,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_11_0","x":-0.6737232,"y":13.73612,"z":-5,"rotation":3.4109972,"scaleX":1,"scaleY":1},
     {"id":"Rock_02","x":-13.490708,"y":-6.871635,"z":-0.062187195,"rotation":0,"scaleX":1,"scaleY":1},

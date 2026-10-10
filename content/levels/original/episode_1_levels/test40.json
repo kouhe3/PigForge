@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-64.12089,"y":1.180136,"z":0,"rotation":1.7484555e-7,"scaleX":1,"scaleY":1},
     {"id":"Secret_01","x":-15.246032,"y":-4.0718126,"z":-1,"rotation":0.11348137,"scaleX":0.4,"scaleY":0.4},
     {"id":"Grass_02","x":-68.263054,"y":2.9409714,"z":-5,"rotation":0.22918321,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_02","x":-18.792849,"y":-5.2083797,"z":-5.5,"rotation":0.08093729,"scaleX":1,"scaleY":1},
@@ -68,7 +69,15 @@
     {"id":"Grass_06","x":-54.274372,"y":-0.48241615,"z":-5,"rotation":5.740592,"scaleX":1,"scaleY":1},
     {"id":"Grass_01","x":-44.62469,"y":29.287367,"z":-5,"rotation":0.46853507,"scaleX":1,"scaleY":1},
     {"id":"Grass_02","x":-22.604332,"y":16.706,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
-    {"id":"Mushroom_01","x":-17.894762,"y":-5.000412,"z":-4.5,"rotation":0.10636155,"scaleX":1,"scaleY":1}
+    {"id":"Mushroom_01","x":-17.894762,"y":-5.000412,"z":-4.5,"rotation":0.10636155,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":29.294434,"y":8.190034,"z":15.785136,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET","x":-23.67267,"y":27.456562,"z":15.751725,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":-51.8294,"y":20.440205,"z":15.583803,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":-34.14115,"y":8.224913,"z":15.799625,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":23.277514,"y":10.167976,"z":15.28783,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET","x":-57.84322,"y":24.606417,"z":15.381782,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":-6.9417324,"y":18.82712,"z":15.536638,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":57.390476,"y":10.223583,"z":15.57816,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

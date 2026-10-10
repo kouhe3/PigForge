@@ -137,14 +137,27 @@ export function parseLevelProps(value: unknown): { atlasNames: string[]; props: 
     return null;
   }
 
+  // `cloudProps` carries the cloud prefabs the level's `Cloud*Set`s name (`docs/specs/level-props.md`
+  // §3.7): a level places one instance per spawned cloud, so they resolve exactly like a palette prop.
+  const sections: Array<Record<string, unknown>> = [];
+  for (const section of [manifest.props, manifest.cloudProps]) {
+    if (section === null || typeof section !== "object" || Array.isArray(section)) continue;
+    sections.push(section as Record<string, unknown>);
+  }
+  if (sections.length === 0) {
+    return null;
+  }
+
   const props = new Map<string, readonly LevelPropQuad[]>();
-  for (const [id, entry] of Object.entries(manifest.props as Record<string, unknown>)) {
-    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) continue;
-    const quads = (entry as Record<string, unknown>).quads;
-    if (!Array.isArray(quads) || quads.length === 0) continue;
-    const read = quads.map(readQuad);
-    if (read.some((quad) => quad === null)) continue;
-    props.set(id, read as LevelPropQuad[]);
+  for (const section of sections) {
+    for (const [id, entry] of Object.entries(section)) {
+      if (entry === null || typeof entry !== "object" || Array.isArray(entry)) continue;
+      const quads = (entry as Record<string, unknown>).quads;
+      if (!Array.isArray(quads) || quads.length === 0) continue;
+      const read = quads.map(readQuad);
+      if (read.some((quad) => quad === null)) continue;
+      props.set(id, read as LevelPropQuad[]);
+    }
   }
   if (props.size === 0) {
     return null;

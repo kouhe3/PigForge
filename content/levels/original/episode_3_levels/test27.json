@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-13.219915,"y":31.621246,"z":0,"rotation":6.2524285,"scaleX":1,"scaleY":1},
     {"id":"Branch_01","x":67.92101,"y":-2.4925597,"z":-4.1418533,"rotation":0.16386887,"scaleX":1,"scaleY":1},
     {"id":"Grass_01","x":-46.126167,"y":17.655846,"z":-4.1418533,"rotation":0.7329806,"scaleX":1,"scaleY":1},
     {"id":"Grass_05","x":38.732094,"y":-2.7541802,"z":-4.1418533,"rotation":0,"scaleX":-1,"scaleY":1},
@@ -94,7 +95,15 @@
     {"id":"Grass_02","x":-83.78033,"y":20.961752,"z":-4.1418533,"rotation":0.1295226,"scaleX":-1,"scaleY":1},
     {"id":"Rock_01","x":-29.906334,"y":-6.800725,"z":-4.1418533,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_01","x":-52.57737,"y":25.869753,"z":-4.1418533,"rotation":0.1504571,"scaleX":1,"scaleY":1},
-    {"id":"Bush_01","x":-70.34142,"y":29.450727,"z":-4.1418533,"rotation":0,"scaleX":-1,"scaleY":1}
+    {"id":"Bush_01","x":-70.34142,"y":29.450727,"z":-4.1418533,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":50.04816,"y":13.881093,"z":15.841622,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":24.98075,"y":20.526688,"z":15.56657,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":71.40339,"y":13.049208,"z":15.603862,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":63.820774,"y":16.231302,"z":15.294846,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":-4.204117,"y":19.679192,"z":15.752635,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_0","x":63.78318,"y":20.300056,"z":15.530249,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_0","x":77.12519,"y":18.448668,"z":15.2192545,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_0","x":-2.6083891,"y":17.39411,"z":15.086624,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

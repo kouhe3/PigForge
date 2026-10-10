@@ -32,6 +32,8 @@
     {"id":"TNT_Box","x":-163.836,"y":-28.351,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-167.83,"y":-5.89,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-167.372,"y":-17.237,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"BoxChallenge","x":-166.71,"y":-25.454,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-139.64,"y":-4.377001,"z":0,"rotation":0.99732786,"scaleX":1,"scaleY":1},
     {"id":"Flower6","x":-232.3,"y":20.070002,"z":-3,"rotation":2.033787,"scaleX":-1,"scaleY":1},
     {"id":"Flower7","x":-227.931,"y":8.357,"z":-3,"rotation":6.080923,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-231.145,"y":9.529001,"z":-3,"rotation":5.888741,"scaleX":1,"scaleY":1},

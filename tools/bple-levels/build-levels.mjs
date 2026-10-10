@@ -41,7 +41,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { arg, flag } from "../lib/args.mjs";
-import { openProps, PropException } from "../lib/props.mjs";
+import { openProps, propId, PropException } from "../lib/props.mjs";
 import { buildGuidIndex, loadEpisodes, loadLoaders } from "./lib/unity-yaml.mjs";
 import { readLevel } from "./lib/reader.mjs";
 import { outlineLoops } from "./lib/outline.mjs";
@@ -171,6 +171,32 @@ const goalBoxOf = (prefabPath) => {
   return goalBoxCache.get(prefabPath);
 };
 
+/**
+ * The cloud sets' own generator (`docs/specs/level-props.md` §3.7). `CloudGenerator.SpawnCloud` draws a
+ * random prefab and a random point of the set's own box with `Random.Range`, which no two runs share;
+ * this tool lays the same cloud count out with a seed taken from the instance's own name, so a level's
+ * sky is stable and each set instance gets its own field. Everything else is the original's: the box,
+ * the count and the variants.
+ */
+function cloudSeed(name, position) {
+  let hash = 0x9e3779b9;
+  for (const character of `${name}:${position[0].toFixed(3)}:${position[1].toFixed(3)}`) {
+    hash = Math.imul(hash ^ character.charCodeAt(0), 0x85ebca6b);
+  }
+  return hash >>> 0;
+}
+
+/** mulberry32: a 32-bit PRNG in ten lines, deterministic and platform independent. */
+function cloudRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // The level's non-part, non-terrain prefabs (`docs/specs/level-props.md`). One reader for the whole
 // run: building it walks the original's asset tree once.
 const props = openProps(BPLE);
@@ -196,6 +222,7 @@ const totals = {
   fillTextureBytes: 0,
   spawns: 0,
   propInstances: 0,
+  cloudInstances: 0,
   goals: 0,
   levelsWithoutGoal: 0,
   cameraLimits: 0,
@@ -445,6 +472,7 @@ for (const { bundle, file } of dataFiles) {
   // (`docs/specs/level-props.md`). Instances of every other prop class are counted instead of placed,
   // so a family that stops being classified shows up as a number in the report rather than as silence.
   const propInstances = [];
+  let cloudInstances = 0;
   for (const instance of data.instanceList) {
     const prefabPath = palette[instance.prefabIndex];
     if (typeof prefabPath !== "string" || prefabPath.startsWith("<")) continue;
@@ -458,6 +486,33 @@ for (const { bundle, file } of dataFiles) {
       continue;
     }
     propCensus.set(record.kind, (propCensus.get(record.kind) ?? 0) + 1);
+    if (record.clouds !== null) {
+      // The set itself draws nothing: its clouds are placed as their own props, in world coordinates
+      // (`SpawnCloud` writes the world position and Unity's `SetParent` keeps the world scale, so the
+      // instance's own scale never reaches them).
+      const random = cloudRandom(cloudSeed(instance.name, instance.position));
+      cloudInstances += record.clouds.maxClouds;
+      for (let index = 0; index < record.clouds.maxClouds; index += 1) {
+        const offset = [
+          random() * 2 * record.clouds.limits - record.clouds.limits,
+          random() * 2 * record.clouds.height - record.clouds.height,
+          random() * record.clouds.farPlane,
+        ];
+        const variant = record.clouds.variants[Math.min(record.clouds.variants.length - 1, Math.floor(random() * record.clouds.variants.length))];
+        propInstances.push({
+          id: propId(basename(variant, ".prefab")),
+          x: Math.fround(instance.position[0] + offset[0]),
+          y: Math.fround(instance.position[1] + offset[1]),
+          z: Math.fround(instance.position[2] + offset[2]),
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+        });
+      }
+
+      continue;
+    }
+
     if (!record.drawable) continue;
     check(
       instance.dataType === 0,
@@ -521,6 +576,7 @@ for (const { bundle, file } of dataFiles) {
   totals.points += points;
   totals.spawns += spawns.length;
   totals.propInstances += propInstances.length;
+  totals.cloudInstances += cloudInstances;
   totals.bytes += bytes;
 
   const state = DRY_RUN ? (changed ? "new" : "same") : changed ? "wrote" : "same";
@@ -557,7 +613,8 @@ check(skippedTerrains.length === 0, `${skippedTerrains.length} terrain(s) have n
 check(skippedCurves.length === 0, `${skippedCurves.length} terrain(s) have no usable curve mesh and were skipped`);
 // The census covers every prefab instance in the pack except the placed parts (`spawns`), so its sum
 // is the pack's own instance count -- a prop family that stops being classified cannot hide.
-check(totals.propInstances === 16378, `drawable prop instances: ${totals.propInstances}, expected 16378`);
+check(totals.propInstances === 17942, `placed prop instances: ${totals.propInstances}, expected 17942`);
+check(totals.cloudInstances === 1020, `cloud instances: ${totals.cloudInstances}, expected 1020`);
 const cachedInstances = [...propCensus.values()].reduce((total, count) => total + count, 0) + totals.spawns;
 check(cachedInstances === 26072, `classified instances: ${cachedInstances}, expected 26072`);
 

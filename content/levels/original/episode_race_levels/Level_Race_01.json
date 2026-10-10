@@ -121,7 +121,15 @@
     {"id":"Shell_01","x":360.1111,"y":-7.328022,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Branch_01","x":251.34448,"y":7.6445045,"z":-5,"rotation":3.2000282,"scaleX":1,"scaleY":1},
     {"id":"Grass_03","x":622.9109,"y":3.347496,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Shell_01","x":363.54193,"y":-7.683052,"z":-5,"rotation":0,"scaleX":0.80757356,"scaleY":0.80757356}
+    {"id":"Shell_01","x":363.54193,"y":-7.683052,"z":-5,"rotation":0,"scaleX":0.80757356,"scaleY":0.80757356},
+    {"id":"Background_Cloud_03_SET","x":46.03467,"y":16.696997,"z":15.729688,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET","x":-79.06953,"y":21.335499,"z":15.407599,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET","x":6.896284,"y":14.350557,"z":15.605149,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET","x":35.772972,"y":26.789238,"z":15.448064,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET","x":6.407652,"y":16.271492,"z":15.11455,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":32.151936,"y":23.401407,"z":15.378489,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET","x":58.653076,"y":24.294333,"z":15.8713255,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET","x":7.183227,"y":10.502311,"z":15.799924,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

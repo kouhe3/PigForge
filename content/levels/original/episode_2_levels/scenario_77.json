@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-4.1042686,"y":9.819141,"z":0,"rotation":0.2694703,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-66.049835,"y":-6.72657,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_02","x":29.13493,"y":38.181526,"z":-5,"rotation":5.8731055,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":35.329052,"y":-6.6603184,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

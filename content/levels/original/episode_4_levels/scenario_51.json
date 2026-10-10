@@ -31,6 +31,12 @@
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":21.94454,"y":-6.0883956,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"BoxChallenge","x":23.900423,"y":-2.32283,"z":0,"rotation":6.099904,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":1.1637086,"y":14.51051,"z":15.505628,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_1","x":-7.470665,"y":12.603781,"z":15.37764,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-27.046728,"y":12.3498125,"z":15.024996,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.89214,"y":10.533974,"z":15.928262,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Glow_01","x":-34.670204,"y":-0.93084526,"z":4,"rotation":0,"scaleX":5.169526,"scaleY":5.169526},
     {"id":"Cave_Mushroom_04_0","x":28.213125,"y":-6.616005,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Rock_03","x":61.343414,"y":-6.7632637,"z":-4.7459354,"rotation":0,"scaleX":1,"scaleY":1},

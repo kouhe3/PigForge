@@ -35,6 +35,7 @@
     {"id":"TNT_Box","x":-3.528416,"y":6.6364517,"z":0,"rotation":4.89141,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-31.716377,"y":-6.089633,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-29.781202,"y":8.087265,"z":0,"rotation":6.2447667,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"BoxChallenge","x":-11.800903,"y":7.286734,"z":0,"rotation":0.057679646,"scaleX":1,"scaleY":1},
     {"id":"Rock_01","x":26.384333,"y":-6.54661,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crystal_02","x":-37.255928,"y":5.932564,"z":-5,"rotation":2.6232285,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-4.600731,"y":-6.8187294,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},

@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-258,103.39],"size":[132.2,118.5]},
   "spawns": [],
   "props": [
+    {"id":"BoxChallenge","x":-170.57,"y":-1.3100014,"z":0,"rotation":0.4012647,"scaleX":1,"scaleY":1},
     {"id":"Tree03","x":-173.71,"y":99.46,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Tree03","x":-190.573,"y":76.706,"z":1.9,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom3","x":-178.365,"y":102.373,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},

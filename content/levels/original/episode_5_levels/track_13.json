@@ -31,6 +31,7 @@
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":19.436848,"y":-3.2750597,"z":0,"rotation":0.09915973,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"BoxChallenge","x":34.533688,"y":0.9424515,"z":0,"rotation":6.110642,"scaleX":1,"scaleY":1},
     {"id":"Crumbs_Line_02","x":29.831573,"y":-6.7101717,"z":-5.1,"rotation":0,"scaleX":-1.518569,"scaleY":1.518569},
     {"id":"Colorful_Sparkles_04","x":21.605713,"y":-3.2204854,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Pumpkin_Plant_01","x":27.97792,"y":-2.160295,"z":-5,"rotation":2.267085,"scaleX":1.988909,"scaleY":1.988909},
@@ -99,7 +100,12 @@
     {"id":"Cream_01_White","x":50.228188,"y":0.7328038,"z":-5,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Cherry_Cut","x":33.093258,"y":-2.8971057,"z":4,"rotation":0,"scaleX":1.5,"scaleY":1.5},
     {"id":"Cream_Line_02","x":23.631042,"y":2.936779,"z":-5,"rotation":0.77262586,"scaleX":2,"scaleY":2},
-    {"id":"Cherry_Cut","x":38.636963,"y":-2.869599,"z":4,"rotation":6.016982,"scaleX":1.5000001,"scaleY":1.5}
+    {"id":"Cherry_Cut","x":38.636963,"y":-2.869599,"z":4,"rotation":6.016982,"scaleX":1.5000001,"scaleY":1.5},
+    {"id":"Background_Cloud_02_SET_2","x":-32.701633,"y":8.454446,"z":12.524271,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":16.98774,"y":14.691001,"z":12.949767,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":-56.385635,"y":12.022237,"z":12.021356,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_2","x":71.80664,"y":14.40272,"z":12.094509,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_02_SET_2","x":-90.58963,"y":10.439063,"z":12.908252,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

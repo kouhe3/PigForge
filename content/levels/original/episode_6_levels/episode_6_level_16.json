@@ -29,6 +29,8 @@
   "cameraLimits": {"topLeft":[-219.1,39],"size":[73.1,56.25]},
   "spawns": [],
   "props": [
+    {"id":"BoxChallenge","x":-155.58,"y":22.73,"z":0,"rotation":5.231715,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-187.128,"y":2.7659988,"z":0,"rotation":5.9451756,"scaleX":1,"scaleY":1},
     {"id":"BreakableWall","x":-166.518,"y":14.979,"z":0,"rotation":0,"scaleX":1.1,"scaleY":1.1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-180.944,"y":4.729,"z":0,"rotation":0,"scaleX":1.1,"scaleY":1.1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"PressureButtonYellow","x":-180.591,"y":2.763,"z":0.2,"rotation":0.80623704,"scaleX":1,"scaleY":1},

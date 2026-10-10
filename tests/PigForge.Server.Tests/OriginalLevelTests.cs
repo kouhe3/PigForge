@@ -115,10 +115,12 @@ public sealed class OriginalLevelTests
             cameraLimits.Add(limits);
 
             // v6/v7: the level's placed props. Every level places some (10 to 478 of them), and each
-            // names a prop in the client's own `level-props.json` -- the 309 drawable props of the 368
-            // (the decorations, the backdrops, the windows, the slingshot, the birds, the stones and the
-            // level's own solid furniture; `docs/specs/level-props.md`). A v7 prop also carries the
-            // boxes the room turns into static bodies, and every one of them is a real shape.
+            // names a prop in the client's own `level-props.json` -- the 313 drawable props of the 368
+            // (the decorations, the backdrops, the windows, the slingshot, the birds, the stones, the
+            // level's own solid furniture, its challenge boxes and its cloud sets;
+            // `docs/specs/level-props.md`). A v7
+            // prop also carries the boxes the room turns into static bodies, and every one of them is a
+            // real shape.
             Assert.NotEmpty(document.Props);
             propInstances += document.Props.Count;
             foreach (LevelPropDefinition prop in document.Props)
@@ -200,9 +202,9 @@ public sealed class OriginalLevelTests
         Assert.Equal(2154, loops);
         Assert.Equal(17, fillTextures.Count);
         Assert.Equal(20, spawns);
-        Assert.Equal(16378, propInstances);
-        Assert.Equal(309, propIds.Count);
-        Assert.Equal(658, propBoxes);
+        Assert.Equal(17942, propInstances);
+        Assert.Equal(326, propIds.Count);
+        Assert.Equal(671, propBoxes);
         Assert.Equal(14, levelsWithoutGoal);
         // Every level overrides `LevelManager.m_cameraLimits` and no two read the same (measured
         // 2026-10-06: 277/277, 277 distinct rectangles).

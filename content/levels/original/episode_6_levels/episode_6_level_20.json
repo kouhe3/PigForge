@@ -40,6 +40,7 @@
     }
   ],
   "props": [
+    {"id":"DynamicBoxChallenge","x":-161.69,"y":35.11,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorYellow","x":-169.243,"y":10.938,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorYellow","x":-158.74,"y":30.86,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"PressureButtonYellow","x":-169.01193,"y":37.69192,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},

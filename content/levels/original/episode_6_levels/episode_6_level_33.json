@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-220.56,63.9],"size":[111.3,74.9]},
   "spawns": [],
   "props": [
+    {"id":"BoxChallenge","x":-198.39,"y":35.260002,"z":0,"rotation":5.5531683,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":-142,"y":34.1,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Red","x":-143.4,"y":32.22,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Yellow","x":-144.93,"y":32.32,"z":0,"rotation":0,"scaleX":1,"scaleY":1},

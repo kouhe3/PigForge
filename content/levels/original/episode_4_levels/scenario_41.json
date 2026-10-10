@@ -93,7 +93,12 @@
     {"id":"Crystal_01","x":15.573687,"y":10.012939,"z":-5,"rotation":2.0171232,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_05","x":-48.580467,"y":27.687775,"z":-5,"rotation":6.0661225,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_04_0","x":66.08107,"y":-7.9192104,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
-    {"id":"Rock_02","x":-67.528824,"y":-6.773033,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+    {"id":"Rock_02","x":-67.528824,"y":-6.773033,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":1.1637086,"y":14.51051,"z":15.505628,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_03_SET_1","x":-7.470665,"y":12.603781,"z":15.37764,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-27.046728,"y":12.3498125,"z":15.024996,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Background_Cloud_01_SET_1","x":-19.89214,"y":10.533974,"z":15.928262,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {
