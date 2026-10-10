@@ -15,7 +15,8 @@
 
 | 类 | prefab | 实例 | 是什么 | 处置 |
 |---|---|---|---|---|
-| **可绘制** | **309** | **16378** | 每个带渲染器的对象都画得出图：`Sprite`/`UnmanagedSprite` 四边面、或 `Panel` 自己生成的九宫格，且带的其他脚本在装载那一刻不改画面 | **P4a（251 个单四边面）+ P4b（8 个背景组、2 个石头、6 个 `Lit*`）+ P4b′（5 个窗户、1 个弹弓、7 只鸟）+ P4c（30 个实心家具）已交付** |
+| **可绘制** | **313** | **16922** | 每个带渲染器的对象都画得出图：`Sprite`/`UnmanagedSprite` 四边面、或 `Panel` 自己生成的九宫格，且带的其他脚本在装载那一刻不改画面 | **P4a（251 个单四边面）+ P4b（8 个背景组、2 个石头、6 个 `Lit*`）+ P4b′（5 个窗户、1 个弹弓、7 只鸟）+ P4c（30 个实心家具）+ P5（4 个挑战箱）已交付** |
+| 云（5 个 `Cloud*Set` / 152 个实例） | 5 | 152 | 只有 `CloudGenerator`、没有渲染器：装载时按自己的盒子生成 5…10 朵云，每朵是世界坐标下的一个独立道具（§3.7），152 个实例共 **1020** 朵 | **P6 交付**（关卡里是 1020 个 `Background_Cloud_*` 道具实例） |
 | 系统标记 | 21 | 6674 | 只有脚本没有渲染器：`LevelStart`/`LevelManager`/`CameraSystem`/`TimeChallenge`/`DontUsePartChallenge`/`DessertPlace`/`Cloud*Set`/`Bridge`… | 各自单独（相机界已收口；挑战归 P5；**甜品点见 §7 偏差 7**） |
 | 地形 | 21 | 2146 | `e2dTerrain` 系列，**就是数据块的 2146 个地形对象** | 已交付（v2–v5） |
 | 实心/交互 | 57 | 1976 | 有碰撞体：`TNT_Box` 322 + `BoxChallenge` 269 / `StarBox` 262（挑战与收集）+ `BreakableWall`/`WoodenPlank2m`/`WoodenBox`/`MetalBar*`/`MetalBox`（`LevelRigidbody` 家具）+ `Fan` + `ActivatedHingeDoor*` + `GoalArea*`/`Bridge`/`SecretPlace`/`PartBox`/`PressureButton*` + 三只会飞的鸟 | **P4c 交付了 30 个（836 个实例）的画面与盒体**；挑战件、`GoalArea*`、`Floating*`、`AncestorPig`、`Bridge` 留 P5/P6（§3.6 末逐条记原因） |
@@ -173,6 +174,23 @@ MeshRenderer → `Sprite` → `SpriteReference` → `Panel`），所以**最后�
 拒绝）；`RandomChildActivator` 的终点件每次随机挑一个子对象显示；`Bridge`/`BridgeStep`、挑战件
 （`BoxChallenge`/`StarBox`/`Collectable`/`WaypointChallenge`）归 P5。
 
+### 3.7 云：`CloudGenerator` 的运行时生成 → 每朵云一个道具（P6）
+
+5 个 `Cloud*Set`（`CloudPlateauSet`/`CloudJungleSet`/`CloudNightSet`/`CloudHalloweenSet`/`CloudLPASet`，152 个实例）
+prefab 自己**没有渲染器**：`CloudGenerator.Start` 在自己的盒子里生成 `m_maxClouds` 朵云，每朵是 `m_cloudSet`
+里随机一个云 prefab（`GameObject/Background_Cloud_*.prefab`，13 个），位置 = `set.position + (x∈±m_cloudLimits,
+y∈±m_height, z∈[0, m_farPlane])`；`useCustomParallax` 时整组注册成 `speedX = 1` 的视差层（贴住相机）。
+
+**关键**：`SpawnCloud` 先写**世界坐标**再 `transform.parent = set.transform`，而 Unity 的 `SetParent(…, true)`
+保住世界缩放 —— 所以**实例自己的缩放不会传到云上**。实测 `Level_05` 的 `CloudJungleSet` 实例缩放是 **80×60**：
+照普通道具那样把生成的点当"件内坐标"再乘实例缩放，云会飞到 1000 米外（第一版就是这么错的）。
+
+因此工具只读**生成器规格**（数量/盒子/视差/云 prefab 名单），由 `build-levels.mjs` 把每个实例展开成
+`maxClouds` 个**独立道具实例**（id = 云 prefab 名、世界坐标、rotation 0、scale 1×1）。云 prefab 不在关卡调色板里，
+所以它们进客户端清单的 `cloudProps` 段（与 `props` 同形状），客户端解析时两段合一（`levelProps.ts`）。
+
+实测：13 个云 prefab（各 1 个四边面）✓、152 个实例共 **1020** 朵云 ✓；种子的取法与偏差见 §7。
+
 ## 4. 深度（z）与绘制顺序
 
 原版是 3D 渲染 + 深度测试，2D 客户端必须自己排序。**近 = z 小**（相机 `IngameCamera.cs:423`
@@ -269,8 +287,11 @@ MeshRenderer → `Sprite` → `SpriteReference` → `Panel`），所以**最后�
 }
 ```
 
+清单还有一个 **`cloudProps`** 段（§3.7）：13 个云 prefab 的 `{ quads: [...] }`，形状与 `props` 相同，
+客户端解析时与 `props` 合并；关卡里那 1020 个云实例就按这些 id 解析。
+
 `x/y/w/h` 是图集里的像素源矩形，`cx/cy` 是四边面中心相对**它自己那一层**原点的世界偏移（§3.2 的枢轴），
-`sx/sy` 是世界尺寸；`color` 是 `[r,g,b,a]`（0…1，只对纯色层）。清单引用到的图集（P4b 之后 **19 张**：
+`sx/sy` 是世界尺寸；`color` 是 `[r,g,b,a]`（0…1，只对纯色层）。清单引用到的图集（P4c 之后 **21 张**：
 零件图集 + 3 张装饰图集 + 10 张 `Background_*_Sheet_01.png` + 6 张 `*_Sky_Texture.png`）全部复制到该目录
 （不入库）。
 
@@ -282,9 +303,11 @@ MeshRenderer → `Sprite` → `SpriteReference` → `Panel`），所以**最后�
 | P4b ✅ | 15 个多四边面/多点光源件：8 个 `background_*_set` 背景组（53…250 个四边面、视差标签、纯色层）+ `Stone2_2`/`Stone5_2` + 6 个 `Lit*` —— prefab 层级遍历（`m_Father`/`m_Children`/`m_LocalPosition`）、四边面各自深度、`ParallaxManager` 的视差 | **2026-10-09 交付** |
 | **P4b′ ✅** | 13 个剩余可绘制件：5 个窗户（`Panel` 九宫格，§3.4）+ 1 个 `Slingshot`（3 精灵 + 2 条橡皮筋，§3.5）+ 4 只栖鸟（`SpriteAnimation` 不播那一帧）+ 3 只会飞的鸟（装载姿态）—— 加上**图集源矩形 y 方向的修正**（§3.3 末） | **2026-10-10 交付** |
 | **P4c ✅** | 实心件：30 个 prefab / 836 个实例的画面（`TNTBox`/`LevelRigidbody`/`RigidbodyFreezer`/`Fan`/`ActivatedHingeDoor`/`GoalBox`/`SecretPlace`/`SecretStatue`/`PartBox`/`PartSecret`/`PressureButton` 各自的装载期证据）+ 关卡内容 **v7** 的 `boxes`（658 个盒体 / 123 关）+ 房间的**静态盒体**（`EnsurePropBodies`） | **2026-10-10 交付** |
-| P5 | 行为件：`BoxChallenge`/`StarBox`/`Collectable`/`WaypointChallenge` 与星级/计时/收集（`PrefabOverrides` 的挑战块）+ 实心件的**动态/破坏**行为（原版它们有 `Rigidbody`） | 待做（`docs/specs/original-level-pack.md` §8 P5） |
+| **P5-a ✅** | 4 个挑战箱的画面（`BoxChallenge` 269 / `StarBox` 262 / `DynamicBoxChallenge` 12 / `DynamicStarBox` 1）：`Collectable`/`WaypointChallenge`/`StarBox` 三个脚本没有 `Awake`/`Start`/`OnEnable`，装载画面就是 prefab 自己的（星箱多一层 `Particles_Sheet_01.png` 的光） | **2026-10-10 交付** |
+| P5-b | 挑战的**行为**：收集（猪/载具经过即收集、星箱开箱）、星级/计时（`PrefabOverrides` 的挑战块）、实心件的**动态/破坏**（原版木板/箱/墙/门有 `Rigidbody`，本片建的是静态体） | 待做（`docs/specs/original-level-pack.md` §8 P5） |
 | P5 的甜品 | `DessertPlace` 的 5339 个生成点**不画**：原版在 `BaseGameMode.PlaceDesserts` 里用 `Random` 抽点心与地点、只在 `ChiefPigExploded`（通关后）或 IN 的 `EnableDesserts` 打开时才放、还要读存档里的摆放串 —— 静态复刻不出这一帧（§7 偏差 7） | 归 P5 |
-| P6 | 云（5 个 `Cloud*Set` 的 `CloudGenerator`，193 个实例）、`backgroundobject`（48）、`GoalArea_*` 的旗子网格、`Bridge`、`AncestorPig`、`Floating*`、`RandomChildActivator` 的终点件 | 待做 |
+| **P6-a ✅** | 云：5 个 `Cloud*Set` / 152 个实例 → **1020** 朵云道具（§3.7）+ 清单的 `cloudProps` 段 + 客户端合并 | **2026-10-10 交付** |
+| P6-b | `GoalArea_*` 的旗子（序列化的 `Plane` 网格 + 材质）、`AncestorPig`（眼睛自动播动画）、`Floating*`（运行时绳/气球）、`Bridge`/`BridgeStep`（运行时台阶）、`backgroundobject`/`LitArea`/`WindArea`（无渲染器的标记/区域） | 待做 |
 
 ## 7. 有意偏差
 
@@ -320,18 +343,23 @@ dotnet test PigForge.slnx                        # 解析器 v6（v1–v5 出现
 cd clients/web; pnpm test                        # 客户端校验器 + 绘制顺序
 ```
 
-必须复核的数字（报告里断言；2026-10-10 实跑，P4a + P4b + P4b′ + P4c 同一轮）：
+必须复核的数字（报告里断言；2026-10-10 实跑，P4a…P4c + P5-a + P6-a 同一轮）：
 
 - `palette prefabs 368` / `instances 26072`；`kinds: decor=261/15220 system=21/6674 solid=57/1976 special=8/36 terrain=21/2146`
   （按「地形 / 有没有渲染器 / 有没有碰撞体 / 脚本集合」分类，同一 prefab 只算一行；`special` 的 8 个
   ——`Slingshot`(1)/栖鸟(4)/`Stone*_2`(2)/`WindowTiny`(1)，**都会画**）。
-- **可绘制 309 个 prefab / 16378 个实例 / 1073 个四边面 / 20 张图集**（新增 `IngameAtlas3.png`）；其中单四边面
-  **272 个 / 15837 个实例**；多四边面恰好是那 37 个（工具硬断言这份名单：`Bird_*` 7、`Slingshot`、
-  `Stone*_2`、5 个窗户、9 个背景组、8 个门、`Fan`、4 个按钮、`SecretPartWilfred`、`HingeDoorToLeft4m`）。
-- **关卡侧 v7**：123 个文档声明 v7 并带 `boxes`，**658 个盒体**，每个尺寸为正、偏移有限（Core 与 Server 各断言一遍）。
+- **可绘制 313 个 prefab / 16922 个实例 / 1081 个四边面 / 21 张图集**（新增 `IngameAtlas3.png` 与
+  `Particles_Sheet_01.png`）；其中单四边面 **272 个 / 15837 个实例**；多四边面恰好是那 41 个（工具硬断言这份
+  名单：`Bird_*` 7、`Slingshot`、`Stone*_2`、5 个窗户、9 个背景组、8 个门、`Fan`、4 个按钮、
+  `SecretPartWilfred`、`HingeDoorToLeft4m`、4 个挑战箱）。
+- **云**：13 个云 prefab（各 1 个四边面 ✓ 工具硬断言）、152 个 CloudSet 实例 → 关卡里 **1020** 个
+  `Background_Cloud_*` 道具实例；`Level_05` 的 8 朵云落在世界坐标（`y` 8…28、`z` ≈ 15.5…16）✓、
+  一帧里 8 次 `drawImage` ✓、**7441 个像素**与空帧不同 ✓。
+- **关卡侧 v7**：126 个文档声明 v7 并带 `boxes`，**671 个盒体**，每个尺寸为正、偏移有限（Core 与 Server 各断言一遍）。
 - 每个四边面都能解析出图集 + uv + 尺寸（或纯色 + 尺寸）：`tools/bple-props` 0 失败；id 无空白且唯一。
-- 关卡侧：277 个文件都写 v6/v7，`props` 合计 **16378** 条；`bple-levels` 的同一份口径断言
-  `drawable prop instances: 16378` 与 `classified instances: 26072`。
+- 关卡侧：277 个文件都写 v6/v7，`props` 合计 **17942** 条（16922 个可绘制件 + 1020 朵云）；
+  `bple-levels` 的同一份口径断言 `placed prop instances: 17942`、`cloud instances: 1020` 与
+  `classified instances: 26072`。
 - 客户端实机（真 vite + 真 Chromium，`/level` 取自真服务器）：
   `scenario_56`（69 个道具：1 弹弓 + 4 只飞鸟 + 64 个装饰）一帧里 **131 次 `drawImage`**，
   与"每个实例 × 它的图集四边面"逐项相等（131/131）；`Episode_6_Tower-Sandbox`（485 个道具、7 个窗户）
