@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Yellow_01","x":19.93149,"y":7.355496,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Tuft_02","x":2.3376217,"y":-6.67276,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Rock_02","x":26.117857,"y":-6.748701,"z":-5.254694,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_07_0","x":21.767412,"y":5.625183,"z":-5.0719404,"rotation":6.068739,"scaleX":-1,"scaleY":1},
@@ -63,7 +64,9 @@
     {"id":"Bush_03_0","x":12.322653,"y":-5.8126373,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_01","x":24.356321,"y":-7.212103,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_02","x":22.23467,"y":-6.771652,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
-    {"id":"Branch_03","x":-27.507158,"y":0.42467117,"z":-5,"rotation":1.4249386,"scaleX":1,"scaleY":1}
+    {"id":"Branch_03","x":-27.507158,"y":0.42467117,"z":-5,"rotation":1.4249386,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Red_01","x":18.689943,"y":7.3428817,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Blue_01","x":21.737028,"y":6.956057,"z":-5.5,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

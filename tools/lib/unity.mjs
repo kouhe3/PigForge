@@ -36,9 +36,13 @@ export function readVector(text, field) {
   return Object.values(vector).every(Number.isFinite) ? vector : null;
 }
 
-/** The first `name: <rest>` raw string, trimmed; `undefined` when the field is absent. */
+/**
+ * The first `name: <rest>` raw string, trimmed; `undefined` when the field is absent. An empty field
+ * (`m_AutoPlayName:` with nothing after it) reads `""` -- the gap is spanned by spaces and tabs only,
+ * because `\s` would step over the newline and hand back the next line's text.
+ */
 export function fieldOf(body, name) {
-  const match = new RegExp(`^\\s*${name}:\\s*(.*)$`, "m").exec(body);
+  const match = new RegExp(`^[ \\t]*${name}:[ \\t]*(.*)$`, "m").exec(body);
   return match ? match[1].trim() : undefined;
 }
 

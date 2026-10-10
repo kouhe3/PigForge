@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"Bush","x":-183.321,"y":15.444,"z":-1,"rotation":0.06353551,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-168.05,"y":25.74,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Stone8","x":-149.66,"y":0.6,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Stone7","x":-149.65,"y":1.13,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Stone9","x":-149.67,"y":2.22,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
@@ -146,6 +147,7 @@
     {"id":"Grass22","x":-198.13,"y":33.09,"z":-1,"rotation":3.1415927,"scaleX":1,"scaleY":1},
     {"id":"Grass24","x":-164.66,"y":29.87,"z":-1,"rotation":3.1415927,"scaleX":1,"scaleY":1},
     {"id":"Grass24","x":-173.41,"y":33.05,"z":0.9,"rotation":3.1415927,"scaleX":-1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-210.89,"y":2.09,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass20","x":-180.502,"y":29.254,"z":0.9,"rotation":6.2536306,"scaleX":-1,"scaleY":1},
     {"id":"Grass23","x":-182.35,"y":29.494,"z":0.9,"rotation":0.5079653,"scaleX":1,"scaleY":1},
     {"id":"Grass23","x":-157.246,"y":12.591,"z":0.9,"rotation":6.060976,"scaleX":1,"scaleY":1},

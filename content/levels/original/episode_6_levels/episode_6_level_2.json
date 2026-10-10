@@ -54,7 +54,8 @@
     {"id":"MayanArt3","x":-173.453,"y":14.627798,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt7","x":-172.573,"y":13.377798,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-168.673,"y":7.877798,"z":-1,"rotation":6.0986505,"scaleX":1,"scaleY":1},
-    {"id":"Flower2","x":-174.716,"y":0.8267975,"z":0.9,"rotation":3.685061,"scaleX":1,"scaleY":1}
+    {"id":"Flower2","x":-174.716,"y":0.8267975,"z":0.9,"rotation":3.685061,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-172.843,"y":20.5978,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

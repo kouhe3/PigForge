@@ -29,6 +29,9 @@
   "cameraLimits": {"topLeft":[-220.56,63.9],"size":[111.3,74.9]},
   "spawns": [],
   "props": [
+    {"id":"Slingshot","x":-142,"y":34.1,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Red","x":-143.4,"y":32.22,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Yellow","x":-144.93,"y":32.32,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Ruby01","x":-161.78401,"y":26.542,"z":-3,"rotation":1.5707964,"scaleX":1,"scaleY":1},
     {"id":"GoldPile01","x":-162.40001,"y":26.369999,"z":2.5,"rotation":6.065687,"scaleX":1,"scaleY":1},
     {"id":"Flower3","x":-141.63501,"y":32.042,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},

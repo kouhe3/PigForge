@@ -29,7 +29,11 @@
   "cameraLimits": {"topLeft":[-219.1,39],"size":[73.1,56.25]},
   "spawns": [],
   "props": [
+    {"id":"WindowBgLarge","x":-213.44,"y":4.62,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-207.78,"y":11.24,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgLarge","x":-211.2,"y":20.75,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Tree01","x":-187.806,"y":2.049,"z":3,"rotation":4.6888967,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgLarge","x":-180.06,"y":-2,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanChest01","x":-162.26,"y":16.62,"z":-2,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Spear","x":-161.047,"y":17.917,"z":0.9,"rotation":6.0845885,"scaleX":-1,"scaleY":1},
     {"id":"FGStones01","x":-161.68,"y":-7.22,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},

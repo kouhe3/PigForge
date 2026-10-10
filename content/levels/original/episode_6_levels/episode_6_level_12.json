@@ -101,6 +101,7 @@
     {"id":"Stone3","x":-203.54,"y":22.05,"z":-1,"rotation":1.3163896,"scaleX":-1,"scaleY":1},
     {"id":"Grass05","x":-195.54,"y":31.89,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt5","x":-194.264,"y":30.239,"z":0.9,"rotation":0,"scaleX":0.95,"scaleY":0.95},
+    {"id":"WindowBgSmall","x":-163.12,"y":28.92,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Pole","x":-127.01,"y":16.94,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Pole","x":-119.42,"y":17.08,"z":3,"rotation":0.1750169,"scaleX":1,"scaleY":1},
     {"id":"MayanArt2","x":-181.52,"y":36.249,"z":-1,"rotation":0,"scaleX":0.8,"scaleY":0.8},
@@ -112,8 +113,11 @@
     {"id":"Bush","x":-127.28,"y":16.53,"z":-3,"rotation":5.9073753,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-131.015,"y":16.043,"z":0.9,"rotation":0.4171264,"scaleX":1,"scaleY":1},
     {"id":"Flower7","x":-113.8,"y":16.59,"z":0.9,"rotation":6.255196,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-156.98,"y":28.92,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-181.13,"y":32.54,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-119.624,"y":16.139,"z":-3,"rotation":0.3717368,"scaleX":1,"scaleY":1},
-    {"id":"MayanArt2","x":-110.936,"y":30.696,"z":0.9,"rotation":0,"scaleX":0.8,"scaleY":0.8}
+    {"id":"MayanArt2","x":-110.936,"y":30.696,"z":0.9,"rotation":0,"scaleX":0.8,"scaleY":0.8},
+    {"id":"WindowLarge","x":-169.51,"y":29.85,"z":-2,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

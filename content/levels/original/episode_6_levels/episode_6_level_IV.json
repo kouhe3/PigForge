@@ -29,6 +29,7 @@
   "cameraLimits": {"topLeft":[-225.11,42.8],"size":[87.9,57.8]},
   "spawns": [],
   "props": [
+    {"id":"WindowBgLarge","x":-175.62,"y":8.35,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGMayanThing01","x":-174.59,"y":-7.16,"z":0.9,"rotation":0,"scaleX":1.5,"scaleY":1.5},
     {"id":"FGStones02","x":-181.91,"y":-7.24,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones01","x":-183.19,"y":-7.52,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},

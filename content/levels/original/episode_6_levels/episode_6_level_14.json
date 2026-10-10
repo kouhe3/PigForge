@@ -60,6 +60,7 @@
     {"id":"FGStones02","x":-213.47,"y":-7.34,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones02","x":-245.228,"y":-7.222,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGRuby01","x":-241.876,"y":-7.172,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgLarge","x":-133.87,"y":12.72,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-135.39,"y":5.11,"z":-1,"rotation":0.0498009,"scaleX":1,"scaleY":1},
     {"id":"Tree03","x":-136.05,"y":6.3,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Tree04","x":-128.68,"y":22.98,"z":3,"rotation":0.6941426,"scaleX":1,"scaleY":1},

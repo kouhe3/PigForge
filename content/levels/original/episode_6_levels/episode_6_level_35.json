@@ -29,6 +29,10 @@
   "cameraLimits": {"topLeft":[-193,50],"size":[79,61.5]},
   "spawns": [],
   "props": [
+    {"id":"Bird_Blue","x":-162.32,"y":13.97,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Red","x":-156.406,"y":13.395,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Yellow","x":-160.048,"y":14.106,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Slingshot","x":-158.1587,"y":15.846098,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower1","x":-141.914,"y":7.45,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower2","x":-140.236,"y":3.6999998,"z":-3,"rotation":0.018334908,"scaleX":1,"scaleY":1},
     {"id":"Flower3","x":-127.690994,"y":-2.9770002,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},

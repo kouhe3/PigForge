@@ -99,8 +99,11 @@
     {"id":"MayanArt1","x":-170.523,"y":2.3577976,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt10","x":-178.91,"y":18.8678,"z":0.9,"rotation":1.5707964,"scaleX":1,"scaleY":1},
     {"id":"MayanArt8","x":-174.263,"y":4.467798,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowSmall","x":-164.894,"y":35.002,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowSmall","x":-134,"y":30.711,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-167.55301,"y":36.0288,"z":-3,"rotation":6.2824774,"scaleX":-1,"scaleY":1},
-    {"id":"Grass17","x":-178.213,"y":35.3378,"z":-3,"rotation":6.2824774,"scaleX":1,"scaleY":1}
+    {"id":"Grass17","x":-178.213,"y":35.3378,"z":-3,"rotation":6.2824774,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgLarge","x":-177.34,"y":11.19,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

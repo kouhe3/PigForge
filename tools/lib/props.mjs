@@ -36,9 +36,29 @@ const HALF_TEXEL = 1 / 2048;
 /// decoration and is left to another slice.
 const SPRITE_CLASSES = ["Sprite", "UnmanagedSprite"];
 
-/// Scripts a drawable prop may carry besides its own sprite components: `LitMushroom_*`/`LitCrystal_*`
-/// add a point light whose glow this slice does not model (the quad itself is the picture).
-const ALLOWED_EXTRA = ["PointLightSource"];
+/// Scripts a drawable prop may carry besides its own sprite components: they either add no geometry
+/// (`PointLightSource` a glow this slice does not model; `DynamicObject` is an *empty* marker class,
+/// `DynamicObject.cs:3-5`) or only act when something calls them at runtime
+/// (`SpriteAnimation.OnEnable` plays only with `m_AutoPlay` set and a name -- every prefab this tool
+/// accepts has neither, so the `Sprite` component's own `m_id` is the picture; `AnimationHandler.Update`
+/// is empty; `Bird`/`FaceRotation`/`FixedRotation` are the bird's flight behaviour; `Slingshot` builds
+/// two runtime `LineRenderer`s and leaves the sprites to its children, and `bandQuads` models those).
+const ALLOWED_EXTRA = [
+  "PointLightSource",
+  "DynamicObject",
+  "SpriteAnimation",
+  "AnimationHandler",
+  "Bird",
+  "FaceRotation",
+  "FixedRotation",
+  "Slingshot",
+];
+
+/// The window props' own pair: `Panel` builds an `m_width x m_height` tile mesh out of the sprite the
+/// `SpriteReference` beside it names (`Panel.Rebuild`), and `SpriteReference.RenderingEnabled()` is
+/// false (`SpriteReference.cs:3-6`) so the plain `Sprite` component that also sits on those objects --
+/// and the one quad it writes to the same `MeshFilter` first -- is not what stays on screen.
+const PANEL_CLASSES = ["Panel", "SpriteReference"];
 
 /// The component classes that make a prop physical, by Unity's class id. The picture never depends on
 /// them; the census does (a background set carries the level's own ground collider, `TNT_Box` its crate).
@@ -95,6 +115,12 @@ function referenceOf(body, field) {
   return match === null ? null : match[1];
 }
 
+/** The `<guid>` of an asset reference field (`{fileID: N, guid: G, type: T}`), or null. */
+function assetReferenceOf(body, field) {
+  const match = new RegExp(`^\\s*${field}: \\{fileID: \\d+, guid: ([0-9a-f]{32})`, "m").exec(body);
+  return match === null ? null : match[1];
+}
+
 /** The numbers of a `{x: .., y: ..}`-style field (Unity writes them on one line). */
 function numbersOf(body, field) {
   const match = new RegExp(`^\\s*${field}: \\{([^}]*)\\}`, "m").exec(body);
@@ -120,18 +146,21 @@ function readHierarchy(text, guidToClass) {
     const components = [...block.body.matchAll(/- component: \{fileID: (\d+)\}/g)].map((entry) => entry[1]);
     const parts = components.map((anchor) => byAnchor.get(anchor)).filter(Boolean);
     const transform = parts.find((part) => part.classId === 4);
+    const classOf = (part) => guidToClass.get(/m_Script: \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(part.body)?.[1]);
     objects.push({
       anchor: block.anchor,
       name: /^\s*m_Name: (.*)$/m.exec(block.body)?.[1]?.trim() ?? "",
       tag: /^\s*m_TagString: (.*)$/m.exec(block.body)?.[1]?.trim() ?? "",
       active: (/^\s*m_IsActive: (\d)/m.exec(block.body)?.[1] ?? "1") === "1",
-      classes: parts
-        .filter((part) => part.classId === 114)
-        .map((part) => guidToClass.get(/m_Script: \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(part.body)?.[1]) ?? "?unknown"),
-      sprite: parts.find((part) => {
-        const guid = /m_Script: \{fileID: \d+, guid: ([0-9a-f]{32})/.exec(part.body)?.[1];
-        return part.classId === 114 && SPRITE_CLASSES.includes(guidToClass.get(guid));
-      }),
+      classes: parts.filter((part) => part.classId === 114).map((part) => classOf(part) ?? "?unknown"),
+      sprite: parts.find((part) => part.classId === 114 && SPRITE_CLASSES.includes(classOf(part))),
+      /// The window pair: `Panel` is the mesh generator, `SpriteReference` the sprite it reads.
+      panel: parts.find((part) => part.classId === 114 && classOf(part) === "Panel"),
+      spriteReference: parts.find((part) => part.classId === 114 && classOf(part) === "SpriteReference"),
+      /// The runtime pieces the picture has to be told about: a slingshot's own component (its bands)
+      /// and every frame animation (refused unless it stays off).
+      slingshot: parts.find((part) => part.classId === 114 && classOf(part) === "Slingshot"),
+      spriteAnimation: parts.find((part) => part.classId === 114 && classOf(part) === "SpriteAnimation"),
       renderer: parts.find((part) => part.classId === 23 || part.classId === 212),
       renderers: parts.filter((part) => part.classId === 23 || part.classId === 212).length,
       collider: parts.some((part) => COLLIDER_IDS.includes(part.classId)),
@@ -329,6 +358,20 @@ export function openProps(bpleRoot) {
     return { atlas: basename(path), path, size };
   };
 
+  /**
+   * A uv rect -- Unity's own, with `v` measured up from the texture's bottom -- as the source rect a
+   * painter hands to `drawImage`: `x/y/w/h` in atlas pixels with `y` measured **down** from the top.
+   * `tools/bple-textures` writes the part atlases the same way (`extract.mjs`'s
+   * `atlasSize.height - yBottom - h`), and the canvas painter reads `y` as a top-down source row, so a
+   * manifest that kept Unity's own direction would draw every quad from the mirrored row.
+   */
+  const sourceRect = (paint, u, v, du, dv) => ({
+    x: round(u * paint.size[0]),
+    y: round(paint.size[1] - (v + dv) * paint.size[1]),
+    w: round(du * paint.size[0]),
+    h: round(dv * paint.size[1]),
+  });
+
   /** One `UnmanagedSprite`'s quad: its own fields decide the uv cell and the mesh size. */
   const unmanagedArt = (name, block, paint) => {
     const value = (key) => field(key, block, "UnmanagedSprite", UNMANAGED_FIELDS[key]);
@@ -347,10 +390,7 @@ export function openProps(bpleRoot) {
     const dv = rows / grid - 2 * inset;
     return {
       atlas: paint.atlas,
-      x: round(u0 * paint.size[0]),
-      y: round(v0 * paint.size[1]),
-      w: round(du * paint.size[0]),
-      h: round(dv * paint.size[1]),
+      ...sourceRect(paint, u0, v0, du, dv),
       ...size,
     };
   };
@@ -380,12 +420,100 @@ export function openProps(bpleRoot) {
     if (paint.color !== undefined) return { color: paint.color, ...size };
     return {
       atlas: paint.atlas,
-      x: round((uv[0] + insetU) * paint.size[0]),
-      y: round((uv[1] + insetV) * paint.size[1]),
-      w: round((uv[2] - 2 * insetU) * paint.size[0]),
-      h: round((uv[3] - 2 * insetV) * paint.size[1]),
+      ...sourceRect(paint, uv[0] + insetU, uv[1] + insetV, uv[2] - 2 * insetU, uv[3] - 2 * insetV),
       ...size,
     };
+  };
+
+  /**
+   * One `Panel`'s tiles (`Panel.cs:86-125`): the mesh is an `m_width x m_height` grid whose tiles are
+   * `((int)(scaleX * row.width / 3), (int)(scaleY * row.height / 3))` pixels of the sprite its
+   * `SpriteReference` names, and the sprite's own uv rect is cut in thirds -- the border tiles take the
+   * edge cells, every other tile the centre one (`Panel.GetUvs`) -- so a 3x3 window sprite becomes a
+   * stretched nine-slice. The tiles sit on the object's own plane (z = 0 in `CreateMesh`), centred on
+   * it, with the first tile at `-0.5 * m_width` and the first row at `-0.5 * m_height`.
+   */
+  const panelArt = (name, object, frame, depth) => {
+    const width = field("m_width", object.panel.body, "Panel", 5);
+    const height = field("m_height", object.panel.body, "Panel", 3);
+    must(object.spriteReference !== undefined, `${name}/${object.name}: a Panel with no SpriteReference`);
+    const id = fieldOf(object.spriteReference.body, "m_id") ?? "";
+    const row = database.sprites.get(id);
+    must(Boolean(row), `${name}/${object.name}: sprite id "${id}" is not in the sprite library`);
+    const uv = database.mapping.get(id) ?? [row.uvX, row.uvY, row.width, row.height];
+    const scaleX = field("m_scaleX", object.spriteReference.body, "SpriteReference", 1);
+    const scaleY = field("m_scaleY", object.spriteReference.body, "SpriteReference", 1);
+    const [tileX, tileY] = [Math.trunc((scaleX * row.width) / 3), Math.trunc((scaleY * row.height) / 3)];
+    must(tileX > 0 && tileY > 0, `${name}/${object.name}: a ${tileX}x${tileY} pixel panel tile`);
+    const paint = paintOf(name, object.renderer.body);
+    must(paint.atlas !== undefined, `${name}/${object.name}: a panel whose material samples no texture`);
+    const [cellU, cellV] = [uv[2] / 3, uv[3] / 3];
+    // `Panel.CreateMesh`'s `num2 = 2 * tileWidth * 10 / 768` is the same "pixel times `20/768`" a
+    // sprite is, so the tile's world size is the pixel count times the one factor, not twice it.
+    const [tileWidth, tileHeight] = [tileX * UNITS_PER_PIXEL, tileY * UNITS_PER_PIXEL];
+    const quads = [];
+    for (let line = 0; line < height; line += 1) {
+      for (let column = 0; column < width; column += 1) {
+        const dx = tileWidth * (column - 0.5 * width + 0.5);
+        const dy = tileHeight * (line - 0.5 * height + 0.5);
+        // The uv cell and the tile move together: both take 0, 1 or 2 cells from the sprite's rect.
+        const [cu, cv] = [column === 0 ? 0 : column === width - 1 ? 2 : 1, line === 0 ? 0 : line === height - 1 ? 2 : 1];
+        quads.push({
+          atlas: paint.atlas,
+          ...sourceRect(paint, uv[0] + cu * cellU, uv[1] + cv * cellV, cellU, cellV),
+          cx: 0,
+          cy: 0,
+          sx: round(tileWidth),
+          sy: round(tileHeight),
+          ...frameToQuad(composeFrame(frame, [1, 0, 0, 1, dx, dy]), depth, `${name}/${object.name}`),
+        });
+      }
+    }
+    return quads;
+  };
+
+  /**
+   * The two rubber bands of a `Slingshot` (`Slingshot.cs:26-52`): the class builds them as runtime
+   * `LineRenderer`s (nothing in the prefab) at `SetWidth(0.25, 0.25)`, anchored on two points it
+   * hardcodes and ending on the pad's own rest position, because `SetDrawPosition(Vector3.zero)` puts
+   * the second end at `m_restPosition` -- the `Pad` child's local position, which the prefab does hold.
+   * A `LineRenderer` with two vertices and no texture draws one quad: `0.25` units wide, `|p1 - p0|`
+   * long, along the line. `Material/RubberBand.mat` samples no texture, so the band is its `_Color`.
+   */
+  const bandQuads = (name, scriptBody, pad) => {
+    const text = readFileSync(join(scriptAssembly(bpleRoot), "Slingshot.cs"), "utf8");
+    // The class writes Unity's float literals (`0.25f`), so the suffix comes off before the number does.
+    const literal = (value) => Number(value.trim().replace(/f$/, ""));
+    const width = literal(/SetWidth\(([-0-9.ef]+), *[-0-9.ef]+\)/.exec(text)?.[1] ?? "");
+    const anchors = [...text.matchAll(/m_line\d\.SetPosition\(0, new Vector3\(([^)]*)\)\)/g)].map((match) =>
+      match[1].split(",").map(literal),
+    );
+    must(anchors.length === 2, `${name}: Slingshot.cs sets ${anchors.length} band anchors, expected 2`);
+    must(anchors.every((anchor) => anchor.length === 3 && anchor.every((value) => Number.isFinite(value))), `${name}: a band anchor is not three numbers`);
+    must(Number.isFinite(width) && width > 0, `${name}: Slingshot.cs declares no band width`);
+    const materialGuid = assetReferenceOf(scriptBody, "m_rubberBandMaterial");
+    must(materialGuid !== null, `${name}: the Slingshot component names no rubber band material`);
+    const paint = materialColor(materialGuid);
+    must(paint !== null, `${name}: the rubber band material has no _Color`);
+    return anchors.map((anchor) => {
+      const [x0, y0, z0] = anchor;
+      const [x1, y1] = [pad.position[0], pad.position[1]];
+      const length = Math.hypot(x1 - x0, y1 - y0);
+      must(length > 0, `${name}: a rubber band of zero length`);
+      return {
+        color: paint,
+        cx: 0,
+        cy: 0,
+        sx: round(length),
+        sy: round(width),
+        dx: round((x0 + x1) / 2),
+        dy: round((y0 + y1) / 2),
+        dz: round(z0),
+        rotation: round(Math.atan2(y1 - y0, x1 - x0)),
+        scaleX: 1,
+        scaleY: 1,
+      };
+    });
   };
 
   /**
@@ -398,10 +526,10 @@ export function openProps(bpleRoot) {
    *   special  anything else that draws: behaviour props and the families whose art comes from elsewhere
    *
    * and `drawable` says whether `quads` is the whole picture: every renderer-bearing GameObject of the
-   * active hierarchy carries a `Sprite`/`UnmanagedSprite` and the prefab's scripts stay inside
-   * `SPRITE_CLASSES` plus `ALLOWED_EXTRA`. A drawable prop may be many quads (the background sets are
-   * 50 to 250 of them) and may still carry a collider -- the room owns its colliders, the picture stays
-   * whole.
+   * active hierarchy carries a `Sprite`/`UnmanagedSprite` (or the `Panel` that builds its own tiles) and
+   * the prefab's scripts stay inside `SPRITE_CLASSES`, `ALLOWED_EXTRA` and `PANEL_CLASSES`. A drawable
+   * prop may be many quads (the backdrop sets are 50 to 250 of them, a window nine, a slingshot five) and
+   * may still carry a collider -- the room owns its colliders, the picture stays whole.
    */
   const read = (prefabPath) => {
     if (propCache.has(prefabPath)) return propCache.get(prefabPath);
@@ -428,17 +556,49 @@ export function openProps(bpleRoot) {
           : rendererObjects.length === 1 && objects.length === 1 && SPRITE_CLASSES.includes(scripts[0])
             ? "decor"
             : "special";
+    // `SpriteReference` draws nothing on its own (`SpriteReference.RenderingEnabled()` is false); it
+    // only ever feeds the `Panel` next to it, so one without a panel would be a lie in the picture.
+    for (const object of objects) {
+      must(object.spriteReference === undefined || object.panel !== undefined, `${name}/${object.name}: a SpriteReference with no Panel`);
+      // An autoplaying `SpriteAnimation` would replace the sprite this tool draws with the first frame
+      // of the animation it names; none of the accepted props does, and if one starts to, the picture
+      // would silently be a frame behind -- so it is refused rather than drawn as the wrong cell.
+      const animation = object.spriteAnimation?.body;
+      if (animation !== undefined) {
+        must(
+          (fieldOf(animation, "m_AutoPlay") ?? "0") === "0" && (fieldOf(animation, "m_AutoPlayName") ?? "") === "",
+          `${name}/${object.name}: an autoplaying SpriteAnimation`,
+        );
+      }
+    }
     const drawable =
       rendererObjects.length > 0 &&
-      rendererObjects.every((object) => object.renderers === 1 && object.sprite !== undefined) &&
-      scripts.every((className) => SPRITE_CLASSES.includes(className) || ALLOWED_EXTRA.includes(className));
+      rendererObjects.every((object) => object.renderers === 1 && (object.sprite !== undefined || object.panel !== undefined)) &&
+      scripts.every(
+        (className) => SPRITE_CLASSES.includes(className) || ALLOWED_EXTRA.includes(className) || PANEL_CLASSES.includes(className),
+      );
 
     const record = { name, id: propId(name), path: prefabPath, kind, drawable, scripts, gameObjects: objects.length, quads: [] };
     if (drawable) {
+      // A bird carries a particle system as well as its face: the sleeping-dust emitter is rotated a
+      // quarter turn out of the play plane and draws no mesh, so its subtree is not part of the
+      // picture and must not be composed (an out-of-plane transform is refused, not flattened).
+      const renders = new Set();
+      const collect = (object) => {
+        let drawn = object.renderers > 0;
+        // Every child is visited: `some`/`||` would stop at the first one that draws.
+        for (const child of childrenOf.get(object.transformAnchor) ?? []) {
+          if (collect(child)) drawn = true;
+        }
+        if (drawn) renders.add(object.anchor);
+        return renders.has(object.anchor);
+      };
+      collect(roots[0]);
       // Depth first from the root, carrying the active flag and the nearest parallax tag down. The
       // root's own transform is what `LevelLoader.ReadPrefabInstance` overwrites with the level
       // instance's, so it starts at identity and every child frame lands in that same world frame.
       const foreground = [];
+      const painted = new Set();
       const walk = (object, parentFrame, parentDepth, inheritedParallax, inheritedActive) => {
         const active = inheritedActive && object.active;
         const frame = parentFrame === null ? IDENTITY_FRAME : composeFrame(parentFrame, localFrame(object, `${name}/${object.name}`));
@@ -447,16 +607,24 @@ export function openProps(bpleRoot) {
         const depth = parentFrame === null ? 0 : (parentDepth ?? 0) + (object.position[2] ?? 0);
         const parallax = PARALLAX_TAGS[object.tag] ?? inheritedParallax;
         if (object.renderers > 0 && active) {
-          must(object.sprite !== undefined, `${name}: renderer object "${object.name}" carries no sprite component`);
-          const paint = paintOf(name, object.renderer.body);
-          const art = object.classes.includes("UnmanagedSprite")
-            ? unmanagedArt(name, object.sprite.body, paint)
-            : managedArt(name, object.sprite.body, paint);
-          const quad = { ...art, ...frameToQuad(frame, depth, `${name}/${object.name}`), parallax: { x: parallax.x, y: parallax.y } };
-          record.quads.push(quad);
-          if (parallax.y !== 0) foreground.push({ y: frame[5], quad });
+          const quads =
+            object.panel !== undefined
+              ? panelArt(name, object, frame, depth)
+              : [
+                  {
+                    ...(object.classes.includes("UnmanagedSprite")
+                      ? unmanagedArt(name, object.sprite.body, paintOf(name, object.renderer.body))
+                      : managedArt(name, object.sprite.body, paintOf(name, object.renderer.body))),
+                    ...frameToQuad(frame, depth, `${name}/${object.name}`),
+                  },
+                ];
+          for (const quad of quads) record.quads.push({ ...quad, parallax: { x: parallax.x, y: parallax.y } });
+          painted.add(object.anchor);
+          if (parallax.y !== 0) foreground.push({ y: frame[5], quad: record.quads[record.quads.length - 1] });
         }
-        for (const child of childrenOf.get(object.transformAnchor) ?? []) walk(child, frame, depth, parallax, active);
+        for (const child of childrenOf.get(object.transformAnchor) ?? []) {
+          if (renders.has(child.anchor)) walk(child, frame, depth, parallax, active);
+        }
       };
       walk(roots[0], null, 0, { x: 0, y: 0 }, true);
       // `ParallaxManager.Start` takes the first foreground layer's own height as the limit the whole
@@ -465,7 +633,16 @@ export function openProps(bpleRoot) {
         const limit = round(foreground[0].y);
         for (const entry of foreground) entry.quad.parallax.limitY = limit;
       }
-      must(record.quads.length === rendererObjects.length, `${name}: ${record.quads.length} quads for ${rendererObjects.length} renderers`);
+      must(painted.size === rendererObjects.length, `${name}: ${painted.size} of ${rendererObjects.length} renderers are drawn`);
+      // The slingshot's rubber bands are the one piece of art no prefab holds: `Slingshot.Awake` builds
+      // them, and at load `SetDrawPosition(zero)` leaves them anchored on the pad's own rest position.
+      if (scripts.includes("Slingshot")) {
+        const pad = objects.find((object) => object.name === "Pad");
+        must(pad !== undefined, `${name}: a Slingshot with no Pad child`);
+        const script = objects.find((object) => object.slingshot !== undefined);
+        must(script !== undefined, `${name}: a Slingshot with no Slingshot component`);
+        for (const quad of bandQuads(name, script.slingshot.body, pad)) record.quads.push({ ...quad, parallax: { x: 0, y: 0 } });
+      }
     }
     propCache.set(prefabPath, record);
     return record;

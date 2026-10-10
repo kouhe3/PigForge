@@ -30,6 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"Bush","x":-150.659,"y":42.314,"z":-3,"rotation":6.1517134,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgLarge","x":-154.42,"y":32.78,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-135.165,"y":17.591,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGMayanThing01","x":-127.49,"y":-6.97,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones02","x":-137.76,"y":-6.98,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones01","x":-131.08,"y":-7.04,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},

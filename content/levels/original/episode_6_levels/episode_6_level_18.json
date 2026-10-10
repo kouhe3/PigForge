@@ -62,6 +62,7 @@
     {"id":"FGStones02","x":-138.7,"y":-7.37,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones02","x":-126.28,"y":-7.04,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones02","x":-124.13,"y":-7.37,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-135.28,"y":12.16,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom7","x":-190.854,"y":-5.563,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Stone11","x":-170.384,"y":6.412,"z":0.9,"rotation":6.2121253,"scaleX":1,"scaleY":1},
     {"id":"Stone8","x":-170.387,"y":4.84,"z":1.1,"rotation":6.125555,"scaleX":1,"scaleY":1},

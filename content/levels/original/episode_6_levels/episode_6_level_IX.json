@@ -70,6 +70,11 @@
     }
   ],
   "props": [
+    {"id":"Bird_Red","x":-163.244,"y":6.028,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Slingshot","x":-166.076,"y":7.956,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Yellow","x":-189.739,"y":26.228,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Slingshot","x":-188.19,"y":27.98,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Blue","x":-161.24,"y":6.339,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-174.245,"y":50.676,"z":-3,"rotation":0.5568878,"scaleX":-1,"scaleY":1},
     {"id":"Flower3","x":-168.754,"y":52.638,"z":-3.1,"rotation":6.056918,"scaleX":-1,"scaleY":1},
     {"id":"Grass17","x":-149.807,"y":54.302998,"z":-3,"rotation":6.253963,"scaleX":-1,"scaleY":1},

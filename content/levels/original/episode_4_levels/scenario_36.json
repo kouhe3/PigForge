@@ -30,6 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Red","x":-1.3583142,"y":18.885706,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bird_Yellow","x":-5.9919357,"y":17.151714,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Slingshot","x":-3.456815,"y":18.839243,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Daisy_06","x":-74.20365,"y":5.585037,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-77.35184,"y":-6.992195,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Glow_01","x":-27.729492,"y":1.1917877,"z":4,"rotation":0,"scaleX":2,"scaleY":2},

@@ -56,7 +56,8 @@
     {"id":"Rock3","x":-145.07301,"y":-6.8122025,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Rock2","x":-165.05301,"y":-7.162203,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Rock2","x":-181.883,"y":-7.3612022,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Flower2","x":-148.224,"y":15.6458,"z":0.9,"rotation":0.5032356,"scaleX":1,"scaleY":1}
+    {"id":"Flower2","x":-148.224,"y":15.6458,"z":0.9,"rotation":0.5032356,"scaleX":1,"scaleY":1},
+    {"id":"WindowSmall","x":-157.285,"y":31.355,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

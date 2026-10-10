@@ -52,6 +52,7 @@
     {"id":"MayanPot01","x":-175.934,"y":30.586,"z":3,"rotation":6.088971,"scaleX":1,"scaleY":1},
     {"id":"MayanPot02","x":-158.99,"y":37.26,"z":3,"rotation":0.35924014,"scaleX":1,"scaleY":1},
     {"id":"MayanChest01","x":-175.158,"y":30.748,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgLarge","x":-160.24,"y":40.09,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Spear","x":-174.22,"y":31.24,"z":3.1,"rotation":0.18926781,"scaleX":1,"scaleY":1},
     {"id":"FGMayanThing01","x":-168.616,"y":-6.946,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGStones02","x":-153.67,"y":-7.15,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},

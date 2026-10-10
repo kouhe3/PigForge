@@ -103,7 +103,11 @@
     {"id":"Flower4","x":-163.363,"y":32.867798,"z":0.9,"rotation":0.49812105,"scaleX":1,"scaleY":1},
     {"id":"Flower4","x":-153.6831,"y":31.653452,"z":0.9,"rotation":6.1035047,"scaleX":1,"scaleY":1},
     {"id":"Flower5","x":-200.903,"y":-4.4322014,"z":0.9,"rotation":1.062487,"scaleX":1,"scaleY":1},
-    {"id":"Flower5","x":-216.22101,"y":-0.7432022,"z":0.9,"rotation":5.3768363,"scaleX":1,"scaleY":1}
+    {"id":"Flower5","x":-216.22101,"y":-0.7432022,"z":0.9,"rotation":5.3768363,"scaleX":1,"scaleY":1},
+    {"id":"WindowLarge","x":-136.674,"y":29.352999,"z":-1,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-243.143,"y":23.860003,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-146.224,"y":40.481995,"z":4,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowLarge","x":-158.73,"y":29.860003,"z":-1,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

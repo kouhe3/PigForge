@@ -164,12 +164,15 @@
     {"id":"MayanArt8","x":-99.43201,"y":59.862793,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt4","x":-247.53801,"y":71.28079,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt4","x":-120.703,"y":17.6878,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-132,"y":8.164,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowLarge","x":-221.86,"y":80.902794,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-195.58101,"y":55.035797,"z":-3,"rotation":5.936169,"scaleX":1,"scaleY":1},
     {"id":"Grass08","x":-116.26001,"y":63.3528,"z":-3,"rotation":6.167111,"scaleX":-1,"scaleY":1},
     {"id":"Bush","x":-200.638,"y":57.994797,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-201.923,"y":11.397799,"z":-3,"rotation":0.23946072,"scaleX":1,"scaleY":1},
     {"id":"Flower7","x":-178.1,"y":78.6208,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Flower7","x":-206.233,"y":9.317797,"z":-3,"rotation":0.04587551,"scaleX":-1,"scaleY":1}
+    {"id":"Flower7","x":-206.233,"y":9.317797,"z":-3,"rotation":0.04587551,"scaleX":-1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-127.52701,"y":20.727797,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

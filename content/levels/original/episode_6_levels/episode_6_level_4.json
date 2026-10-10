@@ -192,7 +192,9 @@
     {"id":"Bush","x":-175.681,"y":-1.7032013,"z":-1,"rotation":0.7351865,"scaleX":1,"scaleY":1},
     {"id":"MayanArt1","x":-183.353,"y":63.187798,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt7","x":-174.183,"y":51.927795,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"MayanArt6","x":-181.933,"y":57.7978,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"MayanArt6","x":-181.933,"y":57.7978,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowLarge","x":-181.238,"y":60.435997,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgSmall","x":-176.393,"y":74.5478,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

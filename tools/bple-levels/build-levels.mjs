@@ -541,7 +541,7 @@ check(skippedTerrains.length === 0, `${skippedTerrains.length} terrain(s) have n
 check(skippedCurves.length === 0, `${skippedCurves.length} terrain(s) have no usable curve mesh and were skipped`);
 // The census covers every prefab instance in the pack except the placed parts (`spawns`), so its sum
 // is the pack's own instance count -- a prop family that stops being classified cannot hide.
-check(totals.propInstances === 15430, `drawable prop instances: ${totals.propInstances}, expected 15430`);
+check(totals.propInstances === 15542, `drawable prop instances: ${totals.propInstances}, expected 15542`);
 const cachedInstances = [...propCensus.values()].reduce((total, count) => total + count, 0) + totals.spawns;
 check(cachedInstances === 26072, `classified instances: ${cachedInstances}, expected 26072`);
 

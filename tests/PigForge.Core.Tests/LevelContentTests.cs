@@ -570,7 +570,7 @@ public sealed class LevelContentTests
                 Assert.Equal(6.060668f, prop.Rotation);
             });
 
-        // The converted pack carries them: the 266 drawable props are placed 15430 times across the
+        // The converted pack carries them: the 279 drawable props are placed 15542 times across the
         // 277 levels, and Level_05's own first instance is its jungle backdrop at the origin.
         LevelContentDocument real =
             LevelContentLibrary.Parse(File.ReadAllText(FindRepositoryFile("content/levels/original/episode_1_levels/Level_05.json")));

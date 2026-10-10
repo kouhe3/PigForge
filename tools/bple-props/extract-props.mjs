@@ -132,15 +132,28 @@ check(singleQuads.length === 257, `single-quad props: ${singleQuads.length}, exp
 check(decorInstances === 15172, `single-quad instances: ${decorInstances}, expected 15172`);
 const multiQuads = [...drawable.keys()].filter((name) => quadsByProp.get(name) > 1).sort();
 const drawableInstances = [...drawable.keys()].reduce((total, name) => total + (counts.get(name)?.instances ?? 0), 0);
-check(drawable.size === 266, `drawable props: ${drawable.size}, expected 266`);
-check(drawableInstances === 15430, `drawable instances: ${drawableInstances}, expected 15430`);
+check(drawable.size === 279, `drawable props: ${drawable.size}, expected 279`);
+check(drawableInstances === 15542, `drawable instances: ${drawableInstances}, expected 15542`);
 const quadTotal = [...quadsByProp.values()].reduce((total, count) => total + count, 0);
-check(quadTotal === 953, `quads: ${quadTotal}, expected 953`);
-// The multi-quad families are the level's backdrop sets plus two stones; a family leaving or joining
-// the list is a re-classification, not a detail.
+check(quadTotal === 1017, `quads: ${quadTotal}, expected 1017`);
+// The multi-quad families: the level's backdrop sets, its five windows, one slingshot, seven birds and
+// two stones; a family leaving or joining the list is a re-classification, not a detail.
 const EXPECTED_MULTI_QUADS = [
+  "Bird_Black_01",
+  "Bird_Blue",
+  "Bird_Blue_01",
+  "Bird_Red",
+  "Bird_Red_01",
+  "Bird_Yellow",
+  "Bird_Yellow_01",
+  "Slingshot",
   "Stone2_2",
   "Stone5_2",
+  "WindowBgLarge",
+  "WindowBgSmall",
+  "WindowLarge",
+  "WindowSmall",
+  "WindowTiny",
   "background_cave_01_set 1",
   "background_forest_01_set 1",
   "background_halloween",

@@ -77,6 +77,7 @@
     {"id":"MayanArt6","x":-171.623,"y":28.377798,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt9","x":-175.724,"y":9.600798,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt10","x":-157.16301,"y":40.067795,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"WindowBgLarge","x":-176.043,"y":35.7978,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-158.751,"y":-1.8332024,"z":0,"rotation":6.1291685,"scaleX":-1,"scaleY":1},
     {"id":"Grass02","x":-208.162,"y":32.665,"z":3,"rotation":0,"scaleX":-1,"scaleY":1}
   ],
