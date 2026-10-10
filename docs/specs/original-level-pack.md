@@ -136,10 +136,10 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 ## 7. PigForge 现状
 
 - 关卡载体：`content/levels/{slope-v1,terrain-v1}.json`（v1，静态 primitive 拼装）与
-  `content/levels/original/**`（**v5**：每个 `e2dTerrain` 一条 —— 边界环 + `collider` 位 + `fill` 地面
-  贴图/颜色/tile + `curve` 边缘条带的两行顶点/两层贴图与 wrap/u 尺度/第二层运行段，另有文档级
-  `cameraLimits`（关卡自己的相机界）），schema
-  `schemas/level-content-{v1,v2,v3,v4,v5}.schema.json`，解析器 `LevelContentParser`（启动期严格校验，按版本门控）。
+  `content/levels/original/**`（**v6**：每个 `e2dTerrain` 一条 —— 边界环 + `collider` 位 + `fill` 地面
+  贴图/颜色/tile + `curve` 边缘条带的两行顶点/两层贴图与 wrap/u 尺度/第二层运行段，文档级
+  `cameraLimits`（关卡自己的相机界），外加每个装饰实例一条的 `props`（`docs/specs/level-props.md`）），schema
+  `schemas/level-content-{v1,v2,v3,v4,v5,v6}.schema.json`，解析器 `LevelContentParser`（启动期严格校验，按版本门控）。
   **网格地形、fill 贴图与 `_curve` 条带都实现了**（`ADR-032`/`ADR-033`/`ADR-034`/`ADR-035`、
   `docs/specs/level-terrain-visuals.md`）——`G76` 收口。
 - 目标：`goalZone` 矩形 = 过关（`G77` 缺「同载具零件代猪到达 2.5 单位连通」那条）；失败 = 出界（`G78`，**原版也有**：`Pig.cs:397-403` 在猪掉出关卡相机范围时发 `PigOutOfBounds`，`GameMode.cs:384-387` 收到后回到建造态——`CancelPigBoundsDetection` 在声明默认档是 `false`，A/B 档把它改成 `true`，所以 mod B 里猪可以出画面）。**原版没有超时判负**，`MaxTicks: 1200` 是 PigForge 自造的，已删（`PlayHost` 现在传 0）。
@@ -162,7 +162,7 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 | P1 ✅ | 解码工具 + 报告（本文档的证据面） | — |
 | P2 ◐ | 关卡内容格式 v2 + 搬运：契约（`terrain`: position/depth/**边界环**）、房间侧的静态网格体（无实体）、转换器 `tools/bple-levels/build-levels.mjs`、客户端 `GET /level` 侧通道与地形绘制 —— 见 `ADR-033`。**v3 已补**：每个地形对象的 `collider` 位（1648 碰撞 / 498 纯视觉）与 `fill`（`e2d/Fill` 的贴图/颜色/tile，17 张贴图复制到客户端资产目录）——见 `docs/specs/level-terrain-visuals.md`。**v4 已补**：`_curve` 边缘条带（两行顶点 + 两层贴图与 wrap + `uScale` + `splat1` 运行段；控制贴图在构建期折成运行段）。**v5 已补**：`PrefabOverrides` 的读取（`lib/overrides.mjs`）与 `cameraLimits`（277/277 关，即猪的边界与回建造态的后果）——见 `ADR-036`。**未做**：道具实例、其余 override 字段（建造网格行、挑战、道具行为） | 格式已定（§3） |
 | P3 ✅ | 地形进物理：契约 `TriangleMeshShapeDefinition` + 两个后端的静态网格形状（`ADR-032`） | 独立于 P2，已先行 |
-| P4 | 道具件：先做每关都需要的（`LevelStart`、`DessertPlace`、`StarBox`、`BoxChallenge`、`e2dTerrainBase`） | P2 |
+| P4 ◐ | 道具件（**2026-10-09 起 = 368 个道具 prefab，玩家已把 A1 扩到含道具件**）：按 `docs/specs/level-props.md` 的四类推进。**P4a ✅ 装饰四边面**（251 prefab / 15132 实例，2026-10-09 第三十轮：内容 **v6** 的 `props` + `tools/bple-props` 的 `level-props.json` + 客户端按 z 分段绘制）→ P4b 背景组与多面特殊件 → P4c 实心件（碰撞体） | P2 |
 | P5 | 目标/挑战/收集：星级 3 条（过关 + 两个 Challenge）、计时、收集计数 | P4 |
 | P6 | 进度持久化 + 关卡选择 + 结算页 | P5 |
 
@@ -171,6 +171,9 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 - **A1 搬运范围**：**已拍板**（2026-10-06，玩家选 ①）——**只做格式 + 地形：任意官方关卡能加载能玩，
   不做进度/星级**。② 先搬一个 episode（45 关）+ 星级/计时/收集 + 存档 + 选择/结算 UI；
   ③ 全 277 关（含 368 个道具 prefab 与全部挑战类型）留待后续。
+  **2026-10-09 扩范围**（玩家拍板）：A1 扩到**含道具件**——368 个道具 prefab 按「有没有渲染器 / 有没有碰撞体 /
+  有没有行为脚本」分四类，先做**装饰四边面**（251 个 prefab、15132 个实例，见 `docs/specs/level-props.md`），
+  其余（系统标记 / 实心件 / 背景组 / 行为件）按该规格 §6 的 P4b/P4c/P5 顺序推进。进度/星级仍在范围外。
 - **A2 地形物理**：**已拍板**（2026-10-06，玩家选 ①）——**真三角网格形状**，契约为静态专用、
   双面语义，两个后端各自实现；见 `ADR-032`（含双面与绕向的实测）。② 离线拆成静态凸体/盒子拼接、
   ③ 只做视觉网格两条不再考虑。
@@ -178,8 +181,9 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 - **A4 失败条件**（**已收口**，2026-10-08）：出界是原版机制 —— 矩形 = 关卡自己的 `m_cameraLimits`
   （`PrefabOverrides`，内容 v5）、判定在猪自己的 transform、后果 = 回建造态（房间 `Retry`）；
   `MaxTicks: 1200` 已删除。见 §7 与 `ADR-036`。
-- **B1 关卡 JSON**：`schemaVersion` 已到 **5**（v2 地形 / v3 fill / v4 边缘条带 / v5 相机界）；旧版本文档一律保持可解析。
-- **B2 道具件的最小集合**：先按「每关都出现」的清单做，其余按需。
+- **B1 关卡 JSON**：`schemaVersion` 已到 **6**（v2 地形 / v3 fill / v4 边缘条带 / v5 相机界 / v6 道具件）；旧版本文档一律保持可解析。
+- **B2 道具件的最小集合**：**已收口**（2026-10-09）——判据不是「出现频率」而是「一个 prefab 是不是
+  单个四边面的装饰件」：**251 个 prefab / 15132 个实例**，清单、画法与分片见 `docs/specs/level-props.md`。
 - **B3 `TerrainScale`**：按声明默认档 1.0 走恒等；不做用户档位。
 
 ## 10. 验收
@@ -201,3 +205,6 @@ curl http://127.0.0.1:5088/level                   # 与服务器解析的同一
 报告里必须复核的数字：`counts.files = 277`、每 bundle 45/45/45/45/30/45/8/10/4、`totals.terrain = 2146`、
 `totals.terrainWithCollider = 1648`、`totals.prefabOverrides = 1795`、`totals.cameraLimits = 277`
 （`build-levels` 同样报 `camera limits: 277/277 levels`）、`palette.parts` 恰 8 族、`failures = []`。
+道具件（P4a，2026-10-09）另加：`node tools/bple-props/extract-props.mjs` 报 `palette prefabs: 368`、
+`decor: 251 props / 15132 instances`、`manifest + atlas writes: 0 changed`（第二次），`build-levels` 报
+`decor instances: 15132` / `classified instances: 26072`，客户端实机读数见 `docs/specs/level-props.md` §8。
