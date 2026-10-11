@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_14",
   "goalZone": {
     "min": [
@@ -29,9 +29,9 @@
   "cameraLimits": {"topLeft":[-247.63,35.7],"size":[131.96,51.4]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-144.44,"y":11.039999,"z":0,"rotation":5.9016404,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-156.319,"y":-1.0209999,"z":0,"rotation":5.9729304,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonRed","x":-156.528,"y":-1.613,"z":0.2,"rotation":6.0077777,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-144.44,"y":11.039999,"z":0,"rotation":5.9016404,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-156.319,"y":-1.0209999,"z":0,"rotation":5.9729304,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonRed","x":-156.528,"y":-1.613,"z":0.2,"rotation":6.0077777,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-155.917,"y":0.827,"z":0,"rotation":0,"scaleX":-1.1,"scaleY":1.1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-157.104,"y":0.956,"z":0,"rotation":0,"scaleX":1.1,"scaleY":1.1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-154.741,"y":0.635,"z":0,"rotation":3.141593,"scaleX":1.1,"scaleY":1.1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},

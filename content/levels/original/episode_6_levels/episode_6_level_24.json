@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_24",
   "goalZone": {
     "min": [
@@ -29,8 +29,8 @@
   "cameraLimits": {"topLeft":[-181.9,53.4],"size":[74.6,67]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-126.778,"y":-4.495001,"z":0,"rotation":6.195919,"scaleX":1,"scaleY":1},
-    {"id":"DynamicBoxChallenge","x":-115.060005,"y":25.619999,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-126.778,"y":-4.495001,"z":0,"rotation":6.195919,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"DynamicBoxChallenge","x":-115.060005,"y":25.619999,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}],"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-127.542,"y":-2.578,"z":0,"rotation":0.1745329,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"Bridge","x":-166.52,"y":34.581,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bridge","x":-134.362,"y":36.949,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
@@ -209,17 +209,17 @@
     {"id":"Grass24","x":-116.562,"y":38.161,"z":-1,"rotation":3.062007,"scaleX":1,"scaleY":1},
     {"id":"Bridge","x":-150.1,"y":41.82,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BreakableWall","x":-125.809,"y":-3.466,"z":0,"rotation":5.4977875,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
-    {"id":"Fan","x":-150.96,"y":38.68,"z":0,"rotation":3.926991,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-150.96,"y":38.68,"z":0,"rotation":3.926991,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
     {"id":"ActivatedHingeDoorYellow","x":-133.355,"y":8.261,"z":0,"rotation":5.6723204,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue","x":-156.956,"y":18.891,"z":0,"rotation":0.8726647,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
-    {"id":"Fan","x":-119.999,"y":30.401,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-119.999,"y":30.401,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue","x":-145.65,"y":7.56,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
-    {"id":"PressureButtonYellow","x":-133.4,"y":14.13,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonYellow","x":-133.4,"y":14.13,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-128.203,"y":-3.368,"z":0,"rotation":0.7853982,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-127.639,"y":-3.466,"z":0,"rotation":0.7853982,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorYellow","x":-115.06,"y":29.52,"z":0,"rotation":1.2580572,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"BreakableWall","x":-124.848,"y":-3.393,"z":0,"rotation":0.7853982,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
-    {"id":"PressureButtonBlue","x":-153.993,"y":28.623,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"PressureButtonBlue","x":-153.993,"y":28.623,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]}
   ],
   "terrain": [
     {

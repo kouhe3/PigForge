@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "Level_Race_02",
   "goalZone": {
     "min": [
@@ -30,7 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":10.242867,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Night","x":34.66897,"y":42.808956,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":34.66897,"y":42.808956,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"TNT_Box","x":63.76767,"y":0.27943945,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-69.44901,"y":45.59593,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":31.462358,"y":44.41988,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},

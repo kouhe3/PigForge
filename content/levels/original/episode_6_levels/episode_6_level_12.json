@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_12",
   "goalZone": {
     "min": [
@@ -29,7 +29,7 @@
   "cameraLimits": {"topLeft":[-204.61,57.8],"size":[96.4,72]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-151.32,"y":32.15,"z":0,"rotation":4.4655495,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-151.32,"y":32.15,"z":0,"rotation":4.4655495,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Grass17","x":-152.653,"y":31.451,"z":0.9,"rotation":6.213055,"scaleX":-1,"scaleY":1},
     {"id":"Grass08","x":-147.949,"y":52.421,"z":0.9,"rotation":1.4667203,"scaleX":1,"scaleY":1},
     {"id":"Grass07","x":-146.76,"y":53.419,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
@@ -120,10 +120,10 @@
     {"id":"MayanArt2","x":-110.936,"y":30.696,"z":0.9,"rotation":0,"scaleX":0.8,"scaleY":0.8},
     {"id":"SecretPartPineapple","x":-195.629,"y":31.884,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1.18,"sizeY":1.72,"sizeZ":1,"rotation":0}]},
     {"id":"Bridge","x":-126.87,"y":16.29,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-158.97,"y":-1.97,"z":0,"rotation":5.2148376,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-142.72,"y":6.03,"z":0,"rotation":6.0479317,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-158.97,"y":-1.97,"z":0,"rotation":5.2148376,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
+    {"id":"Fan","x":-142.72,"y":6.03,"z":0,"rotation":6.0479317,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
     {"id":"WindowLarge","x":-169.51,"y":29.85,"z":-2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-178.28,"y":28.7,"z":0,"rotation":5.96736,"scaleX":1,"scaleY":1}
+    {"id":"Fan","x":-178.28,"y":28.7,"z":0,"rotation":5.96736,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]}
   ],
   "terrain": [
     {

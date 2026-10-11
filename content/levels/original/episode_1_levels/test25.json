@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "test25",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_01","x":-39.07049,"y":-5.3,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-27.74248,"y":11.857615,"z":-0.031982422,"rotation":6.118816,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_01","x":-39.07049,"y":-5.3,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-27.74248,"y":11.857615,"z":-0.031982422,"rotation":6.118816,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Background_Cloud_03_SET","x":-17.418934,"y":31.146791,"z":15.89147,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET","x":73.2586,"y":21.584105,"z":15.926775,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET","x":-12.831525,"y":16.121649,"z":15.759931,"rotation":0,"scaleX":1,"scaleY":1},

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "Level_27",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_StarLevel","x":47.56485,"y":6.228512,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":56.917282,"y":-0.39888597,"z":0,"rotation":0.42985135,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":47.56485,"y":6.228512,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":56.917282,"y":-0.39888597,"z":0,"rotation":0.42985135,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Cave_Mushroom_02","x":-51.589703,"y":-6.663675,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":11.951954,"y":-7.3259773,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":51.574738,"y":9.44302,"z":-5,"rotation":1.1377873,"scaleX":1,"scaleY":1},
@@ -65,7 +65,7 @@
     {"id":"Cave_Mushroom_03","x":-52.867867,"y":-6.7933435,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_03","x":37.76501,"y":-7.2096434,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":21.181053,"y":-7.4035335,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Secret_01","x":-63.06201,"y":17.27864,"z":-1,"rotation":0,"scaleX":0.4,"scaleY":0.4}
+    {"id":"Secret_01","x":-63.06201,"y":17.27864,"z":-1,"rotation":0,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":2.994792,"sizeY":1.979167,"sizeZ":4,"rotation":0}]}
   ],
   "terrain": [
     {

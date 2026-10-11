@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_III",
   "goalZone": {
     "min": [
@@ -29,8 +29,8 @@
   "cameraLimits": {"topLeft":[-249.48,84.34],"size":[156.21,102.2]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-128.64,"y":49.28,"z":-0.2,"rotation":5.941063,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-173.45001,"y":60.690002,"z":-0.39,"rotation":5.931943,"scaleX":1,"scaleY":0.99999994},
+    {"id":"BoxChallenge","x":-128.64,"y":49.28,"z":-0.2,"rotation":5.941063,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-173.45001,"y":60.690002,"z":-0.39,"rotation":5.931943,"scaleX":1,"scaleY":0.99999994,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Grass10","x":-119.86301,"y":77.08479,"z":-1,"rotation":0.7525547,"scaleX":1,"scaleY":1},
     {"id":"Grass17","x":-204.421,"y":58.5878,"z":-3,"rotation":6.139195,"scaleX":-1,"scaleY":1},
     {"id":"Grass14","x":-181.092,"y":82.26479,"z":-1,"rotation":5.3796673,"scaleX":-1,"scaleY":1},
@@ -175,11 +175,11 @@
     {"id":"Flower7","x":-178.1,"y":78.6208,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower7","x":-206.233,"y":9.317797,"z":-3,"rotation":0.04587551,"scaleX":-1,"scaleY":1},
     {"id":"WindowBgSmall","x":-127.52701,"y":20.727797,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-203.09,"y":59.47,"z":0,"rotation":6.1373034,"scaleX":1.0000004,"scaleY":0.9999998},
-    {"id":"Fan","x":-154.9,"y":56.35,"z":0,"rotation":5.579539,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-107.75,"y":40.25,"z":0,"rotation":2.5968456,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-153.96,"y":16.36,"z":0,"rotation":0.960629,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-119.05,"y":21.38,"z":0,"rotation":1.7440699,"scaleX":1,"scaleY":1},
+    {"id":"Fan","x":-203.09,"y":59.47,"z":0,"rotation":6.1373034,"scaleX":1.0000004,"scaleY":0.9999998,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
+    {"id":"Fan","x":-154.9,"y":56.35,"z":0,"rotation":5.579539,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
+    {"id":"Fan","x":-107.75,"y":40.25,"z":0,"rotation":2.5968456,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
+    {"id":"Fan","x":-153.96,"y":16.36,"z":0,"rotation":0.960629,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
+    {"id":"Fan","x":-119.05,"y":21.38,"z":0,"rotation":1.7440699,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
     {"id":"Bridge","x":-236.08,"y":77.5,"z":0,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [

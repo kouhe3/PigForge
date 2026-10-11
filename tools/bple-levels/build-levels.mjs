@@ -178,6 +178,19 @@ const goalBoxOf = (prefabPath) => {
  * sky is stable and each set instance gets its own field. Everything else is the original's: the box,
  * the count and the variants.
  */
+/// The prop's own boxes as float32 content: the same six numbers a quad's frame carries.
+function boxesOf(boxes) {
+  return boxes.map((box) => ({
+    dx: Math.fround(box.dx),
+    dy: Math.fround(box.dy),
+    dz: Math.fround(box.dz),
+    sizeX: Math.fround(box.sizeX),
+    sizeY: Math.fround(box.sizeY),
+    sizeZ: Math.fround(box.sizeZ),
+    rotation: Math.fround(box.rotation),
+  }));
+}
+
 function cloudSeed(name, position) {
   let hash = 0x9e3779b9;
   for (const character of `${name}:${position[0].toFixed(3)}:${position[1].toFixed(3)}`) {
@@ -223,6 +236,7 @@ const totals = {
   spawns: 0,
   propInstances: 0,
   cloudInstances: 0,
+  triggerProps: 0,
   goals: 0,
   levelsWithoutGoal: 0,
   cameraLimits: 0,
@@ -528,20 +542,11 @@ for (const { bundle, file } of dataFiles) {
       scaleX: instance.localScale[0],
       scaleY: instance.localScale[1],
       // A solid prop (schemaVersion 7) carries the original's own non-trigger box colliders, in the
-      // prop's frame: the room turns each into a static body (`docs/specs/level-props.md` §3.6).
-      ...(record.boxes.length > 0
-        ? {
-            boxes: record.boxes.map((box) => ({
-              dx: Math.fround(box.dx),
-              dy: Math.fround(box.dy),
-              dz: Math.fround(box.dz),
-              sizeX: Math.fround(box.sizeX),
-              sizeY: Math.fround(box.sizeY),
-              sizeZ: Math.fround(box.sizeZ),
-              rotation: Math.fround(box.rotation),
-            })),
-          }
-        : {}),
+      // prop's frame: the room turns each into a static body (`docs/specs/level-props.md` §3.6). A
+      // trigger box (schemaVersion 8) is the marker a challenge's rule overlaps with instead
+      // (`docs/specs/level-challenges.md` §3).
+      ...(record.boxes.length > 0 ? { boxes: boxesOf(record.boxes) } : {}),
+      ...(record.triggers.length > 0 ? { triggers: boxesOf(record.triggers) } : {}),
     });
   }
 
@@ -552,7 +557,11 @@ for (const { bundle, file } of dataFiles) {
   const document = {
     format: "pigforge.level-content",
     // A document declares the highest version it needs: v7 only where a prop brought solid boxes.
-    schemaVersion: propInstances.some((prop) => prop.boxes !== undefined) ? 7 : 6,
+    schemaVersion: propInstances.some((prop) => prop.triggers !== undefined)
+      ? 8
+      : propInstances.some((prop) => prop.boxes !== undefined)
+        ? 7
+        : 6,
     contentVersion,
     goalZone,
     bounds: levelBounds,
@@ -577,6 +586,7 @@ for (const { bundle, file } of dataFiles) {
   totals.spawns += spawns.length;
   totals.propInstances += propInstances.length;
   totals.cloudInstances += cloudInstances;
+  totals.triggerProps += propInstances.filter((prop) => prop.triggers !== undefined).length;
   totals.bytes += bytes;
 
   const state = DRY_RUN ? (changed ? "new" : "same") : changed ? "wrote" : "same";
@@ -614,6 +624,7 @@ check(skippedCurves.length === 0, `${skippedCurves.length} terrain(s) have no us
 // The census covers every prefab instance in the pack except the placed parts (`spawns`), so its sum
 // is the pack's own instance count -- a prop family that stops being classified cannot hide.
 check(totals.propInstances === 18204, `placed prop instances: ${totals.propInstances}, expected 18204`);
+check(totals.triggerProps === 948, `props with trigger boxes: ${totals.triggerProps}, expected 948`);
 check(totals.cloudInstances === 1020, `cloud instances: ${totals.cloudInstances}, expected 1020`);
 const cachedInstances = [...propCensus.values()].reduce((total, count) => total + count, 0) + totals.spawns;
 check(cachedInstances === 26072, `classified instances: ${cachedInstances}, expected 26072`);

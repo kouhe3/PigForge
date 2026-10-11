@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_35",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":-20.376621,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Night","x":13.878216,"y":-5.3265896,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-11.416426,"y":21.23883,"z":0,"rotation":6.24732,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":13.878216,"y":-5.3265896,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-11.416426,"y":21.23883,"z":0,"rotation":6.24732,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Slingshot","x":-12.424007,"y":23.667599,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Red","x":-14.412964,"y":22.341593,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},

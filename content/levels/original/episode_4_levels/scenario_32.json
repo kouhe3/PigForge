@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_32",
   "goalZone": {
     "min": [
@@ -30,7 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Night","x":20.174103,"y":-5.3265896,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":20.174103,"y":-5.3265896,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"Bird_Red","x":-33.40692,"y":-1.0688059,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":-32.313126,"y":0.87952685,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},

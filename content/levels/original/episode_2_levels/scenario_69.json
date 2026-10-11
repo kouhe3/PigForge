@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_69",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Morning","x":-54.95145,"y":25.215155,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-64.11989,"y":24.179443,"z":0,"rotation":0.31412,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":-54.95145,"y":25.215155,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-64.11989,"y":24.179443,"z":0,"rotation":0.31412,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Shell","x":-59.74232,"y":-7.6437397,"z":-5,"rotation":0,"scaleX":-0.7729111,"scaleY":0.7729111},
     {"id":"Grass_07","x":-72.04345,"y":-1.042284,"z":-5,"rotation":0.5325994,"scaleX":-1,"scaleY":1},
     {"id":"Bottle","x":-91.05156,"y":-6.728163,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_10",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"TNT_Box","x":-178.41,"y":-1.021,"z":0,"rotation":0.457641,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"BoxChallenge","x":-177.376,"y":-0.49200058,"z":-0.003,"rotation":0.44248754,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-170.223,"y":19.276999,"z":0.02,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-177.376,"y":-0.49200058,"z":-0.003,"rotation":0.44248754,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-170.223,"y":19.276999,"z":0.02,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"MayanArt9","x":-190.673,"y":38.3378,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt4","x":-188.753,"y":37.5178,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt7","x":-163.843,"y":40.127792,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},

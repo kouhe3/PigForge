@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "track_04",
   "goalZone": {
     "min": [
@@ -30,9 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Halloween","x":0.8239032,"y":11.360255,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":0.8239032,"y":11.360255,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"TNT_Box","x":-73.046715,"y":5.1190963,"z":0,"rotation":0.121974885,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"BoxChallenge","x":8.590099,"y":18.846767,"z":0,"rotation":5.0444055,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":8.590099,"y":18.846767,"z":0,"rotation":5.0444055,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"BonBon_01","x":-24.086626,"y":18.561789,"z":-5,"rotation":0.092334144,"scaleX":1,"scaleY":1},
     {"id":"Colorful_Sparkles_02","x":-47.91536,"y":20.159,"z":-5.10279,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Colorful_Sparkles_03","x":-23.693392,"y":-5.9840145,"z":-5.083152,"rotation":0,"scaleX":1,"scaleY":1},

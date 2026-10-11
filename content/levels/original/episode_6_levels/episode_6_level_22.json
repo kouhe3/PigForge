@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_22",
   "goalZone": {
     "min": [
@@ -29,12 +29,12 @@
   "cameraLimits": {"topLeft":[-209.17,20.04],"size":[73.3,35]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-148.41501,"y":-6.3460007,"z":0,"rotation":0.26219597,"scaleX":1,"scaleY":1},
-    {"id":"DynamicBoxChallenge","x":-167.07,"y":3.5899992,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-148.41501,"y":-6.3460007,"z":0,"rotation":0.26219597,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"DynamicBoxChallenge","x":-167.07,"y":3.5899992,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}],"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorYellow","x":-170.61,"y":2.93,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"BreakableWall","x":-149.856,"y":-6.056,"z":0,"rotation":4.712475,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-149.823,"y":-6.827,"z":0,"rotation":0.0030509685,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
-    {"id":"PressureButtonYellow","x":-187.863,"y":-6.672,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonYellow","x":-187.863,"y":-6.672,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-150.068,"y":-4.792,"z":0,"rotation":3.1241276,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-149.91,"y":-5.271,"z":0,"rotation":3.1241276,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"FGMayanThing01","x":-186.343,"y":-7.036,"z":-3,"rotation":0,"scaleX":1.5,"scaleY":1.5},

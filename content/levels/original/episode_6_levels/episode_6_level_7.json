@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_7",
   "goalZone": {
     "min": [
@@ -29,7 +29,7 @@
   "cameraLimits": {"topLeft":[-215.7,59.4],"size":[93.1,69.78]},
   "spawns": [],
   "props": [
-    {"id":"DynamicBoxChallenge","x":-173.17,"y":42.480846,"z":0,"rotation":0.0076977843,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"DynamicBoxChallenge","x":-173.17,"y":42.480846,"z":0,"rotation":0.0076977843,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}],"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"AncestorPig","x":-173.17,"y":43.15,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-160.599,"y":22.543552,"z":-1.25,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-164.62099,"y":39.113556,"z":0.75,"rotation":1.8288696,"scaleX":1,"scaleY":1},
@@ -81,7 +81,7 @@
     {"id":"Mushroom6","x":-126.23,"y":23.65,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"AncestorPig","x":-176.19,"y":26.84,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"AncestorPig","x":-153.28,"y":33.52,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"SecretStatue","x":-154.04,"y":-1.46,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"SecretStatue","x":-154.04,"y":-1.46,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]}
   ],
   "terrain": [
     {

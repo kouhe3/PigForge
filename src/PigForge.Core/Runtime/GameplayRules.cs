@@ -1,3 +1,4 @@
+using PigForge.Core.Content;
 using PigForge.Physics.Abstractions;
 
 namespace PigForge.Core;
@@ -54,7 +55,10 @@ public sealed record GameplayConfig(
     bool RestitutionAppliedNatively = false,
     // The level's own camera rectangle (a v5 document's `cameraLimits`): the pig's real bound. A
     // document without one (PigForge's hand-made v1 slope/terrain rooms) falls back to `MapBounds`.
-    CameraLimits? CameraLimits = null)
+    CameraLimits? CameraLimits = null,
+    // The level's challenge markers (a v8 prop's `triggers`, `docs/specs/level-challenges.md`): the pig
+    // reaching one collects it. A level with no challenges leaves this null.
+    IReadOnlyList<ChallengeTriggerDefinition>? ChallengeTriggers = null)
 {
     public static GameplayConfig Default { get; } = new(
         GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
@@ -65,6 +69,59 @@ public sealed record GameplayConfig(
         SeamBreakImpulse: 10f,
         MaxTicks: 0);
 
+}
+
+/// <summary>
+/// One challenge marker of a level (`docs/specs/level-challenges.md`): the prop it belongs to and the
+/// world-space box the pig has to reach. The box is the original's own trigger collider, placed at the
+/// prop's pose and grown to the axis-aligned bounds a rotated box needs.
+/// </summary>
+public sealed record ChallengeTriggerDefinition(int PropIndex, GameplayZone Zone);
+
+/// <summary>
+/// Turns a level document's placed props into the challenge markers the rules test
+/// (`docs/specs/level-challenges.md` §3): every v8 prop's own `triggers`, in the prop's own frame, taken
+/// to world space exactly as `GameRoom.EnsurePropBodies` places a prop's boxes.
+/// </summary>
+public static class LevelChallengeTriggers
+{
+    public static IReadOnlyList<ChallengeTriggerDefinition> Build(LevelContentDocument level)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        List<ChallengeTriggerDefinition> triggers = new();
+        for (int index = 0; index < level.Props.Count; index++)
+        {
+            LevelPropDefinition prop = level.Props[index];
+            foreach (LevelPropBoxDefinition box in prop.Triggers)
+            {
+                bool mirrored = prop.ScaleX < 0f;
+                float scaleX = MathF.Abs(prop.ScaleX);
+                float scaleY = MathF.Abs(prop.ScaleY);
+                (float cos, float sin) = (MathF.Cos(prop.Rotation), MathF.Sin(prop.Rotation));
+                float offsetX = (mirrored ? -box.X : box.X) * scaleX;
+                float offsetY = box.Y * scaleY;
+                PhysicsVector3 center = new(
+                    prop.X + (offsetX * cos) - (offsetY * sin),
+                    prop.Y + (offsetX * sin) + (offsetY * cos),
+                    prop.Z + box.Z);
+                float rotation = prop.Rotation + (mirrored ? -box.Rotation : box.Rotation);
+                // The axis-aligned bounds a box of these extents needs at that angle: the marker is a
+                // "someone came through here" test, so the coarse box is the point.
+                float halfWidth = 0.5f * ((MathF.Abs(MathF.Cos(rotation)) * box.SizeX * scaleX) + (MathF.Abs(MathF.Sin(rotation)) * box.SizeY * scaleY));
+                float halfHeight = 0.5f * ((MathF.Abs(MathF.Sin(rotation)) * box.SizeX * scaleX) + (MathF.Abs(MathF.Cos(rotation)) * box.SizeY * scaleY));
+                // A flat marker (the fan's own trigger has no depth) gets the play plane's own thickness,
+                // because the zone has to hold the pig's frame on its plane.
+                float halfDepth = box.SizeZ > 0f ? 0.5f * box.SizeZ : 0.5f;
+                triggers.Add(new ChallengeTriggerDefinition(
+                    index,
+                    new GameplayZone(
+                        new PhysicsVector3(center.X - halfWidth, center.Y - halfHeight, center.Z - halfDepth),
+                        new PhysicsVector3(center.X + halfWidth, center.Y + halfHeight, center.Z + halfDepth))));
+            }
+        }
+
+        return triggers;
+    }
 }
 
 /// <summary>Per-tick rule output; the caller owns and reuses the instance to keep the tick path allocation-free.</summary>
@@ -78,6 +135,10 @@ public sealed class GameplayTickOutput
     /// fired on impact): the room splits the cluster at the nearest seam so the part
     /// becomes its own body.</summary>
     public List<EntityId> DetachedEntities { get; } = new();
+
+    /// <summary>Props collected this tick: indices into the level document's `props`
+    /// (`docs/specs/level-challenges.md` §4). The room marks them and tells the clients.</summary>
+    public List<int> CollectedProps { get; } = new();
 
     /// <summary>Parts whose damping changed this tick, which the room folds into the body each of
     /// them rides (a PigForge body carries one damping pair for all its members). The original's
@@ -97,6 +158,7 @@ public sealed class GameplayTickOutput
         DetachedEntities.Clear();
         DampingOverrides.Clear();
         PigsOutOfBounds.Clear();
+        CollectedProps.Clear();
     }
 }
 
@@ -140,6 +202,9 @@ public sealed class GameplayRules
 
     private readonly Dictionary<uint, EntityId> _entitiesByBody = new();
     private readonly Dictionary<uint, (PhysicsVector3 Position, PhysicsVector3 Velocity)> _kinematicsByBody = new();
+    /// <summary>The level props already collected this run, so a marker reports once and `RESET` clears it
+    /// (`docs/specs/level-challenges.md` §4).</summary>
+    private readonly HashSet<int> _collectedChallenges = new();
     private readonly Dictionary<uint, PhysicsQuaternion> _rotationByBody = new();
     // A member's pose inside its body (the compound's local offset), so a rule can resolve the
     // part's own world position: a blast's origin is the charge part, not the body's centre of
@@ -345,6 +410,10 @@ public sealed class GameplayRules
     public bool RestartRequested { get; private set; }
 
     public IReadOnlyCollection<uint> BrokenJoints => _brokenJoints;
+
+    /// <summary>Drops every collected challenge marker: the room's `Retry` runs it, matching the
+    /// original's `Collectable.OnReset` (`docs/specs/level-challenges.md` §2).</summary>
+    public void ClearChallenges() => _collectedChallenges.Clear();
 
     public void LinkBody(
         EntityId entity,
@@ -848,6 +917,7 @@ public sealed class GameplayRules
         RunBlasters(output);
         RunSlowSpeedDamping(output);
         DropCommandsForDestroyedBodies(output);
+        CheckChallenges(output);
         CheckObjectives(tick, output);
         StorePreviousVelocities();
         _hasProcessedTick = true;
@@ -2473,6 +2543,42 @@ public sealed class GameplayRules
             output.Commands.RemoveAll(command => command.Kind == PhysicsCommandKind.SuppressContact
                 ? !_dynamicBodies.Contains(command.Body.Value) && !_dynamicBodies.Contains(command.SecondBody.Value)
                 : !_dynamicBodies.Contains(command.Body.Value));
+        }
+    }
+
+    /// <summary>
+    /// The level's challenge markers (`docs/specs/level-challenges.md` §4): once the pig reaches a prop's
+    /// own trigger box, that prop is collected for the rest of the run. The original tests a part
+    /// connected to the pig (`Goal.cs:18-55`); this first cut tests the pig itself, which is what rides a
+    /// contraption through a waypoint -- the difference is one of the spec's deviations.
+    /// </summary>
+    private void CheckChallenges(GameplayTickOutput output)
+    {
+        if (_config.ChallengeTriggers is not { Count: > 0 } triggers)
+        {
+            return;
+        }
+
+        var pigs = _pigs.GetEnumerator();
+        while (pigs.MoveNext())
+        {
+            if (!_bodies.TryGet(pigs.CurrentId, out PhysicsBodyLink link)
+                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            ResolvePartFrame(pigs.CurrentId, link.Body.Value, kinematics.Position, out PhysicsVector3 pigPosition, out _);
+            foreach (ChallengeTriggerDefinition trigger in triggers)
+            {
+                if (_collectedChallenges.Contains(trigger.PropIndex) || !trigger.Zone.Contains(pigPosition))
+                {
+                    continue;
+                }
+
+                _collectedChallenges.Add(trigger.PropIndex);
+                output.CollectedProps.Add(trigger.PropIndex);
+            }
         }
     }
 

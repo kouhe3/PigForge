@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_5",
   "goalZone": {
     "min": [
@@ -29,7 +29,7 @@
   "cameraLimits": {"topLeft":[-210.92,42.7],"size":[63.1,41.67]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-162.78621,"y":19.308596,"z":0,"rotation":0.33722097,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-162.78621,"y":19.308596,"z":0,"rotation":0.33722097,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Mushroom6","x":-158.516,"y":21.746,"z":-2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-158.326,"y":22.058,"z":-1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass10","x":-201.59999,"y":23.64,"z":2,"rotation":1.09333,"scaleX":1,"scaleY":1},
@@ -62,7 +62,7 @@
     {"id":"Grass07","x":-180.73299,"y":32.143005,"z":0.9,"rotation":5.809325,"scaleX":-1,"scaleY":1},
     {"id":"Grass07","x":-165.81401,"y":13.650002,"z":0.9,"rotation":1.1885529,"scaleX":-1,"scaleY":1},
     {"id":"Bush","x":-202.59999,"y":23.550003,"z":-1,"rotation":6.2770324,"scaleX":1,"scaleY":1},
-    {"id":"SecretStatue","x":-177.416,"y":33.461,"z":0.59,"rotation":0.18307187,"scaleX":1,"scaleY":1}
+    {"id":"SecretStatue","x":-177.416,"y":33.461,"z":0.59,"rotation":0.18307187,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]}
   ],
   "terrain": [
     {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_09",
   "goalZone": {
     "min": [
@@ -30,9 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Halloween","x":-4.2380466,"y":-5.364735,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-51.591583,"y":17.18168,"z":0,"rotation":6.115413,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-39.87011,"y":-2.1682928,"z":0,"rotation":0.5922213,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":-4.2380466,"y":-5.364735,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-51.591583,"y":17.18168,"z":0,"rotation":6.115413,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-39.87011,"y":-2.1682928,"z":0,"rotation":0.5922213,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Pumpkin_Plant_02","x":-67.20065,"y":-0.49990505,"z":-5,"rotation":1.4621428,"scaleX":-1.988909,"scaleY":1.988909},
     {"id":"Pumpkin_Plant_01","x":-49.542152,"y":8.627174,"z":-5,"rotation":4.9779863,"scaleX":-1.988909,"scaleY":1.988909},
     {"id":"Cream_Line_03","x":-52.488297,"y":16.50084,"z":-5,"rotation":6.1606793,"scaleX":2,"scaleY":2},

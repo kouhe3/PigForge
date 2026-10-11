@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "test15",
   "goalZone": {
     "min": [
@@ -30,7 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_StarLevel","x":52.60774,"y":-5.325172,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":52.60774,"y":-5.325172,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"Mushroom_03","x":-10.071036,"y":-4.4136047,"z":-5.153076,"rotation":0.28491062,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":19.795456,"y":-6.795557,"z":-4.929114,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-30.297794,"y":-6.7425365,"z":-4.929114,"rotation":0,"scaleX":1,"scaleY":1},

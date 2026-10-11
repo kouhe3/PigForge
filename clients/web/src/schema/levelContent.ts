@@ -125,6 +125,8 @@ export interface LevelProp {
    * know the field is legal, so it validates the shape and keeps the numbers.
    */
   boxes?: readonly LevelPropBox[];
+  /** v8: the prop's trigger boxes — the markers the room's challenge rule overlaps with. */
+  triggers?: readonly LevelPropBox[];
 }
 
 /** One solid box of a placed prop, in the prop's own frame (v7). */
@@ -140,7 +142,7 @@ export interface LevelPropBox {
 
 export interface LevelContentDocument {
   format: "pigforge.level-content";
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   contentVersion: string;
   goalZone: LevelZone;
   bounds: LevelZone;
@@ -208,6 +210,7 @@ const CURVE_KEYS = ["nodes", "stripe", "textures", "uScale", "splat1"];
 const CURVE_TEXTURE_KEYS = ["texture", "wrap"];
 const PROP_REQUIRED_KEYS = ["id", "x", "y", "z", "rotation", "scaleX", "scaleY"];
 const PROP_KEYS_WITH_BOXES = [...PROP_REQUIRED_KEYS, "boxes"];
+const PROP_KEYS_WITH_BOXES_AND_TRIGGERS = [...PROP_KEYS_WITH_BOXES, "triggers"];
 const PROP_BOX_KEYS = ["dx", "dy", "dz", "sizeX", "sizeY", "sizeZ", "rotation"];
 const LEVEL_ROLES: readonly LevelActorRole[] = ["part", "pig", "tnt"];
 const LEVEL_WRAPS: readonly LevelCurveWrap[] = ["repeat", "clamp"];
@@ -225,8 +228,8 @@ export function validateLevelContent(value: unknown): string[] {
   }
   if (document.schemaVersion !== 1 && document.schemaVersion !== 2
     && document.schemaVersion !== 3 && document.schemaVersion !== 4 && document.schemaVersion !== 5
-    && document.schemaVersion !== 6 && document.schemaVersion !== 7) {
-    errors.push("root.schemaVersion: versions 1 to 7 are supported.");
+    && document.schemaVersion !== 6 && document.schemaVersion !== 7 && document.schemaVersion !== 8) {
+    errors.push("root.schemaVersion: versions 1 to 8 are supported.");
   }
   if (!isContentVersion(document.contentVersion)) {
     errors.push("root.contentVersion: must contain 1 to 128 non-whitespace-padded characters.");
@@ -234,7 +237,7 @@ export function validateLevelContent(value: unknown): string[] {
   validateZone(document.goalZone, "root.goalZone", errors);
   validateZone(document.bounds, "root.bounds", errors);
   // v5 carries the level's own camera rectangle and every v5+ document must; older versions must not.
-  if (document.schemaVersion === 5 || document.schemaVersion === 6 || document.schemaVersion === 7) {
+  if (document.schemaVersion === 5 || document.schemaVersion === 6 || document.schemaVersion === 7 || document.schemaVersion === 8) {
     if (document.cameraLimits === undefined) {
       errors.push(`root.cameraLimits: required on a schemaVersion ${document.schemaVersion} document.`);
     } else {
@@ -264,14 +267,15 @@ export function validateLevelContent(value: unknown): string[] {
   }
   // v6 carries the level's props and every v6+ document must; older versions must not. v7 also lets a
   // prop carry its own solid boxes.
-  if (document.schemaVersion === 6 || document.schemaVersion === 7) {
+  if (document.schemaVersion === 6 || document.schemaVersion === 7 || document.schemaVersion === 8) {
     if (document.props === undefined) {
       errors.push(`root.props: required on a schemaVersion ${document.schemaVersion} document.`);
     } else if (!Array.isArray(document.props)) {
       errors.push("root.props: must be an array.");
     } else {
-      const withBoxes = document.schemaVersion === 7;
-      document.props.forEach((prop, index) => validateProp(prop, `root.props[${index}]`, withBoxes, errors));
+      const withBoxes = document.schemaVersion >= 7;
+      const withTriggers = document.schemaVersion >= 8;
+      document.props.forEach((prop, index) => validateProp(prop, `root.props[${index}]`, withBoxes, withTriggers, errors));
     }
   } else if (document.props !== undefined) {
     errors.push("root.props: only a schemaVersion 6 or newer document places the level's props.");
@@ -346,14 +350,15 @@ function validateCameraLimits(value: unknown, path: string, errors: string[]): v
 }
 
 /** One decoration instance: the sprite-manifest key plus the six numbers of its transform. */
-function validateProp(value: unknown, path: string, withBoxes: boolean, errors: string[]): void {
+function validateProp(value: unknown, path: string, withBoxes: boolean, withTriggers: boolean, errors: string[]): void {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     errors.push(`${path}: prop must be a JSON object.`);
     return;
   }
 
   const prop = value as Record<string, unknown>;
-  validateKeys(prop, PROP_REQUIRED_KEYS, withBoxes ? PROP_KEYS_WITH_BOXES : PROP_REQUIRED_KEYS, path, errors);
+  const allowed = withTriggers ? PROP_KEYS_WITH_BOXES_AND_TRIGGERS : withBoxes ? PROP_KEYS_WITH_BOXES : PROP_REQUIRED_KEYS;
+  validateKeys(prop, PROP_REQUIRED_KEYS, allowed, path, errors);
   if (typeof prop.id !== "string" || prop.id.length === 0 || /\s/.test(prop.id)) {
     errors.push(`${path}.id: must be a non-empty string without whitespace.`);
   }
@@ -362,18 +367,19 @@ function validateProp(value: unknown, path: string, withBoxes: boolean, errors: 
       errors.push(`${path}.${key}: must be a finite number.`);
     }
   }
-  if (prop.boxes === undefined) {
-    return;
+  for (const [key, allowedHere] of [["boxes", withBoxes], ["triggers", withTriggers]] as const) {
+    if (!allowedHere || prop[key] === undefined) continue;
+    if (!Array.isArray(prop[key])) {
+      errors.push(`${path}.${key}: must be an array.`);
+      continue;
+    }
+    // A wall needs real depth; a trigger may be a flat marker (the original ships one), matching the server parser.
+    prop[key].forEach((box, index) => validatePropBox(box, `${path}.${key}[${index}]`, key === "triggers", errors));
   }
-  if (!Array.isArray(prop.boxes)) {
-    errors.push(`${path}.boxes: must be an array.`);
-    return;
-  }
-  prop.boxes.forEach((box, index) => validatePropBox(box, `${path}.boxes[${index}]`, errors));
 }
 
 /** One solid box: the seven numbers, and a box with a non-positive size is not a shape. */
-function validatePropBox(value: unknown, path: string, errors: string[]): void {
+function validatePropBox(value: unknown, path: string, allowFlatDepth: boolean, errors: string[]): void {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     errors.push(`${path}: box must be a JSON object.`);
     return;
@@ -387,7 +393,9 @@ function validatePropBox(value: unknown, path: string, errors: string[]): void {
     }
   }
   for (const key of ["sizeX", "sizeY", "sizeZ"]) {
-    if (isFiniteNumber(box[key]) && box[key] <= 0) {
+    if (!isFiniteNumber(box[key])) continue;
+    const flat = allowFlatDepth && key === "sizeZ" && box[key] === 0;
+    if (box[key] < 0 || (box[key] === 0 && !flat)) {
       errors.push(`${path}.${key}: a solid box needs a positive size.`);
     }
   }

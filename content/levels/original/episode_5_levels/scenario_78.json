@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_78",
   "goalZone": {
     "min": [
@@ -30,7 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Halloween","x":-44.73987,"y":-5.404455,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":-44.73987,"y":-5.404455,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"Gummy_Bear_01","x":-70.255646,"y":6.0240045,"z":-5,"rotation":0.12354456,"scaleX":1,"scaleY":1},
     {"id":"Colorful_Sparkles_01","x":-58.403324,"y":17.504936,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},
     {"id":"Colorful_Sparkles_01","x":-66.95096,"y":5.4855504,"z":-5.2,"rotation":0,"scaleX":1.202427,"scaleY":1.202427},

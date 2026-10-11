@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "scenario_52",
   "goalZone": {
     "min": [
@@ -30,7 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Night","x":69.02651,"y":4.8718452,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":69.02651,"y":4.8718452,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"TNT_Box","x":54.50048,"y":-6.0982738,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-47.262245,"y":-6.083871,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-37.04404,"y":-1.7252214,"z":0,"rotation":4.5508833,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
@@ -40,7 +40,7 @@
     {"id":"TNT_Box","x":-11.632376,"y":-3.291162,"z":0,"rotation":6.049951,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-17.199749,"y":3.3231564,"z":0,"rotation":6.088547,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":42.782726,"y":-4.615851,"z":0,"rotation":3.2288754,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"BoxChallenge","x":-42.021416,"y":7.9386034,"z":0,"rotation":6.2307467,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-42.021416,"y":7.9386034,"z":0,"rotation":6.2307467,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET_1","x":1.1637086,"y":14.51051,"z":15.505628,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET_1","x":-7.470665,"y":12.603781,"z":15.37764,"rotation":0,"scaleX":1,"scaleY":1},

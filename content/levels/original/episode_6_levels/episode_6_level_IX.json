@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_IX",
   "goalZone": {
     "min": [
@@ -70,8 +70,8 @@
     }
   ],
   "props": [
-    {"id":"BoxChallenge","x":-155.158,"y":27.975998,"z":0,"rotation":0.3014209,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-166.392,"y":55.490997,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-155.158,"y":27.975998,"z":0,"rotation":0.3014209,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-166.392,"y":55.490997,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Bird_Red","x":-163.244,"y":6.028,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":-166.076,"y":7.956,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Yellow","x":-189.739,"y":26.228,"z":0,"rotation":0,"scaleX":1,"scaleY":1},

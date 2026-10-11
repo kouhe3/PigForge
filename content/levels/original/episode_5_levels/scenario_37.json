@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_37",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Halloween","x":-8.508258,"y":-4.1058016,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":63.073547,"y":15.085479,"z":0,"rotation":0.040800408,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":-8.508258,"y":-4.1058016,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":63.073547,"y":15.085479,"z":0,"rotation":0.040800408,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Slingshot","x":-14.941505,"y":5.8567715,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Red","x":-16.817636,"y":3.7603683,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_2","x":-32.701633,"y":8.454446,"z":12.524271,"rotation":0,"scaleX":1,"scaleY":1},

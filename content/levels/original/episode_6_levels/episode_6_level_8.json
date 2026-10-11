@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_8",
   "goalZone": {
     "min": [
@@ -29,8 +29,8 @@
   "cameraLimits": {"topLeft":[-211.7,117.4],"size":[77.4,130.1]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-153.598,"y":32.085,"z":0,"rotation":6.111302,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-184.70001,"y":33.64,"z":0.01,"rotation":6.039763,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-153.598,"y":32.085,"z":0,"rotation":6.111302,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-184.70001,"y":33.64,"z":0.01,"rotation":6.039763,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Bridge","x":-182.83,"y":96.17,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"WoodenSign","x":-178.05301,"y":79.7278,"z":3,"rotation":6.282877,"scaleX":1,"scaleY":1},
     {"id":"WoodenSign","x":-170.339,"y":65.579796,"z":3,"rotation":0.0013532048,"scaleX":1,"scaleY":1},
@@ -144,7 +144,7 @@
     {"id":"LitCrystal_01","x":-160.44,"y":47.675,"z":-1,"rotation":6.1203184,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_05","x":-172.617,"y":50.761,"z":-1,"rotation":6.266294,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_05","x":-169.977,"y":35.925,"z":-1,"rotation":5.688231,"scaleX":1,"scaleY":1},
-    {"id":"SecretStatue","x":-157.56,"y":92.211,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"SecretStatue","x":-157.56,"y":92.211,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]}
   ],
   "terrain": [
     {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "test01",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_02","x":8.730003,"y":5.134881,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-16.523912,"y":5.976404,"z":0,"rotation":6.083084,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_02","x":8.730003,"y":5.134881,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-16.523912,"y":5.976404,"z":0,"rotation":6.083084,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Background_Cloud_02_SET_0","x":50.04816,"y":13.881093,"z":15.841622,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":24.98075,"y":20.526688,"z":15.56657,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":71.40339,"y":13.049208,"z":15.603862,"rotation":0,"scaleX":1,"scaleY":1},
@@ -40,7 +40,7 @@
     {"id":"Background_Cloud_01_SET_0","x":63.78318,"y":20.300056,"z":15.530249,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":77.12519,"y":18.448668,"z":15.2192545,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET_0","x":-2.6083891,"y":17.39411,"z":15.086624,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Secret_01","x":-22.681383,"y":7.7255535,"z":-2,"rotation":6.144771,"scaleX":0.39999995,"scaleY":0.4},
+    {"id":"Secret_01","x":-22.681383,"y":7.7255535,"z":-2,"rotation":6.144771,"scaleX":0.39999995,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":2.994792,"sizeY":1.979167,"sizeZ":4,"rotation":0}]},
     {"id":"Grass_02","x":-26.722137,"y":9.940535,"z":-5,"rotation":6.003249,"scaleX":1,"scaleY":1},
     {"id":"Daisy_01","x":10.500786,"y":4.084934,"z":-6,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":3.2769547,"y":4.526312,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

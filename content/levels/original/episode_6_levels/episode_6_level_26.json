@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_26",
   "goalZone": {
     "min": [
@@ -29,8 +29,8 @@
   "cameraLimits": {"topLeft":[-193,39],"size":[82,48]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-162.96501,"y":19.22,"z":0,"rotation":0.30769783,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-153.22,"y":8.469999,"z":0,"rotation":6.2649455,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-162.96501,"y":19.22,"z":0,"rotation":0.30769783,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-153.22,"y":8.469999,"z":0,"rotation":6.2649455,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"RedArrow","x":-166.87,"y":25.278,"z":4.3,"rotation":0.9872008,"scaleX":1,"scaleY":1},
     {"id":"WoodenSign","x":-166.971,"y":24.992,"z":4.5,"rotation":5.9978023,"scaleX":-1,"scaleY":1},
     {"id":"Snow01","x":-166.715,"y":25.6,"z":4.2,"rotation":5.684446,"scaleX":1,"scaleY":1},

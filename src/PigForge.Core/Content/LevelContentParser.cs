@@ -214,7 +214,7 @@ public static class LevelContentParser
     /// <summary>The seven properties one placed prop carries -- plus, on v7, its own solid boxes.</summary>
     private static readonly string[] PropProperties = { "id", "x", "y", "z", "rotation", "scaleX", "scaleY" };
 
-    /// <summary>The seven numbers one solid box carries.</summary>
+    /// <summary>The seven numbers one solid box (or trigger box) carries.</summary>
     private static readonly string[] BoxProperties = { "dx", "dy", "dz", "sizeX", "sizeY", "sizeZ", "rotation" };
 
     /// <summary>
@@ -247,9 +247,17 @@ public static class LevelContentParser
             errors.Add($"{path}.boxes: only a schemaVersion 7 document gives a prop its solid boxes.");
         }
 
+        bool carriesTriggers = seen.Contains("triggers");
+        if (carriesTriggers && schemaVersion < 8)
+        {
+            errors.Add($"{path}.triggers: only a schemaVersion 8 document gives a prop its trigger boxes.");
+        }
+
         foreach (string property in seen)
         {
-            if (!PropProperties.Contains(property) && !(property == "boxes" && schemaVersion >= 7))
+            if (!PropProperties.Contains(property)
+                && !(property == "boxes" && schemaVersion >= 7)
+                && !(property == "triggers" && schemaVersion >= 8))
             {
                 errors.Add($"{path}: unknown property '{property}'.");
             }
@@ -297,25 +305,41 @@ public static class LevelContentParser
         List<LevelPropBoxDefinition> boxes = new();
         if (carriesBoxes && schemaVersion >= 7 && element.TryGetProperty("boxes", out JsonElement boxesElement))
         {
-            if (boxesElement.ValueKind != JsonValueKind.Array)
-            {
-                errors.Add($"{path}.boxes: must be an array.");
-            }
-            else
-            {
-                int boxIndex = 0;
-                foreach (JsonElement boxElement in boxesElement.EnumerateArray())
-                {
-                    ParsePropBox(boxElement, $"{path}.boxes[{boxIndex}]", boxes, errors);
-                    boxIndex++;
-                }
-            }
+            ParseBoxes(boxesElement, "boxes", path, boxes, errors, allowFlatDepth: false);
         }
 
-        // A decoration keeps the record's own empty array, so two identical decoration entries stay
+        List<LevelPropBoxDefinition> triggers = new();
+        if (carriesTriggers && schemaVersion >= 8 && element.TryGetProperty("triggers", out JsonElement triggersElement))
+        {
+            ParseBoxes(triggersElement, "triggers", path, triggers, errors, allowFlatDepth: true);
+        }
+
+        // A decoration keeps the record's own empty arrays, so two identical decoration entries stay
         // equal (a record compares a list member by reference).
         LevelPropDefinition prop = new(id, x, y, z, rotation, scaleX, scaleY);
-        props.Add(boxes.Count > 0 ? prop with { Boxes = boxes } : prop);
+        if (boxes.Count > 0)
+        {
+            prop = prop with { Boxes = boxes };
+        }
+
+        props.Add(triggers.Count > 0 ? prop with { Triggers = triggers } : prop);
+    }
+
+    /// <summary>One prop's `boxes` or `triggers`: the same seven numbers, validated the same way.</summary>
+    private static void ParseBoxes(JsonElement element, string name, string path, List<LevelPropBoxDefinition> boxes, List<string> errors, bool allowFlatDepth)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add($"{path}.{name}: must be an array.");
+            return;
+        }
+
+        int index = 0;
+        foreach (JsonElement boxElement in element.EnumerateArray())
+        {
+            ParsePropBox(boxElement, $"{path}.{name}[{index}]", boxes, errors, allowFlatDepth);
+            index++;
+        }
     }
 
     /// <summary>
@@ -323,7 +347,7 @@ public static class LevelContentParser
     /// sizes (the original's own collider size) and its own angle in radians. A box with a
     /// non-positive size is not a shape, so it is refused.
     /// </summary>
-    private static void ParsePropBox(JsonElement element, string path, List<LevelPropBoxDefinition> boxes, List<string> errors)
+    private static void ParsePropBox(JsonElement element, string path, List<LevelPropBoxDefinition> boxes, List<string> errors, bool allowFlatDepth)
     {
         if (element.ValueKind != JsonValueKind.Object)
         {
@@ -372,9 +396,12 @@ public static class LevelContentParser
         float sizeY = ReadNumber("sizeY");
         float sizeZ = ReadNumber("sizeZ");
         float rotation = ReadNumber("rotation");
-        if (sizeX <= 0f || sizeY <= 0f || sizeZ <= 0f)
+        // A wall needs real depth; a *trigger* may be a flat marker, which the original ships (the fan's
+        // own trigger is 3.81 x 9.65 x 0), and `LevelChallengeTriggers` then gives it the play plane's own
+        // thickness.
+        if (sizeX <= 0f || sizeY <= 0f || sizeZ < 0f || (sizeZ == 0f && !allowFlatDepth))
         {
-            errors.Add($"{path}: a solid box needs positive sizes ({sizeX}, {sizeY}, {sizeZ}).");
+            errors.Add($"{path}: {(allowFlatDepth ? "a trigger box" : "a solid box")} needs positive sizes ({sizeX}, {sizeY}, {sizeZ}).");
             return;
         }
 

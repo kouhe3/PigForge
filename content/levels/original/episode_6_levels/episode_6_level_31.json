@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_31",
   "goalZone": {
     "min": [
@@ -29,7 +29,7 @@
   "cameraLimits": {"topLeft":[-215,62.8],"size":[65.5,77.2]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-173.19,"y":9.509999,"z":0,"rotation":0.593633,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-173.19,"y":9.509999,"z":0,"rotation":0.593633,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"LitCrystal_02","x":-187.858,"y":28.007,"z":-3,"rotation":6.069952,"scaleX":1,"scaleY":1},
     {"id":"Tree03","x":-170.72,"y":58.59,"z":1.9,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Tree03","x":-189.64,"y":55.410004,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1},
@@ -81,7 +81,7 @@
     {"id":"Mushroom3","x":-152.496,"y":4.3460007,"z":-3,"rotation":0.64402276,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom1","x":-152.888,"y":4.334999,"z":2,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Spear2","x":-200.107,"y":51.317,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"SecretStatue","x":-198.556,"y":53.158,"z":1,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"SecretStatue","x":-198.556,"y":53.158,"z":1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]}
   ],
   "terrain": [
     {

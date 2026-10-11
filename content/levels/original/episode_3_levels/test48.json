@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "test48",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_02","x":-27.98904,"y":9.580833,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-34.999516,"y":22.180077,"z":0,"rotation":6.224283,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_02","x":-27.98904,"y":9.580833,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-34.999516,"y":22.180077,"z":0,"rotation":6.224283,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Background_Cloud_02_SET_0","x":50.04816,"y":13.881093,"z":15.841622,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":24.98075,"y":20.526688,"z":15.56657,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":71.40339,"y":13.049208,"z":15.603862,"rotation":0,"scaleX":1,"scaleY":1},
@@ -40,7 +40,7 @@
     {"id":"Background_Cloud_01_SET_0","x":63.78318,"y":20.300056,"z":15.530249,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":77.12519,"y":18.448668,"z":15.2192545,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET_0","x":-2.6083891,"y":17.39411,"z":15.086624,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Secret_02","x":-42.23828,"y":5.291782,"z":-1,"rotation":6.213783,"scaleX":0.4,"scaleY":0.4},
+    {"id":"Secret_02","x":-42.23828,"y":5.291782,"z":-1,"rotation":6.213783,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":3.984375,"sizeY":2.994792,"sizeZ":4,"rotation":0}]},
     {"id":"Branch_01","x":-24.930456,"y":18.920918,"z":-4.285887,"rotation":4.1918354,"scaleX":1,"scaleY":1},
     {"id":"Daisy_01","x":-52.01084,"y":2.4512053,"z":-5,"rotation":5.8386154,"scaleX":1,"scaleY":1},
     {"id":"Rock_01","x":-31.034792,"y":-6.627953,"z":-4.285887,"rotation":0,"scaleX":-1,"scaleY":1},

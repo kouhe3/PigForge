@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "track_27",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Morning","x":48.882133,"y":-5.3293476,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":7.030464,"y":5.3858023,"z":0,"rotation":6.234379,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":48.882133,"y":-5.3293476,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":7.030464,"y":5.3858023,"z":0,"rotation":6.234379,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Shell","x":19.51495,"y":-7.4730167,"z":-5,"rotation":0,"scaleX":-0.78,"scaleY":0.78},
     {"id":"Twig_2","x":-30.825586,"y":-6.7707653,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Crystal_03","x":-14.84634,"y":16.255964,"z":-5,"rotation":3.17445,"scaleX":-1,"scaleY":1},

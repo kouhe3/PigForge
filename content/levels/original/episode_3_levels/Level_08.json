@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "Level_08",
   "goalZone": {
     "min": [
@@ -30,7 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_02","x":-16.77978,"y":18.67444,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_02","x":-16.77978,"y":18.67444,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"Rock_01","x":-13.396695,"y":-6.71863,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Wood_02","x":2.6626072,"y":-6.7720184,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":-3.1289063,"y":25.056557,"z":-5,"rotation":2.1684976,"scaleX":1,"scaleY":1},

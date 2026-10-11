@@ -104,7 +104,8 @@ public static class PlayHost
             TntIgniteImpactSpeed: 5f,
             MaxTicks: 0,
             ObjectivesEnabled: !sandboxMode,
-            CameraLimits: level.CameraLimits);
+            CameraLimits: level.CameraLimits,
+            ChallengeTriggers: LevelChallengeTriggers.Build(level));
         GameRoom room = new(GameRoomOptions.Create(
             parts,
             () => new BepuPhysicsWorld(new PhysicsVector3(0f, -9.81f, 0f)),

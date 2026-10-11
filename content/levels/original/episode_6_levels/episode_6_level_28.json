@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_28",
   "goalZone": {
     "min": [
@@ -29,7 +29,7 @@
   "cameraLimits": {"topLeft":[-215.1,56.68],"size":[104.3,65.2]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-118.133,"y":20.435999,"z":0,"rotation":0.2825229,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-118.133,"y":20.435999,"z":0,"rotation":0.2825229,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"GoldenPigNest","x":-124.419624,"y":-1.5485874,"z":-0.9,"rotation":1.7845505,"scaleX":1,"scaleY":1},
     {"id":"GoldenPigNest","x":-125.79543,"y":-2.0373366,"z":-0.9,"rotation":0.21375416,"scaleX":1,"scaleY":1},
     {"id":"Mushroom1","x":-144.237,"y":15.864,"z":3,"rotation":0.63366485,"scaleX":1,"scaleY":1},

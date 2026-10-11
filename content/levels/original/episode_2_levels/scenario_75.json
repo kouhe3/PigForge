@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_75",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Morning","x":24.714819,"y":1.231107,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":22.506104,"y":7.1701875,"z":0,"rotation":0.32534635,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":24.714819,"y":1.231107,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":22.506104,"y":7.1701875,"z":0,"rotation":0.32534635,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Mushroom_2","x":37.912365,"y":9.208178,"z":-5,"rotation":5.9906583,"scaleX":1,"scaleY":1},
     {"id":"Bush_02_0","x":0.5335903,"y":2.3883953,"z":-5,"rotation":6.033957,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_3","x":15.876804,"y":-2.3128529,"z":-5,"rotation":0.34612763,"scaleX":1,"scaleY":1},
@@ -76,7 +76,7 @@
     {"id":"Mushroom_3","x":44.658924,"y":9.770826,"z":-5,"rotation":0.36855227,"scaleX":1,"scaleY":1},
     {"id":"Glow_01","x":-44.38877,"y":3.012556,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Crystal_01","x":-55.02039,"y":4.0715733,"z":-5,"rotation":3.6590462,"scaleX":1,"scaleY":1},
-    {"id":"Secret_01","x":42.807728,"y":8.932055,"z":-0.09982536,"rotation":0.1628237,"scaleX":0.40000004,"scaleY":0.4}
+    {"id":"Secret_01","x":42.807728,"y":8.932055,"z":-0.09982536,"rotation":0.1628237,"scaleX":0.40000004,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":2.994792,"sizeY":1.979167,"sizeZ":4,"rotation":0}]}
   ],
   "terrain": [
     {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_26",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Halloween","x":-32.936417,"y":11.973755,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-17.3461,"y":29.663242,"z":0,"rotation":0.07176243,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":-32.936417,"y":11.973755,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-17.3461,"y":29.663242,"z":0,"rotation":0.07176243,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Crumbs_Line_01","x":-32.01999,"y":-6.6420555,"z":-5.1,"rotation":0,"scaleX":1.5,"scaleY":1.5},
     {"id":"Cracker_03_Part_02","x":-53.788956,"y":26.893486,"z":-5,"rotation":0.17743516,"scaleX":2,"scaleY":2},
     {"id":"BonBon_01","x":-10.083069,"y":28.823248,"z":-5.064512,"rotation":0,"scaleX":1,"scaleY":1},

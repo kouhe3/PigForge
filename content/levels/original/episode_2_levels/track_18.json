@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "track_18",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":18.162724,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_StarLevel","x":-10.230502,"y":14.690341,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-23.75409,"y":19.71883,"z":0,"rotation":5.727116,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":-10.230502,"y":14.690341,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-23.75409,"y":19.71883,"z":0,"rotation":5.727116,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Mushroom_02","x":-3.3182507,"y":-2.9275818,"z":-5,"rotation":5.8862934,"scaleX":-1,"scaleY":1},
     {"id":"Cave_Mushroom_01","x":7.103611,"y":-7.237995,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Rock_03","x":-4.075823,"y":-7.379715,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},

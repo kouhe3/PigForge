@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_1",
   "goalZone": {
     "min": [
@@ -29,7 +29,7 @@
   "cameraLimits": {"topLeft":[-207.8,42.2],"size":[50,54]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-180.88,"y":7.949999,"z":-0.02,"rotation":0.026470432,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-180.88,"y":7.949999,"z":-0.02,"rotation":0.026470432,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Grass14","x":-179.468,"y":14.254797,"z":-1,"rotation":0.07408462,"scaleX":-1,"scaleY":1},
     {"id":"Grass08","x":-171.099,"y":28.824797,"z":0.9,"rotation":5.5954113,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-202.442,"y":-1.1792011,"z":0.9,"rotation":1.0684583,"scaleX":1,"scaleY":1},

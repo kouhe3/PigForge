@@ -124,7 +124,7 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 8,
+            "schemaVersion": 9,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
@@ -550,7 +550,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)7, LevelContentDocument.SchemaVersion);
+        Assert.Equal((ushort)8, LevelContentDocument.SchemaVersion);
         Assert.Empty(level.Terrain);
         Assert.Collection(
             level.Props,
@@ -621,7 +621,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)7, LevelContentDocument.SchemaVersion);
+        Assert.Equal((ushort)8, LevelContentDocument.SchemaVersion);
         Assert.Collection(
             level.Props,
             prop =>
@@ -660,6 +660,68 @@ public sealed class LevelContentTests
 
         Assert.Equal(671, boxes);
         Assert.Equal(126, levelsWithBoxes);
+    }
+
+    /// <summary>
+    /// v8 gives a placed prop its own trigger boxes: the original's trigger colliders, which the room
+    /// overlaps with the pig to collect a challenge (`docs/specs/level-challenges.md` §3). They are a
+    /// separate list from `boxes` -- a wall is built as a body, a marker is not.
+    /// </summary>
+    [Fact]
+    public void AVersionEightLevelGivesItsPropsTriggerBoxes()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 8,
+            "contentVersion": "props-v8",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "props": [
+                {
+                    "id": "BoxChallenge", "x": 4, "y": 2, "z": 0, "rotation": 0, "scaleX": 1, "scaleY": 1,
+                    "triggers": [ { "dx": 0, "dy": 0, "dz": 0, "sizeX": 1.328125, "sizeY": 1.328125, "sizeZ": 1, "rotation": 0 } ]
+                },
+                { "id": "Grass_06", "x": 0, "y": 0, "z": -5, "rotation": 0, "scaleX": 1, "scaleY": 1 }
+            ],
+            "terrain": []
+        }
+        """;
+
+        LevelContentDocument level = LevelContentParser.Parse(json);
+
+        LevelPropDefinition prop = level.Props[0];
+        Assert.Equal("BoxChallenge", prop.Id);
+        Assert.Empty(prop.Boxes);
+        LevelPropBoxDefinition trigger = Assert.Single(prop.Triggers);
+        Assert.Equal(1.328125f, trigger.SizeX);
+
+        // The markers the rules test: one zone per trigger, centred on the prop's own pose.
+        IReadOnlyList<ChallengeTriggerDefinition> triggers = LevelChallengeTriggers.Build(level);
+        ChallengeTriggerDefinition zone = Assert.Single(triggers);
+        Assert.Equal(0, zone.PropIndex);
+        Assert.Equal(4f - (1.328125f / 2f), zone.Zone.Min.X, precision: 3);
+        Assert.Equal(2f - (1.328125f / 2f), zone.Zone.Min.Y, precision: 3);
+        Assert.Equal(4f + (1.328125f / 2f), zone.Zone.Max.X, precision: 3);
+        Assert.True(zone.Zone.Contains(new PhysicsVector3(4f, 2f, 0f)));
+        Assert.False(zone.Zone.Contains(new PhysicsVector3(4f, 4f, 0f)));
+
+        // The converted pack carries them: 948 props across 277 levels, every box a real shape.
+        int triggerProps = 0;
+        foreach (string file in Directory.EnumerateFiles(FindRepositoryDirectory("content/levels/original"), "*.json", SearchOption.AllDirectories))
+        {
+            LevelContentDocument document = LevelContentLibrary.Parse(File.ReadAllText(file));
+            triggerProps += document.Props.Count(candidate => candidate.Triggers.Count > 0);
+            Assert.All(
+                document.Props.SelectMany(candidate => candidate.Triggers),
+                box => Assert.True(
+                    box.SizeX > 0f && box.SizeY > 0f && box.SizeZ >= 0f,
+                    $"{file}: a trigger with a non-positive size ({box.SizeX}, {box.SizeY}, {box.SizeZ})"));
+        }
+
+        Assert.Equal(948, triggerProps);
     }
 
     [Theory]

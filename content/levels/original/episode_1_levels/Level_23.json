@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "Level_23",
   "goalZone": {
     "min": [
@@ -30,10 +30,10 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_StarLevel","x":7.020794,"y":-4.71953,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":7.020794,"y":-4.71953,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"TNT_Box","x":11.971796,"y":-6.1041126,"z":0,"rotation":6.2786975,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":10.723451,"y":-6.093858,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"BoxChallenge","x":-25.878626,"y":10.598535,"z":0,"rotation":6.105728,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-25.878626,"y":10.598535,"z":0,"rotation":6.105728,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Crystal_01","x":-62.838383,"y":5.287375,"z":-5,"rotation":3.2568722,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":15.730331,"y":-7.2381935,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_03","x":3.7925186,"y":-7.1121054,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

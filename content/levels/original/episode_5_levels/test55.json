@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "test55",
   "goalZone": {
     "min": [
@@ -30,12 +30,12 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Halloween","x":37.44362,"y":3.4334378,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":37.44362,"y":3.4334378,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"TNT_Box","x":-76.31434,"y":-6.1985307,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":8.938149,"y":-5.355966,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":12.691404,"y":-6.1678863,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-24.296976,"y":-6.1926126,"z":0,"rotation":4.712392,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"BoxChallenge","x":-15.554245,"y":4.042699,"z":0,"rotation":0.33170265,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-15.554245,"y":4.042699,"z":0,"rotation":0.33170265,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Background_Cloud_02_SET_2","x":-32.701633,"y":8.454446,"z":12.524271,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET_2","x":16.98774,"y":14.691001,"z":12.949767,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET_2","x":-56.385635,"y":12.022237,"z":12.021356,"rotation":0,"scaleX":1,"scaleY":1},

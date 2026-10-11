@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_19",
   "goalZone": {
     "min": [
@@ -40,10 +40,10 @@
     }
   ],
   "props": [
-    {"id":"DynamicBoxChallenge","x":-176.44,"y":15.339999,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
-    {"id":"PressureButtonYellow","x":-187.223,"y":19.56,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonRed","x":-182.101,"y":11.846,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-161.06,"y":-5.08,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1},
+    {"id":"DynamicBoxChallenge","x":-176.44,"y":15.339999,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}],"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonYellow","x":-187.223,"y":19.56,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonRed","x":-182.101,"y":11.846,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
+    {"id":"Fan","x":-161.06,"y":-5.08,"z":0,"rotation":4.712389,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
     {"id":"MayanPot02","x":-182.6,"y":4.52,"z":3,"rotation":0.56004393,"scaleX":1,"scaleY":1},
     {"id":"MayanChest01","x":-184.92,"y":-5.99,"z":3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Spear2","x":-178.52,"y":-5.33,"z":3,"rotation":0.22092511,"scaleX":1,"scaleY":1},
@@ -101,7 +101,7 @@
     {"id":"AncestorPig","x":-188.72,"y":32.84,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1},
     {"id":"AncestorPig","x":-179.25,"y":28.45,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"AncestorPig","x":-176.44,"y":16.27,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"SecretStatue","x":-181.09,"y":-5.4,"z":1,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"SecretStatue","x":-181.09,"y":-5.4,"z":1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]},
     {"id":"LitMushroom_03","x":-182.06,"y":11.74,"z":20,"rotation":0,"scaleX":0,"scaleY":0}
   ],
   "terrain": [

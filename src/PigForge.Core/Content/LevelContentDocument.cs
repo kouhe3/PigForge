@@ -50,6 +50,13 @@ public sealed record LevelPropDefinition(
     /// A trigger (a challenge's box, a goal, a secret, a pressure plate) is not a wall and is left out.
     /// </summary>
     public IReadOnlyList<LevelPropBoxDefinition> Boxes { get; init; } = Array.Empty<LevelPropBoxDefinition>();
+
+    /// <summary>
+    /// The instance's trigger geometry, one entry per trigger box collider the original's prefab carries
+    /// (schemaVersion 8, `docs/specs/level-challenges.md` §3). The room never builds a body for these: it
+    /// overlaps them with the contraption to collect a challenge.
+    /// </summary>
+    public IReadOnlyList<LevelPropBoxDefinition> Triggers { get; init; } = Array.Empty<LevelPropBoxDefinition>();
 }
 
 /// <summary>
@@ -159,10 +166,11 @@ public sealed record LevelContentDocument(
     /// <summary>
     /// The version this code writes: v3 gives every terrain its collider bit and its fill, v4 adds the
     /// edge trim (<see cref="LevelCurveDefinition"/>), v5 adds the level's own camera limits
-    /// (<see cref="CameraLimits"/>), v6 adds the level's decoration instances (<see cref="Props"/>)
-    /// and v7 gives a placed prop its solid boxes (<see cref="LevelPropDefinition.Boxes"/>).
+    /// (<see cref="CameraLimits"/>), v6 adds the level's decoration instances (<see cref="Props"/>),
+    /// v7 gives a placed prop its solid boxes (<see cref="LevelPropDefinition.Boxes"/>) and v8 its
+    /// trigger boxes (<see cref="LevelPropDefinition.Triggers"/>, `docs/specs/level-challenges.md`).
     /// </summary>
-    public const ushort SchemaVersion = 7;
+    public const ushort SchemaVersion = 8;
 
     /// <summary>
     /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill), v3 ones

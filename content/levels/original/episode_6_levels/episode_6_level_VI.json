@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_VI",
   "goalZone": {
     "min": [
@@ -29,11 +29,11 @@
   "cameraLimits": {"topLeft":[-191.07,59],"size":[49.3,72]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-175.43001,"y":34.936996,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonGreen","x":-159.82,"y":35.808,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonYellow","x":-173.42,"y":45.8,"z":0.20000005,"rotation":6.05051,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonRed","x":-156.73,"y":39.52,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonBlue","x":-183.346,"y":33.385,"z":0.20000005,"rotation":5.3185725,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-175.43001,"y":34.936996,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonGreen","x":-159.82,"y":35.808,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonYellow","x":-173.42,"y":45.8,"z":0.20000005,"rotation":6.05051,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonRed","x":-156.73,"y":39.52,"z":0.20000005,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonBlue","x":-183.346,"y":33.385,"z":0.20000005,"rotation":5.3185725,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorYellow","x":-174.05,"y":13.1,"z":0,"rotation":1.0471976,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue","x":-170.998,"y":29.74,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorGreen","x":-165.92,"y":19.79,"z":0,"rotation":1.9198622,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},

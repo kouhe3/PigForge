@@ -863,6 +863,7 @@ export function openProps(bpleRoot) {
       gameObjects: objects.length,
       quads: [],
       boxes: [],
+      triggers: [],
       clouds: cloudSet ? cloudSpec(name, objects) : null,
     };
     if (bridge) {
@@ -923,10 +924,12 @@ export function openProps(bpleRoot) {
         // The solid boxes sit on the transform chain just like the quads do, so an off-origin child
         // collider (`BreakableWall`'s own `Collider`) lands where the original put it.
         if (active) {
+          // A box collider is either a wall (`boxes`, built as a static body) or a marker
+          // (`triggers`, the overlap the challenge rules test) -- `docs/specs/level-challenges.md` §3.
           for (const collider of object.colliders) {
-            if (collider.kind !== "BoxCollider" || collider.trigger || skippedColliderObjects.includes(object.name)) continue;
+            if (collider.kind !== "BoxCollider" || skippedColliderObjects.includes(object.name)) continue;
             must(collider.size.length === 3, `${name}/${object.name}: a box collider without a size`);
-            record.boxes.push(boxQuad(name, object, frame, depth, collider));
+            (collider.trigger ? record.triggers : record.boxes).push(boxQuad(name, object, frame, depth, collider));
           }
         }
         for (const child of childrenOf.get(object.transformAnchor) ?? []) {

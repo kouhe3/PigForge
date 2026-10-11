@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_21",
   "goalZone": {
     "min": [
@@ -29,9 +29,9 @@
   "cameraLimits": {"topLeft":[-228.68,44],"size":[69.1,55]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-186.16301,"y":-2.5750008,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"DynamicBoxChallenge","x":-183.5,"y":39.75,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
-    {"id":"PressureButtonRed","x":-182.86,"y":6.483,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-186.16301,"y":-2.5750008,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"DynamicBoxChallenge","x":-183.5,"y":39.75,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}],"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonRed","x":-182.86,"y":6.483,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorYellow","x":-181.143,"y":38.97,"z":0,"rotation":4.7094574,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorGreen","x":-206.05,"y":9.05,"z":0,"rotation":0.4384994,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorRed","x":-188.244,"y":3.389,"z":0,"rotation":4.7126126,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
@@ -99,9 +99,9 @@
     {"id":"Grass20","x":-204.612,"y":10.472,"z":0.9,"rotation":0.45396572,"scaleX":-1,"scaleY":1},
     {"id":"Grass23","x":-199.825,"y":6.638,"z":0.9,"rotation":4.414991,"scaleX":1,"scaleY":1},
     {"id":"Grass21","x":-174.227,"y":6.341,"z":2.2,"rotation":0.08825749,"scaleX":-1,"scaleY":1},
-    {"id":"PressureButtonGreen","x":-194.89,"y":12.43,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonBlue","x":-204.928,"y":21.788,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonYellow","x":-177.42,"y":-6.73,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"PressureButtonGreen","x":-194.89,"y":12.43,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonBlue","x":-204.928,"y":21.788,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
+    {"id":"PressureButtonYellow","x":-177.42,"y":-6.73,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue","x":-206.911,"y":19.59,"z":0,"rotation":4.711619,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
   ],
   "terrain": [

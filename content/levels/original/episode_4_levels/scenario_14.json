@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_14",
   "goalZone": {
     "min": [
@@ -30,9 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Night","x":-20.960247,"y":-5.3265896,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-9.414885,"y":-2.1645222,"z":0,"rotation":0.3340751,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-19.041067,"y":-0.5525517,"z":0,"rotation":0.22617333,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":-20.960247,"y":-5.3265896,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-9.414885,"y":-2.1645222,"z":0,"rotation":0.3340751,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-19.041067,"y":-0.5525517,"z":0,"rotation":0.22617333,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Gravel_03","x":-31.206419,"y":-6.8265705,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_12","x":-2.8245792,"y":-2.7453804,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-11.950996,"y":-6.6683674,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_VII",
   "goalZone": {
     "min": [
@@ -29,8 +29,8 @@
   "cameraLimits": {"topLeft":[-213.74,40.9],"size":[82.01,52.12]},
   "spawns": [],
   "props": [
-    {"id":"BoxChallenge","x":-145.004,"y":7.5269995,"z":0,"rotation":5.9463854,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-138.199,"y":9.245999,"z":0,"rotation":0.42339692,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-145.004,"y":7.5269995,"z":0,"rotation":5.9463854,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-138.199,"y":9.245999,"z":0,"rotation":0.42339692,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Snow05","x":-212.14499,"y":36.32,"z":-3.1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-211.94499,"y":35.892,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower5","x":-200.5,"y":27.46,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},

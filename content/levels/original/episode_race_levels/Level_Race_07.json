@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "Level_Race_07",
   "goalZone": {
     "min": [
@@ -32,7 +32,7 @@
     {"id":"background_plateau_01_set","x":185.4102,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_plateau_01_set","x":371.8412,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Night","x":426.73416,"y":12.315454,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":426.73416,"y":12.315454,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"TNT_Box","x":149.96812,"y":22.477419,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":144.92729,"y":21.119343,"z":0,"rotation":0.118883185,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":145.47964,"y":13.784815,"z":0,"rotation":4.4669647,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},

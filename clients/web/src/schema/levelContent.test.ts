@@ -65,7 +65,7 @@ describe("validateLevelContent root", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expectRejected({ schemaVersion: 8 }, "root.schemaVersion");
+    expectRejected({ schemaVersion: 9 }, "root.schemaVersion");
   });
 
   it("rejects an empty, padded or non-string contentVersion", () => {
@@ -492,6 +492,41 @@ describe("validateLevelContent solid boxes", () => {
     const missing = structuredClone(v7) as Record<string, unknown>;
     delete missing.props;
     expect(validateLevelContent(missing)).toContain("root.props: required on a schemaVersion 7 document.");
+  });
+});
+
+/** The v8 document: the v7 one with its first prop carrying the original's own trigger box. */
+const v8 = {
+  ...structuredClone(v7),
+  schemaVersion: 8,
+  props: [
+    {
+      ...structuredClone(v7.props[0]),
+      triggers: [{ dx: 0, dy: 0, dz: 0, sizeX: 3.81, sizeY: 9.650253, sizeZ: 0, rotation: 0 }],
+    },
+    structuredClone(v7.props[1]),
+  ],
+};
+
+describe("validateLevelContent trigger boxes", () => {
+  it("accepts a v8 document whose prop carries a trigger", () => {
+    expect(validateLevelContent(v8)).toEqual([]);
+  });
+
+  it("refuses triggers before v8 and malformed triggers on v8", () => {
+    const older = structuredClone(v8) as Record<string, unknown>;
+    older.schemaVersion = 7;
+    expect(validateLevelContent(older)).toContain("root.props[0]: unknown property 'triggers'.");
+
+    const malformed = (triggers: unknown): string[] =>
+      validateLevelContent({ ...structuredClone(v8), props: [{ ...structuredClone(v8.props[0]), triggers }] });
+    expect(malformed(3)).toContain("root.props[0].triggers: must be an array.");
+    expect(malformed([{ dx: 0, dy: 0, dz: 0, sizeX: 0, sizeY: 1, sizeZ: 1, rotation: 0 }]))
+      .toContain("root.props[0].triggers[0].sizeX: a solid box needs a positive size.");
+  });
+
+  it("rejects an unsupported schema version past v8", () => {
+    expectRejected({ schemaVersion: 9 }, "root.schemaVersion");
   });
 });
 

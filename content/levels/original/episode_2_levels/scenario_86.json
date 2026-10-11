@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_86",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Morning","x":-10.354997,"y":-4.1801605,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-24.076767,"y":3.3501153,"z":0,"rotation":6.201195,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":-10.354997,"y":-4.1801605,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-24.076767,"y":3.3501153,"z":0,"rotation":6.201195,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Crystal_03","x":-16.71878,"y":16.534998,"z":-5,"rotation":3.274214,"scaleX":-1,"scaleY":1},
     {"id":"Glow_01","x":-18.163284,"y":15.305109,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Grass_07","x":-41.703224,"y":3.6737652,"z":-5,"rotation":6.2385283,"scaleX":-1,"scaleY":1},

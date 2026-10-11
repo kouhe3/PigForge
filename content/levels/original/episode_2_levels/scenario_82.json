@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_82",
   "goalZone": {
     "min": [
@@ -30,9 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Morning","x":-38.16248,"y":-0.8644707,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-35.90417,"y":3.9959755,"z":0,"rotation":4.5066557,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-32.98347,"y":6.655136,"z":0,"rotation":5.727667,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":-38.16248,"y":-0.8644707,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-35.90417,"y":3.9959755,"z":0,"rotation":4.5066557,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-32.98347,"y":6.655136,"z":0,"rotation":5.727667,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Mushroom_2","x":-5.825215,"y":-3.0294342,"z":-5,"rotation":4.3867474,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_3","x":-2.916638,"y":-3.7810268,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Crystal_03","x":-47.172447,"y":9.361727,"z":-5,"rotation":2.8372087,"scaleX":-1,"scaleY":1},

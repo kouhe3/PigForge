@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "episode_6_level_6",
   "goalZone": {
     "min": [
@@ -40,8 +40,8 @@
     }
   ],
   "props": [
-    {"id":"DynamicBoxChallenge","x":-179.3,"y":50.021385,"z":0,"rotation":5.530832,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
-    {"id":"DynamicBoxChallenge","x":-175.72,"y":5.481386,"z":0,"rotation":5.5308304,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"DynamicBoxChallenge","x":-179.3,"y":50.021385,"z":0,"rotation":5.530832,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}],"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"DynamicBoxChallenge","x":-175.72,"y":5.481386,"z":0,"rotation":5.5308304,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}],"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"AncestorPig","x":-175.72,"y":6.42,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanPot01","x":-176.728,"y":0.47799873,"z":2,"rotation":0.002020015,"scaleX":1,"scaleY":1},
     {"id":"Spear3","x":-177.013,"y":1.0579987,"z":2,"rotation":5.936067,"scaleX":1,"scaleY":1},
@@ -119,7 +119,7 @@
     {"id":"LitMushroom_05","x":-205.66,"y":14.05,"z":-2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-193.554,"y":14.244,"z":1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush","x":-188.73,"y":9.97,"z":-32.95,"rotation":6.062082,"scaleX":1,"scaleY":1},
-    {"id":"SecretStatue","x":-187.141,"y":11.236,"z":1,"rotation":0.019809868,"scaleX":1,"scaleY":1},
+    {"id":"SecretStatue","x":-187.141,"y":11.236,"z":1,"rotation":0.019809868,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]},
     {"id":"AncestorPig","x":-179.3,"y":50.96,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bridge","x":-204.92,"y":13.8,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt16","x":-222.54,"y":1.87,"z":1.5,"rotation":6.2699394,"scaleX":1,"scaleY":1},

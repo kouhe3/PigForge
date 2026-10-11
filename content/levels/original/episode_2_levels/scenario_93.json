@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_93",
   "goalZone": {
     "min": [
@@ -30,9 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_StarLevel","x":-43.804745,"y":13.837112,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-34.01818,"y":20.320618,"z":0,"rotation":6.2570076,"scaleX":1,"scaleY":1},
-    {"id":"Secret_02","x":-13.4982815,"y":5.234223,"z":-0.22135592,"rotation":0.087141946,"scaleX":0.4,"scaleY":0.4},
+    {"id":"GoalArea_StarLevel","x":-43.804745,"y":13.837112,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-34.01818,"y":20.320618,"z":0,"rotation":6.2570076,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"Secret_02","x":-13.4982815,"y":5.234223,"z":-0.22135592,"rotation":0.087141946,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":3.984375,"sizeY":2.994792,"sizeZ":4,"rotation":0}]},
     {"id":"Mushroom_02","x":-12.691492,"y":5.0911217,"z":-5,"rotation":0.18913455,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_03","x":-51.245533,"y":-7.2834606,"z":-5.2544546,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-50.74565,"y":-6.8696575,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

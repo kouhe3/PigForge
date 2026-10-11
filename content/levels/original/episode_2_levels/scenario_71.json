@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "scenario_71",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Morning","x":-19.105923,"y":26.407118,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-25.14032,"y":21.614193,"z":0,"rotation":5.740929,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":-19.105923,"y":26.407118,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-25.14032,"y":21.614193,"z":0,"rotation":5.740929,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Starfish","x":-60.02846,"y":-7.0575123,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_09","x":-11.324127,"y":2.8328838,"z":-5,"rotation":0.60010153,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_1","x":-31.436758,"y":11.719156,"z":-5,"rotation":5.7184424,"scaleX":1,"scaleY":1},

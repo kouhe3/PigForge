@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "test54",
   "goalZone": {
     "min": [
@@ -30,8 +30,8 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Night","x":11.328722,"y":-5.3268995,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-4.3649,"y":20.85688,"z":0,"rotation":6.282185,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":11.328722,"y":-5.3268995,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":-4.3649,"y":20.85688,"z":0,"rotation":6.282185,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Bird_Yellow_01","x":19.93149,"y":7.355496,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Tuft_02","x":2.3376217,"y":-6.67276,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Rock_02","x":26.117857,"y":-6.748701,"z":-5.254694,"rotation":0,"scaleX":-1,"scaleY":1},

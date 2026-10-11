@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "track_25",
   "goalZone": {
     "min": [
@@ -30,10 +30,10 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_Morning","x":-9.353027,"y":-5.3227644,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":-9.353027,"y":-5.3227644,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"TNT_Box","x":-2.7546644,"y":4.8551307,"z":0,"rotation":0.3305088,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-8.573515,"y":12.243042,"z":0,"rotation":6.167337,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"BoxChallenge","x":4.9949226,"y":-4.508176,"z":0,"rotation":4.9379177,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":4.9949226,"y":-4.508176,"z":0,"rotation":4.9379177,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Grass_08","x":12.548672,"y":-1.7747059,"z":-5,"rotation":0.11286537,"scaleX":1,"scaleY":1},
     {"id":"Bush_04","x":14.356743,"y":11.888002,"z":-5,"rotation":6.2344384,"scaleX":-1,"scaleY":1},
     {"id":"Bush_02_0","x":41.76582,"y":11.8218975,"z":-5,"rotation":0.14337425,"scaleX":-1,"scaleY":1},

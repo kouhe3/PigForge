@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "contentVersion": "Level_36",
   "goalZone": {
     "min": [
@@ -30,12 +30,12 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_StarLevel","x":3.237907,"y":-4.621671,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":3.237907,"y":-4.621671,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
     {"id":"TNT_Box","x":-1.7395948,"y":-1.1217399,"z":0,"rotation":6.0577593,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-9.379101,"y":-4.456225,"z":0,"rotation":0.1861729,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-15.8824625,"y":-4.2823834,"z":0,"rotation":5.7112975,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-14.282231,"y":-4.1776795,"z":0,"rotation":0.3133173,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"BoxChallenge","x":-34.31534,"y":-1.8524908,"z":0,"rotation":6.2741904,"scaleX":1,"scaleY":1},
+    {"id":"BoxChallenge","x":-34.31534,"y":-1.8524908,"z":0,"rotation":6.2741904,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Gravel_03","x":-45.34117,"y":-6.7304764,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_01","x":-61.04671,"y":-7.210121,"z":-5.5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_02","x":-32.424015,"y":-7.357853,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

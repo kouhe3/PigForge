@@ -133,6 +133,12 @@ public sealed class GameRoom : IDisposable
     /// <summary>How many static terrain bodies the level brought (test-visible).</summary>
     internal int TerrainBodyCount => _terrainBodies.Count;
     private readonly List<PhysicsBodyId> _propBodies = new();
+    /// <summary>The level props the challenge rule has collected, as indices into the document's `props`
+    /// (`docs/specs/level-challenges.md` §4). Cleared by `Retry`, like the original's `OnReset`.</summary>
+    private readonly HashSet<int> _collectedProps = new();
+
+    /// <summary>How many of the level's challenge markers have been collected (test-visible).</summary>
+    internal int CollectedPropCount => _collectedProps.Count;
 
     /// <summary>How many static bodies the level's own solid props brought (test-visible).</summary>
     internal int PropBodyCount => _propBodies.Count;
@@ -844,6 +850,8 @@ public sealed class GameRoom : IDisposable
         }
 
         _output.Clear();
+        _collectedProps.Clear();
+        _rules.ClearChallenges();
         uint[] entityValues = _bodyByEntity.Keys.ToArray();
         Array.Sort(entityValues);
         HashSet<uint> destroyedBodies = new();
@@ -1435,6 +1443,11 @@ public sealed class GameRoom : IDisposable
         // tick's snapshot copy must have room for it. Done last: growing the snapshot buffer discards
         // this tick's telemetry, which the phase above still reads.
         EnsureBuffers();
+
+        foreach (int propIndex in _output.CollectedProps)
+        {
+            _collectedProps.Add(propIndex);
+        }
 
         if (_sandboxMode)
         {

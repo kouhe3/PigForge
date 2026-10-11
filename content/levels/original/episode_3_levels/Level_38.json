@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 6,
+  "schemaVersion": 8,
   "contentVersion": "Level_38",
   "goalZone": {
     "min": [
@@ -30,9 +30,9 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"GoalArea_02","x":0.5341983,"y":-5.304106,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":11.508396,"y":2.1813278,"z":0,"rotation":0.40864018,"scaleX":1,"scaleY":1},
-    {"id":"BoxChallenge","x":-26.496357,"y":-6.1037884,"z":0,"rotation":6.25855,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_02","x":0.5341983,"y":-5.304106,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
+    {"id":"BoxChallenge","x":11.508396,"y":2.1813278,"z":0,"rotation":0.40864018,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
+    {"id":"BoxChallenge","x":-26.496357,"y":-6.1037884,"z":0,"rotation":6.25855,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Flower_02","x":-30.236866,"y":-6.802701,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_06","x":-14.659035,"y":2.5351973,"z":-5,"rotation":6.002569,"scaleX":1,"scaleY":1},
     {"id":"Crystal_02","x":-33.796883,"y":4.1552906,"z":-5,"rotation":2.4200256,"scaleX":1,"scaleY":1},
@@ -81,7 +81,7 @@
     {"id":"Background_Cloud_01_SET_0","x":63.78318,"y":20.300056,"z":15.530249,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":77.12519,"y":18.448668,"z":15.2192545,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET_0","x":-2.6083891,"y":17.39411,"z":15.086624,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"Secret_01","x":-46.694492,"y":0.24126548,"z":-0.14766765,"rotation":0.06784567,"scaleX":0.4,"scaleY":0.4}
+    {"id":"Secret_01","x":-46.694492,"y":0.24126548,"z":-0.14766765,"rotation":0.06784567,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":2.994792,"sizeY":1.979167,"sizeZ":4,"rotation":0}]}
   ],
   "terrain": [
     {
