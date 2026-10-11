@@ -148,7 +148,9 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
   三条比较逐字照抄（下边、右 `×1.1`、左 `×0.1`，没有上界），后果 = 房间 `Retry()`（回到建造位、可再 Start），
   不再停在 `Failed`。没有相机界的 v1 靶场文档（`slope-v1`/`terrain-v1`）保留 `MapBounds` → `Failed`。
   `bounds` 的语义因此收窄：它是客户端自己的地形盒子（画图 + 取景兜底），也是沙盒回收出界玩家的盒子。
-- 没有星级/挑战/计时/收集/存档/关卡选择/结算页（`G79`–`G84` 全部未实现）。
+- 没有星级/挑战/计时/存档/关卡选择/结算页（`G79`–`G84` 除收集外全部未实现）；**建造限制已搬**
+  （2026-10-11，内容 **v9** 的 `build`：275/277 关的建造网格 + 每族配额，见 `docs/specs/level-build-limits.md`
+  与 `ADR-037`）。
 - 物理契约已有 `PhysicsShapeKind.ConvexMesh` / `TriangleMesh` 两个枚举值、`PartContentParser` 也认得
   `convexMesh`/`triangleMesh` 的 `vertices`/`triangles` 键。**网格形状已落地**（2026-10-06，`ADR-032`）：
   `TriangleMeshShapeDefinition`（静态专用、双面语义）由两个后端各自实现（Bepu `Collidables.Mesh`、
@@ -160,10 +162,10 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 | 片 | 内容 | 依赖 |
 |---|---|---|
 | P1 ✅ | 解码工具 + 报告（本文档的证据面） | — |
-| P2 ◐ | 关卡内容格式 v2 + 搬运：契约（`terrain`: position/depth/**边界环**）、房间侧的静态网格体（无实体）、转换器 `tools/bple-levels/build-levels.mjs`、客户端 `GET /level` 侧通道与地形绘制 —— 见 `ADR-033`。**v3 已补**：每个地形对象的 `collider` 位（1648 碰撞 / 498 纯视觉）与 `fill`（`e2d/Fill` 的贴图/颜色/tile，17 张贴图复制到客户端资产目录）——见 `docs/specs/level-terrain-visuals.md`。**v4 已补**：`_curve` 边缘条带（两行顶点 + 两层贴图与 wrap + `uScale` + `splat1` 运行段；控制贴图在构建期折成运行段）。**v5 已补**：`PrefabOverrides` 的读取（`lib/overrides.mjs`）与 `cameraLimits`（277/277 关，即猪的边界与回建造态的后果）——见 `ADR-036`。**未做**：道具实例、其余 override 字段（建造网格行、挑战、道具行为） | 格式已定（§3） |
+| P2 ◐ | 关卡内容格式 v2 + 搬运：契约（`terrain`: position/depth/**边界环**）、房间侧的静态网格体（无实体）、转换器 `tools/bple-levels/build-levels.mjs`、客户端 `GET /level` 侧通道与地形绘制 —— 见 `ADR-033`。**v3 已补**：每个地形对象的 `collider` 位（1648 碰撞 / 498 纯视觉）与 `fill`（`e2d/Fill` 的贴图/颜色/tile，17 张贴图复制到客户端资产目录）——见 `docs/specs/level-terrain-visuals.md`。**v4 已补**：`_curve` 边缘条带（两行顶点 + 两层贴图与 wrap + `uScale` + `splat1` 运行段；控制贴图在构建期折成运行段）。**v5 已补**：`PrefabOverrides` 的读取（`lib/overrides.mjs`）与 `cameraLimits`（277/277 关，即猪的边界与回建造态的后果）——见 `ADR-036`。**v9 已补**：建造限制 `build`（`m_constructionGridRows` 的位掩码网格 + `m_partTypeCounts` 的每族配额，275/277 关；房间两条判据 + 客户端建造栏与网格绘制）——见 `docs/specs/level-build-limits.md` / `ADR-037`。**未做**：其余 override 字段（挑战、道具行为） | 格式已定（§3） |
 | P3 ✅ | 地形进物理：契约 `TriangleMeshShapeDefinition` + 两个后端的静态网格形状（`ADR-032`） | 独立于 P2，已先行 |
 | P4 ◐ | 道具件（**2026-10-09 起 = 368 个道具 prefab，玩家已把 A1 扩到含道具件**）：按 `docs/specs/level-props.md` 的四类推进。**P4a ✅ 装饰四边面**（251 prefab / 15132 实例，2026-10-09 第三十轮：内容 **v6** 的 `props` + `tools/bple-props` 的 `level-props.json` + 客户端按 z 分段绘制）→ P4b 背景组与多面特殊件 → P4c 实心件（碰撞体） | P2 |
-| P5 | 目标/挑战/收集：星级 3 条（过关 + 两个 Challenge）、计时、收集计数 | P4 |
+| P5 ◐ | 收集**已交付**（P5-b-1/-2/-3：触发盒 + 猪自身判定 + PGFS v7 的收集段，`docs/specs/level-challenges.md`）；**未做**：星级 3 条（过关 + 两个 Challenge）、计时、结算 | P4 |
 | P6 | 进度持久化 + 关卡选择 + 结算页 | P5 |
 
 ## 9. 开放问题（A = 需要拍板，B = 按默认落文档）
@@ -181,7 +183,7 @@ overrides := int32 byteLength + byteLength 字节（UTF-8，ObjectDeserializer �
 - **A4 失败条件**（**已收口**，2026-10-08）：出界是原版机制 —— 矩形 = 关卡自己的 `m_cameraLimits`
   （`PrefabOverrides`，内容 v5）、判定在猪自己的 transform、后果 = 回建造态（房间 `Retry`）；
   `MaxTicks: 1200` 已删除。见 §7 与 `ADR-036`。
-- **B1 关卡 JSON**：`schemaVersion` 已到 **6**（v2 地形 / v3 fill / v4 边缘条带 / v5 相机界 / v6 道具件）；旧版本文档一律保持可解析。
+- **B1 关卡 JSON**：`schemaVersion` 已到 **9**（v2 地形 / v3 fill / v4 边缘条带 / v5 相机界 / v6 道具件 / v7 道具盒体 / v8 道具触发盒 / v9 建造限制 `build`）；旧版本文档一律保持可解析。
 - **B2 道具件的最小集合**：**已收口**（2026-10-09）——判据不是「出现频率」而是「一个 prefab 是不是
   单个四边面的装饰件」：**251 个 prefab / 15132 个实例**，清单、画法与分片见 `docs/specs/level-props.md`。
 - **B3 `TerrainScale`**：按声明默认档 1.0 走恒等；不做用户档位。
@@ -208,3 +210,8 @@ curl http://127.0.0.1:5088/level                   # 与服务器解析的同一
 道具件（P4a，2026-10-09）另加：`node tools/bple-props/extract-props.mjs` 报 `palette prefabs: 368`、
 `decor: 251 props / 15132 instances`、`manifest + atlas writes: 0 changed`（第二次），`build-levels` 报
 `decor instances: 15132` / `classified instances: 26072`，客户端实机读数见 `docs/specs/level-props.md` §8。
+建造限制（v9，2026-10-11）另加：`build limits: 275/277 levels (2 without: Level_Sandbox_02,
+Level_Sandbox_06), 1926 families / 3394 parts, 42 grid shape(s), 75 row list(s)`、
+`build no-base PartTypes: Pumpkin(42) x16, GoldenPig(45) x14`、`second-star fields:
+m_extraPartsForSecondStar=21 m_gridForSecondStar=22 m_secondStarConstructionGridRows=20`，第二次运行
+`0 changed, 277 unchanged`；逐关的锚点/网格/族与总数见报告 `levels[].build`（`docs/specs/level-build-limits.md` §6）。

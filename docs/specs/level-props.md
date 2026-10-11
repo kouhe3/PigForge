@@ -281,6 +281,15 @@ y∈±m_height, z∈[0, m_farPlane])`；`useCustomParallax` 时整组注册成 `
 **实测佐证**（浏览器里直接调 `drawProps`）：相机 x 平移 20 米时，`ParallaxLayerSky` 层的世界位移
 读数为 **16 米** = `0.8 × 20`，屏幕位移 `−88 px` = `(20 − 16) × 22 px/m`（§8）。
 
+**层的归属由因子决定，不由 z 决定**（2026-10-11 修，`draw.ts` 的 `propDepthBuckets`）：视差层的 z 是
+**天幕自己那趟绘制里的深度**，不在关卡的 −15…+20 区间里 —— 实测 **79 关 / 1574 个四边面**的因子是正的
+（`ParallaxLayerFar` 0.6），z 却是 −15.31…−13.25（比游玩平面还近），纯按 z 分段会把整片景物画到关卡
+之上（`Level_05` 的 `background_jungle_01_set` 三片就这样盖住了它的建造区与地面）。所以按因子的符号分
+两边：**因子 > 0**（Sky 0.8 / Further 0.7 / Far 0.6 / Near 0.4）是**世界之后**的景物，进新的 `backdrop`
+桶、按**因子降序**在地形之前画；**因子 < 0**（`ParallaxLayerForeground` −0.4）留在 `near`（世界之前）；
+因子 0（无 `ParallaxManager` 标签的普通装饰）仍按 z 分段。`ParallaxLayerFixedFollowCamera`（1）按
+「世界之后」处理。
+
 ## 5. 内容契约
 
 ### 5.1 关卡内容 **v7**（`schemas/level-content-v7.schema.json`）
