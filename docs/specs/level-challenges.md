@@ -1,6 +1,6 @@
 # 挑战与收集：让关卡的挑战件真的能被收集（P5-b）
 
-> 状态：**P5-b-1 + P5-b-2 已交付**（2026-10-10 第三十一轮），P5-b-3（PGFS v7 上线）待做。前置：`docs/specs/level-props.md`（P5-a 已把 4 个挑战箱的
+> 状态：**P5-b-1 / P5-b-2 / P5-b-3 全部交付**（2026-10-10 第三十一轮）。前置：`docs/specs/level-props.md`（P5-a 已把 4 个挑战箱的
 > *画面*画出来，见该规格 §2/§6），本文档只谈**行为**：它们怎么被收集、状态怎么到客户端。
 > 关联：`docs/specs/original-level-pack.md` §8 的 P5 行、差距 `G75`。
 
@@ -73,9 +73,11 @@ P4c 的 v7 `boxes` 里**故意跳过**了 trigger（那些是"有人经过这里
 
 收集结果必须到客户端（客户端要把已收集的道具**不再画出来**），所以快照要带上它：
 
-- PGFS 版本 **7**：头部不变（`CurrentVersion` 加一），实体段之后追加一段
+- PGFS 版本 **7**：头部不变（`CurrentVersion` 加一），实体段之后**总是**追加一段
   `uint16 count` + `count × (uint32 propIndex)`（索引指向**关卡文档的 props 数组** —— 两侧都读同一份文档，
-  不需要传 id 字符串）。
+  不需要传 id 字符串）。"总是"很关键：空集合也写两个字节的 0，客户端才能把"没收集"与"帧被截断"分开。
+  写入顺序 = 房间侧**按索引排好**（`GameRoom` 用 `List<uint>` 二分插入）⇒ 同样的命令序列发布同样的字节。
+  缓冲：`SnapshotFrame.GetMaxByteCount(entityCount, collectedCount = 0)`；三个发布路径（运行/建造/沙盒）都写这一段。
 - 客户端解码 v7：`decodeSnapshot` 多读一段（老版本读到尾部即空 ✓ 版本门控）；`drawFrame`/`propDepthBuckets`
   跳过索引在集合里的道具。
 - 已收集的视觉：原版是"箱子消失/星飞走"，本片先做**不画**（最保守、不需要新美术；飞星的动效归 P6 之后）。
@@ -102,7 +104,7 @@ P4c 的 v7 `boxes` 里**故意跳过**了 trigger（那些是"有人经过这里
 |---|---|---|
 | **P5-b-1 ✅** | 内容 v8 的 `triggers`（工具 + schema + Core/客户端门控 + 重建关卡） | 工具第二次 **0 改动**；**948** 个道具带 trigger（共 948 个盒，每个道具 1 个）；Core **375**（+2 用例：v8 解析 + 5 条门控）、Server **156**、web **378** |
 | **P5-b-2 ✅** | 房间的 AABB 收集规则（`LevelChallengeTriggers.Build` + `GameplayRules.CheckChallenges` + `GameRoom.CollectedPropCount`） | `ChallengeRoomTests` 3 条：猪在标记里 → 收集 1 件且不重复；猪在 50 米外 → 0 件；`Retry` 清空并可在下一轮再收 |
-| P5-b-3 | PGFS v7 的 `collected` 段 + 客户端"不画已收集" | 协议往返测试；客户端解码 v7 与跳过绘制的测试；真实关卡实机（猪撞进挑战盒后消失） |
+| **P5-b-3 ✅** | PGFS v7 的 `collected` 段（`SnapshotFrame` 的 `TryWriteCollected`/`TryReadCollected`、三个发布路径、`GetMaxByteCount(n, collected)`）+ 客户端解码（`decodeSnapshot`、两种 socket、`App.vue` 的 `applyCollected`）+ `propDepthBuckets` 跳过 | Protocol **43**（+1 往返、两处版本/尺寸期望）；web **380**（+2 尾段解码与截断）；实机：把猪放在 `Level_05` 的 `BoxChallenge`（props 索引 5）上 → 113 帧里 `collected` 由 `[]` 变 `[5]`，关掉该件后一帧少画 **2 个四边面** |
 
 **不做的**（本片范围外，另行开片）：存档、星级、计时、HUD、收集特效/音效/飞星、`Dynamic*` 的动态体
 （这条另有原因：**动态道具的位姿变化没有上线的通道** —— 道具不是实体、不进快照，一动起来客户端就与服务器
