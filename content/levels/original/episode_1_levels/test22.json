@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_01","x":1.7060415,"y":-4.57515,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":-34.96985,"y":0.6951175,"z":0,"rotation":6.015164,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"Background_Cloud_03_SET","x":29.294434,"y":8.190034,"z":15.785136,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET","x":-23.67267,"y":27.456562,"z":15.751725,"rotation":0,"scaleX":1,"scaleY":1},

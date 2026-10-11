@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":25.090588,"y":31.578901,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":-13.419552,"y":-6.0795426,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-7.6739507,"y":18.735544,"z":0,"rotation":0.15428975,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"BoxChallenge","x":7.3655205,"y":25.139198,"z":0,"rotation":0.16978255,"scaleX":1,"scaleY":1},

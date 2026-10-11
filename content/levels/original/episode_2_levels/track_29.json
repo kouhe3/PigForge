@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":-35.380863,"y":-5.328448,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-59.84677,"y":3.136662,"z":0,"rotation":5.5712423,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-66.23679,"y":12.702375,"z":0,"rotation":5.586415,"scaleX":1,"scaleY":1},
     {"id":"Secret_02","x":-27.834812,"y":-5.386456,"z":-0.10674667,"rotation":0.109776095,"scaleX":0.4,"scaleY":0.4},

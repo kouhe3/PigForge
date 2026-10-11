@@ -31,6 +31,7 @@
   "props": [
     {"id":"background_cave_01_set_1","x":186.28282,"y":0,"z":-0.41692924,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":237.52151,"y":27.149609,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":0.6821557,"y":-6.0904922,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":7.230175,"y":-4.079116,"z":0,"rotation":6.1545076,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":5.428062,"y":-6.0926957,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},

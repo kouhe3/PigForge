@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_02","x":-24.21423,"y":-2.498448,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":-33.965527,"y":-2.8494823,"z":0,"rotation":0.12462232,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-6.3399677,"y":3.8039532,"z":0,"rotation":0.40742514,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"TNT_Box","x":-26.404257,"y":2.6070886,"z":0,"rotation":4.0814486,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},

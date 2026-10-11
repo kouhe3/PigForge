@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":-72.95457,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":-35.76025,"y":2.060233,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-43.480385,"y":-0.7887143,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-38.316956,"y":0.9808521,"z":0,"rotation":0.51296014,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-48.479397,"y":-6.9304085,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},

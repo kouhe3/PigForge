@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_01","x":46.860107,"y":-5.3110867,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-26.799173,"y":15.467249,"z":0,"rotation":0.7353483,"scaleX":1,"scaleY":1},
     {"id":"Grass_05","x":55.28872,"y":-4.7186923,"z":-5,"rotation":0.9136082,"scaleX":1,"scaleY":1},
     {"id":"Shell_01","x":-35.441444,"y":-6.926723,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

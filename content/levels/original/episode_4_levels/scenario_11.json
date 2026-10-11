@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":-58.334846,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":-39.562794,"y":-5.328705,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-85.19696,"y":1.437366,"z":0,"rotation":5.6592636,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_06","x":-26.280222,"y":15.470253,"z":-5,"rotation":0.078738004,"scaleX":-1,"scaleY":1},
     {"id":"Crystal_01","x":-82.705414,"y":7.384117,"z":-5,"rotation":3.0482433,"scaleX":1,"scaleY":1},

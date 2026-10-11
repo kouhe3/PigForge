@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":4.3907547,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":-7.920056,"y":-5.319028,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-12.899398,"y":17.713343,"z":0,"rotation":0.5408995,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-22.86023,"y":23.839922,"z":0,"rotation":0.5162178,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_03","x":-44.808353,"y":-7.098131,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":-4.2380466,"y":-5.364735,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-51.591583,"y":17.18168,"z":0,"rotation":6.115413,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-39.87011,"y":-2.1682928,"z":0,"rotation":0.5922213,"scaleX":1,"scaleY":1},
     {"id":"Pumpkin_Plant_02","x":-67.20065,"y":-0.49990505,"z":-5,"rotation":1.4621428,"scaleX":-1.988909,"scaleY":1.988909},

@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":8.789022,"y":-4.392986,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":-26.82719,"y":8.874982,"z":0,"rotation":6.10706,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"BoxChallenge","x":-2.0884104,"y":-1.949262,"z":0,"rotation":5.6851625,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-9.108999,"y":7.651053,"z":0,"rotation":6.158352,"scaleX":1,"scaleY":1},

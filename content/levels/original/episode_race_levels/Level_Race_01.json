@@ -33,6 +33,7 @@
     {"id":"background_jungle_01_set","x":558.70245,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_jungle_01_set","x":372.49716,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_jungle_01_set","x":186.24332,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":624.75195,"y":4.7035165,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Shell_01","x":619.2666,"y":-7.0860977,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Star_01","x":-93.58683,"y":-7.4153748,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":92.45807,"y":-0.3599739,"z":-5,"rotation":5.7648525,"scaleX":1,"scaleY":1},

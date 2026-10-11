@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":-10.160158,"y":35.174274,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":24.053764,"y":18.15268,"z":0,"rotation":0.45399055,"scaleX":1,"scaleY":1},
     {"id":"Cream_Line_01","x":-38.45961,"y":24.450636,"z":-5,"rotation":0.1577844,"scaleX":2,"scaleY":2},
     {"id":"Colorful_Sparkles_04","x":-6.537468,"y":34.86124,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},

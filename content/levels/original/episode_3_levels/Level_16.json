@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_02","x":29.32621,"y":0.8903982,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":32.949005,"y":4.011498,"z":0,"rotation":0.8305808,"scaleX":1,"scaleY":1},
     {"id":"Flower_01","x":5.91086,"y":-7.049799,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bush_01","x":23.372726,"y":-3.6484492,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

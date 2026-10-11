@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Halloween","x":-56.93848,"y":10.001829,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-55.133812,"y":9.259796,"z":0,"rotation":6.232841,"scaleX":1,"scaleY":1},
     {"id":"Secret_01","x":-77.50668,"y":-4.931333,"z":-0.08080482,"rotation":0.17032294,"scaleX":0.4,"scaleY":0.4},
     {"id":"Background_Cloud_02_SET_2","x":-32.701633,"y":8.454446,"z":12.524271,"rotation":0,"scaleX":1,"scaleY":1},

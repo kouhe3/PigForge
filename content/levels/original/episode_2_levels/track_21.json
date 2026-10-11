@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Morning","x":-10.372359,"y":-5.328205,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":10.248161,"y":-3.0603197,"z":0,"rotation":0.08454287,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_1","x":13.888514,"y":21.141266,"z":-5,"rotation":3.7869632,"scaleX":-1,"scaleY":1},
     {"id":"Grass_08","x":25.773619,"y":16.444958,"z":-5,"rotation":0.7143649,"scaleX":1,"scaleY":1},

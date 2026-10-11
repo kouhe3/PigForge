@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":-13.170432,"y":-5.32948,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-25.488682,"y":7.147139,"z":0,"rotation":6.0614533,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-67.23714,"y":-7.030079,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-5.8107452,"y":-6.7697697,"z":-5,"rotation":6.1632724,"scaleX":-1,"scaleY":1},

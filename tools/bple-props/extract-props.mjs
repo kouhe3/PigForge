@@ -133,18 +133,19 @@ for (const path of [...palette].sort()) {
 // (or a background set that stops being drawable) shows up as a number here.
 const singleQuads = [...drawable.keys()].filter((name) => quadsByProp.get(name) === 1);
 const decorInstances = singleQuads.reduce((total, name) => total + (counts.get(name)?.instances ?? 0), 0);
-check(singleQuads.length === 272, `single-quad props: ${singleQuads.length}, expected 272`);
-check(decorInstances === 15837, `single-quad instances: ${decorInstances}, expected 15837`);
+check(singleQuads.length === 273, `single-quad props: ${singleQuads.length}, expected 273`);
+check(decorInstances === 15881, `single-quad instances: ${decorInstances}, expected 15881`);
 const multiQuads = [...drawable.keys()].filter((name) => quadsByProp.get(name) > 1).sort();
 const drawableInstances = [...drawable.keys()].reduce((total, name) => total + (counts.get(name)?.instances ?? 0), 0);
-check(drawable.size === 313, `drawable props: ${drawable.size}, expected 313`);
-check(drawableInstances === 16922, `drawable instances: ${drawableInstances}, expected 16922`);
+check(drawable.size === 319, `drawable props: ${drawable.size}, expected 319`);
+check(drawableInstances === 17140, `drawable instances: ${drawableInstances}, expected 17140`);
 const quadTotal = [...quadsByProp.values()].reduce((total, count) => total + count, 0);
-check(quadTotal === 1081, `quads: ${quadTotal}, expected 1081`);
+check(quadTotal === 1097, `quads: ${quadTotal}, expected 1097`);
 // The multi-quad families: the level's backdrop sets, its five windows, one slingshot, seven birds, two
 // stones, the solid furniture that is more than one quad (the doors, the fan, the four buttons and one of
-// the two secret part boxes) and the four challenge boxes; a family leaving or joining the list is a
-// re-classification, not a detail. The cloud sets are not here: their clouds are separate props.
+// the two secret part boxes), the four challenge boxes and the five goal areas whose banner, glow and
+// map are more than one quad; a family leaving or joining the list is a re-classification, not a detail.
+// The cloud sets are not here: their clouds are separate props.
 const EXPECTED_MULTI_QUADS = [
   "ActivatedHingeDoorBlue",
   "ActivatedHingeDoorBlue_Ice",
@@ -165,6 +166,11 @@ const EXPECTED_MULTI_QUADS = [
   "DynamicBoxChallenge",
   "DynamicStarBox",
   "Fan",
+  "GoalArea_01",
+  "GoalArea_02",
+  "GoalArea_Halloween",
+  "GoalArea_Morning",
+  "GoalArea_StarLevel",
   "HingeDoorToLeft4m",
   "PressureButtonBlue",
   "PressureButtonGreen",

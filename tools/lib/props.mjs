@@ -239,6 +239,13 @@ function readHierarchy(text, guidToClass) {
       generator: parts.find((part) => part.classId === 114 && classOf(part) === "CloudGenerator"),
       spriteAnimation: parts.find((part) => part.classId === 114 && classOf(part) === "SpriteAnimation"),
       renderer: parts.find((part) => part.classId === 23 || part.classId === 212),
+      /// A serialized mesh (`MeshFilter.m_Mesh`): `{ guid, fileID }`, or null for a runtime-built one.
+      mesh: (() => {
+        const filter = parts.find((part) => part.classId === 33);
+        if (filter === undefined) return null;
+        const match = /m_Mesh: \{fileID: (-?\d+)(?:, guid: ([0-9a-f]{32}))?/.exec(filter.body);
+        return match === null ? null : { guid: match[2] ?? null, fileID: match[1] };
+      })(),
       renderers: parts.filter((part) => part.classId === 23 || part.classId === 212).length,
       collider: parts.some((part) => COLLIDER_IDS[part.classId] !== undefined),
       /// Every collider the object itself carries, so the solid props' own boxes can be written out
@@ -292,7 +299,16 @@ function localFrame(object, describe) {
   }
 
   if (Math.abs(x) > 1e-6 || Math.abs(y) > 1e-6) {
-    throw new PropException(`${describe}: out-of-plane rotation ${object.rotation.join(",")}`);
+    if (Math.abs(z) > 1e-6 || Math.abs(w) > 1e-6) {
+      throw new PropException(`${describe}: out-of-plane rotation ${object.rotation.join(",")}`);
+    }
+
+    // A half turn about an axis *in* the xy plane (`z == w == 0`): the plane's normal flips to -z, and
+    // inside the xy plane the turn is a reflection about its own axis -- the form the goal's flag mesh
+    // arrives in (`GoalArea_*`'s `(0.7071, -0.7071, 0, 0)`). The 2x2 part of `2 n n^T - I` is
+    // `[[x^2 - y^2, 2xy], [2xy, y^2 - x^2]]`, which `R * diag(sx, sy)` reproduces exactly.
+    const [axisX, axisY] = [x, y];
+    return [sx * (axisX * axisX - axisY * axisY), sx * (2 * axisX * axisY), sy * (2 * axisX * axisY), sy * (axisY * axisY - axisX * axisX), px, py];
   }
 
   // The quaternion is (0, 0, z, w): a rotation of 2*atan2(z, w) about z.
@@ -444,6 +460,49 @@ export function openProps(bpleRoot) {
     must(Boolean(size), `${name}: texture ${path} is not a PNG`);
     atlases.set(basename(path), path);
     return { atlas: basename(path), path, size };
+  };
+
+  /**
+   * The project's own `Plane` mesh (`Assets/Mesh/Plane.asset`, guid-matched, never by name): the goal's
+   * flag banner is one. `GoalArea_*` gives it no `Sprite` component at all -- it is a serialized mesh
+   * whose uvs the file keeps packed -- so the tool accepts it only as exactly this asset, with the
+   * flat 2x2 rectangle its own bounds describe, and maps the material's texture across that rectangle
+   * once (the asset is a plain quad: `Mesh/Plane.asset`'s 33 vertices span a flat AABB and the flag's
+   * material is a 128x128 checkered texture with no tiling).
+   */
+  const planeMesh = (() => {
+    const entries = [...guidToPath.entries()].filter(([, path]) => /[\\/]Mesh[\\/]Plane\.asset$/.test(path));
+    must(entries.length === 1, `the project's Plane mesh resolves ${entries.length} ways, expected 1`);
+    const [guid, path] = entries[0];
+    const text = readFileSync(path, "utf8");
+    const vertexCount = /vertexCount: (\d+)/.exec(text)?.[1];
+    const aabb = /m_LocalAABB:\s*\n\s*m_Center: \{x: ([^,]+), y: ([^,]+), z: ([^}]+)\}\s*\n\s*m_Extent: \{x: ([^,]+), y: ([^,]+), z: ([^}]+)\}/.exec(text);
+    must(vertexCount === "33" && aabb !== null, `${path}: not the flat quad its bounds describe`);
+    const numbers = aabb.slice(1, 7).map(Number);
+    must(Math.abs(numbers[2]) < 1e-6 && Math.abs(numbers[5]) < 1e-6, `${path}: a mesh with depth`);
+    return { guid, center: [numbers[0], numbers[1]], extent: [numbers[3], numbers[4]] };
+  })();
+
+  /**
+   * One serialized `Plane` as the quad it is: the mesh's own bounds give the size and the AABB's centre
+   * the offset, the material gives the texture across 0..1, and the object's transform chain places it
+   * exactly like a sprite quad (a mirrored chain included -- the goal's own rotation is one).
+   */
+  const meshQuad = (name, object, frame, depth, describe) => {
+    const paint = paintOf(name, object.renderer.body);
+    must(paint.atlas !== undefined, `${describe}: a mesh whose material samples no texture`);
+    return {
+      atlas: paint.atlas,
+      x: 0,
+      y: 0,
+      w: paint.size[0],
+      h: paint.size[1],
+      cx: round(planeMesh.center[0]),
+      cy: round(planeMesh.center[1]),
+      sx: round(2 * planeMesh.extent[0]),
+      sy: round(2 * planeMesh.extent[1]),
+      ...frameToQuad(frame, depth, describe),
+    };
   };
 
   /**
@@ -723,7 +782,12 @@ export function openProps(bpleRoot) {
     const cloudSet = objects.some((object) => object.generator !== undefined);
     const drawable =
       (!cloudSet && rendererObjects.length > 0) &&
-      (cloudSet || rendererObjects.every((object) => object.renderers === 1 && (object.sprite !== undefined || object.panel !== undefined))) &&
+      (cloudSet ||
+        rendererObjects.every(
+          (object) =>
+            object.renderers === 1 &&
+            (object.sprite !== undefined || object.panel !== undefined || object.mesh?.guid === planeMesh.guid),
+        )) &&
       scripts.every(
         (className) =>
           SPRITE_CLASSES.includes(className) ||
@@ -783,14 +847,16 @@ export function openProps(bpleRoot) {
           const quads =
             object.panel !== undefined
               ? panelArt(name, object, frame, depth)
-              : [
-                  {
-                    ...(object.classes.includes("UnmanagedSprite")
-                      ? unmanagedArt(name, object.sprite.body, paintOf(name, object.renderer.body))
-                      : managedArt(name, object.sprite.body, paintOf(name, object.renderer.body))),
-                    ...frameToQuad(frame, depth, `${name}/${object.name}`),
-                  },
-                ];
+              : object.sprite === undefined
+                ? [meshQuad(name, object, frame, depth, `${name}/${object.name}`)]
+                : [
+                    {
+                      ...(object.classes.includes("UnmanagedSprite")
+                        ? unmanagedArt(name, object.sprite.body, paintOf(name, object.renderer.body))
+                        : managedArt(name, object.sprite.body, paintOf(name, object.renderer.body))),
+                      ...frameToQuad(frame, depth, `${name}/${object.name}`),
+                    },
+                  ];
           for (const quad of quads) record.quads.push({ ...quad, parallax: { x: parallax.x, y: parallax.y } });
           painted.add(object.anchor);
           if (parallax.y !== 0) foreground.push({ y: frame[5], quad: record.quads[record.quads.length - 1] });

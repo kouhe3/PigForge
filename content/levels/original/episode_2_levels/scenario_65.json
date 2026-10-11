@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_StarLevel","x":-41.483315,"y":-5.32412,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_01","x":-69.16762,"y":-7.0630894,"z":-4.80413,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_01","x":-50.221912,"y":-4.559971,"z":-5,"rotation":6.019943,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-43.788754,"y":-6.9580727,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

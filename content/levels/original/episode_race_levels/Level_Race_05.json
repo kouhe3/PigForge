@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_cave_01_set_1","x":11.944281,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":0.31148624,"y":106.03142,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_02","x":28.846214,"y":65.34507,"z":-5,"rotation":0.6530857,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_01","x":-10.274045,"y":18.767483,"z":-5,"rotation":1.2349031,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_03","x":30.162983,"y":67.31411,"z":-5,"rotation":0.50117594,"scaleX":-1,"scaleY":1},

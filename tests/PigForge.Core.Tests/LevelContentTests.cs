@@ -570,12 +570,12 @@ public sealed class LevelContentTests
                 Assert.Equal(6.060668f, prop.Rotation);
             });
 
-        // The converted pack carries them: the 313 drawable props are placed 17942 times across the
-        // 277 levels (the cloud sets' own 1020 clouds among them), and Level_05's own first instance is
-        // its jungle backdrop at the origin.
+        // The converted pack carries them: the 319 drawable props are placed 18160 times across the
+        // 277 levels (the cloud sets' own 1020 clouds and the 218 goal areas among them), and Level_05's
+        // own first instance is its jungle backdrop at the origin.
         LevelContentDocument real =
             LevelContentLibrary.Parse(File.ReadAllText(FindRepositoryFile("content/levels/original/episode_1_levels/Level_05.json")));
-        Assert.Equal(29, real.Props.Count);
+        Assert.Equal(30, real.Props.Count);
         Assert.Equal(new LevelPropDefinition("background_jungle_01_set", 0f, 0f, 0f, 0f, 1f, 1f), real.Props[0]);
         Assert.Contains(real.Props, prop => prop.Id == "Star_01");
 

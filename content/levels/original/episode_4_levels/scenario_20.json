@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":-11.60011,"y":-4.10928,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"TNT_Box","x":-16.248377,"y":-6.092059,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
     {"id":"BoxChallenge","x":23.30563,"y":10.900688,"z":0,"rotation":6.1287704,"scaleX":1,"scaleY":1},
     {"id":"Grass_09_0","x":-64.92887,"y":5.0677705,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

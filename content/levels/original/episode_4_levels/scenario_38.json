@@ -30,6 +30,7 @@
   "spawns": [],
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"GoalArea_Night","x":58.3231,"y":-5.3173428,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Slingshot","x":0.7462059,"y":11.877511,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Yellow","x":2.6175585,"y":9.877832,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},
