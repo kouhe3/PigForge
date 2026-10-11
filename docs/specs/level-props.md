@@ -15,7 +15,8 @@
 
 | 类 | prefab | 实例 | 是什么 | 处置 |
 |---|---|---|---|---|
-| **可绘制** | **320** | **17160** | 每个带渲染器的对象都画得出图：`Sprite`/`UnmanagedSprite` 四边面、`Panel` 自己生成的九宫格、或序列化的 `Plane`（§3.8），且带的其他脚本在装载那一刻不改画面 | **P4a（251 个单四边面）+ P4b（8 个背景组、2 个石头、6 个 `Lit*`）+ P4b′（5 个窗户、1 个弹弓、7 只鸟）+ P4c（30 个实心家具）+ P5-a（4 个挑战箱）+ P6-b（6 个终点区）+ P6-c（祖先猪）已交付** |
+| **可绘制** | **321** | **17184** | 每个带渲染器的对象都画得出图：`Sprite`/`UnmanagedSprite` 四边面、`Panel` 自己生成的九宫格、或序列化的 `Plane`（§3.8），且带的其他脚本在装载那一刻不改画面 | **P4a（251 个单四边面）+ P4b（8 个背景组、2 个石头、6 个 `Lit*`）+ P4b′（5 个窗户、1 个弹弓、7 只鸟）+ P4c（30 个实心家具）+ P5-a（4 个挑战箱）+ P6-b（6 个终点区）+ P6-c（祖先猪、绳桥）已交付** |
+| 桥（`Bridge`） | 1 | 24 | 只有 `Bridge` 脚本、没有渲染器：装载时按 `EndPoint` 的距离铺 `floor(距离/间距)` 个台阶（`Step.prefab`）并在每级与末端各放一个绳段（`StepRope.prefab`） | **P6-c 交付**（台阶/绳段烘进件帧，§3.9） |
 | 云（5 个 `Cloud*Set` / 152 个实例） | 5 | 152 | 只有 `CloudGenerator`、没有渲染器：装载时按自己的盒子生成 5…10 朵云，每朵是世界坐标下的一个独立道具（§3.7），152 个实例共 **1020** 朵 | **P6 交付**（关卡里是 1020 个 `Background_Cloud_*` 道具实例） |
 | 系统标记 | 21 | 6674 | 只有脚本没有渲染器：`LevelStart`/`LevelManager`/`CameraSystem`/`TimeChallenge`/`DontUsePartChallenge`/`DessertPlace`/`Cloud*Set`/`Bridge`… | 各自单独（相机界已收口；挑战归 P5；**甜品点见 §7 偏差 7**） |
 | 地形 | 21 | 2146 | `e2dTerrain` 系列，**就是数据块的 2146 个地形对象** | 已交付（v2–v5） |
@@ -213,6 +214,19 @@ y∈±m_height, z∈[0, m_farPlane])`；`useCustomParallax` 时整组注册成 `
 实测：6 个 prefab / **218** 个实例（其中 5 个多四边面）、新图集 `Props_Goal_Area_01.png`（第 22 张）、
 关卡里 218 个终点区道具实例 ✓。
 
+### 3.9 绳桥：`Bridge` 按 `EndPoint` 铺台阶与绳段（P6-c）
+
+`Bridge` prefab 自己也没有渲染器：`Bridge.OnDataLoaded` 把 `StepParent` 清空后，按
+`floor(|EndPoint − 根| / (stepLength + stepGap))` 铺 `stepPrefab`（`Step.prefab`，`BridgeStep : LevelRigidbody`，
+`Awake` 只缓存铰链、`OnDataLoaded` 是空的）—— 每级的**局部坐标** `x = (k + 0.5) × (stepLength + stepGap)`、
+`localRotation` 单位阵 —— 再在每级位置与 `EndPoint` 各放一个 `stepRopePrefab`（`StepRope.prefab`，一个
+`Sprite` 四边面）。台阶是**实例的子对象**（这一条与云相反：`SpawnCloud` 写的是世界坐标），所以工具把两者都烘进
+**件自己的帧**：台阶偏移 `(k+0.5)·间距`、绳段偏移取台阶（末段取 `EndPoint`）的局部位置，旋转/缩放照抄。
+`stepLength`/`stepGap` 从 prefab 读（实测 1 / 0.2），数量由 `EndPoint` 的局部位置算出，没有随机。
+
+实测：24 个实例（全部 rotation 0、scale 1×1）、每个 5…N 个四边面（`Level_24` 的短桥 = 2 台阶 + 3 绳段 = 5）；
+新图集不变（走 `IngameAtlas2.png`）。
+
 ## 4. 深度（z）与绘制顺序
 
 原版是 3D 渲染 + 深度测试，2D 客户端必须自己排序。**近 = z 小**（相机 `IngameCamera.cs:423`
@@ -330,7 +344,7 @@ y∈±m_height, z∈[0, m_farPlane])`；`useCustomParallax` 时整组注册成 `
 | P5 的甜品 | `DessertPlace` 的 5339 个生成点**不画**：原版在 `BaseGameMode.PlaceDesserts` 里用 `Random` 抽点心与地点、只在 `ChiefPigExploded`（通关后）或 IN 的 `EnableDesserts` 打开时才放、还要读存档里的摆放串 —— 静态复刻不出这一帧（§7 偏差 7） | 归 P5 |
 | **P6-a ✅** | 云：5 个 `Cloud*Set` / 152 个实例 → **1020** 朵云道具（§3.7）+ 清单的 `cloudProps` 段 + 客户端合并 | **2026-10-10 交付** |
 | **P6-b ✅** | 终点区的横幅：序列化的 `Plane` 按自己的包围盒画成四边面（§3.8）+ `localFrame` 支持"面内镜像"那一族旋转 —— 6 个 prefab / **218** 个实例 | **2026-10-10 交付** |
-| **P6-c ◐** | 祖先猪（`AncestorPig` 20 个实例：`Start` 不改画面，眨眼在之后）**已交付**；`Floating*`（运行时绳/气球）、`Bridge`/`BridgeStep`（运行时台阶）、`GoalArea_MM*`（`RandomChildActivator` 随机子对象）、`DessertPlace` 的甜品点、`backgroundobject`/`LitArea`/`WindArea`（无渲染器的标记/区域） | 部分 |
+| **P6-c ◐** | 祖先猪（`AncestorPig` 20 实例，§3.8 前一行）与绳桥（`Bridge` 24 实例，§3.9）**已交付**；`Floating*`（运行时绳/气球）、`GoalArea_MM*`（`RandomChildActivator` 随机子对象）、`DessertPlace` 的甜品点、`backgroundobject`/`LitArea`/`WindArea`（无渲染器的标记/区域） | 部分（其余按 §7 偏差 10/12 的理由画不出来） |
 | P5-b | 挑战的**行为**（收集、星级/计时）与实心件的**动态/破坏** | 待做 |
 
 ## 7. 有意偏差
@@ -372,17 +386,17 @@ cd clients/web; pnpm test                        # 客户端校验器 + 绘制�
 - `palette prefabs 368` / `instances 26072`；`kinds: decor=261/15220 system=21/6674 solid=57/1976 special=8/36 terrain=21/2146`
   （按「地形 / 有没有渲染器 / 有没有碰撞体 / 脚本集合」分类，同一 prefab 只算一行；`special` 的 8 个
   ——`Slingshot`(1)/栖鸟(4)/`Stone*_2`(2)/`WindowTiny`(1)，**都会画**）。
-- **可绘制 320 个 prefab / 17160 个实例 / 1100 个四边面 / 22 张图集**（新增 `IngameAtlas3.png`、
+- **可绘制 321 个 prefab / 17184 个实例 / 1105 个四边面 / 22 张图集**（新增 `IngameAtlas3.png`、
   `Particles_Sheet_01.png` 与 `Props_Goal_Area_01.png`）；其中单四边面 **273 个 / 15881 个实例**；多四边面恰好是
-  那 47 个（工具硬断言这份名单：`Bird_*` 7、`Slingshot`、`Stone*_2`、5 个窗户、9 个背景组、8 个门、`Fan`、
-  4 个按钮、`SecretPartWilfred`、`HingeDoorToLeft4m`、4 个挑战箱、5 个终点区、`AncestorPig`）。
+  那 48 个（工具硬断言这份名单：`Bird_*` 7、`Slingshot`、`Stone*_2`、5 个窗户、9 个背景组、8 个门、`Fan`、
+  4 个按钮、`SecretPartWilfred`、`HingeDoorToLeft4m`、4 个挑战箱、5 个终点区、`AncestorPig`、`Bridge`）。
 - **云**：13 个云 prefab（各 1 个四边面 ✓ 工具硬断言）、152 个 CloudSet 实例 → 关卡里 **1020** 个
   `Background_Cloud_*` 道具实例；`Level_05` 的 8 朵云落在世界坐标（`y` 8…28、`z` ≈ 15.5…16）✓、
   一帧里 8 次 `drawImage` ✓、**7441 个像素**与空帧不同 ✓。
 - **关卡侧 v7**：126 个文档声明 v7 并带 `boxes`，**671 个盒体**，每个尺寸为正、偏移有限（Core 与 Server 各断言一遍）。
 - 每个四边面都能解析出图集 + uv + 尺寸（或纯色 + 尺寸）：`tools/bple-props` 0 失败；id 无空白且唯一。
-- 关卡侧：277 个文件都写 v6/v7，`props` 合计 **18180** 条（17160 个可绘制件 + 1020 朵云）；
-  `bple-levels` 的同一份口径断言 `placed prop instances: 18180`、`cloud instances: 1020` 与
+- 关卡侧：277 个文件都写 v6/v7，`props` 合计 **18204** 条（17184 个可绘制件 + 1020 朵云）；
+  `bple-levels` 的同一份口径断言 `placed prop instances: 18204`、`cloud instances: 1020` 与
   `classified instances: 26072`。
 - 客户端实机（真 vite + 真 Chromium，`/level` 取自真服务器）：
   `scenario_56`（69 个道具：1 弹弓 + 4 只飞鸟 + 64 个装饰）一帧里 **131 次 `drawImage`**，
