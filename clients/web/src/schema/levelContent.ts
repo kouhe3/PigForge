@@ -142,7 +142,7 @@ export interface LevelPropBox {
 
 export interface LevelContentDocument {
   format: "pigforge.level-content";
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
   contentVersion: string;
   goalZone: LevelZone;
   bounds: LevelZone;
@@ -165,12 +165,43 @@ export interface LevelContentDocument {
    * exactly as it was before (`docs/specs/level-build-limits.md`).
    */
   build?: LevelBuildLimits;
+  /**
+   * v10 only: the level's own challenges, in the original's own numbering order (sorted by instance
+   * name), so `challenges[0]` is the second star and `challenges[1]` the third
+   * (`LevelComplete.cs:422/460`). A v1-v9 document carries none.
+   */
+  challenges?: LevelChallenge[];
 }
 
 /** One entry of a v9 level's `partCounts`: how many of a base part family the player may place. */
 export interface LevelBuildLimit {
   partTypeId: number;
   count: number;
+}
+
+/**
+ * One kind of challenge a v10 level carries, in the original's own enum order
+ * (`Challenge.ChallengeType`, `Challenge.cs:7-15`): `DontUseParts=0 / Time=1 / PerfectFlight=2 /
+ * Transport=3 / Box=4`.
+ */
+export type LevelChallengeKind = "dontUseParts" | "time" | "perfectFlight" | "transport" | "box";
+
+/**
+ * One challenge instance of a v10 level (`docs/specs/level-stars.md` §3): `name` is the level file's
+ * own instance label and `kind` the challenge's type, plus the one property its kind uses --
+ * `propIndex` (a `box` challenge's prop in this document's `props`), `targetTime` (a `time`
+ * challenge's own `m_targetTime` in seconds) or `partTypeId` (the base family a `dontUseParts` /
+ * `transport` challenge names). The client mirrors the server's own sentinels as absent fields.
+ */
+export interface LevelChallenge {
+  name: string;
+  kind: LevelChallengeKind;
+  /** `box` only: the index of the prop in this document's `props` the collectable watches. */
+  propIndex?: number;
+  /** `time` only: the level's own target time in seconds. */
+  targetTime?: number;
+  /** `dontUseParts` / `transport` only: the base part family the challenge concerns. */
+  partTypeId?: number;
 }
 
 /**
@@ -256,14 +287,44 @@ export function constructionCellExists(rows: readonly number[], i: number, j: nu
   return (rows[shape.height - 1 - j] & (1 << (i - shape.xMin))) !== 0;
 }
 
+/**
+ * The level's own time limit: the largest `targetTime` among its `time` challenges, and 0 when the
+ * level has no timing challenge at all -- the original only takes a positive `TimeLimit()` into
+ * `levelManager.TimeLimit`, which starts at 0 (`BaseGameMode.InitializeChallenges`,
+ * `BaseGameMode.cs:101-116`). A limit of 0 hides the HUD's clock (`ScoreCounters.cs:51-55`) and no
+ * `time` challenge can be lost either way (`TimeChallenge.cs:9-12`).
+ */
+export function timeLimit(challenges: readonly LevelChallenge[]): number {
+  let limit = 0;
+  for (const challenge of challenges) {
+    if (challenge.kind !== "time") {
+      continue;
+    }
+    const target = challenge.targetTime;
+    if (typeof target === "number" && Number.isFinite(target) && target > limit) {
+      limit = target;
+    }
+  }
+  return limit;
+}
+
 const ROOT_REQUIRED_KEYS = ["format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns"];
 // v1 has no `terrain`, but the server parser accepts the v2 addition on either version, and the
 // client only ever decodes what the server already parsed.
-const ROOT_KEYS = [...ROOT_REQUIRED_KEYS, "terrain", "cameraLimits", "props", "build"];
+const ROOT_KEYS = [...ROOT_REQUIRED_KEYS, "terrain", "cameraLimits", "props", "build", "challenges"];
 const ZONE_KEYS = ["min", "max"];
 const CAMERA_LIMITS_KEYS = ["topLeft", "size"];
 const BUILD_KEYS = ["origin", "rows", "partCounts"];
 const BUILD_COUNT_KEYS = ["partTypeId", "count"];
+const CHALLENGE_REQUIRED_KEYS = ["name", "kind"];
+const CHALLENGE_KEYS = [...CHALLENGE_REQUIRED_KEYS, "propIndex", "targetTime", "partTypeId"];
+const CHALLENGE_KIND_KEYS: Record<LevelChallengeKind, readonly string[]> = {
+  dontUseParts: [...CHALLENGE_REQUIRED_KEYS, "partTypeId"],
+  time: [...CHALLENGE_REQUIRED_KEYS, "targetTime"],
+  perfectFlight: CHALLENGE_REQUIRED_KEYS,
+  transport: [...CHALLENGE_REQUIRED_KEYS, "partTypeId"],
+  box: [...CHALLENGE_REQUIRED_KEYS, "propIndex"],
+};
 const SPAWN_REQUIRED_KEYS = ["partTypeId", "position"];
 const SPAWN_KEYS = [...SPAWN_REQUIRED_KEYS, "angle", "role", "tntFuseTicks", "motorImpulsePerTick", "motorDirectionX", "wheel"];
 const TERRAIN_REQUIRED_KEYS = ["position", "depth", "loops"];
@@ -282,6 +343,7 @@ const PROP_KEYS_WITH_BOXES_AND_TRIGGERS = [...PROP_KEYS_WITH_BOXES, "triggers"];
 const PROP_BOX_KEYS = ["dx", "dy", "dz", "sizeX", "sizeY", "sizeZ", "rotation"];
 const LEVEL_ROLES: readonly LevelActorRole[] = ["part", "pig", "tnt"];
 const LEVEL_WRAPS: readonly LevelCurveWrap[] = ["repeat", "clamp"];
+const LEVEL_CHALLENGE_KINDS: readonly LevelChallengeKind[] = ["dontUseParts", "time", "perfectFlight", "transport", "box"];
 
 export function validateLevelContent(value: unknown): string[] {
   const errors: string[] = [];
@@ -297,8 +359,8 @@ export function validateLevelContent(value: unknown): string[] {
   if (document.schemaVersion !== 1 && document.schemaVersion !== 2
     && document.schemaVersion !== 3 && document.schemaVersion !== 4 && document.schemaVersion !== 5
     && document.schemaVersion !== 6 && document.schemaVersion !== 7 && document.schemaVersion !== 8
-    && document.schemaVersion !== 9) {
-    errors.push("root.schemaVersion: versions 1 to 9 are supported.");
+    && document.schemaVersion !== 9 && document.schemaVersion !== 10) {
+    errors.push("root.schemaVersion: versions 1 to 10 are supported.");
   }
   // A malformed version is already an error above, so an unknown one reads as the oldest.
   const version = typeof document.schemaVersion === "number" ? document.schemaVersion : 0;
@@ -359,6 +421,22 @@ export function validateLevelContent(value: unknown): string[] {
     } else {
       errors.push("root.build: only a schemaVersion 9 document carries the level's construction limits.");
     }
+  }
+  // v10 carries the level's challenges and every v10+ document must; older versions must not. A box
+  // challenge's `propIndex` addresses this document's own props, so the count has to be known here.
+  if (version >= 10) {
+    if (document.challenges === undefined) {
+      errors.push(`root.challenges: required on a schemaVersion ${document.schemaVersion} document.`);
+    } else if (!Array.isArray(document.challenges)) {
+      errors.push("root.challenges: must be an array.");
+    } else {
+      const propCount = Array.isArray(document.props) ? document.props.length : 0;
+      document.challenges.forEach((challenge, index) => {
+        validateChallenge(challenge, `root.challenges[${index}]`, propCount, errors);
+      });
+    }
+  } else if (document.challenges !== undefined) {
+    errors.push("root.challenges: only a schemaVersion 10 document carries the level's challenges.");
   }
   return errors;
 }
@@ -476,6 +554,56 @@ function validateBuild(value: unknown, path: string, errors: string[]): void {
       errors.push(`${entryPath}.count: must be a positive 32-bit integer.`);
     }
   });
+}
+
+/**
+ * One v10 challenge entry: `name` and `kind` always, plus exactly the properties the kind itself
+ * uses -- the other kinds' properties are drift. Duplicate names are legal (3 of the 277 original
+ * levels have two instances sharing one, `docs/specs/level-stars.md` §7), so nothing here keys by
+ * name.
+ */
+function validateChallenge(value: unknown, path: string, propCount: number, errors: string[]): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`${path}: challenge must be a JSON object.`);
+    return;
+  }
+
+  const challenge = value as Record<string, unknown>;
+  validateKeys(challenge, CHALLENGE_REQUIRED_KEYS, CHALLENGE_KEYS, path, errors);
+  if (typeof challenge.name !== "string" || challenge.name.length === 0) {
+    errors.push(`${path}.name: must be a non-empty string.`);
+  }
+
+  const kind = typeof challenge.kind === "string" && LEVEL_CHALLENGE_KINDS.includes(challenge.kind as LevelChallengeKind)
+    ? (challenge.kind as LevelChallengeKind)
+    : null;
+  if (kind === null) {
+    errors.push(`${path}.kind: must be one of 'dontUseParts', 'time', 'perfectFlight', 'transport' or 'box'.`);
+    return;
+  }
+
+  const allowed = CHALLENGE_KIND_KEYS[kind];
+  for (const key of Object.keys(challenge)) {
+    if (CHALLENGE_KEYS.includes(key) && !allowed.includes(key)) {
+      errors.push(`${path}: unknown property '${key}' for a '${kind}' challenge.`);
+    }
+  }
+
+  if (kind === "box") {
+    if (!Number.isInteger(challenge.propIndex) || (challenge.propIndex as number) < 0) {
+      errors.push(`${path}.propIndex: must be a non-negative integer.`);
+    } else if ((challenge.propIndex as number) >= propCount) {
+      errors.push(`${path}.propIndex: must index one of this document's ${propCount} props.`);
+    }
+  } else if (kind === "time") {
+    if (!isFiniteNumber(challenge.targetTime) || (challenge.targetTime as number) < 0) {
+      errors.push(`${path}.targetTime: must be a finite, non-negative number.`);
+    }
+  } else if (kind === "dontUseParts" || kind === "transport") {
+    if (!Number.isInteger(challenge.partTypeId) || (challenge.partTypeId as number) < 1) {
+      errors.push(`${path}.partTypeId: must be a positive 32-bit integer.`);
+    }
+  }
 }
 
 /** One decoration instance: the sprite-manifest key plus the six numbers of its transform. */

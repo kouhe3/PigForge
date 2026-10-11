@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test14",
   "goalZone": {
     "min": [
@@ -68,6 +68,10 @@
     {"id":"Grass_01","x":-54.732643,"y":13.168769,"z":-5,"rotation":5.7271943,"scaleX":-1,"scaleY":1},
     {"id":"Grass_05","x":-13.506075,"y":-5.507276,"z":-5,"rotation":6.1580954,"scaleX":1,"scaleY":1},
     {"id":"Wood_01","x":-3.271533,"y":-7.1061997,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":12},
+    {"name":"TimeChallenge","kind":"time","targetTime":8}
   ],
   "terrain": [
     {

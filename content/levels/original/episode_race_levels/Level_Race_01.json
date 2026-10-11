@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Race_01",
   "goalZone": {
     "min": [
@@ -159,6 +159,10 @@
     {"id":"Background_Cloud_03_SET","x":32.151936,"y":23.401407,"z":15.378489,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET","x":58.653076,"y":24.294333,"z":15.8713255,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET","x":7.183227,"y":10.502311,"z":15.799924,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"TimeChallenge","kind":"time","targetTime":55},
+    {"name":"TimeChallenge2","kind":"time","targetTime":65}
   ],
   "terrain": [
     {

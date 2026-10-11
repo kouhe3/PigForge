@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_3",
   "goalZone": {
     "min": [
@@ -72,6 +72,10 @@
     {"id":"Rock2","x":-181.883,"y":-7.3612022,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower2","x":-148.224,"y":15.6458,"z":0.9,"rotation":0.5032356,"scaleX":1,"scaleY":1},
     {"id":"WindowSmall","x":-157.285,"y":31.355,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":6}
   ],
   "terrain": [
     {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_VIII",
   "goalZone": {
     "min": [
@@ -84,6 +84,10 @@
     {"id":"Grass18","x":-164.896,"y":31.964998,"z":-3,"rotation":2.2100878,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom3","x":-177.854,"y":25.696999,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"SecretStatue","x":-179.914,"y":19.15,"z":1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":16}
   ],
   "terrain": [
     {

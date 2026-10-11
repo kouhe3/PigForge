@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_17",
   "goalZone": {
     "min": [
@@ -103,6 +103,10 @@
     {"id":"BreakableWall","x":-190.54,"y":14.35,"z":0,"rotation":5.687029,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-184.55,"y":10.51,"z":0,"rotation":5.614241,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-177.61,"y":6.58,"z":0,"rotation":6.0599113,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge1","kind":"box","propIndex":0},
+    {"name":"BoxChallenge2","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

@@ -366,6 +366,106 @@ public sealed class GameplayRulesTests
         Assert.Equal(GameplayPhase.Won, harness.Rules.Phase);
     }
 
+    /// <summary>
+    /// The original's run clock (<c>LevelManager.UpdateRunning</c>, <c>LevelManager.cs:1431-1441</c>):
+    /// nothing until the reference pig's own transform is a metre away from the pose the running entry
+    /// recorded, and that first tick adds nothing -- the original arms the clock and returns.
+    /// </summary>
+    [Fact]
+    public void TheRunClockWaitsUntilThePigLeavesItsStartPoseByAMetre()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(500, 500, -2), new PhysicsVector3(501, 501, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f));
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.Rules.BeginRun(pig, new PhysicsVector3(0f, 1f, 0f));
+
+        // Half a metre away, then exactly a metre: the original's comparison is `>= 1f`, so the second
+        // pose arms the clock and contributes no time itself.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0.5f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Equal(0f, harness.Rules.ElapsedSeconds);
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(1f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Equal(0f, harness.Rules.ElapsedSeconds);
+
+        // Every tick after that one is a tick of run time.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(1.5f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        Assert.Equal(1f / 60f, harness.Rules.ElapsedSeconds, precision: 6);
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(2f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(4, Array.Empty<PhysicsEvent>());
+        Assert.Equal(2f / 60f, harness.Rules.ElapsedSeconds, precision: 6);
+    }
+
+    /// <summary>
+    /// The clock freezes with the run: the original snapshots <c>CompletionTime = TimeElapsed</c> the
+    /// moment the pig reaches the goal (<c>GameMode.cs:379</c>) and never adds to it again, because
+    /// <c>UpdateRunning</c> only runs in the Running state.
+    /// </summary>
+    [Fact]
+    public void TheRunClockStopsWhenThePigReachesTheGoal()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(5, -1, -2), new PhysicsVector3(7, 2, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f));
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.Rules.BeginRun(pig, new PhysicsVector3(0f, 1f, 0f));
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(1.5f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(3f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(6f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(GameplayPhase.Won, harness.Rules.Phase);
+        float completion = harness.Rules.ElapsedSeconds;
+        Assert.Equal(2f / 60f, completion, precision: 6);
+
+        // The phase is no longer Playing, so nothing the caller does afterwards moves the clock.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(30f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(4, Array.Empty<PhysicsEvent>());
+        Assert.Equal(completion, harness.Rules.ElapsedSeconds, precision: 6);
+    }
+
+    /// <summary>A room that never recorded a running entry (the sandbox, a replay) has no clock at all.
+    /// </summary>
+    [Fact]
+    public void ARunWithoutAStartPoseNeverCountsTime()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(500, 500, -2), new PhysicsVector3(501, 501, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f));
+        EntityId pig = entities.Create();
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
+        harness.Link(pig, new PhysicsBodyId(1));
+
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(9f, 1f, 0f), PhysicsVector3.Zero);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(0f, harness.Rules.ElapsedSeconds);
+    }
+
     [Fact]
     public void PigLeavingMapBoundsRequestsRestart()
     {

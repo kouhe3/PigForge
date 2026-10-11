@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_25",
   "goalZone": {
     "min": [
@@ -85,6 +85,11 @@
     {"id":"BreakableWall","x":-169.049,"y":2.512,"z":0,"rotation":0.9479671,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-168.065,"y":3.877,"z":0,"rotation":2.427947,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-168.58,"y":3.419,"z":0,"rotation":1.7426976,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":34},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":34}
   ],
   "terrain": [
     {

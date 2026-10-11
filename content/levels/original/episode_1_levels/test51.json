@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test51",
   "goalZone": {
     "min": [
@@ -68,6 +68,10 @@
     {"id":"Background_Cloud_03_SET","x":-6.9417324,"y":18.82712,"z":15.536638,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET","x":57.390476,"y":10.223583,"z":15.57816,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Secret_01","x":-50.007446,"y":0.21989316,"z":-0.1821863,"rotation":6.2369165,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":2.994792,"sizeY":1.979167,"sizeZ":4,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TimeChallenge","kind":"time","targetTime":5}
   ],
   "terrain": [
     {

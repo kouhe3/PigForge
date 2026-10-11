@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_6",
   "goalZone": {
     "min": [
@@ -140,6 +140,10 @@
     {"id":"Bridge","x":-204.92,"y":13.8,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt16","x":-222.54,"y":1.87,"z":1.5,"rotation":6.2699394,"scaleX":1,"scaleY":1},
     {"id":"Mushroom4","x":-205.343,"y":14.224,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"DynamicBoxChallenge1","kind":"box","propIndex":0},
+    {"name":"DynamicBoxChallenge2","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

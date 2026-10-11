@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "track_03",
   "goalZone": {
     "min": [
@@ -76,6 +76,10 @@
     {"id":"Rock_02","x":-22.885178,"y":-6.988514,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Rock_03","x":-52.42505,"y":-8.4732685,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Rock_02","x":-57.333412,"y":-7.6877823,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TimeChallenge","kind":"time","targetTime":20}
   ],
   "terrain": [
     {

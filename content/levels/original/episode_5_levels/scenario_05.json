@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_05",
   "goalZone": {
     "min": [
@@ -126,6 +126,10 @@
     {"id":"Colorful_Sparkles_03","x":50.357235,"y":3.1345916,"z":-5.2,"rotation":0,"scaleX":0.914142,"scaleY":0.914142},
     {"id":"Cream_Line_01","x":37.12422,"y":0.8929304,"z":-5,"rotation":0.4308488,"scaleX":2,"scaleY":2},
     {"id":"Cherry_Cut","x":22.528412,"y":-5.710258,"z":4,"rotation":0.46081662,"scaleX":1.5000002,"scaleY":1.4999998}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TimeChallenge","kind":"time","targetTime":15}
   ],
   "terrain": [
     {

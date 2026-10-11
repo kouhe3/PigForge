@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_44",
   "goalZone": {
     "min": [
@@ -191,6 +191,10 @@
     {"id":"Pumpkin_Leaf","x":-1.0033569,"y":-1.1880779,"z":-5.063932,"rotation":2.3114033,"scaleX":1.2055732,"scaleY":1.2055732},
     {"id":"Colorful_Sparkles_01","x":-27.683334,"y":50.86062,"z":-5.2,"rotation":0,"scaleX":0.914142,"scaleY":0.914142},
     {"id":"Cream_Line_01","x":-20.922138,"y":40.819637,"z":-5,"rotation":6.1563487,"scaleX":2,"scaleY":2}
+  ],
+  "challenges": [
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"},
+    {"name":"TimeChallenge","kind":"time","targetTime":8}
   ],
   "terrain": [
     {

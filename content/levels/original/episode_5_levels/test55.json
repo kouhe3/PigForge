@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test55",
   "goalZone": {
     "min": [
@@ -156,6 +156,10 @@
     {"id":"Cream_Line_03","x":-62.37346,"y":1.4231102,"z":-5,"rotation":6.2642827,"scaleX":2,"scaleY":2},
     {"id":"Crumbs_03","x":-4.4483337,"y":-6.782132,"z":-5.1856894,"rotation":0,"scaleX":-1.5201532,"scaleY":1.5201532},
     {"id":"Cherry_Cut","x":-40.368103,"y":-0.37869132,"z":4,"rotation":0,"scaleX":1.5,"scaleY":1.5}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":6},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":36}
   ],
   "terrain": [
     {

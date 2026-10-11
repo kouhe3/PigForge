@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_14",
   "goalZone": {
     "min": [
@@ -63,6 +63,10 @@
     {"id":"Grass_01","x":28.08051,"y":11.797791,"z":-5,"rotation":0.6411984,"scaleX":1,"scaleY":1},
     {"id":"Grass_02","x":35.24273,"y":13.595816,"z":-5,"rotation":5.5498548,"scaleX":1,"scaleY":1},
     {"id":"Grass_03","x":32.752434,"y":7.3542833,"z":-5,"rotation":0.6265619,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":9}
   ],
   "terrain": [
     {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_18",
   "goalZone": {
     "min": [
@@ -68,6 +68,10 @@
     {"id":"Shell_01","x":7.7337217,"y":-7.425849,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_01","x":-1.8579369,"y":-5.55554,"z":-5,"rotation":5.9509172,"scaleX":1,"scaleY":1},
     {"id":"Grass_06","x":13.245547,"y":-0.23902416,"z":-5,"rotation":0.201379,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":35},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

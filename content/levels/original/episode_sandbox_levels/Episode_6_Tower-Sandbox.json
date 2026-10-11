@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Episode_6_Tower-Sandbox",
   "goalZone": {
     "min": [
@@ -590,6 +590,7 @@
     {"id":"Grass11","x":-109.34,"y":68.61,"z":0.9,"rotation":0.6244995,"scaleX":1,"scaleY":1},
     {"id":"Grass11","x":-149.251,"y":87.163,"z":0.9,"rotation":6.2783604,"scaleX":-1,"scaleY":1}
   ],
+  "challenges": [],
   "terrain": [
     {
       "position": [-212.8327,-0.9453621,5],

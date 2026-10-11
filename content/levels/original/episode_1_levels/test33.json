@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test33",
   "goalZone": {
     "min": [
@@ -96,6 +96,10 @@
     {"id":"Gravel_01","x":-13.442564,"y":-6.703369,"z":-4.5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Cave_Mushroom_02","x":74.635864,"y":-6.813246,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_01","x":-12.6079035,"y":-6.9276066,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TransportChallenge","kind":"transport","partTypeId":24}
   ],
   "terrain": [
     {

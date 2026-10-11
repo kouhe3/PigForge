@@ -159,6 +159,165 @@ public sealed class GameRoom : IDisposable
         }
     }
 
+    // --- the level's own challenges (schemaVersion 10, docs/specs/level-stars.md §3/§4.2) ---
+
+    /// <summary>
+    /// The level's challenges in the original's numbering order, so index 0 is star 2 and index 1 is
+    /// star 3: the original sorts the scene's challenges by instance name and numbers them
+    /// (`Challenge.cs:74-81`), and the complete menu consumes the first two
+    /// (`LevelComplete.cs:288-289`).
+    /// </summary>
+    private IReadOnlyList<LevelChallengeDefinition> _challenges = Array.Empty<LevelChallengeDefinition>();
+
+    /// <summary>Per-challenge completion of the finished run: bit i is <c>_challenges[i]</c>. Written
+    /// once, on the tick the pig reaches the goal, and published in every frame after it.</summary>
+    private byte _challengeFlags;
+
+    private bool _challengesEvaluated;
+
+    /// <summary>
+    /// Whether the contraption came apart this run: the original's <c>Contraption.m_broken</c>, which
+    /// <c>PerfectFlightChallenge</c> reads (`PerfectFlightChallenge.cs:7-9`). The original sets it on
+    /// the frame after any joint detaches (`Contraption.cs:2810-2812`), so every joint this room
+    /// loses while running counts -- a seam split, a weld, a spring, a detacher, a part a blast
+    /// destroyed (<see cref="NoteContraptionBreak"/>) -- plus any break a backend reports itself
+    /// (<c>GameplayRules.BrokenJoints</c>).
+    /// </summary>
+    private bool _contraptionBroke;
+
+    /// <summary>Stars the finished run earned: the goal zone is one, and each of the level's first two
+    /// challenges that completed is another (`LevelComplete.cs:308-346`). Zero while the run is
+    /// unfinished, like the original's menu, which only counts them once it opens.</summary>
+    internal int StarCount { get; private set; }
+
+    /// <summary>The finished run's challenge bits (test-visible; the wire carries this byte).</summary>
+    internal byte ChallengeFlags => _challengeFlags;
+
+    /// <summary>How long the finished run took, in the original's `TimeElapsed` terms (test-visible).
+    /// </summary>
+    internal float ElapsedSeconds => _rules.ElapsedSeconds;
+
+    /// <summary>Records that the contraption came apart this run (see <see cref="_contraptionBroke"/>).
+    /// </summary>
+    private void NoteContraptionBreak() => _contraptionBroke = true;
+
+    /// <summary>Drops the run's challenge state: the next run judges them again, exactly as the
+    /// original builds a fresh complete menu per run and `LevelComplete` starts from three dark stars
+    /// (`LevelComplete.cs:259-261`).</summary>
+    private void ClearChallengeRun()
+    {
+        _challengeFlags = 0;
+        _challengesEvaluated = false;
+        _contraptionBroke = false;
+        StarCount = 0;
+    }
+
+    /// <summary>
+    /// Judges the level's challenges the way `LevelComplete` does: once, when the pig reaches the
+    /// goal, reading each <c>Challenge.IsCompleted()</c> (<c>docs/specs/level-stars.md</c> §2.4). Every
+    /// answer is a snapshot of state the run has already produced -- a build without a forbidden part,
+    /// the frozen completion time, a contraption that never came apart, a carried part, a collected
+    /// box -- so nothing is polled per tick.
+    /// </summary>
+    private void EvaluateChallenges()
+    {
+        _challengesEvaluated = true;
+        byte flags = 0;
+        for (int index = 0; index < _challenges.Count && index < 8; index++)
+        {
+            if (IsChallengeCompleted(_challenges[index]))
+            {
+                flags |= (byte)(1 << index);
+            }
+        }
+
+        _challengeFlags = flags;
+        StarCount = 1 + ((flags & 0b01) != 0 ? 1 : 0) + ((flags & 0b10) != 0 ? 1 : 0);
+    }
+
+    private bool IsChallengeCompleted(LevelChallengeDefinition challenge) => challenge.Kind switch
+    {
+        // Contest: DontUsePartChallenge.cs:7-9 reads the *build* (ContraptionProto.HasPart), so a part
+        // the run later destroyed still counts as used. Its HasPart compares the PartType enum
+        // (Contraption.cs:491-501), which every skin shares with its base: the content family.
+        LevelChallengeKind.DontUseParts => !HasAnyPartOfFamily(challenge.PartTypeId),
+        // TimeChallenge.cs:11 floors the completion time to a hundredth of a second before comparing.
+        LevelChallengeKind.Time => MathF.Floor(_rules.ElapsedSeconds * 100f) / 100f <= challenge.TargetTime,
+        // PerfectFlightChallenge.cs:7-9: the contraption is still whole.
+        LevelChallengeKind.PerfectFlight => !_contraptionBroke && _rules.BrokenJoints.Count == 0,
+        // TransportChallenge.cs:9 -> LevelManager.cs:1233-1250: the part still rides the pig's own
+        // connected component (the original's joint map, which is this room's cluster graph).
+        LevelChallengeKind.Transport => IsFamilyCarriedByThePig(challenge.PartTypeId),
+        // WaypointChallenge.cs:9: the challenge box was collected (`level-challenges.md` §4).
+        LevelChallengeKind.Box => IsPropCollected(challenge.PropIndex),
+        _ => false,
+    };
+
+    /// <summary>The content family of a placed part: a skin counts against its base, exactly as
+    /// `Contraption.HasPart`'s PartType comparison does (`Contraption.cs:491-501`).</summary>
+    private uint FamilyOf(PartLink part) => _content.GetPart(part.PartTypeId).VariantOf ?? part.PartTypeId;
+
+    private bool HasAnyPartOfFamily(uint family)
+    {
+        var parts = _parts.GetEnumerator();
+        while (parts.MoveNext())
+        {
+            if (FamilyOf(parts.CurrentValue) == family)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a part of that family still rides the reference pig's connected component
+    /// (`ContraptionRunning.IsConnectedToPig`, `LevelManager.cs:1241`). The original's 2.5 m fallback
+    /// is not modelled (`docs/specs/level-stars.md` §8 D9).</summary>
+    private bool IsFamilyCarriedByThePig(uint family)
+    {
+        var pigs = _pigs.GetEnumerator();
+        if (!pigs.MoveNext())
+        {
+            return false;
+        }
+
+        EntityId pig = pigs.CurrentId;
+        var parts = _parts.GetEnumerator();
+        while (parts.MoveNext())
+        {
+            if (FamilyOf(parts.CurrentValue) == family && _rules.AreConnected(pig, parts.CurrentId))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsPropCollected(int propIndex) =>
+        propIndex >= 0 && _collectedProps.BinarySearch((uint)propIndex) >= 0;
+
+    /// <summary>
+    /// The pig the run is timed and judged from: the original's `Contraption.FindPig()`
+    /// (`LevelManager.cs:1236`), the contraption's first pig. A store enumerates entity ids in
+    /// ascending order, so a room with several pigs always picks the same one.
+    /// </summary>
+    private bool TryGetReferencePig(out EntityId pig, out PhysicsVector3 ownPosition)
+    {
+        var pigs = _pigs.GetEnumerator();
+        if (pigs.MoveNext() && _transforms.TryGet(pigs.CurrentId, out EntityTransform transform))
+        {
+            pig = pigs.CurrentId;
+            ownPosition = transform.Position;
+            return true;
+        }
+
+        pig = default;
+        ownPosition = default;
+        return false;
+    }
+
     /// <summary>How many static bodies the level's own solid props brought (test-visible).</summary>
     internal int PropBodyCount => _propBodies.Count;
     private readonly List<CapturedPart> _retryLayout = new();
@@ -320,6 +479,11 @@ public sealed class GameRoom : IDisposable
     {
         ArgumentNullException.ThrowIfNull(level);
         _level = level;
+        // The level's own challenges (schemaVersion 10) are judged at the goal, and the run they
+        // belong to starts with the next Start: a re-entry into the building phase clears the last
+        // run's answers with them.
+        _challenges = level.Challenges;
+        ClearChallengeRun();
         EnsureTerrainBodies(level);
         EnsurePropBodies(level);
         // The level's own build grid and per-family quota (schemaVersion 9, Build) gate every
@@ -761,6 +925,14 @@ public sealed class GameRoom : IDisposable
         _retryLayout.Clear();
         _retryLayout.AddRange(CaptureLayout(_construction.PlacedEntities));
 
+        ClearChallengeRun();
+        // The original's running entry (`BaseGameMode.cs:325-328`): the reference pig's own transform
+        // becomes the pose its clock measures from, and the clock is zeroed.
+        if (TryGetReferencePig(out EntityId referencePig, out PhysicsVector3 pigBuildPose))
+        {
+            _rules.BeginRun(referencePig, pigBuildPose);
+        }
+
         SyncEngineEnclosure();
         SyncChassisAnchors();
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
@@ -862,6 +1034,8 @@ public sealed class GameRoom : IDisposable
         // Runtime sub-entities never survive a build-mode re-entry: their bodies were destroyed with
         // every other body above, and their entity ids and part entries go now (ADR-027 decision 3).
         ClearSubEntities();
+        // The run is over with the simulation: its clock and its challenge answers belong to Running.
+        ClearChallengeRun();
     }
 
     /// <summary>
@@ -914,6 +1088,7 @@ public sealed class GameRoom : IDisposable
         Mode = RoomMode.Building;
         _construction.ResetAll();
         _rules.ResetAll();
+        ClearChallengeRun();
         var parts = _parts.GetEnumerator();
         while (parts.MoveNext())
         {
@@ -1479,6 +1654,14 @@ public sealed class GameRoom : IDisposable
             MarkPropCollected(propIndex);
         }
 
+        // The original judges the level's challenges the moment the pig reaches the goal
+        // (`LevelComplete.Start` reads them into the complete menu) and their answers are a snapshot:
+        // nothing they read can change afterwards. Star 1 is the goal itself, so it is counted here.
+        if (!_challengesEvaluated && _rules.Phase == GameplayPhase.Won)
+        {
+            EvaluateChallenges();
+        }
+
         if (_sandboxMode)
         {
             ResetPlayersOutOfBounds();
@@ -1652,6 +1835,12 @@ public sealed class GameRoom : IDisposable
             return false;
         }
 
+        if (!writer.TryWriteRunState(_rules.ElapsedSeconds, _challengeFlags))
+        {
+            bytesWritten = 0;
+            return false;
+        }
+
         bytesWritten = writer.WrittenBytes;
         return true;
     }
@@ -1697,6 +1886,12 @@ public sealed class GameRoom : IDisposable
         }
 
         if (!writer.TryWriteCollected(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_collectedProps)))
+        {
+            bytesWritten = 0;
+            return false;
+        }
+
+        if (!writer.TryWriteRunState(_rules.ElapsedSeconds, _challengeFlags))
         {
             bytesWritten = 0;
             return false;
@@ -1773,6 +1968,12 @@ public sealed class GameRoom : IDisposable
         }
 
         if (!writer.TryWriteCollected(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_collectedProps)))
+        {
+            bytesWritten = 0;
+            return false;
+        }
+
+        if (!writer.TryWriteRunState(_rules.ElapsedSeconds, _challengeFlags))
         {
             bytesWritten = 0;
             return false;
@@ -2388,6 +2589,9 @@ public sealed class GameRoom : IDisposable
     /// backend's force break).</summary>
     private void BreakSpringLink(int index)
     {
+        // A spring seam lets go: the original's Spring.OnJointBreak runs and UpdateJointMap marks the
+        // contraption broken (Contraption.cs:2810-2812, Spring.cs:59-67).
+        NoteContraptionBreak();
         SpringJoint link = _springJoints[index];
         _springJoints.RemoveAt(index);
         _springs.Remove(link.Spring);
@@ -2708,6 +2912,7 @@ public sealed class GameRoom : IDisposable
             _world.DestroyJoint(joint);
             _weldJoints.RemoveAt(index);
             _rules.UnlinkPowerCluster(weld.Right);
+            NoteContraptionBreak();
             broke = true;
         }
 
@@ -2744,6 +2949,10 @@ public sealed class GameRoom : IDisposable
     /// </summary>
     private void RebuildSplitBody(PhysicsBodyId body, PhysicsBodySnapshot snapshot, IReadOnlyList<CompoundCluster> pieces)
     {
+        // The rig came apart: every runtime split path funnels through here (a seam torn by an
+        // impulse, a detacher firing, the glove tearing its neighbour off), and the original marks the
+        // contraption broken on the frame after any joint detaches (Contraption.cs:2810-2812).
+        NoteContraptionBreak();
         List<uint> members = _entitiesByBody.TryGetValue(body.Value, out List<uint>? bound)
             ? new List<uint>(bound)
             : new List<uint>();
@@ -3158,6 +3367,7 @@ public sealed class GameRoom : IDisposable
             (PhysicsJointId joint, _, _, CompoundWeld broken) = _weldJoints[nearest];
             _world.DestroyJoint(joint);
             _weldJoints.RemoveAt(nearest);
+            NoteContraptionBreak();
             _welds.Remove(broken);
             _weldKeys.Remove(PairKey(broken.Left.Value, broken.Right.Value));
             _rules.UnlinkPowerCluster(broken.Right);
@@ -3475,6 +3685,15 @@ public sealed class GameRoom : IDisposable
                 _liveCompounds.RemoveAll(live => live.Body == body);
                 if (destroyBodyIfOrphan)
                 {
+                    if (Mode == RoomMode.Running)
+                    {
+                        // A part destroyed mid-run takes its joints with it, which is a joint loss in the
+                        // original's terms too: the part's body goes away, OnJointBreak fires and
+                        // UpdateJointMap marks the contraption broken (Contraption.cs:2810-2812). The
+                        // run-end teardown has already left Running, so it never counts as damage.
+                        NoteContraptionBreak();
+                    }
+
                     ForgetJointsForBody(body);
                     _bodyPose.Remove(body.Value);
                     _world.DestroyBody(body);

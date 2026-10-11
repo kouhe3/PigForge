@@ -24,7 +24,7 @@ public static class LevelContentParser
     private static readonly string[] RequiredRootProperties = { "format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns" };
 
     /// <summary>Version-gated additions; an older document simply omits them.</summary>
-    private static readonly string[] OptionalRootProperties = { "terrain", "cameraLimits", "props", "build" };
+    private static readonly string[] OptionalRootProperties = { "terrain", "cameraLimits", "props", "build", "challenges" };
 
     /// <summary>The two halves of a v5 `cameraLimits` block, and nothing else.</summary>
     private static readonly string[] CameraLimitProperties = { "topLeft", "size" };
@@ -34,6 +34,24 @@ public static class LevelContentParser
 
     /// <summary>The two properties one `build.partCounts` entry carries.</summary>
     private static readonly string[] PartCountProperties = { "partTypeId", "count" };
+
+    /// <summary>The two properties every one of a v10 `challenges` entry carries.</summary>
+    private static readonly string[] ChallengeRequiredProperties = { "name", "kind" };
+
+    /// <summary>Every property a v10 `challenges` entry may carry, across all five kinds.</summary>
+    private static readonly string[] ChallengeProperties = { "name", "kind", "propIndex", "targetTime", "partTypeId" };
+
+    /// <summary>What one `box` challenge carries: the prop whose collectable it watches.</summary>
+    private static readonly string[] BoxChallengeProperties = { "name", "kind", "propIndex" };
+
+    /// <summary>What one `time` challenge carries: its own `m_targetTime`.</summary>
+    private static readonly string[] TimeChallengeProperties = { "name", "kind", "targetTime" };
+
+    /// <summary>What one `dontUseParts` / `transport` challenge carries: its base part family.</summary>
+    private static readonly string[] PartChallengeProperties = { "name", "kind", "partTypeId" };
+
+    /// <summary>What one `perfectFlight` challenge carries: nothing beyond the two shared properties.</summary>
+    private static readonly string[] BareChallengeProperties = { "name", "kind" };
 
     public static LevelContentDocument Parse(string json)
     {
@@ -220,6 +238,39 @@ public static class LevelContentParser
             }
         }
 
+        // v10: the level's own challenges -- its sorted registry of `Challenge` instances, out of which
+        // `LevelComplete` takes the second and third star. Required (an empty array is fine: 14 of the
+        // 277 original levels carry no challenge) and refused on every older document, exactly like v5
+        // `cameraLimits` and v6 `props` (`docs/specs/level-stars.md` §3).
+        List<LevelChallengeDefinition> challenges = new();
+        if (seen.Contains("challenges") && root.TryGetProperty("challenges", out JsonElement challengesElement))
+        {
+            if (schemaVersion >= 10)
+            {
+                if (challengesElement.ValueKind != JsonValueKind.Array)
+                {
+                    errors.Add("root.challenges: must be an array.");
+                }
+                else
+                {
+                    int index = 0;
+                    foreach (JsonElement challengeElement in challengesElement.EnumerateArray())
+                    {
+                        ParseChallenge(challengeElement, $"root.challenges[{index}]", props, challenges, errors);
+                        index++;
+                    }
+                }
+            }
+            else
+            {
+                errors.Add("root.challenges: only a schemaVersion 10 document carries the level's challenges.");
+            }
+        }
+        else if (schemaVersion >= 10)
+        {
+            errors.Add("root.challenges: a schemaVersion 10 document must carry the level's challenges (an empty array is fine).");
+        }
+
         if (errors.Count > 0)
         {
             throw new LevelContentException(errors);
@@ -231,6 +282,7 @@ public static class LevelContentParser
             CameraLimits = cameraLimits,
             Props = props,
             Build = build,
+            Challenges = challenges,
         };
     }
 
@@ -1264,6 +1316,188 @@ public static class LevelContentParser
         }
 
         partCounts.Add(new LevelPartAllowance(partTypeId, count));
+    }
+
+    /// <summary>
+    /// One `<c>root.challenges</c>` entry (v10): the level file's own <c>Challenge</c> instance, in the
+    /// original's numbering order. <c>name</c> and <c>kind</c> always; a <c>box</c> challenge also names
+    /// the prop it collects, a <c>time</c> one its own <c>m_targetTime</c> and a <c>dontUseParts</c> /
+    /// <c>transport</c> one its base part family -- and a property the kind does not use is refused.
+    /// Two instances of one level may share a name (3 of the 277 original levels do, §7 of
+    /// <c>docs/specs/level-stars.md</c>), so duplicates are legal here.
+    /// </summary>
+    private static void ParseChallenge(
+        JsonElement element,
+        string path,
+        IReadOnlyList<LevelPropDefinition> props,
+        List<LevelChallengeDefinition> challenges,
+        List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be an object.");
+            return;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+            else if (!ChallengeProperties.Contains(property.Name, StringComparer.Ordinal))
+            {
+                errors.Add($"{path}: unknown property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, ChallengeRequiredProperties, path, errors);
+
+        string? name = null;
+        if (seen.Contains("name") && element.TryGetProperty("name", out JsonElement nameElement))
+        {
+            if (nameElement.ValueKind == JsonValueKind.String && nameElement.GetString() is { Length: > 0 } value)
+            {
+                name = value;
+            }
+            else
+            {
+                errors.Add($"{path}.name: must be a non-empty string.");
+            }
+        }
+
+        LevelChallengeKind? kind = null;
+        if (seen.Contains("kind") && element.TryGetProperty("kind", out JsonElement kindElement))
+        {
+            if (kindElement.ValueKind != JsonValueKind.String
+                || !TryReadChallengeKind(kindElement.GetString()!, out LevelChallengeKind parsedKind))
+            {
+                errors.Add($"{path}.kind: must be one of 'dontUseParts', 'time', 'perfectFlight', 'transport' or 'box'.");
+            }
+            else
+            {
+                kind = parsedKind;
+            }
+        }
+
+        if (kind is not { } challengeKind)
+        {
+            return;
+        }
+
+        // The keys an entry may carry are the two shared ones plus the ones its own kind uses; the
+        // other kinds' properties are drift (`root.challenges[i].propIndex` on a `time` challenge).
+        string[] allowed = challengeKind switch
+        {
+            LevelChallengeKind.Box => BoxChallengeProperties,
+            LevelChallengeKind.Time => TimeChallengeProperties,
+            LevelChallengeKind.DontUseParts or LevelChallengeKind.Transport => PartChallengeProperties,
+            _ => BareChallengeProperties,
+        };
+        foreach (string property in seen)
+        {
+            if (ChallengeProperties.Contains(property, StringComparer.Ordinal)
+                && !allowed.Contains(property, StringComparer.Ordinal))
+            {
+                errors.Add($"{path}: unknown property '{property}' for a '{ChallengeKindName(challengeKind)}' challenge.");
+            }
+        }
+
+        int propIndex = -1;
+        float targetTime = 0f;
+        uint partTypeId = 0;
+        bool wellFormed = true;
+        switch (challengeKind)
+        {
+            case LevelChallengeKind.Box:
+                // The challenge box is a real, drawable prop, so its index must address one.
+                if (!seen.Contains("propIndex") || !element.TryGetProperty("propIndex", out JsonElement propIndexElement)
+                    || propIndexElement.ValueKind != JsonValueKind.Number
+                    || !propIndexElement.TryGetInt32(out propIndex)
+                    || propIndex < 0)
+                {
+                    errors.Add($"{path}.propIndex: must be a non-negative integer.");
+                    wellFormed = false;
+                }
+                else if (propIndex >= props.Count)
+                {
+                    errors.Add($"{path}.propIndex: must index one of this document's {props.Count} props.");
+                    wellFormed = false;
+                }
+
+                break;
+            case LevelChallengeKind.Time:
+                if (!seen.Contains("targetTime") || !element.TryGetProperty("targetTime", out JsonElement targetTimeElement)
+                    || targetTimeElement.ValueKind != JsonValueKind.Number
+                    || !IsFinite(targetTimeElement)
+                    || targetTimeElement.GetSingle() < 0f)
+                {
+                    errors.Add($"{path}.targetTime: must be a finite, non-negative number.");
+                    wellFormed = false;
+                }
+                else
+                {
+                    targetTime = targetTimeElement.GetSingle();
+                }
+
+                break;
+            case LevelChallengeKind.DontUseParts:
+            case LevelChallengeKind.Transport:
+                if (!seen.Contains("partTypeId") || !element.TryGetProperty("partTypeId", out JsonElement partTypeElement)
+                    || partTypeElement.ValueKind != JsonValueKind.Number
+                    || !partTypeElement.TryGetUInt32(out partTypeId)
+                    || partTypeId == 0)
+                {
+                    errors.Add($"{path}.partTypeId: must be a positive integer.");
+                    wellFormed = false;
+                }
+
+                break;
+        }
+
+        if (name is null || !wellFormed)
+        {
+            return;
+        }
+
+        challenges.Add(new LevelChallengeDefinition(name, challengeKind, propIndex, targetTime, partTypeId));
+    }
+
+    /// <summary>The contract's own spelling of one <see cref="LevelChallengeKind"/>.</summary>
+    private static string ChallengeKindName(LevelChallengeKind kind) => kind switch
+    {
+        LevelChallengeKind.DontUseParts => "dontUseParts",
+        LevelChallengeKind.Time => "time",
+        LevelChallengeKind.PerfectFlight => "perfectFlight",
+        LevelChallengeKind.Transport => "transport",
+        _ => "box",
+    };
+
+    /// <summary>Reads one `kind` string: the contract's five values and nothing else.</summary>
+    private static bool TryReadChallengeKind(string value, out LevelChallengeKind kind)
+    {
+        switch (value)
+        {
+            case "dontUseParts":
+                kind = LevelChallengeKind.DontUseParts;
+                return true;
+            case "time":
+                kind = LevelChallengeKind.Time;
+                return true;
+            case "perfectFlight":
+                kind = LevelChallengeKind.PerfectFlight;
+                return true;
+            case "transport":
+                kind = LevelChallengeKind.Transport;
+                return true;
+            case "box":
+                kind = LevelChallengeKind.Box;
+                return true;
+            default:
+                kind = default;
+                return false;
+        }
     }
 
     /// <summary>

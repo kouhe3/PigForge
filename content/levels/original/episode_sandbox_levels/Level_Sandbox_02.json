@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Sandbox_02",
   "goalZone": {
     "min": [
@@ -198,6 +198,7 @@
     {"id":"Branch_01","x":234.96718,"y":31.046295,"z":-5,"rotation":6.025415,"scaleX":1,"scaleY":1},
     {"id":"Crystal_01","x":-121.68783,"y":40.077232,"z":-5,"rotation":3.232796,"scaleX":-1,"scaleY":1}
   ],
+  "challenges": [],
   "terrain": [
     {
       "position": [350.67868,3.22316,0],

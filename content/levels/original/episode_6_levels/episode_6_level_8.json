@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_8",
   "goalZone": {
     "min": [
@@ -163,6 +163,10 @@
     {"id":"LitMushroom_05","x":-172.617,"y":50.761,"z":-1,"rotation":6.266294,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_05","x":-169.977,"y":35.925,"z":-1,"rotation":5.688231,"scaleX":1,"scaleY":1},
     {"id":"SecretStatue","x":-157.56,"y":92.211,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge1","kind":"box","propIndex":0},
+    {"name":"BoxChallenge2","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

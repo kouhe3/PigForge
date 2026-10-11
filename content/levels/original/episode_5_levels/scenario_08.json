@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_08",
   "goalZone": {
     "min": [
@@ -97,6 +97,10 @@
     {"id":"BonBon_01","x":16.356483,"y":-1.486538,"z":-5.064512,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cream_Line_02","x":-40.81389,"y":35.879673,"z":-5,"rotation":0.3339212,"scaleX":2,"scaleY":2},
     {"id":"Cream_Line_03","x":-28.49553,"y":26.971615,"z":-5,"rotation":0.66482836,"scaleX":2,"scaleY":2}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TimeChallenge","kind":"time","targetTime":44}
   ],
   "terrain": [
     {

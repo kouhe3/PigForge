@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Sandbox_07",
   "goalZone": {
     "min": [
@@ -242,6 +242,7 @@
     {"id":"Grass_10_0","x":-50.176582,"y":35.27546,"z":-5,"rotation":6.118468,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_01","x":53.35607,"y":-6.886032,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
   ],
+  "challenges": [],
   "terrain": [
     {
       "position": [-50.322674,13.628927,0],

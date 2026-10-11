@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Race_04",
   "goalZone": {
     "min": [
@@ -114,6 +114,10 @@
     {"id":"Shell_01","x":-63.582523,"y":-7.385912,"z":-5,"rotation":0,"scaleX":-0.80171573,"scaleY":0.80171573},
     {"id":"Crystal_03","x":41.650288,"y":2.9614964,"z":-5,"rotation":2.5763535,"scaleX":1,"scaleY":1},
     {"id":"Bottle_01","x":-75.2661,"y":-6.774828,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"TimeChallenge","kind":"time","targetTime":25},
+    {"name":"TimeChallenge2","kind":"time","targetTime":30}
   ],
   "terrain": [
     {

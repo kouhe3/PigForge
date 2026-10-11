@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_63",
   "goalZone": {
     "min": [
@@ -64,6 +64,10 @@
     {"id":"Grass_07","x":-22.427046,"y":1.1905518,"z":-5,"rotation":0.92252517,"scaleX":1,"scaleY":1},
     {"id":"Bush_03","x":23.567791,"y":2.406721,"z":-5,"rotation":0.68451196,"scaleX":-1,"scaleY":1},
     {"id":"Twig_2","x":57.45866,"y":-6.98172,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":4},
+    {"name":"TransportChallenge","kind":"transport","partTypeId":24}
   ],
   "terrain": [
     {

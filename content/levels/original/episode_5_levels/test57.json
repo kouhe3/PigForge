@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test57",
   "goalZone": {
     "min": [
@@ -192,6 +192,10 @@
     {"id":"Chocholate_Ball_Small","x":-5.056198,"y":14.826826,"z":-5.088555,"rotation":6.0831866,"scaleX":0.265431,"scaleY":0.265431},
     {"id":"Colorful_Sparkles_05","x":-73.46466,"y":-2.2908833,"z":-5.2,"rotation":0,"scaleX":0.914142,"scaleY":0.914142},
     {"id":"Colorful_Sparkles_03","x":-78.85425,"y":23.619135,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":15},
+    {"name":"BoxChallenge1","kind":"box","propIndex":14}
   ],
   "terrain": [
     {

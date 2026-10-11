@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_11",
   "goalZone": {
     "min": [
@@ -121,6 +121,10 @@
     {"id":"WindowBgSmall","x":-243.143,"y":23.860003,"z":4.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"WindowBgSmall","x":-146.224,"y":40.481995,"z":4,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"WindowLarge","x":-158.73,"y":29.860003,"z":-1,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":30}
   ],
   "terrain": [
     {

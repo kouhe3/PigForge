@@ -1,4 +1,4 @@
-// Level builder: turns the original's 277 binary level files into PigForge level content v9
+// Level builder: turns the original's 277 binary level files into PigForge level content v10
 // (`content/levels/original/<area>/<scene>.json`) -- the level's own `PrefabOverrides` camera limits
 // (the rectangle the original drops the pig out of, `Pig.cs:396-403`), every `e2dTerrain` object (its
 // collision outline, whether it carries a MeshCollider, and the fill texture/color/tile that draw its
@@ -7,7 +7,10 @@
 // `LevelStart` instance, and the part allowances its `m_partTypeCounts` leaves (`lib/overrides.mjs`
 // reads both as the patches on the `LevelManager` prefab's own table that the original's
 // `ObjectDeserializer` makes them; `build` is optional, because the sandbox levels the tool carves
-// out carry no limit at all).
+// out carry no limit at all) -- and the level's own challenges (v10): one entry per `Challenge`
+// instance the level places, in the original's own numbering, with the parameter each one's
+// `PrefabOverrides` block mounts (`lib/challenges.mjs`; 263 of the 277 levels have two, one has
+// three, and the 14 sandbox levels have none).
 //
 // It is the write side of the same decoder the extractor reports with (`lib/`), so every emitted
 // number comes out of the pack: the palette resolves a `PrefabIndex` to its prefab, the goal zone
@@ -17,7 +20,8 @@
 // docs/specs/original-level-pack.md §3). Nothing here is hand-written that the pack defines.
 //
 // Output shape (`lib/write.mjs`): the readable 2-space layout for `format`/`schemaVersion`/
-// `contentVersion`/`goalZone`/`bounds`/`build`/`spawns`, one line for `cameraLimits`, one `terrain` entry per
+// `contentVersion`/`goalZone`/`bounds`/`build`/`spawns`/`challenges` (one line per challenge),
+// one line for `cameraLimits`, one `terrain` entry per
 // object with its `position`, `depth` and `loops`, and one line per outline loop -- the pack is three quarters
 // outline points, so those carry the file (33.8 MB pretty-printed, 8.7 MB this way). Every number
 // in a content file is exactly a float32 -- the pack reaches us through `BinaryReader.ReadSingle`
@@ -55,6 +59,13 @@ import { readBoxCollider } from "./lib/goal.mjs";
 import { assertTerrainFillTileSizes, readE2dTerrainGuid, readImportState, readTerrainFillTile } from "./lib/fill.mjs";
 import { curveBlockOf } from "./lib/curve.mjs";
 import { readBuildLimits, readCameraLimits, readLevelManagerDefaults } from "./lib/overrides.mjs";
+import {
+  CHALLENGE_LESS_LEVELS,
+  CHALLENGE_KIND_BY_CLASS,
+  challengeInstances,
+  openChallengePrefabs,
+  readLevelChallenges,
+} from "./lib/challenges.mjs";
 import { resolvePartTypes } from "../lib/part-types.mjs";
 import { formatJson, formatLevelDocument, sha256 } from "./lib/write.mjs";
 
@@ -275,6 +286,9 @@ function cloudRandom(seed) {
 // The level's non-part, non-terrain prefabs (`docs/specs/level-props.md`). One reader for the whole
 // run: building it walks the original's asset tree once.
 const props = openProps(BPLE);
+// The five prefabs the levels' own challenges are instances of (`lib/challenges.mjs`): one reader
+// for the whole run, so each prefab's class and its own parameter defaults are read once.
+const challengePrefabs = openChallengePrefabs(BPLE, check);
 
 const dataFiles = discoverDataFiles(ASSETS);
 check(dataFiles.length === 277, `expected 277 level files, found ${dataFiles.length}`);
@@ -298,6 +312,34 @@ const buildCensus = {
   sandbox: [],
   withoutBuild: [],
   unmapped: new Map(),
+};
+/** The challenge census (`docs/specs/level-stars.md` §7): how many `Challenge` instances the pack
+ * places, which class and parameter each carries, and the two shapes the report pins -- instances
+ * per level, and the kind of each instance. Every map counts `{ instances, levels }` so a level
+ * that starts or stops placing one shows up as a number rather than as silence. */
+const challengeCensus = {
+  instances: 0,
+  levels: 0,
+  kinds: new Map(),
+  classes: new Map(),
+  prefabs: new Map(),
+  prefabClass: new Map(),
+  labels: new Map(),
+  perLevel: new Map(),
+  targetTimes: new Map(),
+  prefabDefaults: [],
+  dontUseParts: new Map(),
+  transports: new Map(),
+  partTypeIds: new Map(),
+  duplicateLabels: [],
+};
+/** The census entry for one instance of `key`, counted per level (a level placing two of the same
+ * kind counts one instance twice, one level once). */
+const countChallenge = (map, key, sceneName) => {
+  const entry = map.get(key) ?? { instances: 0, levels: new Set() };
+  entry.instances += 1;
+  entry.levels.add(sceneName);
+  map.set(key, entry);
 };
 const totals = {
   terrain: 0,
@@ -638,6 +680,13 @@ for (const { bundle, file } of dataFiles) {
   // parallax layers -- one entry per instance, drawn by the client in the original's own depth order
   // (`docs/specs/level-props.md`). Instances of every other prop class are counted instead of placed,
   // so a family that stops being classified shows up as a number in the report rather than as silence.
+  //
+  // The walk also keeps each challenge box's own slot: a `box` challenge's `propIndex` (v10) is the
+  // index of the very instance in this level's `props` array -- the same slot the collection segment
+  // reads (`docs/specs/level-challenges.md` §3) -- so the challenge reader and the props walk agree
+  // on one instance object (`lib/challenges.mjs`).
+  const challengeNodes = challengeInstances(data, palette, challengePrefabs);
+  const challengePropIndex = new Map();
   const propInstances = [];
   let cloudInstances = 0;
   for (const instance of data.instanceList) {
@@ -701,18 +750,34 @@ for (const { bundle, file } of dataFiles) {
       ...(record.boxes.length > 0 ? { boxes: boxesOf(record.boxes) } : {}),
       ...(record.triggers.length > 0 ? { triggers: boxesOf(record.triggers) } : {}),
     });
+    // One instance object, one slot: the challenge's own entry (if it is one) points back at it.
+    if (challengeNodes.has(instance)) challengePropIndex.set(instance, propInstances.length - 1);
   }
 
   // ---------------------------------------------------------------- write
   const contentVersion = contentVersionOf(sceneName);
   const area = areaOf(bundle);
   const relativePath = `content/levels/original/${area}/${contentVersion}.json`;
+  // -------------------------------------------------------------- challenges (v10)
+  // The level's own challenge instances, in the original's numbering (`Challenge.Refresh` sorts the
+  // registry by instance label and renumbers it 1..N), each with the parameter its own
+  // `PrefabOverrides` block mounts -- and a box's back-reference into the `props` array just built.
+  const challengeRead = readLevelChallenges({
+    sceneName,
+    instances: challengeNodes,
+    overrides: data.overrides,
+    partTypes,
+    propIndexByNode: challengePropIndex,
+    propCount: propInstances.length,
+    check,
+  });
+  const challenges = challengeRead.challenges;
   const document = {
     format: "pigforge.level-content",
-    // v9 is the version that may carry the level's own construction limits (`build`), and every
-    // original level is v9 -- including the sandbox levels `WITHOUT_BUILD` carves out, whose
-    // document simply omits the block rather than dropping back to v8.
-    schemaVersion: 9,
+    // v10 is the version that carries the level's own challenges, and every original level is v10 --
+    // including the sandbox levels, whose document carries `challenges: []` rather than dropping
+    // back to v9 (the array is required; only its contents may be empty).
+    schemaVersion: 10,
     contentVersion,
     ...(build === null ? {} : { build }),
     goalZone,
@@ -720,9 +785,26 @@ for (const { bundle, file } of dataFiles) {
     cameraLimits,
     spawns,
     props: propInstances,
+    challenges,
     terrain: terrainEntries,
   };
   const json = formatLevelDocument(document);
+  // The document is read back once: a `box` challenge's `propIndex` has to land on a real `props`
+  // element (that is what the collection segment indexes), and the 14 challenge-less levels have to
+  // write `challenges: []` rather than omit the (v10-required) array.
+  const written = JSON.parse(json);
+  check(
+    Array.isArray(written.challenges) && written.challenges.length === challenges.length,
+    `${relativePath}: the document carries ${JSON.stringify(written.challenges)}`,
+  );
+  check(
+    written.challenges.every(
+      (challenge) =>
+        challenge.kind !== "box" ||
+        (Number.isInteger(challenge.propIndex) && challenge.propIndex >= 0 && challenge.propIndex < written.props.length),
+    ),
+    `${relativePath}: a box challenge's propIndex points outside its ${written.props.length} props`,
+  );
   const bytes = Buffer.byteLength(json, "utf8");
   const hash = sha256(json);
   const path = join(OUT, area, `${contentVersion}.json`);
@@ -745,9 +827,50 @@ for (const { bundle, file } of dataFiles) {
   console.log(
     `${state.padEnd(5)} ${relativePath}  terrain=${terrainEntries.length} loops=${loops} points=${points}` +
       ` spawns=${spawns.length} goal=${data.goalInstances.length === 1 ? basename(palette[data.goalInstances[0].prefabIndex], ".prefab") : "none"}` +
-      ` props=${propInstances.length} skipped=${skippedHere} bytes=${bytes}` +
+      ` props=${propInstances.length} challenges=${challenges.length} skipped=${skippedHere} bytes=${bytes}` +
       ` build=${build === null ? "none" : `${extent.columns}x${extent.height} families=${build.partCounts.length} parts=${build.partCounts.reduce((total, entry) => total + entry.count, 0)}`}`,
   );
+
+  // The census: what the level's own challenges are, how many, and which parameter each carries.
+  challengeCensus.instances += challengeRead.instances.length;
+  if (challengeRead.instances.length > 0) challengeCensus.levels += 1;
+  challengeCensus.perLevel.set(
+    challengeRead.instances.length,
+    (challengeCensus.perLevel.get(challengeRead.instances.length) ?? 0) + 1,
+  );
+  const labels = new Set();
+  for (const instance of challengeRead.instances) {
+    countChallenge(challengeCensus.kinds, instance.kind, sceneName);
+    countChallenge(challengeCensus.classes, instance.className, sceneName);
+    countChallenge(challengeCensus.prefabs, instance.prefabName, sceneName);
+    countChallenge(challengeCensus.labels, instance.name, sceneName);
+    // One prefab, one class (`BoxChallenge`/`DynamicBoxChallenge` are both a `WaypointChallenge`,
+    // never both): the report's prefab table names both halves of every instance.
+    const prefabClass = challengeCensus.prefabClass.get(instance.prefabName);
+    check(
+      prefabClass === undefined || prefabClass === instance.className,
+      `${instance.prefabName} is both ${prefabClass} and ${instance.className}`,
+    );
+    challengeCensus.prefabClass.set(instance.prefabName, instance.className);
+    // Two same-labelled challenges in one level: the ordinal sort has no key to order them, so the
+    // level file's own order decides (deviation D1). Counted, because the three such levels are the
+    // only places the sort is not fully determined by the data.
+    if (labels.has(instance.name)) challengeCensus.duplicateLabels.push({ sceneName, label: instance.name });
+    labels.add(instance.name);
+    if (instance.kind === "time") {
+      countChallenge(challengeCensus.targetTimes, instance.targetTime, sceneName);
+      // The one instance whose level never mounts the class keeps the prefab's own value (30).
+      if (!instance.targetTimeOverridden) {
+        challengeCensus.prefabDefaults.push({ sceneName, name: instance.name, targetTime: instance.targetTime });
+      }
+    } else if (instance.kind === "dontUseParts") {
+      countChallenge(challengeCensus.dontUseParts, instance.partTypeEnum, sceneName);
+      countChallenge(challengeCensus.partTypeIds, instance.partTypeId, sceneName);
+    } else if (instance.kind === "transport") {
+      countChallenge(challengeCensus.transports, instance.partTypeEnum, sceneName);
+      countChallenge(challengeCensus.partTypeIds, instance.partTypeId, sceneName);
+    }
+  }
 
   rows.push({
     bundle,
@@ -764,6 +887,10 @@ for (const { bundle, file } of dataFiles) {
     skipped: skippedHere,
     spawns: spawns.length,
     props: propInstances.length,
+    // The level's own challenges (v10): how many instances it places (0 for the 14 sandbox levels,
+    // whose document carries an empty array) and which kinds they are.
+    challenges: challenges.length,
+    challengeKinds: challenges.map((challenge) => challenge.kind).join(","),
     // The level's own construction limits: the grid its `m_constructionGridRows` describes, and --
     // for a level that carries a `build` block -- how many part families and parts it allows.
     build: {
@@ -829,6 +956,72 @@ check(
 // about an empty grid (`gridExtent` reads the original's own rectangle).
 const unplaceable = rows.filter((row) => row.build.cells === 0).map((row) => row.sceneName);
 check(unplaceable.length === 0, `levels with no placeable grid cell: ${unplaceable.join(", ")}`);
+
+// ---------------------------------------------------------------- challenges (v10)
+
+// The challenge census, pinned the way the prop and build counts above are: a prefab that stops
+// resolving to its `Challenge` subclass, a level that stops placing one, or a parameter that moves
+// source changes one of these numbers instead of passing silently. Measured 2026-10-11 against the
+// pristine pack (`docs/specs/level-stars.md` §7).
+const challengePerLevel = [...challengeCensus.perLevel.entries()]
+  .sort((left, right) => left[0] - right[0])
+  .map(([count, levels]) => ({ instances: count, levels }));
+const challengeKindCounts = Object.fromEntries(
+  [...challengeCensus.kinds].map(([kind, entry]) => [kind, entry.instances]).sort(([left], [right]) => left.localeCompare(right)),
+);
+check(
+  challengeCensus.instances === 527,
+  `challenge instances: ${challengeCensus.instances}, expected 527`,
+);
+check(challengeCensus.levels === 263, `levels with a challenge: ${challengeCensus.levels}, expected 263 of ${rows.length}`);
+check(
+  JSON.stringify(challengePerLevel) === JSON.stringify([
+    { instances: 0, levels: 14 },
+    { instances: 2, levels: 262 },
+    { instances: 3, levels: 1 },
+  ]),
+  `challenges per level: ${JSON.stringify(challengePerLevel)}, expected 14 levels with 0, 262 with 2 and 1 with 3`,
+);
+check(
+  JSON.stringify(challengeKindCounts) ===
+    JSON.stringify({ box: 281, dontUseParts: 79, perfectFlight: 44, time: 113, transport: 10 }),
+  `challenges per kind: ${JSON.stringify(challengeKindCounts)}, expected 281 box / 113 time / 79 dontUseParts / 44 perfectFlight / 10 transport`,
+);
+// The one level with three challenges is the one whose third instance is the only one outside the
+// star pair (`LevelComplete` consumes `m_challenges[0]` and `[1]` only).
+const threeChallengeLevels = rows.filter((row) => row.challenges === 3).map((row) => row.sceneName);
+check(
+  JSON.stringify(threeChallengeLevels) === JSON.stringify(["episode_6_level_25"]),
+  `levels with three challenges: ${threeChallengeLevels.join(", ")}, expected episode_6_level_25`,
+);
+// The 14 challenge-less levels: every one still writes the (required) empty array, and they are
+// exactly the pack's own sandbox levels -- the same 14 `m_sandbox` levels the build census lists.
+const zeroChallengeLevels = rows.filter((row) => row.challenges === 0).map((row) => row.sceneName).sort();
+check(
+  JSON.stringify(zeroChallengeLevels) === JSON.stringify(CHALLENGE_LESS_LEVELS),
+  `levels with no challenge: ${zeroChallengeLevels.join(", ")}, expected ${CHALLENGE_LESS_LEVELS.join(", ")}`,
+);
+check(
+  zeroChallengeLevels.every((sceneName) => buildCensus.sandbox.includes(sceneName)),
+  `levels with no challenge that are not sandbox levels: ${zeroChallengeLevels.filter((sceneName) => !buildCensus.sandbox.includes(sceneName)).join(", ")}`,
+);
+check(
+  rows.every((row) => row.challengeKinds.split(",").filter((kind) => kind.length > 0).length === row.challenges),
+  "a level's challenge kinds do not line up with its challenge count",
+);
+// Every entry carries the label the original sorts on (`gameObject.name`, `LevelLoader.cs:127`); the
+// three levels with two same-labelled challenges are the only ones the ordinal sort cannot order on
+// its own (`lib/challenges.mjs`, deviation D1).
+check(
+  [...challengeCensus.labels.keys()].every((label) => typeof label === "string" && label.length > 0),
+  "a challenge carries an empty label",
+);
+const duplicateLabelLevels = [...new Set(challengeCensus.duplicateLabels.map((entry) => entry.sceneName))].sort();
+check(
+  JSON.stringify(duplicateLabelLevels) ===
+    JSON.stringify(["episode_6_level_IX", "episode_6_level_25", "episode_6_level_32"].sort()),
+  `levels with two same-labelled challenges: ${duplicateLabelLevels.join(", ")}, expected episode_6_level_25, episode_6_level_32 and episode_6_level_IX`,
+);
 
 // ---------------------------------------------------------------- level textures
 
@@ -908,6 +1101,51 @@ check(
   `no-PigForge-base allowances: ${JSON.stringify(noBaseLevels)}, expected Pumpkin(42) 16 and GoldenPig(45) 14 levels`,
 );
 
+// The challenge census, rendered for the report: one row per key (a kind, a prefab name, an
+// instance label, a PartType enum or a `m_targetTime` in seconds), biggest first, and the PartType
+// rows resolved through `resolvePartTypes` so the report shows the enum *and* the PigForge id it
+// became (the enum is never an id).
+const challengeRows = (map) =>
+  [...map.entries()]
+    .map(([key, entry]) => ({ key, instances: entry.instances, levels: entry.levels.size }))
+    .sort((left, right) => right.instances - left.instances || String(left.key).localeCompare(String(right.key)));
+const challengePartTypes = (map) =>
+  challengeRows(map).map((entry) => ({
+    partType: entry.key,
+    name: partTypes.names.get(entry.key) ?? null,
+    partTypeId: partTypes.byEnum.get(entry.key) ?? null,
+    instances: entry.instances,
+    levels: entry.levels,
+  }));
+const challengeReport = {
+  instances: challengeCensus.instances,
+  levels: challengeCensus.levels,
+  perLevel: challengePerLevel,
+  kinds: challengeRows(challengeCensus.kinds),
+  classes: challengeRows(challengeCensus.classes),
+  prefabs: challengeRows(challengeCensus.prefabs),
+  prefabClasses: Object.fromEntries([...challengeCensus.prefabClass].sort()),
+  labels: challengeRows(challengeCensus.labels),
+  // `seconds` -> instances: the value the challenge is actually compared against (`TimeChallenge`),
+  // whether the level wrote it or it is the prefab's own (the one entry in `prefabDefaults`).
+  targetTimes: challengeRows(challengeCensus.targetTimes).map((entry) => ({
+    seconds: entry.key,
+    instances: entry.instances,
+    levels: entry.levels,
+  })),
+  prefabDefaults: challengeCensus.prefabDefaults,
+  dontUseParts: challengePartTypes(challengeCensus.dontUseParts),
+  transports: challengePartTypes(challengeCensus.transports),
+  partTypeIds: challengeRows(challengeCensus.partTypeIds).map((entry) => ({
+    partTypeId: entry.key,
+    instances: entry.instances,
+    levels: entry.levels,
+  })),
+  duplicateLabels: challengeCensus.duplicateLabels,
+  zeroLevels: zeroChallengeLevels,
+  threeChallengeLevels,
+};
+
 const report = {
   format: "pigforge.bple-level-build",
   schemaVersion: 1,
@@ -952,6 +1190,13 @@ const report = {
     buildRowShapes: rowShapes.length,
     buildSandboxLevels: buildCensus.sandbox.length,
     buildNoPigForgeBase: noPigForgeBase.length,
+    challengeInstances: challengeCensus.instances,
+    challengeLevels: challengeCensus.levels,
+    challengeKinds: challengeKindCounts,
+    challengePrefabs: challengeCensus.prefabs.size,
+    challengeLabels: challengeCensus.labels.size,
+    challengeZeroLevels: zeroChallengeLevels.length,
+    challengeDuplicateLabels: challengeCensus.duplicateLabels.length,
     textureRoot: OUT_TEXTURES,
   },
   build: {
@@ -965,6 +1210,7 @@ const report = {
     noPigForgeBase,
     withoutBuild: buildCensus.withoutBuild,
   },
+  challenges: challengeReport,
   skipped: skippedTerrains,
   skippedFills,
   skippedCurves,
@@ -987,6 +1233,7 @@ md.push(`- 关卡贴图 **${textureRows.length}** 张 / ${textureBytes} 字节�
 md.push(`- 零件实例 **${totals.spawns}**，有终点的关卡 **${totals.goals}**，无终点（沙盒/MM）**${totals.levelsWithoutGoal}**`);
 md.push(`- 相机界（\`PrefabOverrides\` 的 \`LevelManager.m_cameraLimits\`，原版出界判定的矩形）**${totals.cameraLimits}/${rows.length}** 关`);
 md.push(`- 建造限制（\`build\`，v9）：**${buildCensus.levels}/${rows.length}** 关携带，**${buildCensus.withoutBuild.length}** 关豁免；零件族合计 **${buildCensus.families}**，配额合计 **${buildCensus.parts}**，网格形状 **${gridShapes.length}** 种（\`columns x height\`），原始 rows 列表 **${rowShapes.length}** 种`);
+md.push(`- 挑战（\`challenges\`，v10）：**${challengeCensus.instances}** 个实例落在 **${challengeCensus.levels}/${rows.length}** 关，每类 ${challengeReport.kinds.map((entry) => `**${entry.key}** ${entry.instances}`).join(" / ")}；每关实例数 ${challengePerLevel.map((entry) => `**${entry.levels}** 关 ${entry.instances} 个`).join(" / ")}；**${zeroChallengeLevels.length}** 关写 \`[]\``);
 md.push(`- 深度 **${DEPTH}**（\`e2dConstants.cs\`），bounds 外扩 **${BOUNDS_MARGIN}** m`);
 md.push(`- 跳过地形 **${skippedTerrains.length}**（轮廓不可走）+ **${skippedFills.length}**（fill 不可组装）+ **${skippedCurves.length}**（条带不可组装），失败 **${failures.length}**`);
 md.push("", `**${changed} changed / ${unchanged} unchanged**${DRY_RUN ? " (dry-run，未写盘)" : ""}，合计 ${totals.bytes} 字节。`, "");
@@ -1042,11 +1289,45 @@ md.push("统计覆盖全部 277 关的原始配额表，包含上面不写 `buil
 md.push("| PartType | 名称 | 出现关数 | 关卡 |", "|---|---|---|---|");
 for (const entry of noPigForgeBase) md.push(`| ${entry.type} | \`${entry.name}\` | ${entry.levels} | ${entry.levelNames.map((name) => `\`${name}\``).join("、")} |`);
 md.push("");
+md.push("## 挑战（`challenges`，v10）", "");
+md.push("挑战就是关卡实例：类名来自实例 → 调色板 prefab → 该 prefab 的 `m_Script` guid（`tools/lib/unity.mjs` 的 guid → class 索引），");
+md.push("元素顺序 = 原版自己的编号顺序（`Challenge.Refresh` 按实例名排序后重编号 1..N，`Challenge.cs:62-81`；本工具用**序数**比较，同名实例按关卡文件出现顺序，见规格 D1）。");
+md.push("逐关参数只来自该实例自己的 `PrefabOverrides` 块：`TimeChallenge.m_targetTime`（Float）与 `DontUsePartChallenge.m_partType`（Enum）；");
+md.push("块没挂这个类（或整关没有这块）就用 prefab 自己的序列化值 —— `TransportChallenge.partToTransport` 在 prefab 里是 `32`（`KingPig`），没有一关改写它。");
+md.push("枚举 → PigForge `partTypeId` 只经 `tools/lib/part-types.mjs` 的 `resolvePartTypes`（唯一实现），解析不到即失败。");
+md.push(`- 实例 **${challengeCensus.instances}** 个 / **${challengeCensus.levels}** 关（${rows.length} 关里），实例标签去重后 **${challengeCensus.labels.size}** 种`);
+md.push(`- 每关实例数：${challengePerLevel.map((entry) => `**${entry.instances}** 个 → ${entry.levels} 关`).join("、")}（3 个的那关是 \`${threeChallengeLevels.join("`、`")}\`，第 3 个不参与星级）`);
+md.push(`- 重名实例（排序无法唯一定序）：${challengeCensus.duplicateLabels.map((entry) => `\`${entry.sceneName}\` 的 \`${entry.label}\``).join("、") || "无"}`);
+md.push(`- 没有挑战的 **${zeroChallengeLevels.length}** 关（文档写 \`challenges: []\`，它们也正是 \`m_sandbox\` 的 14 关）：${zeroChallengeLevels.map((name) => `\`${name}\``).join("、")}`, "");
+md.push("| 类 | kind | 实例数 | 关卡数 |", "|---|---|---|---|");
+for (const entry of challengeReport.classes) {
+  md.push(`| \`${entry.key}\` | \`${CHALLENGE_KIND_BY_CLASS.get(entry.key)}\` | ${entry.instances} | ${entry.levels} |`);
+}
+md.push("", "| prefab | 类 | 实例数 | 关卡数 |", "|---|---|---|---|");
+for (const entry of challengeReport.prefabs) {
+  md.push(`| \`${entry.key}\` | \`${challengeReport.prefabClasses[entry.key]}\` | ${entry.instances} | ${entry.levels} |`);
+}
+md.push("", "`time` 的 `m_targetTime`（对比值本身；`prefab 默认` = 该实例的 override 块没挂 `TimeChallenge`，值来自 prefab）：", "");
+md.push("| 秒 | 实例数 | 关卡数 |", "|---|---|---|");
+for (const entry of challengeReport.targetTimes) md.push(`| ${entry.seconds} | ${entry.instances} | ${entry.levels} |`);
+md.push("", `用 prefab 默认值的实例：${challengeReport.prefabDefaults.map((entry) => `\`${entry.sceneName}\`（${entry.targetTime} 秒）`).join("、") || "无"}`, "");
+md.push("`dontUseParts` 的 `m_partType`（31 个不同枚举，79 个实例全部在 override 里写了；枚举值本身永远不是 `partTypeId`）：", "");
+md.push("| PartType | 名称 | PigForge partTypeId | 实例数 | 关卡数 |", "|---|---|---|---|---|");
+for (const entry of challengeReport.dontUseParts) {
+  md.push(`| ${entry.partType} | \`${entry.name}\` | \`${entry.partTypeId}\` | ${entry.instances} | ${entry.levels} |`);
+}
+md.push("", "`transport` 的 `partToTransport`：", "");
+md.push("| PartType | 名称 | PigForge partTypeId | 实例数 | 关卡数 |", "|---|---|---|---|---|");
+for (const entry of challengeReport.transports) {
+  md.push(`| ${entry.partType} | \`${entry.name}\` | \`${entry.partTypeId}\` | ${entry.instances} | ${entry.levels} |`);
+}
+md.push("");
 md.push("## 每关", "");
-md.push("| area | scene | contentVersion | 地形 | 环 | 点 | 零件 | 网格 | 族 | 配额 | 字节 | 终点来源 | hash |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+md.push("| area | scene | contentVersion | 地形 | 环 | 点 | 零件 | 挑战 | 网格 | 族 | 配额 | 字节 | 终点来源 | hash |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const row of rows) {
   md.push(
     `| ${row.area} | \`${row.sceneName}\` | \`${row.contentVersion}\` | ${row.terrain} | ${row.loops} | ${row.points} | ${row.spawns}` +
+      ` | ${row.challenges === 0 ? "—" : `${row.challenges} (${row.challengeKinds})`}` +
       ` | ${row.build.carried ? `${row.build.columns}x${row.build.height}` : "—"} | ${row.build.families} | ${row.build.parts} | ${row.bytes}` +
       ` | ${row.goalSource.replaceAll("|", "\\|")} | \`${row.hash.slice(0, 12)}\` |`,
   );
@@ -1075,6 +1356,13 @@ console.log(
   `build no-base PartTypes: ${noPigForgeBase.map((entry) => `${entry.name}(${entry.type}) x${entry.levels}`).join(", ") || "none"}` +
     `  sandbox levels: ${buildCensus.sandbox.length}` +
     `  second-star fields: ${Object.entries(secondStar).map(([field, levels]) => `${field}=${levels}`).join(" ")}`,
+);
+console.log(
+  `challenges: ${challengeCensus.instances} instance(s) over ${challengeCensus.levels}/${rows.length} levels (` +
+    `${challengeReport.kinds.map((entry) => `${entry.key} ${entry.instances}`).join(" / ")}, ` +
+    `${challengeCensus.prefabs.size} prefab(s)), ` +
+    `per level ${challengePerLevel.map((entry) => `${entry.levels}x${entry.instances}`).join(" ")}` +
+    `  no challenge: ${zeroChallengeLevels.length} level(s)`,
 );
 console.log(
   `terrain collider/visual: ${totals.colliderTerrains}/${totals.terrain - totals.colliderTerrains}` +

@@ -241,6 +241,18 @@ public sealed class GameplayRules
     // drive on (MotorWheel.cs:287). Declared by the placement layer where the hinge is bound.
     private readonly Dictionary<uint, WheelAttach> _wheelAttachByEntity = new();
     private readonly HashSet<uint> _brokenJoints = new();
+    // The original's run clock (`LevelManager.TimeElapsed`, `BaseGameMode.cs:325-328` and
+    // `LevelManager.cs:1431-1441`): the reference pig's own transform is recorded when the room
+    // starts the run, the clock starts on the first tick the pig is a metre away from that pose
+    // (the tripping tick itself adds nothing -- the original returns from `UpdateRunning` before
+    // accumulating), and every later tick adds one tick of time. It freezes by itself: the tick
+    // counter only advances while the phase is Playing, so the goal's tick is the last one counted
+    // and the room reads the original's `CompletionTime` (`GameMode.cs:379`) as this value.
+    private EntityId _runPig;
+    private PhysicsVector3 _runPigStart;
+    private bool _hasRunStart;
+    private bool _runTimerStarted;
+    private uint _runTimerStartTick;
     private readonly HashSet<uint> _dynamicBodies = new();
     private readonly Dictionary<uint, PhysicsVector3> _previousVelocities = new();
     // Elasticity is a per-part content property, but a contact names bodies: a pig welded into
@@ -302,6 +314,15 @@ public sealed class GameplayRules
     /// The room ticks at 60 Hz (<c>GameRoomOptions.TickRateHz</c>, PlayHost); a room built at
     /// another rate would need this to follow it.</summary>
     private const float ForceSecondsPerImpulse = 1f / 60f;
+
+    /// <summary>The run clock's tick duration: PigForge's own tick rate, not the original's
+    /// <c>Time.deltaTime</c>. The original integrates at 50 Hz, this room at 60 (see
+    /// `docs/specs/level-stars.md` §8 D2).</summary>
+    private const float RunTimerSecondsPerTick = 1f / 60f;
+
+    /// <summary>How far the reference pig's own transform must leave its start pose before the
+    /// original's clock runs: <c>Vector3.Distance(...) >= 1f</c> (<c>LevelManager.cs:1436</c>).</summary>
+    private const float RunTimerStartDistance = 1f;
 
     /// <summary>Floor that keeps a massless part from producing an unbounded bounce impulse.</summary>
     private const float MinimumPartMass = 0.001f;
@@ -410,6 +431,38 @@ public sealed class GameplayRules
     public bool RestartRequested { get; private set; }
 
     public IReadOnlyCollection<uint> BrokenJoints => _brokenJoints;
+
+    /// <summary>The original's <c>TimeElapsed</c> in seconds: nothing until the reference pig first
+    /// left <see cref="BeginRun"/>'s pose by a metre, then the ticks since that one. It stops
+    /// advancing with the phase, which is what freezes the original's <c>CompletionTime</c> at the
+    /// goal (`GameMode.cs:379`).</summary>
+    public float ElapsedSeconds =>
+        _runTimerStarted ? (_tick - _runTimerStartTick) * RunTimerSecondsPerTick : 0f;
+
+    /// <summary>
+    /// Records the original's running entry (`BaseGameMode.cs:325-328`): the room calls it when it
+    /// materialises the contraption, handing over the reference pig and that pig's <b>own</b>
+    /// transform position -- the pose the clock measures from, the same transform the camera bound
+    /// tests (`Pig.cs:396-403`). Every later Start calls it again, which zeroes the clock.
+    /// </summary>
+    public void BeginRun(EntityId pig, PhysicsVector3 ownPosition)
+    {
+        _runPig = pig;
+        _runPigStart = ownPosition;
+        _hasRunStart = true;
+        _runTimerStarted = false;
+        _runTimerStartTick = 0;
+    }
+
+    /// <summary>
+    /// Whether two parts sit in the same joint graph component. The original's connected component
+    /// <b>is</b> its joint map (`Contraption.cs:1293` unions every `m_jointMap` entry), which is the
+    /// graph <see cref="LinkPowerCluster"/> builds here -- a merged body, a seam, a weld, a wheel
+    /// hinge and a spring edge are all edges of it -- so this answers
+    /// <c>ContraptionRunning.IsConnectedToPig</c> (`LevelManager.cs:1241`), the transport
+    /// challenge's first branch (`docs/specs/level-stars.md` §4.2).
+    /// </summary>
+    public bool AreConnected(EntityId left, EntityId right) => PowerClusterKey(left) == PowerClusterKey(right);
 
     /// <summary>Drops every collected challenge marker: the room's `Retry` runs it, matching the
     /// original's `Collectable.OnReset` (`docs/specs/level-challenges.md` §2).</summary>
@@ -900,6 +953,7 @@ public sealed class GameplayRules
         _touchedBodies.Clear();
         _groundNormalByBody.Clear();
         IngestSnapshots(snapshots);
+        UpdateRunTimer(tick);
         ProcessEvents(events, output);
         ReArmBounces();
         // The legacy power denominator depends on which motor wheels are off the ground, so the
@@ -921,6 +975,37 @@ public sealed class GameplayRules
         CheckObjectives(tick, output);
         StorePreviousVelocities();
         _hasProcessedTick = true;
+    }
+
+    /// <summary>
+    /// Starts the original's clock: while it has not started, the reference pig's own transform is
+    /// compared with the pose <see cref="BeginRun"/> recorded, and the first tick it is
+    /// <see cref="RunTimerStartDistance"/> away arms the clock (<c>LevelManager.cs:1431-1441</c> --
+    /// that tick itself contributes nothing, because the original returns before accumulating).
+    /// The elapsed value is read straight off the tick counters, so nothing else accumulates it.
+    /// </summary>
+    private void UpdateRunTimer(uint tick)
+    {
+        if (!_hasRunStart || _runTimerStarted)
+        {
+            return;
+        }
+
+        if (!_pigs.TryGet(_runPig, out _)
+            || !_bodies.TryGet(_runPig, out PhysicsBodyLink link)
+            || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+        {
+            return;
+        }
+
+        ResolvePartFrame(_runPig, link.Body.Value, kinematics.Position, out PhysicsVector3 pigPosition, out _);
+        if (PhysicsVector3.Distance(pigPosition, _runPigStart) < RunTimerStartDistance)
+        {
+            return;
+        }
+
+        _runTimerStarted = true;
+        _runTimerStartTick = tick;
     }
 
     /// <summary>
@@ -2688,6 +2773,8 @@ public sealed class GameplayRules
         _touchedBodies.Clear();
         _groundNormalByBody.Clear();
         _brokenJoints.Clear();
+        _hasRunStart = false;
+        _runTimerStarted = false;
         _wheelAttachByEntity.Clear();
         var tntComponents = _tnt.GetEnumerator();
         while (tntComponents.MoveNext())
@@ -2752,6 +2839,8 @@ public sealed class GameplayRules
         _touchedBodies.Clear();
         _groundNormalByBody.Clear();
         _brokenJoints.Clear();
+        _hasRunStart = false;
+        _runTimerStarted = false;
         _wheelAttachByEntity.Clear();
         _motors.Clear();
         _balloons.Clear();

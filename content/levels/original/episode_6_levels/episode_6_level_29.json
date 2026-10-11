@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_29",
   "goalZone": {
     "min": [
@@ -137,6 +137,10 @@
     {"id":"Grass07","x":-135.959,"y":1.7619991,"z":-3,"rotation":5.870644,"scaleX":1,"scaleY":1},
     {"id":"Mushroom3","x":-122.555,"y":54.242,"z":-3,"rotation":5.9337244,"scaleX":-1,"scaleY":1},
     {"id":"LitCrystal_02","x":-138.729,"y":16.134,"z":0.9,"rotation":0.26277718,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":20}
   ],
   "terrain": [
     {

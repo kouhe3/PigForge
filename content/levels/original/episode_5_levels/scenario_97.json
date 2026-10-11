@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_97",
   "goalZone": {
     "min": [
@@ -195,6 +195,10 @@
     {"id":"Colorful_Sparkles_03","x":-48.2565,"y":46.22808,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crumbs_02","x":11.626606,"y":-6.8488755,"z":-5.1,"rotation":0,"scaleX":1.5320661,"scaleY":1.5320661},
     {"id":"Crumbs_Line_02","x":22.170109,"y":-6.6152596,"z":-5.1,"rotation":0,"scaleX":1.5320661,"scaleY":1.5320661}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":41}
   ],
   "terrain": [
     {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_30",
   "goalZone": {
     "min": [
@@ -87,6 +87,10 @@
     {"id":"Mushroom1","x":-132.761,"y":-1.0439987,"z":2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitCrystal_02","x":-180.434,"y":15.306,"z":-3,"rotation":6.0816083,"scaleX":1,"scaleY":1},
     {"id":"SecretStatue","x":-198.37,"y":6.21,"z":1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

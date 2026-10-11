@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test44",
   "goalZone": {
     "min": [
@@ -74,6 +74,10 @@
     {"id":"Shell_01","x":0.40849686,"y":-7.019926,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Bottle_01","x":-18.70467,"y":-6.681772,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_02","x":-18.756657,"y":1.1730766,"z":-5,"rotation":6.1153426,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":4},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

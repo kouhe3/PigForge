@@ -339,6 +339,16 @@ export interface SnapshotFrame {
    * The painter hides them (`docs/specs/level-challenges.md` §5).
    */
   collected: number[];
+  /**
+   * v8: the run timer's reading in seconds, frozen the moment the pig enters the goal area
+   * (`docs/specs/level-stars.md` §5). Zero while the pig has not moved a full metre from its start.
+   */
+  elapsedSeconds: number;
+  /**
+   * v8: one completion bit per challenge, bit i = `challenges[i]`; 0 until the run is won. The star
+   * count is 1 + the first two bits, the same formula the room applies (`docs/specs/level-stars.md` §5).
+   */
+  challengeFlags: number;
 }
 
 export interface DrawEntity {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_7",
   "goalZone": {
     "min": [
@@ -98,6 +98,10 @@
     {"id":"AncestorPig","x":-176.19,"y":26.84,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"AncestorPig","x":-153.28,"y":33.52,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"SecretStatue","x":-154.04,"y":-1.46,"z":1.1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":44},
+    {"name":"DynamicBoxChallenge","kind":"box","propIndex":0}
   ],
   "terrain": [
     {

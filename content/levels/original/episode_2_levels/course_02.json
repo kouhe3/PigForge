@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "course_02",
   "goalZone": {
     "min": [
@@ -69,6 +69,10 @@
     {"id":"Starfish","x":-72.32434,"y":-7.16518,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Bush_02_0","x":-55.652164,"y":29.9913,"z":-5,"rotation":0.20111771,"scaleX":1,"scaleY":1},
     {"id":"Bush_03","x":-33.817436,"y":3.8748016,"z":-5,"rotation":6.076458,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

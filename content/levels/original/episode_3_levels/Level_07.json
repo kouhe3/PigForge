@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_07",
   "goalZone": {
     "min": [
@@ -79,6 +79,10 @@
     {"id":"Background_Cloud_02_SET_0","x":77.12519,"y":18.448668,"z":15.2192545,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET_0","x":-2.6083891,"y":17.39411,"z":15.086624,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Secret_01","x":-29.574263,"y":-3.8214154,"z":-1,"rotation":0.06784567,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":2.994792,"sizeY":1.979167,"sizeZ":4,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"},
+    {"name":"TimeChallenge","kind":"time","targetTime":17}
   ],
   "terrain": [
     {

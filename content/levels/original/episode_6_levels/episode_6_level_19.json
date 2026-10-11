@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_19",
   "goalZone": {
     "min": [
@@ -115,6 +115,10 @@
     {"id":"AncestorPig","x":-176.44,"y":16.27,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"SecretStatue","x":-181.09,"y":-5.4,"z":1,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]},
     {"id":"LitMushroom_03","x":-182.06,"y":11.74,"z":20,"rotation":0,"scaleX":0,"scaleY":0}
+  ],
+  "challenges": [
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":39},
+    {"name":"DynamicBoxChallenge","kind":"box","propIndex":0}
   ],
   "terrain": [
     {

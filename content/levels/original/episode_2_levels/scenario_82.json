@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_82",
   "goalZone": {
     "min": [
@@ -67,6 +67,10 @@
     {"id":"Twig_2","x":-44.943268,"y":-6.846945,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Twig_1","x":-48.00725,"y":-7.3040714,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_08","x":-31.62659,"y":1.687067,"z":-5,"rotation":5.6498237,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":3},
+    {"name":"BoxChallenge2","kind":"box","propIndex":2}
   ],
   "terrain": [
     {

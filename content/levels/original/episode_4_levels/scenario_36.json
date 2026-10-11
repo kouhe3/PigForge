@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_36",
   "goalZone": {
     "min": [
@@ -121,6 +121,10 @@
     {"id":"Rock_01","x":21.19869,"y":-6.821787,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":40.923767,"y":-6.784973,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":-54.587868,"y":-6.7421722,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":5},
+    {"name":"BoxChallenge1","kind":"box","propIndex":6}
   ],
   "terrain": [
     {

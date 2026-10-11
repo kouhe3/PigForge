@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_21",
   "goalZone": {
     "min": [
@@ -116,6 +116,10 @@
     {"id":"PressureButtonBlue","x":-204.928,"y":21.788,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"PressureButtonYellow","x":-177.42,"y":-6.73,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue","x":-206.911,"y":19.59,"z":0,"rotation":4.711619,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge1","kind":"box","propIndex":0},
+    {"name":"DynamicBoxChallenge1","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

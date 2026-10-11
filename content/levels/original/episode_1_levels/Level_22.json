@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_22",
   "goalZone": {
     "min": [
@@ -69,6 +69,10 @@
     {"id":"Grass_05","x":-15.819924,"y":9.379194,"z":-5,"rotation":5.4876833,"scaleX":1,"scaleY":1},
     {"id":"Grass_06","x":-1.5570145,"y":5.690333,"z":-5,"rotation":0.08742689,"scaleX":1,"scaleY":1},
     {"id":"Crystal_02","x":-26.579445,"y":-2.5938256,"z":-5,"rotation":4.277801,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"},
+    {"name":"TimeChallenge","kind":"time","targetTime":10}
   ],
   "terrain": [
     {

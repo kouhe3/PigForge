@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_95",
   "goalZone": {
     "min": [
@@ -91,6 +91,10 @@
     {"id":"Strawberry_Half","x":-25.466614,"y":6.8274364,"z":4,"rotation":1.1716342,"scaleX":1.5,"scaleY":1.5},
     {"id":"Pumpkin_Plant_02","x":-58.4368,"y":19.65921,"z":-5,"rotation":2.3143384,"scaleX":1.988909,"scaleY":1.988909},
     {"id":"Crumbs_01","x":-29.120163,"y":-6.708003,"z":-5.1,"rotation":0,"scaleX":-1.5082068,"scaleY":1.5082068}
+  ],
+  "challenges": [
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":46},
+    {"name":"TimeChallenge","kind":"time","targetTime":4}
   ],
   "terrain": [
     {

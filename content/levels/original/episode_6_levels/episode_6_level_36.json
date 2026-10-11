@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_36",
   "goalZone": {
     "min": [
@@ -86,6 +86,10 @@
     {"id":"MayanArt6","x":-157.481,"y":12.627001,"z":1.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt10","x":-150.312,"y":14.873001,"z":-3,"rotation":4.712389,"scaleX":1,"scaleY":1},
     {"id":"Flower2","x":-147.96,"y":-4.5300007,"z":-3,"rotation":0.096379295,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":9}
   ],
   "terrain": [
     {

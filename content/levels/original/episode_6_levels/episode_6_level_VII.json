@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_VII",
   "goalZone": {
     "min": [
@@ -81,6 +81,10 @@
     {"id":"Flower5","x":-156.75,"y":0.96699905,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Spear2","x":-156.654,"y":-3.677,"z":3,"rotation":0.2550112,"scaleX":1,"scaleY":1},
     {"id":"MayanArt3","x":-155.946,"y":-3.09,"z":-3,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge01","kind":"box","propIndex":0},
+    {"name":"BoxChallenge02","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

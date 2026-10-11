@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_14",
   "goalZone": {
     "min": [
@@ -178,6 +178,10 @@
     {"id":"Grass23","x":-152.232,"y":0.678,"z":0.9,"rotation":5.1278896,"scaleX":-1,"scaleY":1},
     {"id":"GoldenPigNest","x":-157.781,"y":-0.872,"z":1.5,"rotation":5.84041,"scaleX":1,"scaleY":1},
     {"id":"ActivatedHingeDoorRed","x":-161.974,"y":10.247,"z":0,"rotation":3.8844738,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge1","kind":"box","propIndex":0},
+    {"name":"BoxChallenge2","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

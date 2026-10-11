@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_30",
   "goalZone": {
     "min": [
@@ -105,6 +105,10 @@
     {"id":"Rock_02","x":32.260437,"y":-6.745453,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Glow_01","x":-88.80789,"y":13.391777,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Cave_Mushroom_02","x":-57.50674,"y":-6.6579742,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":4},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":1}
   ],
   "terrain": [
     {

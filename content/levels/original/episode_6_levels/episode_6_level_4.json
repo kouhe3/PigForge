@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_4",
   "goalZone": {
     "min": [
@@ -212,6 +212,10 @@
     {"id":"WindowBgSmall","x":-176.393,"y":74.5478,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bridge","x":-130.65,"y":46.7,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bridge","x":-131.00865,"y":2.7768753,"z":0,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":20}
   ],
   "terrain": [
     {

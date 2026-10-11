@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_53",
   "goalZone": {
     "min": [
@@ -73,6 +73,10 @@
     {"id":"Bush_03_0","x":33.155586,"y":-0.35620117,"z":-5,"rotation":0.07297938,"scaleX":-1,"scaleY":1},
     {"id":"Grass_10_0","x":-9.902552,"y":12.849041,"z":-5,"rotation":6.236123,"scaleX":1,"scaleY":1},
     {"id":"Gravel_01","x":-51.532726,"y":-6.8965664,"z":-5.159866,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":25},
+    {"name":"DontUsePartChallenge1","kind":"dontUseParts","partTypeId":15}
   ],
   "terrain": [
     {

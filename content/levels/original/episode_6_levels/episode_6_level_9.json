@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_9",
   "goalZone": {
     "min": [
@@ -123,6 +123,10 @@
     {"id":"Bridge","x":-178.27,"y":35.61,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"WindowBgLarge","x":-177.34,"y":11.19,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Fan","x":-212.5,"y":23.17,"z":0,"rotation":6.049336,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge1","kind":"box","propIndex":0},
+    {"name":"BoxChallenge2","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

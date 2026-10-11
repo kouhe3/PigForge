@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "track_07",
   "goalZone": {
     "min": [
@@ -94,6 +94,10 @@
     {"id":"Branch_04","x":41.664757,"y":3.4925041,"z":-5,"rotation":2.0787585,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_05","x":69.322914,"y":3.0358734,"z":-5,"rotation":0.55279297,"scaleX":-1,"scaleY":1},
     {"id":"Wood_01","x":-3.149891,"y":-8.129814,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

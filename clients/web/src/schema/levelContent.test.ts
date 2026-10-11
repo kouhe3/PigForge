@@ -7,6 +7,7 @@ import {
   constructionCellExists,
   constructionGridShape,
   decodeLevelContent,
+  timeLimit,
   validateLevelContent,
   zoneRect,
 } from "./levelContent";
@@ -72,7 +73,7 @@ describe("validateLevelContent root", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expectRejected({ schemaVersion: 10 }, "root.schemaVersion");
+    expectRejected({ schemaVersion: 11 }, "root.schemaVersion");
   });
 
   it("rejects an empty, padded or non-string contentVersion", () => {
@@ -532,8 +533,8 @@ describe("validateLevelContent trigger boxes", () => {
       .toContain("root.props[0].triggers[0].sizeX: a solid box needs a positive size.");
   });
 
-  it("rejects an unsupported schema version past v9", () => {
-    expectRejected({ schemaVersion: 10 }, "root.schemaVersion");
+  it("rejects an unsupported schema version past v10", () => {
+    expectRejected({ schemaVersion: 11 }, "root.schemaVersion");
   });
 });
 
@@ -617,6 +618,101 @@ describe("validateLevelContent build limits", () => {
       .toContain("root.build.partCounts[0].count: must be a positive 32-bit integer.");
     expect(withBuild({ origin: [0, 0], rows: [1], partCounts: [{ partTypeId: 4, count: 1, extra: 1 }] }))
       .toContain("root.build.partCounts[0]: unknown property 'extra'.");
+  });
+});
+
+/** The v10 document: the v9 one plus the level's own challenges (`challenges`). */
+const v10 = {
+  ...structuredClone(v9),
+  schemaVersion: 10,
+  challenges: [
+    { name: "BoxChallenge", kind: "box", propIndex: 1 },
+    { name: "TimeChallenge", kind: "time", targetTime: 4 },
+    { name: "PerfectFlightChallenge", kind: "perfectFlight" },
+    { name: "DontUsePartChallenge", kind: "dontUseParts", partTypeId: 32 },
+    { name: "TransportChallenge", kind: "transport", partTypeId: 32 },
+    // Two instances sharing one name is legal (episode_6_level_25 / _32 / _IX).
+    { name: "BoxChallenge", kind: "box", propIndex: 0 },
+  ],
+};
+
+/** The v10 document with its `challenges` replaced by `value`. */
+function withChallenges(value: unknown): string[] {
+  return validateLevelContent({ ...structuredClone(v10), challenges: value });
+}
+
+describe("validateLevelContent challenges", () => {
+  it("accepts a v10 document with the level's challenges", () => {
+    expect(validateLevelContent(v10)).toEqual([]);
+    expect(decodeLevelContent(v10).level?.challenges).toHaveLength(6);
+  });
+
+  it("accepts a v10 document whose level has no challenge at all", () => {
+    expect(withChallenges([])).toEqual([]);
+  });
+
+  it("refuses challenges before v10", () => {
+    for (const schemaVersion of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+      expect(validateLevelContent({ ...structuredClone(v10), schemaVersion }))
+        .toContain("root.challenges: only a schemaVersion 10 document carries the level's challenges.");
+    }
+  });
+
+  it("requires challenges on a v10 document", () => {
+    const missing = structuredClone(v10) as Record<string, unknown>;
+    delete missing.challenges;
+    expect(validateLevelContent(missing)).toContain("root.challenges: required on a schemaVersion 10 document.");
+  });
+
+  it("rejects a malformed challenge entry", () => {
+    expect(withChallenges(3)).toContain("root.challenges: must be an array.");
+    expect(withChallenges([3])).toContain("root.challenges[0]: challenge must be a JSON object.");
+    expect(withChallenges([{ kind: "box", propIndex: 0 }]))
+      .toContain("root.challenges[0]: missing required property 'name'.");
+    expect(withChallenges([{ name: "", kind: "box", propIndex: 0 }]))
+      .toContain("root.challenges[0].name: must be a non-empty string.");
+    expect(withChallenges([{ name: "BoxChallenge", kind: "boxes", propIndex: 0 }]))
+      .toContain("root.challenges[0].kind: must be one of 'dontUseParts', 'time', 'perfectFlight', 'transport' or 'box'.");
+    expect(withChallenges([{ name: "BoxChallenge", kind: "box" }]))
+      .toContain("root.challenges[0].propIndex: must be a non-negative integer.");
+    expect(withChallenges([{ name: "BoxChallenge", kind: "box", propIndex: -1 }]))
+      .toContain("root.challenges[0].propIndex: must be a non-negative integer.");
+    expect(withChallenges([{ name: "BoxChallenge", kind: "box", propIndex: 2 }]))
+      .toContain("root.challenges[0].propIndex: must index one of this document's 2 props.");
+    expect(withChallenges([{ name: "TimeChallenge", kind: "time" }]))
+      .toContain("root.challenges[0].targetTime: must be a finite, non-negative number.");
+    expect(withChallenges([{ name: "TimeChallenge", kind: "time", targetTime: "4" }]))
+      .toContain("root.challenges[0].targetTime: must be a finite, non-negative number.");
+    expect(withChallenges([{ name: "TimeChallenge", kind: "time", targetTime: -1 }]))
+      .toContain("root.challenges[0].targetTime: must be a finite, non-negative number.");
+    expect(withChallenges([{ name: "DontUsePartChallenge", kind: "dontUseParts" }]))
+      .toContain("root.challenges[0].partTypeId: must be a positive 32-bit integer.");
+    expect(withChallenges([{ name: "TransportChallenge", kind: "transport", partTypeId: 0 }]))
+      .toContain("root.challenges[0].partTypeId: must be a positive 32-bit integer.");
+    expect(withChallenges([{ name: "TimeChallenge", kind: "time", targetTime: 4, propIndex: 0 }]))
+      .toContain("root.challenges[0]: unknown property 'propIndex' for a 'time' challenge.");
+    expect(withChallenges([{ name: "PerfectFlightChallenge", kind: "perfectFlight", partTypeId: 32 }]))
+      .toContain("root.challenges[0]: unknown property 'partTypeId' for a 'perfectFlight' challenge.");
+    expect(withChallenges([{ name: "BoxChallenge", kind: "box", propIndex: 0, extra: 1 }]))
+      .toContain("root.challenges[0]: unknown property 'extra'.");
+  });
+});
+
+describe("timeLimit", () => {
+  it("takes the largest time challenge's target time", () => {
+    expect(timeLimit([
+      { name: "TimeChallenge", kind: "time", targetTime: 4 },
+      { name: "TimeChallenge_2", kind: "time", targetTime: 7.5 },
+    ])).toBe(7.5);
+  });
+
+  it("is 0 when the level has no timing challenge", () => {
+    expect(timeLimit([])).toBe(0);
+    expect(timeLimit([
+      { name: "BoxChallenge", kind: "box", propIndex: 0 },
+      { name: "PerfectFlightChallenge", kind: "perfectFlight" },
+      { name: "TimeChallenge", kind: "time", targetTime: 0 },
+    ])).toBe(0);
   });
 });
 

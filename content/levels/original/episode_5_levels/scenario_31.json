@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_31",
   "goalZone": {
     "min": [
@@ -164,6 +164,10 @@
     {"id":"Colorful_Sparkles_02","x":47.318024,"y":21.712631,"z":-5.2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Pumpkin_Leaf","x":27.030373,"y":13.165362,"z":-5,"rotation":3.8884523,"scaleX":0.946803,"scaleY":0.946803},
     {"id":"Secret_03","x":51.724453,"y":49.968395,"z":-0.145796,"rotation":6.092929,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":4.661458,"sizeY":3.489583,"sizeZ":4,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":5},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":13}
   ],
   "terrain": [
     {

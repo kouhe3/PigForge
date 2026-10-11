@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Episode_6_Ice-Sandbox",
   "goalZone": {
     "min": [
@@ -164,6 +164,7 @@
     {"id":"ActivatedHingeDoorYellow_Ice","x":-48.94,"y":36.536,"z":-1,"rotation":4.886922,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue_Ice","x":-46.19793,"y":19.052532,"z":-1,"rotation":4.712389,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
   ],
+  "challenges": [],
   "terrain": [
     {
       "position": [-101.27,49.34,6],

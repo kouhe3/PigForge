@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "track_29",
   "goalZone": {
     "min": [
@@ -69,6 +69,10 @@
     {"id":"Glow_01","x":-65.376724,"y":3.0512066,"z":4,"rotation":0,"scaleX":3.3275619,"scaleY":3.3275619},
     {"id":"Glow_01","x":-63.759697,"y":0.3006897,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Starfish","x":-19.847218,"y":-7.56435,"z":-5,"rotation":0,"scaleX":-0.8217157,"scaleY":0.8217157}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":3},
+    {"name":"BoxChallenge2","kind":"box","propIndex":2}
   ],
   "terrain": [
     {

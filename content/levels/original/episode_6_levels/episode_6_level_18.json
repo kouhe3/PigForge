@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_18",
   "goalZone": {
     "min": [
@@ -120,6 +120,10 @@
     {"id":"Grass21","x":-131.428,"y":7.631,"z":-3,"rotation":1.2297962,"scaleX":1,"scaleY":1},
     {"id":"PressureButtonRed","x":-142.83,"y":9.98,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"AncestorPig","x":-138.01,"y":21.13,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"DynamicBoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":10}
   ],
   "terrain": [
     {

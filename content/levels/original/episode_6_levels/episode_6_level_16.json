@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_16",
   "goalZone": {
     "min": [
@@ -161,6 +161,10 @@
     {"id":"Grass20","x":-169.17,"y":-6.485,"z":-2,"rotation":0.48533162,"scaleX":-1,"scaleY":1},
     {"id":"BreakableWall","x":-179.87,"y":4.225,"z":0,"rotation":5.4977875,"scaleX":1.1,"scaleY":1.1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-167.648,"y":14.979,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge1","kind":"box","propIndex":0},
+    {"name":"BoxChallenge2","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

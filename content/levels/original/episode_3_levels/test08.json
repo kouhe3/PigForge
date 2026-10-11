@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test08",
   "goalZone": {
     "min": [
@@ -92,6 +92,10 @@
     {"id":"Rock_02","x":-82.794235,"y":-6.518209,"z":-4.262127,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Tuft_02","x":-63.117287,"y":-6.57492,"z":-4.262127,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Glow_01","x":-65.062035,"y":5.2353206,"z":1.6015625,"rotation":0,"scaleX":2,"scaleY":2}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":4},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

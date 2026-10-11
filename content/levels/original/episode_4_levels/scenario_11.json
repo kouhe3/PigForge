@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_11",
   "goalZone": {
     "min": [
@@ -107,6 +107,10 @@
     {"id":"Tuft_02","x":-52.208157,"y":-7.142618,"z":-5.1791267,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Red_01","x":-22.565575,"y":18.192574,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Yellow_01","x":-21.228043,"y":18.358438,"z":-5,"rotation":0.04706205,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TimeChallenge","kind":"time","targetTime":15}
   ],
   "terrain": [
     {

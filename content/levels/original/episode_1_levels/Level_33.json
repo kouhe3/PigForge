@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_33",
   "goalZone": {
     "min": [
@@ -88,6 +88,10 @@
     {"id":"Glow_01","x":5.935463,"y":6.489234,"z":4.0043945,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Gravel_01","x":46.745316,"y":-7.164093,"z":-4.9956055,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_03","x":33.24717,"y":18.454641,"z":-5,"rotation":6.238039,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":3},
+    {"name":"TimeChallenge","kind":"time","targetTime":10}
   ],
   "terrain": [
     {

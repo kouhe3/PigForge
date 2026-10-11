@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Sandbox_05",
   "goalZone": {
     "min": [
@@ -173,6 +173,7 @@
     {"id":"Background_Cloud_02_SET_0","x":1.6075833,"y":14.926811,"z":15.644493,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":-54.62699,"y":9.3907385,"z":15.162311,"rotation":0,"scaleX":1,"scaleY":1}
   ],
+  "challenges": [],
   "terrain": [
     {
       "position": [59.01534,-0.21609938,0],

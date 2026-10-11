@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_32",
   "goalZone": {
     "min": [
@@ -94,6 +94,10 @@
     {"id":"Grass06","x":-141.503,"y":30.150002,"z":-3,"rotation":0.59197515,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-185.962,"y":33.412003,"z":-3,"rotation":0.24210073,"scaleX":1,"scaleY":1},
     {"id":"Grass07","x":-181.629,"y":33.425003,"z":-3,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":4},
+    {"name":"BoxChallenge","kind":"box","propIndex":5}
   ],
   "terrain": [
     {

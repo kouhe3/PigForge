@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_1",
   "goalZone": {
     "min": [
@@ -54,6 +54,10 @@
     {"id":"Flower1","x":-180.403,"y":7.697798,"z":-1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower2","x":-177.843,"y":27.837797,"z":0.9,"rotation":6.2477984,"scaleX":-1,"scaleY":1},
     {"id":"FGMayanThing01","x":-165.003,"y":-7.1422024,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":270}
   ],
   "terrain": [
     {

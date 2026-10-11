@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Race_06",
   "goalZone": {
     "min": [
@@ -110,6 +110,10 @@
     {"id":"Star_01","x":-54.038074,"y":-7.3836765,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_02","x":158.2813,"y":3.8882523,"z":-5,"rotation":5.6752357,"scaleX":1,"scaleY":1},
     {"id":"Bottle_01","x":257.96426,"y":-7.0320797,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"TimeChallenge","kind":"time","targetTime":25},
+    {"name":"TimeChallenge2","kind":"time","targetTime":30}
   ],
   "terrain": [
     {

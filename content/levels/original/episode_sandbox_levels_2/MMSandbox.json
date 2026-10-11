@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "MMSandbox",
   "goalZone": {
     "min": [
@@ -613,6 +613,7 @@
     {"id":"Background_Cloud_03_SET_2","x":70.51806,"y":-2.1374173,"z":17.95517,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_3","x":-238.20131,"y":-1.4375303,"z":18.363726,"rotation":0,"scaleX":1,"scaleY":1}
   ],
+  "challenges": [],
   "terrain": [
     {
       "position": [-26.646328,187.3585,0],

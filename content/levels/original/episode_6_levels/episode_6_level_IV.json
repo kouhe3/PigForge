@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_IV",
   "goalZone": {
     "min": [
@@ -167,6 +167,10 @@
     {"id":"Flower8","x":-178.72,"y":34.8,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"PressureButtonRed","x":-183.96,"y":-1.924,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue","x":-153.751,"y":6.555,"z":0,"rotation":1.5707964,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"DynamicBoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":12}
   ],
   "terrain": [
     {

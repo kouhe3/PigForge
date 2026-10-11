@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test22",
   "goalZone": {
     "min": [
@@ -79,6 +79,10 @@
     {"id":"Mushroom_02","x":-33.268394,"y":0.4196682,"z":-5,"rotation":0.30033404,"scaleX":1,"scaleY":1},
     {"id":"Daisy_02","x":-17.030863,"y":-4.384712,"z":-5,"rotation":5.9917083,"scaleX":1,"scaleY":1},
     {"id":"Grass_05","x":-0.50444794,"y":-5.5977783,"z":-5,"rotation":6.2107964,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"TimeChallenge","kind":"time","targetTime":9},
+    {"name":"TransportChallenge","kind":"transport","partTypeId":24}
   ],
   "terrain": [
     {

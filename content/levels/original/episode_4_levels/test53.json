@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test53",
   "goalZone": {
     "min": [
@@ -95,6 +95,10 @@
     {"id":"Crystal_02","x":-17.96703,"y":34.946648,"z":-5,"rotation":3.7615025,"scaleX":1,"scaleY":1},
     {"id":"Rock_03","x":13.443171,"y":-6.7119884,"z":-5.421385,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_01","x":-35.30121,"y":6.8107185,"z":-5,"rotation":5.5935636,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TimeChallenge","kind":"time","targetTime":30}
   ],
   "terrain": [
     {

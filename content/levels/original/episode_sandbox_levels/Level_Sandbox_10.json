@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Sandbox_10",
   "goalZone": {
     "min": [
@@ -152,6 +152,7 @@
     {"id":"Glow_01","x":-63.79817,"y":53.022392,"z":4,"rotation":0,"scaleX":2,"scaleY":2},
     {"id":"Grass_09","x":-23.046629,"y":0.48243332,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
   ],
+  "challenges": [],
   "terrain": [
     {
       "position": [171.88766,58.480927,0],

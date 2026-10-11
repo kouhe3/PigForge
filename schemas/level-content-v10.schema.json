@@ -1,0 +1,651 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pigforge.invalid/schemas/level-content-v10.schema.json",
+  "title": "PigForge Level Content v10",
+  "description": "Engine-agnostic level definition. v10 adds `challenges`: the level's own challenge instances, one entry per `Challenge` the level file places, in the original's own numbering (`Challenge.Refresh` sorts the registry by instance label and renumbers it 1..N, `Challenge.cs:62-81`) -- so `challenges[0]` is star 2 and `challenges[1]` star 3 (`docs/specs/level-stars.md` §2.2). Each entry carries the parameter the instance's own `PrefabOverrides` block mounts on top of the prefab: a box challenge the index of its own box in `props` (the slot the collection segment reads), a time challenge its `targetTime`, a `dontUseParts`/`transport` challenge its `partTypeId` -- a PigForge base family id from `tools/lib/part-types.mjs`, never the `BasePart.PartType` enum the level writes. `challenges` is required and may be empty: 263 of the 277 levels have two, one has three, and the 14 sandbox levels write `[]`. v1-v9 documents keep parsing and must not carry it. v9 adds `build`: the level's own construction limits -- the build-grid `rows` the original's `LevelManager.CanPlacePartAtGridCell` walks (`LevelManager.cs:1280-1297`), anchored at the level's `LevelStart` instance (`origin`, the grid cell (0, 0) sits there), plus the per-part-type quota `partCounts` (`LevelManager.m_partTypeCounts`, read by `BaseGameMode.GetPartCount`, `BaseGameMode.cs:558-578`; a type the level allows none of never enters the build bar). `build` is optional: a v9 document that carries none poses no construction limit, as do v1-v8 documents, which must not carry one -- the two sandbox levels whose own grid has no placeable cell are the v9 documents that omit it. v8 gives a placed prop its `triggers`: the original's own trigger box colliders -- the markers the challenge rules overlap with (`docs/specs/level-challenges.md` §3) -- kept apart from the `boxes` the room builds as static bodies. v1-v7 documents keep parsing; only v8 carries `triggers`, and it is optional. v7 gives a placed prop its `boxes`: the original's own non-trigger box colliders, one per solid piece of the level's furniture (a crate, a wall, a plank, a door), which the room turns into static bodies (`docs/specs/level-props.md` §3.6). v1-v6 documents keep parsing; only v7 carries `boxes`, and it is optional -- only a level that places such a prop declares v7 at all. v6 adds `props`, the level's decoration instances -- one quad per instance, drawn by the client from `clients/web/public/assets/original/level-props.json` in the original's own depth order (`docs/specs/level-props.md`). v1-v5 documents keep parsing; only v6 carries `props` and only v6 requires one. Engine-agnostic level definition. v5 adds `cameraLimits`, the level's own `LevelManager.m_cameraLimits` out of the level file's `PrefabOverrides` text -- the rectangle the original drops a pig out of (`Pig.cs:396-403`: below `topLeft.y - size.y`, right of `topLeft.x + size.x * 1.1`, or left of `topLeft.x - size.x * 0.1`), after which `GameMode.cs:384-387` returns the game to its building state. v1-v4 documents keep parsing; only v5 carries `cameraLimits` and only v5 requires one.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schemaVersion",
+    "contentVersion",
+    "goalZone",
+    "bounds",
+    "cameraLimits",
+    "spawns",
+    "props",
+    "challenges"
+  ],
+  "properties": {
+    "format": {
+      "const": "pigforge.level-content"
+    },
+    "schemaVersion": {
+      "const": 10
+    },
+    "contentVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
+    "goalZone": {
+      "$ref": "#/$defs/zone"
+    },
+    "bounds": {
+      "$ref": "#/$defs/zone"
+    },
+    "cameraLimits": {
+      "$ref": "#/$defs/cameraLimits"
+    },
+    "build": {
+      "$ref": "#/$defs/build"
+    },
+    "spawns": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/spawn"
+      }
+    },
+    "props": {
+      "description": "One entry per decoration instance the level places (the palette prefabs whose prefab is a single sprite quad: 251 of the 368 props, 15132 of the pack's 26072 instances). Every other prop class (system markers, solids with colliders, backdrop sets, behaviour props) belongs to a later slice and is not written here.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/prop"
+      }
+    },
+    "challenges": {
+      "description": "One entry per `Challenge` instance the level places, in the original's own numbering (the ordinal sort of the instance labels, `Challenge.cs:62-81`), so `challenges[0]` is star 2 and `challenges[1]` star 3 (`LevelComplete.cs:287-294`). Required, and empty for the 14 levels whose file places none; a run's per-challenge completion flags are indexed by position (`docs/specs/level-stars.md` §4.2), so the order is part of the contract.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/challenge"
+      }
+    },
+    "terrain": {
+      "description": "One entry per `e2dTerrain` object. `position` is the object's own transform (the original never rotates or scales these), `depth` is the extrusion along z the collision shell uses (e2dConstants.COLLISION_MESH_Z_DEPTH = 10), `collider` is the original's `hasCollider` (498 of 2146 terrains are decoration and get no body), `fill` is the ground's texture, tint and tiling, `curve` is the edge trim's geometry and layers, and `loops` are the terrain's boundary polygons in its local frame, each point being [x, y] because the extrusion supplies z.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/terrain"
+      }
+    }
+  },
+  "$defs": {
+    "positiveUInt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "finiteNumber": {
+      "type": "number"
+    },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        {
+          "$ref": "#/$defs/finiteNumber"
+        }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "point2": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        {
+          "$ref": "#/$defs/finiteNumber"
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "$ref": "#/$defs/vector3"
+        },
+        "max": {
+          "$ref": "#/$defs/vector3"
+        }
+      }
+    },
+    "cameraLimits": {
+      "description": "The original's own camera rectangle (`LevelManager.CameraLimits`, `LevelManager.cs:9-16`): `topLeft` is its top-left corner and `size` extends right and down -- `IngameCamera.cs:599` builds the rect as `(topLeft.x, topLeft.y - size.y, size.x, size.y)`. Read from the level file's `PrefabOverrides` (`tools/bple-levels/lib/overrides.mjs`), never hand-written; all 277 levels override it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topLeft",
+        "size"
+      ],
+      "properties": {
+        "topLeft": {
+          "$ref": "#/$defs/point2"
+        },
+        "size": {
+          "$ref": "#/$defs/point2"
+        }
+      }
+    },
+    "spawn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partTypeId",
+        "position"
+      ],
+      "properties": {
+        "partTypeId": {
+          "$ref": "#/$defs/positiveUInt"
+        },
+        "position": {
+          "$ref": "#/$defs/vector3"
+        },
+        "angle": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "role": {
+          "enum": [
+            "part",
+            "pig",
+            "tnt"
+          ]
+        },
+        "tntFuseTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "motorImpulsePerTick": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "motorDirectionX": {
+          "enum": [
+            -1,
+            0,
+            1
+          ]
+        },
+        "wheel": {
+          "type": "boolean"
+        }
+      }
+    },
+    "fill": {
+      "description": "The original's `e2d/Fill` inputs that the level names: `texture` is a file name in the client's level-texture directory (the art itself is never committed), `color` is the level file's own RGBA quad in bytes (`LevelLoader.ReadColor` multiplies each by 0.003921569f), `tileOffset` is the level file's fill texture tile offset and `tileSize` is the terrain prefab's `FillTextureTileWidth/Height`, both in world metres.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texture",
+        "color",
+        "tileOffset",
+        "tileSize"
+      ],
+      "properties": {
+        "texture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "color": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "tileOffset": {
+          "$ref": "#/$defs/point2"
+        },
+        "tileSize": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "curveTexture": {
+      "description": "One of the two `e2dCurveTexture` layers the `e2d/Curve` shader samples (`_Splat0` / `_Splat1`). `wrap` is that texture's own Unity wrap mode: `repeat` tiles (`wrapU: 0`) and `clamp` stretches the last texel column (`wrapU: 1`) -- the shader's u runs far past 1, so the mode is part of the look.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texture",
+        "wrap"
+      ],
+      "properties": {
+        "texture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "wrap": {
+          "enum": [
+            "repeat",
+            "clamp"
+          ]
+        }
+      }
+    },
+    "curve": {
+      "description": "The original's `_curve` mesh (`e2dTerrainCurveMesh`, built from `e2dTerrain.TerrainCurve` and its `StripeVertices`) and the material inputs `LevelLoader.ReadTerrain` restores. `nodes` and `stripe` are the strip's two rows in the level file's own vertex order -- `nodes[i]` is a `TerrainCurve` node on the terrain surface, `stripe[i]` is that node pushed outwards by the node's `e2dCurveTexture.size.y` and kept inside the terrain's boundary rect, and the mesh's triangles are the quads between consecutive pairs. The shader maps u = arclength x `uScale` and v = 1 on `nodes` / 0 on `stripe` across the band; `splat1` lists the node runs the control texture's green channel switches to `textures[1]`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes",
+        "stripe",
+        "textures",
+        "uScale",
+        "splat1"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/point2"
+          }
+        },
+        "stripe": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/point2"
+          }
+        },
+        "textures": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/curveTexture"
+            },
+            {
+              "$ref": "#/$defs/curveTexture"
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "uScale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "splat1": {
+          "description": "Disjoint runs `[start, count]` of node indices drawn with `textures[1]`, sorted by `start`; every node outside them uses `textures[0]`.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      }
+    },
+    "terrain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "depth",
+        "collider",
+        "fill",
+        "curve",
+        "loops"
+      ],
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/vector3"
+        },
+        "depth": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "collider": {
+          "type": "boolean"
+        },
+        "fill": {
+          "$ref": "#/$defs/fill"
+        },
+        "curve": {
+          "$ref": "#/$defs/curve"
+        },
+        "loops": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "$ref": "#/$defs/point2"
+            }
+          }
+        }
+      }
+    },
+    "prop": {
+      "description": "One decoration instance. `id` keys the client's level-props manifest (the palette prefab's name), `x`/`y`/`z` are the instance's own world position (the original scales x/y by IN TerrainScale, which the declaration defaults set to 1.0), `rotation` is the level file's `euler.z` in degrees -- Unity applies it with `Quaternion.Euler` -- converted to radians about z (levels are 2D, so euler.x/y are always 0), and `scaleX`/`scaleY` are the instance's own localScale (a negative x is the original's mirroring; the quad lies in the xy plane, so its z scale never matters). On v7 a solid instance also carries `boxes`: the original's own non-trigger box colliders of that prefab, each in the prop's own frame (`dx`/`dy`/`dz` offset its centre, `rotation` is its own angle in radians and the three sizes are the collider's own `m_Size`, already folded through the prefab's transform chain). A decoration has no boxes; a trigger (a challenge's box, a goal, a secret, a pressure plate) is not a wall. On v8 a prop may also carry `triggers`: the same shape as `boxes`, but these are the original's trigger colliders -- a challenge's collection marker, never a wall.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "x",
+        "y",
+        "z",
+        "rotation",
+        "scaleX",
+        "scaleY"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "x": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "y": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "z": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "rotation": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "scaleX": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "scaleY": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "boxes": {
+          "description": "The prop's solid geometry, one entry per non-trigger box collider the original's prefab carries. Absent or empty for a decoration. Only a v7 document may carry it.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/propBox"
+          }
+        },
+        "triggers": {
+          "description": "The prop's trigger boxes, one entry per trigger `BoxCollider` the original's prefab carries. The room overlaps them with the contraption to collect a challenge; they are never built as bodies. Only a v8 document may carry them.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/propBox"
+          }
+        }
+      }
+    },
+    "propBox": {
+      "description": "One solid box of a placed prop, in the prop's frame: the room places it at the prop's own position and rotation, mirrors its offset with a negative instance scale and builds a static box body out of it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dx",
+        "dy",
+        "dz",
+        "sizeX",
+        "sizeY",
+        "sizeZ",
+        "rotation"
+      ],
+      "properties": {
+        "dx": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "dy": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "dz": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "sizeX": {
+          "description": "The original collider's own x size, in metres.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sizeY": {
+          "description": "The original collider's own y size, in metres.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "sizeZ": {
+          "description": "The original collider's own z size, in metres.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rotation": {
+          "$ref": "#/$defs/finiteNumber"
+        }
+      }
+    },
+    "build": {
+      "description": "The level's own construction limits (`LevelManager.m_constructionGridRows`, `m_partTypeCounts`). `rows` is the level file's `m_constructionGridRows` verbatim -- index 0 first, each entry a bit mask of build columns -- which `LevelManager.CanPlacePartAtGridCell` (`LevelManager.cs:1280-1297`) walks: columns is the widest row, height the last nonzero row plus one, and cell (i, j) exists when row `height - 1 - j` has bit `i - xMin` set, with `xMin = -(columns - 1) / 2` (integer division) and `xMax = columns / 2`. `origin` is the level's own `LevelStart` instance position x/y, the grid's anchor (the room floors it -- cells are whole metres; `Contraption.SetPartPos` puts cell (i, j) at the anchor plus (i, j)). `partCounts` is the level's `m_partTypeCounts` filtered to the types it allows at least one of, keyed by base part-type id in ascending order -- a variant counts against its base's family and a type the level allows none of never enters the build bar (`ConstructionUI.CheckUnlockedParts`, `ConstructionUI.cs:534-612`). Only a v9 document may carry it, and a v9 document may omit it (no limit).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "rows",
+        "partCounts"
+      ],
+      "properties": {
+        "origin": {
+          "description": "The level's `LevelStart` instance position (x, y) in world metres -- the build grid's anchor.",
+          "$ref": "#/$defs/point2"
+        },
+        "rows": {
+          "description": "The level file's `m_constructionGridRows` verbatim: non-empty, each entry a non-negative bit mask of build columns.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "partCounts": {
+          "description": "One entry per base part type the level allows at least one of, ascending by `partTypeId`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/partAllowance"
+          }
+        }
+      }
+    },
+    "partAllowance": {
+      "description": "One base part type's quota: `partTypeId` is the base family id (a variant counts against its base's family) and `count` is how many of it the level places. Both are positive; a zero count is never written.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partTypeId",
+        "count"
+      ],
+      "properties": {
+        "partTypeId": {
+          "$ref": "#/$defs/positiveUInt"
+        },
+        "count": {
+          "$ref": "#/$defs/positiveUInt"
+        }
+      }
+    },
+    "challengeName": {
+      "description": "The challenge instance's own label in the level file (`LevelLoader.cs:127` writes it to `gameObject.name`), which is also the key the original sorts and renumbers its registry by (`Challenge.ChallengeOrder`, `Challenge.cs:17-23`) and the string the objective is labelled with. Two instances may share one label -- three levels do -- and they keep the level file's own order (deviation D1).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
+    "challenge": {
+      "description": "One `Challenge` instance the level places. `kind` is the class it is (`Challenge.ChallengeType`, `Challenge.cs:7-15`) and decides which parameter the entry carries: a box its `propIndex`, a time challenge its `targetTime`, a `dontUseParts`/`transport` challenge its `partTypeId`; a `perfectFlight` challenge has no parameter at all (`PerfectFlightChallenge.cs:5-12`). Every other key is rejected, and so is another kind's parameter -- the two fields the original's `IsCompleted()` reads are the only per-level data a challenge has (`docs/specs/level-stars.md` §3).",
+      "oneOf": [
+        {
+          "description": "A `WaypointChallenge`: completed by collecting the box the level places at `props[propIndex]` (`WaypointChallenge.cs:9`), so the entry indexes the document's own `props` array -- the same slot the collection segment publishes (`docs/specs/level-challenges.md` §3). `BoxChallenge` and `DynamicBoxChallenge` are both one of these; `propIndex` is non-negative and inside `props`.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "kind",
+            "propIndex"
+          ],
+          "properties": {
+            "name": {
+              "$ref": "#/$defs/challengeName"
+            },
+            "kind": {
+              "const": "box"
+            },
+            "propIndex": {
+              "description": "The index of this challenge box in the document's own `props` array.",
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "description": "A `TimeChallenge`: completed when the run's frozen `CompletionTime` rounds down to 0.01 s and is still `<= targetTime` (`TimeChallenge.cs:9-12`). `targetTime` is the level's own `m_targetTime` out of its `PrefabOverrides` (the prefab's serialized 30 when the block does not mount the class), it is also the level's `TimeLimit` (`BaseGameMode.cs:101-116`), and the HUD hide the countdown when the level has no such challenge at all.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "kind",
+            "targetTime"
+          ],
+          "properties": {
+            "name": {
+              "$ref": "#/$defs/challengeName"
+            },
+            "kind": {
+              "const": "time"
+            },
+            "targetTime": {
+              "description": "The seconds the run has to finish in, in the level's own `m_targetTime` units (a finite, non-negative number; 33 distinct values over the pack's 113 instances).",
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "description": "A `DontUsePartChallenge`: completed when the layout uses none of `partTypeId` (`DontUsePartChallenge.cs:7-9`). `partTypeId` is the level's own `m_partType` resolved through `tools/lib/part-types.mjs` -- the PigForge base family id, never the `BasePart.PartType` enum the level writes.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "kind",
+            "partTypeId"
+          ],
+          "properties": {
+            "name": {
+              "$ref": "#/$defs/challengeName"
+            },
+            "kind": {
+              "const": "dontUseParts"
+            },
+            "partTypeId": {
+              "description": "The PigForge base part family the run must not use (a variant counts as its base's family).",
+              "$ref": "#/$defs/positiveUInt"
+            }
+          }
+        },
+        {
+          "description": "A `TransportChallenge`: completed when `partTypeId` reaches the goal (`TransportChallenge.cs:7-10`). The pack's own `partToTransport` is the `KingPig` enum in every one of the ten instances, and it resolves like `dontUseParts` does -- through `tools/lib/part-types.mjs`, never enum-as-id.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "kind",
+            "partTypeId"
+          ],
+          "properties": {
+            "name": {
+              "$ref": "#/$defs/challengeName"
+            },
+            "kind": {
+              "const": "transport"
+            },
+            "partTypeId": {
+              "description": "The PigForge base part family the run has to bring to the goal.",
+              "$ref": "#/$defs/positiveUInt"
+            }
+          }
+        },
+        {
+          "description": "A `PerfectFlightChallenge`: completed when the run finishes without a break (`PerfectFlightChallenge.cs:5-12`), so the entry carries nothing but its identity.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "kind"
+          ],
+          "properties": {
+            "name": {
+              "$ref": "#/$defs/challengeName"
+            },
+            "kind": {
+              "const": "perfectFlight"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

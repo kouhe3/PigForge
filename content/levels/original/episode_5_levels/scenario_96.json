@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_96",
   "goalZone": {
     "min": [
@@ -125,6 +125,10 @@
     {"id":"Crumbs_03","x":-26.390709,"y":-6.7098656,"z":-5.3104634,"rotation":0,"scaleX":1.5311005,"scaleY":1.5311005},
     {"id":"Crumbs_03","x":29.047768,"y":-6.642687,"z":-5.1,"rotation":0,"scaleX":-1.5311005,"scaleY":1.5311005},
     {"id":"Drop_02","x":33.98003,"y":-6.7681217,"z":-5.15,"rotation":0,"scaleX":1.5311005,"scaleY":1.5311005}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":3},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":15}
   ],
   "terrain": [
     {

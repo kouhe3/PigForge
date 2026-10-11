@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Race_07",
   "goalZone": {
     "min": [
@@ -211,6 +211,10 @@
     {"id":"Rock_02","x":149.85788,"y":-7.216282,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Crystal_01","x":346.4637,"y":14.643562,"z":-5,"rotation":3.4238424,"scaleX":-1,"scaleY":1},
     {"id":"Flower_01","x":116.128815,"y":-7.1414204,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"TimeChallenge","kind":"time","targetTime":40},
+    {"name":"TimeChallenge2","kind":"time","targetTime":50}
   ],
   "terrain": [
     {

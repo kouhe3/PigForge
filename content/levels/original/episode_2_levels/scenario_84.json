@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_84",
   "goalZone": {
     "min": [
@@ -81,6 +81,10 @@
     {"id":"Gravel_03","x":-75.742874,"y":-6.692787,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_02","x":-68.54027,"y":-6.955389,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_03","x":12.981701,"y":-6.679495,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TimeChallenge","kind":"time","targetTime":6}
   ],
   "terrain": [
     {

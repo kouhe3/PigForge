@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test15",
   "goalZone": {
     "min": [
@@ -83,6 +83,10 @@
     {"id":"Gravel_02","x":-12.15324,"y":-6.8188114,"z":-4.929114,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Crystal_03","x":8.197695,"y":2.3198586,"z":-4.810449,"rotation":1.8739779,"scaleX":1,"scaleY":1},
     {"id":"Glow_01","x":8.075493,"y":2.1105423,"z":4,"rotation":0,"scaleX":2.5571575,"scaleY":2.5571575}
+  ],
+  "challenges": [
+    {"name":"TimeChallenge","kind":"time","targetTime":13},
+    {"name":"TransportChallenge","kind":"transport","partTypeId":24}
   ],
   "terrain": [
     {

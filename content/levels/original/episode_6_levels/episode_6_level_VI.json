@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_VI",
   "goalZone": {
     "min": [
@@ -123,6 +123,10 @@
     {"id":"Grass21","x":-169.12,"y":23.16,"z":0.9,"rotation":5.427852,"scaleX":-1,"scaleY":1},
     {"id":"Flower10","x":-166.13,"y":12.96,"z":-3,"rotation":0.4451577,"scaleX":1,"scaleY":1},
     {"id":"Spear3","x":-170.73,"y":45.959,"z":0.9,"rotation":5.02645,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":1}
   ],
   "terrain": [
     {

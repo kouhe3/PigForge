@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_54",
   "goalZone": {
     "min": [
@@ -98,6 +98,10 @@
     {"id":"Crystal_01","x":11.973795,"y":1.660389,"z":-5,"rotation":2.496692,"scaleX":1,"scaleY":1},
     {"id":"Gravel_02","x":-52.66792,"y":-6.7790947,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Glow_01","x":11.705435,"y":1.3103676,"z":4,"rotation":0,"scaleX":3.1861906,"scaleY":3.1861906}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

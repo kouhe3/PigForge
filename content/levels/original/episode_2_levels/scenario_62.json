@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_62",
   "goalZone": {
     "min": [
@@ -75,6 +75,10 @@
     {"id":"Gravel_01","x":60.000538,"y":-7.092018,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_01","x":-11.835046,"y":-2.1868591,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Gravel_01","x":11.700569,"y":-6.7162285,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":4},
+    {"name":"BoxChallenge2","kind":"box","propIndex":3}
   ],
   "terrain": [
     {

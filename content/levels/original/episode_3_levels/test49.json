@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test49",
   "goalZone": {
     "min": [
@@ -81,6 +81,10 @@
     {"id":"Mushroom_01","x":-7.313656,"y":-4.8925467,"z":-5,"rotation":5.4857445,"scaleX":1,"scaleY":1},
     {"id":"Grass_06","x":-24.563429,"y":-4.8647914,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Daisy_01","x":17.69403,"y":7.362545,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":4},
+    {"name":"BoxChallenge1","kind":"box","propIndex":3}
   ],
   "terrain": [
     {

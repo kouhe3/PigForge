@@ -8,6 +8,16 @@ import { gadgetGroups, type GadgetGroup } from "./live/gadgets";
 import { connectPlaySocket } from "./live/playSocket";
 import { connectSnapshotSocket } from "./live/snapshotSocket";
 import { createPlayerSession, type CommandKind } from "./live/playerSession";
+import {
+  RUN_FAILED_PHASE,
+  RUN_WON_PHASE,
+  challengeDone,
+  challengeLabel,
+  countdownText,
+  showsCountdown,
+  starSlots,
+  starsFor,
+} from "./live/runStars";
 import { createPlaybackClock, type PlaybackClock } from "./playback/clock";
 import { createAnimationState, noteActivationEdges, resetAnimations, updateAnimations } from "./renderer/animation";
 import { createAnimationClock } from "./renderer/animation/clock";
@@ -19,7 +29,7 @@ import { drawFrame } from "./renderer/draw";
 import { fitBounds } from "./renderer/camera";
 import { groundTextureNames, loadGroundTextures, type GroundTextureSet } from "./renderer/terrain";
 import { curveTextureNames } from "./renderer/terrainCurve";
-import { cameraLimitsRect, constructionCellExists, zoneRect } from "./schema/levelContent";
+import { cameraLimitsRect, constructionCellExists, timeLimit, zoneRect, type LevelChallenge } from "./schema/levelContent";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
 import { viewState } from "./viewState";
@@ -66,6 +76,10 @@ const parallaxFrom = ref<{ x: number; y: number } | undefined>(undefined);
 // The challenge markers the level has collected, straight off the v7 snapshot's tail
 // (`docs/specs/level-challenges.md` §5): the painter hides them, the original's `DisableGoal(true)`.
 const collectedProps = shallowRef<ReadonlySet<number>>(new Set());
+// The run state off the v8 snapshot's tail (`docs/specs/level-stars.md` §5): the run's clock and the
+// per-challenge flags. Written where a decoded frame lands, read by the run HUD's computeds only.
+const runElapsedSeconds = ref(0);
+const runChallengeFlags = ref(0);
 // Animation state and its wall clock; both stay outside Vue reactivity like the view state.
 const animations = createAnimationState();
 const animationClock = createAnimationClock();
@@ -95,6 +109,37 @@ const canReset = computed(() => playerPhase.value === "materialized" || ownCount
 const canPlace = computed(() => activeTab.value === "live" && session.mode === "live" && canEdit.value);
 const phaseLabel = computed(() => (playerPhase.value === "materialized" ? "运行中" : "编辑中"));
 const toolLabel = computed(() => TOOLS.find((entry) => entry.id === tool.value)?.label ?? "放置");
+
+// The level's own challenges (`docs/specs/level-stars.md` §6). A sandbox -- and any pre-v10
+// document -- carries none, and the original's own sandbox levels have no challenges either, so an
+// empty list is exactly the "no run HUD" case.
+const challenges = computed<readonly LevelChallenge[]>(() => session.level?.challenges ?? []);
+const runHud = computed(() => activeTab.value === "live" && challenges.value.length > 0);
+/** The clock is the level's own, and a level without a `time` challenge has a limit of 0. */
+const clockVisible = computed(() => runHud.value && showsCountdown(challenges.value));
+/** The clock reads the level's own limit against the elapsed seconds the last frame carried. */
+const countdown = computed(() => countdownText(timeLimit(challenges.value), runElapsedSeconds.value));
+const starCount = computed(() => starsFor(session.livePhase, runChallengeFlags.value, challenges.value.length));
+const starSlotList = computed(() => starSlots(session.livePhase, runChallengeFlags.value, challenges.value.length));
+const objectives = computed(() => challenges.value.map((challenge, index) => ({
+  label: challengeLabel(challenge, (partTypeId) =>
+    PALETTE.find((entry) => entry.partTypeId === partTypeId)?.label
+    ?? PLAY_PARTS.parts.find((part) => part.partTypeId === partTypeId)?.name),
+  done: challengeDone(runChallengeFlags.value, index),
+})));
+/**
+ * The settlement line. The original's own menu shows stars and icons only (§8 D5), so the wording
+ * is this client's; every phase that is not a finished run is the room's own building state.
+ */
+const runResultText = computed(() => {
+  if (session.livePhase === RUN_WON_PHASE) {
+    return `过关 · ${starCount.value} 星 · 用时 ${runElapsedSeconds.value.toFixed(2)} 秒`;
+  }
+  if (session.livePhase === RUN_FAILED_PHASE) {
+    return "失败";
+  }
+  return session.livePhase === 0 ? "运行中" : "编辑中";
+});
 
 /** Switch-bar groups: own, materialised, switchable parts grouped by type. */
 const gadgets = computed<GadgetGroup[]>(() => {
@@ -164,6 +209,15 @@ function applyCollected(collected: readonly number[]): void {
   }
 
   collectedProps.value = new Set(collected);
+}
+
+/**
+ * The run state off a frame's tail (`docs/specs/level-stars.md` §5). An idle frame carries the same
+ * two values, which a ref already ignores, so a paused run triggers no update.
+ */
+function applyRunState(elapsedSeconds: number, challengeFlags: number): void {
+  runElapsedSeconds.value = elapsedSeconds;
+  runChallengeFlags.value = challengeFlags;
 }
 
 function syncPlayer(): void {
@@ -449,6 +503,8 @@ function connectLive(): void {
   // connection starts from an empty building plane and the local identity goes with it.
   player.reset();
   syncPlayer();
+  // The previous run's clock and flags belong to the previous room.
+  applyRunState(0, 0);
   if (snapshotOnly) {
     disconnectLive = connectSnapshotSocket(
       url,
@@ -456,6 +512,7 @@ function connectLive(): void {
         noteActivationEdges(animations, frame.entities, partTextures.value);
         session.applyLiveEntities(frame.tick, frame.entities, frame.phase);
         applyCollected(frame.collected);
+        applyRunState(frame.elapsedSeconds, frame.challengeFlags);
         liveFrame.value += 1;
       },
       (message) => session.setErrors([message]),
@@ -471,6 +528,7 @@ function connectLive(): void {
       noteActivationEdges(animations, snapshot.entities, partTextures.value);
       session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase);
       applyCollected(snapshot.collected);
+      applyRunState(snapshot.elapsedSeconds, snapshot.challengeFlags);
       liveFrame.value += 1;
     },
     (ack) => {
@@ -786,6 +844,25 @@ onUnmounted(() => {
         :class="activeTab === 'live' ? 'tool-' + tool : undefined"
         aria-label="物理快照画布：拖拽平移，滚轮缩放，工具 1-5 切换放置/选择/移动/旋转/缩放"
       ></canvas>
+      <div v-if="runHud" class="run-hud" aria-label="关卡目标与结算">
+        <p class="run-line">
+          <span v-if="clockVisible" class="run-clock" :class="{ over: countdown.over }">{{ countdown.text }}</span>
+          <span class="run-stars" :aria-label="`已得 ${starCount} 星`">
+            <span
+              v-for="(earned, index) in starSlotList"
+              :key="index"
+              class="run-star"
+              :class="{ earned }"
+            >{{ earned ? "★" : "☆" }}</span>
+          </span>
+        </p>
+        <p class="run-line run-result">{{ runResultText }}</p>
+        <ul class="run-objectives">
+          <li v-for="(objective, index) in objectives" :key="index" :class="{ done: objective.done }">
+            {{ objective.done ? "✔" : "✘" }} {{ objective.label }}
+          </li>
+        </ul>
+      </div>
       <div v-if="canSwitch" class="gadget-bar" role="toolbar" aria-label="零件开关">
         <button
           v-for="group in gadgets"
@@ -885,3 +962,59 @@ onUnmounted(() => {
     </footer>
   </div>
 </template>
+
+<style scoped>
+/* The run HUD (`docs/specs/level-stars.md` §6): a read-only overlay, so pointer events keep
+   reaching the canvas gestures underneath. */
+.run-hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+  padding: 8px 10px;
+  background: rgba(20, 26, 20, 0.88);
+  border: 1px solid #3a463a;
+  border-radius: 10px;
+  color: #cfd8cf;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.run-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 2px;
+}
+
+.run-clock {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+/* Past the limit the original keeps the magnitude and turns the reading red (`ScoreCounters.cs:67-91`). */
+.run-clock.over {
+  color: #e8b4a0;
+}
+
+/* A star the run has not earned yet is the same glyph, dimmed. */
+.run-star {
+  color: #4c574c;
+}
+
+.run-star.earned {
+  color: #ffd166;
+}
+
+.run-objectives {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: #9aa193;
+  font-size: 0.8rem;
+}
+
+.run-objectives .done {
+  color: #b7d9a0;
+}
+</style>

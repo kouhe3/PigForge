@@ -17,7 +17,7 @@ public readonly record struct SnapshotEntity(
 public readonly record struct SnapshotFrameHeader(ushort Version, uint Tick, byte Phase, uint EntityCount);
 
 /// <summary>
-/// Binary wire format for published authoritative room snapshots (v6).
+/// Binary wire format for published authoritative room snapshots (v8).
 /// Layout, little-endian: magic "PGFS" | version:u16 | tick:u32 | phase:u8 | entityCount:u32,
 /// then per entity: entityId:u32 | physicsBodyId:u32 | partTypeId:u32 | position:3f |
 /// rotation:4f | linearVelocity:3f | angularVelocity:3f | scale:f | attachYaw:f | flags:u8.
@@ -29,6 +29,9 @@ public readonly record struct SnapshotFrameHeader(ushort Version, uint Tick, byt
 /// rigidly attached to: the hinge's parent body frame for a hinged wheel (so its axle follows the
 /// chassis), the part's own frame otherwise. Rotation is the part's own body rotation, which for
 /// a wheel carries its accumulated spin, so the two differ exactly by the roll (ADR-009).
+/// The tail carries two sections every frame writes, in this order: the v7 collected challenge
+/// markers (`uint16 count` then one `uint32` prop index each) and the v8 run state
+/// (five bytes: `float32 elapsedSeconds` then `uint8 challengeFlags`), `docs/specs/level-stars.md` §5.
 /// The hot path is span-based: no JSON and no allocations.
 /// </summary>
 public static class SnapshotFrame
@@ -36,8 +39,9 @@ public static class SnapshotFrame
 	// v7 appends the collected challenge markers after the entities: `uint16 count` then `count` little
 	// endian `uint32` prop indices (indices into the level document's own `props`,
 	// `docs/specs/level-challenges.md` §5). A frame always carries the section -- two zero bytes when
-	// nothing has been collected.
-	public const ushort CurrentVersion = 7;
+	// nothing has been collected. v8 appends the run state after it, five bytes of `float32
+	// elapsedSeconds` then `uint8 challengeFlags` (`docs/specs/level-stars.md` §5), always written too.
+	public const ushort CurrentVersion = 8;
 
 	/// <summary>Flags bit 0: the part's switch state.</summary>
 	public const byte FlagActive = 0x01;
@@ -60,8 +64,17 @@ public static class SnapshotFrame
 	/// <summary>How many markers a frame carries before its entries.</summary>
 	public const int CollectedCountByteCount = 2;
 
+	/// <summary>v8's run timer reading (the room's `TimeElapsed`, frozen on entering the goal).</summary>
+	public const int ElapsedByteCount = 4;
+
+	/// <summary>v8's completion bit per challenge: bit i is `challenges[i]`, 0 while not won.</summary>
+	public const int ChallengeFlagsByteCount = 1;
+
+	/// <summary>v8's whole run-state section: `elapsedSeconds:f` then `challengeFlags:u8`.</summary>
+	public const int RunStateByteCount = ElapsedByteCount + ChallengeFlagsByteCount;
+
 	public static int GetMaxByteCount(int entityCount, int collectedCount = 0) =>
-		HeaderByteCount + (entityCount * EntityByteCount) + CollectedCountByteCount + (collectedCount * CollectedEntryByteCount);
+		HeaderByteCount + (entityCount * EntityByteCount) + CollectedCountByteCount + (collectedCount * CollectedEntryByteCount) + RunStateByteCount;
 
 	public static bool TryEncodeHeader(Span<byte> destination, SnapshotFrameHeader header, out SnapshotFrameWriter writer)
 	{
@@ -169,6 +182,25 @@ public ref struct SnapshotFrameWriter
 		return true;
 	}
 
+	/// <summary>
+	/// Appends the run state (v8) after the collected markers: `float32 elapsedSeconds` then
+	/// `uint8 challengeFlags` (`docs/specs/level-stars.md` §5). Always written -- a fresh run's
+	/// zero elapsed time and zero flags are real state, not an absent section.
+	/// </summary>
+	public bool TryWriteRunState(float elapsedSeconds, byte challengeFlags)
+	{
+		if (_destination.Length - _position < SnapshotFrame.RunStateByteCount)
+		{
+			return false;
+		}
+
+		Span<byte> span = _destination[_position..];
+		BinaryPrimitives.WriteSingleLittleEndian(span, elapsedSeconds);
+		span[SnapshotFrame.ElapsedByteCount] = challengeFlags;
+		_position += SnapshotFrame.RunStateByteCount;
+		return true;
+	}
+
 	private static void WriteVector3(Span<byte> span, ReplayVector3 value)
 	{
 		BinaryPrimitives.WriteSingleLittleEndian(span, value.X);
@@ -228,6 +260,26 @@ public ref struct SnapshotFrameReader
 
 		_position = start + required;
 		count = written;
+		return true;
+	}
+
+	/// <summary>
+	/// Reads the run state (v8) once the collected markers have been read. A tail that ends before
+	/// the five bytes -- a frame from an older wire -- reports false instead of fabricating zeros;
+	/// the header decode's version gate is what actually keeps such frames off the reader.
+	/// </summary>
+	public bool TryReadRunState(out float elapsedSeconds, out byte challengeFlags)
+	{
+		elapsedSeconds = 0f;
+		challengeFlags = 0;
+		if (_remaining != 0 || _source.Length - _position < SnapshotFrame.RunStateByteCount)
+		{
+			return false;
+		}
+
+		elapsedSeconds = BinaryPrimitives.ReadSingleLittleEndian(_source[_position..]);
+		challengeFlags = _source[_position + SnapshotFrame.ElapsedByteCount];
+		_position += SnapshotFrame.RunStateByteCount;
 		return true;
 	}
 

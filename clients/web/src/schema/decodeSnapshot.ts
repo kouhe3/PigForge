@@ -1,9 +1,13 @@
 import type { SnapshotEntity, SnapshotFrame, Vec3, Quat } from "./types";
 
-export const SNAPSHOT_VERSION = 7;
+export const SNAPSHOT_VERSION = 8;
 /** v7 appends the collected challenge markers: a count, then one index each. */
 export const SNAPSHOT_COLLECTED_COUNT_BYTES = 2;
 export const SNAPSHOT_COLLECTED_ENTRY_BYTES = 4;
+/** v8 appends the run state after the markers: the elapsed seconds (float32) then the challenge flags. */
+export const SNAPSHOT_ELAPSED_BYTES = 4;
+export const SNAPSHOT_CHALLENGE_FLAGS_BYTES = 1;
+export const SNAPSHOT_RUN_STATE_BYTES = SNAPSHOT_ELAPSED_BYTES + SNAPSHOT_CHALLENGE_FLAGS_BYTES;
 export const SNAPSHOT_BUILDING_PHASE = 0x10;
 export const SNAPSHOT_HEADER_BYTES = 15;
 export const SNAPSHOT_ENTITY_BYTES = 73;
@@ -67,7 +71,17 @@ export function decodeSnapshotFrame(source: Uint8Array): SnapshotFrame | string 
     collected.push(view.getUint32(collectedOffset + SNAPSHOT_COLLECTED_COUNT_BYTES + index * SNAPSHOT_COLLECTED_ENTRY_BYTES, true));
   }
 
-  return { version, tick, phase, entities, collected };
+  // v8's tail: the run timer and the challenge bits (docs/specs/level-stars.md §5). Only a v8 frame
+  // carries it -- the version check above already turned every older frame away.
+  const runStateOffset = collectedEnd;
+  if (source.length < runStateOffset + SNAPSHOT_RUN_STATE_BYTES) {
+    return "Snapshot run state payload is truncated.";
+  }
+
+  const elapsedSeconds = view.getFloat32(runStateOffset, true);
+  const challengeFlags = view.getUint8(runStateOffset + SNAPSHOT_ELAPSED_BYTES);
+
+  return { version, tick, phase, entities, collected, elapsedSeconds, challengeFlags };
 }
 
 function readVec3(view: DataView, offset: number): Vec3 {

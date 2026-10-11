@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_Race_03",
   "goalZone": {
     "min": [
@@ -238,6 +238,10 @@
     {"id":"Rock_01","x":-57.34809,"y":-6.4770546,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Grass_01","x":-80.76723,"y":17.04621,"z":-5,"rotation":6.2625766,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_03","x":809.752,"y":25.438519,"z":-5,"rotation":2.5809493,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"TimeChallenge","kind":"time","targetTime":70},
+    {"name":"TimeChallenge2","kind":"time","targetTime":80}
   ],
   "terrain": [
     {

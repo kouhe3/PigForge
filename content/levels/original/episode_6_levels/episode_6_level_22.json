@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_22",
   "goalZone": {
     "min": [
@@ -143,6 +143,10 @@
     {"id":"ActivatedHingeDoorYellow","x":-170.57,"y":3,"z":0,"rotation":3.1415932,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorYellow","x":-170.57,"y":2.89,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"BreakableWall","x":-150.505,"y":-6.471,"z":0,"rotation":4.0766363,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"DynamicBoxChallenge","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

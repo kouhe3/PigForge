@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_16",
   "goalZone": {
     "min": [
@@ -99,6 +99,10 @@
     {"id":"Background_Cloud_03_SET_1","x":-104.100784,"y":14.632623,"z":15.846608,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_03_SET_1","x":-102.577385,"y":11.817967,"z":15.78178,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET_1","x":-109.694954,"y":15.122923,"z":15.222445,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"BoxChallenge1","kind":"box","propIndex":3}
   ],
   "terrain": [
     {

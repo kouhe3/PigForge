@@ -12,6 +12,13 @@ export interface PlaySnapshot {
    * (`docs/specs/level-challenges.md` §5).
    */
   collected: number[];
+  /**
+   * v8: the run timer's reading in seconds, frozen when the pig entered the goal area
+   * (`docs/specs/level-stars.md` §5).
+   */
+  elapsedSeconds: number;
+  /** v8: bit i is `challenges[i]` completed; 0 until the run is won. */
+  challengeFlags: number;
 }
 
 export function connectPlaySocket(
@@ -48,6 +55,8 @@ export function connectPlaySocket(
         tick: decoded.tick,
         phase: decoded.phase,
         collected: decoded.collected,
+        elapsedSeconds: decoded.elapsedSeconds,
+        challengeFlags: decoded.challengeFlags,
         entities: toDrawEntities(decoded.entities),
       });
       return;

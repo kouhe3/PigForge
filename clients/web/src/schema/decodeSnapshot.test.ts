@@ -2,19 +2,27 @@ import { describe, expect, it } from "vitest";
 import {
   decodeSnapshotFrame,
   SNAPSHOT_BUILDING_PHASE,
+  SNAPSHOT_CHALLENGE_FLAGS_BYTES,
   SNAPSHOT_COLLECTED_COUNT_BYTES,
   SNAPSHOT_COLLECTED_ENTRY_BYTES,
+  SNAPSHOT_ELAPSED_BYTES,
   SNAPSHOT_ENTITY_BYTES,
   SNAPSHOT_HEADER_BYTES,
+  SNAPSHOT_RUN_STATE_BYTES,
+  SNAPSHOT_VERSION,
 } from "./decodeSnapshot";
 
-function writeFrame(flags = 1, collected: readonly number[] = []): Uint8Array {
+function writeFrame(flags = 1, collected: readonly number[] = [], elapsedSeconds = 0, challengeFlags = 0): Uint8Array {
   const bytes = new Uint8Array(
-    SNAPSHOT_HEADER_BYTES + SNAPSHOT_ENTITY_BYTES + SNAPSHOT_COLLECTED_COUNT_BYTES + collected.length * SNAPSHOT_COLLECTED_ENTRY_BYTES,
+    SNAPSHOT_HEADER_BYTES +
+      SNAPSHOT_ENTITY_BYTES +
+      SNAPSHOT_COLLECTED_COUNT_BYTES +
+      collected.length * SNAPSHOT_COLLECTED_ENTRY_BYTES +
+      SNAPSHOT_RUN_STATE_BYTES,
   );
   const view = new DataView(bytes.buffer);
   bytes.set([0x50, 0x47, 0x46, 0x53], 0);
-  view.setUint16(4, 7, true);
+  view.setUint16(4, SNAPSHOT_VERSION, true);
   view.setUint32(6, 7, true);
   view.setUint8(10, 1);
   view.setUint32(11, 1, true);
@@ -43,6 +51,10 @@ function writeFrame(flags = 1, collected: readonly number[] = []): Uint8Array {
   collected.forEach((index, position) => {
     view.setUint32(tail + SNAPSHOT_COLLECTED_COUNT_BYTES + position * SNAPSHOT_COLLECTED_ENTRY_BYTES, index, true);
   });
+  // v8's tail: the run timer and the challenge bits.
+  const runState = tail + SNAPSHOT_COLLECTED_COUNT_BYTES + collected.length * SNAPSHOT_COLLECTED_ENTRY_BYTES;
+  view.setFloat32(runState, elapsedSeconds, true);
+  view.setUint8(runState + SNAPSHOT_ELAPSED_BYTES, challengeFlags);
   return bytes;
 }
 
@@ -64,12 +76,13 @@ describe("decodeSnapshotFrame", () => {
     expect(decodeSnapshotFrame(bytes)).toBe("Snapshot collected payload is truncated.");
   });
 
-  it("decodes a v7 PGFS frame", () => {
+  it("decodes a v8 PGFS frame", () => {
     const decoded = decodeSnapshotFrame(writeFrame());
     expect(typeof decoded).not.toBe("string");
     if (typeof decoded === "string") {
       return;
     }
+    expect(decoded.version).toBe(SNAPSHOT_VERSION);
     expect(decoded.tick).toBe(7);
     expect(decoded.phase).toBe(1);
     expect(decoded.entities).toHaveLength(1);
@@ -81,6 +94,32 @@ describe("decodeSnapshotFrame", () => {
     expect(decoded.entities[0].active).toBe(true);
     expect(decoded.entities[0].subEntity).toBe(false);
     expect(decoded.entities[0].mirrored).toBe(false);
+    expect(decoded.elapsedSeconds).toBe(0);
+    expect(decoded.challengeFlags).toBe(0);
+  });
+
+  it("reads the run state off the tail", () => {
+    const decoded = decodeSnapshotFrame(writeFrame(1, [4, 91], 12.5, 0b101));
+    expect(typeof decoded).not.toBe("string");
+    if (typeof decoded === "string") {
+      return;
+    }
+    expect(decoded.collected).toEqual([4, 91]);
+    expect(decoded.elapsedSeconds).toBeCloseTo(12.5);
+    // The flags byte keeps every bit, not just the two stars consume.
+    expect(decoded.challengeFlags).toBe(0b101);
+
+    const fresh = decodeSnapshotFrame(writeFrame(1, [], 0, 0b11));
+    expect(typeof fresh === "string" ? fresh : fresh.challengeFlags).toBe(0b11);
+  });
+
+  it("reports a truncated run state tail", () => {
+    const bytes = writeFrame(1, [4, 91], 3.5, 0b11);
+    // One byte short through all five: the section is read whole or not at all.
+    for (let missing = 1; missing <= SNAPSHOT_RUN_STATE_BYTES; missing++) {
+      expect(decodeSnapshotFrame(bytes.slice(0, bytes.length - missing))).toBe("Snapshot run state payload is truncated.");
+    }
+    expect(SNAPSHOT_ELAPSED_BYTES + SNAPSHOT_CHALLENGE_FLAGS_BYTES).toBe(SNAPSHOT_RUN_STATE_BYTES);
   });
 
   it("reads the sub-entity and mirror flags beside the switch flag", () => {
@@ -118,5 +157,8 @@ describe("decodeSnapshotFrame", () => {
     const previous = writeFrame();
     new DataView(previous.buffer).setUint16(4, 6, true);
     expect(decodeSnapshotFrame(previous)).toBe("Snapshot version 6 is unsupported.");
+    const lastVersion = writeFrame();
+    new DataView(lastVersion.buffer).setUint16(4, 7, true);
+    expect(decodeSnapshotFrame(lastVersion)).toBe("Snapshot version 7 is unsupported.");
   });
 });

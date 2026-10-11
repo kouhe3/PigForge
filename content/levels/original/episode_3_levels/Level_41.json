@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_41",
   "goalZone": {
     "min": [
@@ -84,6 +84,10 @@
     {"id":"Tuft_02","x":-23.044819,"y":-6.593758,"z":-5.5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower_02","x":-27.324902,"y":-6.9540772,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Tuft_01","x":-46.641483,"y":-6.48716,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":4},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":38}
   ],
   "terrain": [
     {

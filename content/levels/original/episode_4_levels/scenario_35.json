@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_35",
   "goalZone": {
     "min": [
@@ -86,6 +86,10 @@
     {"id":"Gravel_03","x":-30.55771,"y":-6.723896,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Rock_01","x":-18.736588,"y":-6.5972977,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Wood_02","x":-47.839775,"y":-6.918886,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

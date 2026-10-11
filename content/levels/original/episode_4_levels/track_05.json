@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "track_05",
   "goalZone": {
     "min": [
@@ -81,6 +81,10 @@
     {"id":"Crystal_03","x":-32.01953,"y":35.033585,"z":-3.551056,"rotation":2.812821,"scaleX":-1,"scaleY":1},
     {"id":"Cave_Mushroom_03","x":-34.62137,"y":-7.159218,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Crystal_02","x":-7.6854687,"y":29.310524,"z":-5,"rotation":0.5998254,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":15}
   ],
   "terrain": [
     {

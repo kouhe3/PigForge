@@ -178,6 +178,41 @@ public sealed record LevelBuildLimits(
     IReadOnlyList<int> Rows,
     IReadOnlyList<LevelPartAllowance> PartCounts);
 
+/// <summary>
+/// One kind of challenge a level can carry, in the original's own enum order
+/// (<c>Challenge.ChallengeType</c>, <c>Challenge.cs:7-15</c>): <c>DontUseParts=0 / Time=1 /
+/// PerfectFlight=2 / Transport=3 / Box=4</c>. The original's <c>Max=5</c> sentinel and its abstract
+/// <c>NoChallenge</c> are never a level's challenge (0 instances across the 277 original levels), so
+/// they are not part of the contract (<c>docs/specs/level-stars.md</c> §2.1).
+/// </summary>
+public enum LevelChallengeKind
+{
+    DontUseParts = 0,
+    Time = 1,
+    PerfectFlight = 2,
+    Transport = 3,
+    Box = 4,
+}
+
+/// <summary>
+/// One challenge instance of a level, straight out of the level file's own <c>Challenge</c>
+/// instances: <see cref="Name"/> is the instance label (the original's sort key,
+/// <c>Challenge.cs:17-23</c>), <see cref="Kind"/> its own <c>ChallengeType</c>, <see cref="PropIndex"/>
+/// the index into this document's <see cref="LevelContentDocument.Props"/> a <c>box</c> challenge
+/// targets (<c>WaypointChallenge.m_target</c>), <see cref="TargetTime"/> a <c>time</c> challenge's own
+/// <c>m_targetTime</c> in seconds (<c>TimeChallenge.cs:9-12</c>) and <see cref="PartTypeId"/> the base
+/// family a <c>dontUseParts</c> (<c>DontUsePartChallenge.cs:7-9</c>) or <c>transport</c>
+/// (<c>TransportChallenge.cs:7-10</c>) challenge names. A property its kind does not use keeps its
+/// sentinel: <c>PropIndex = -1</c>, <c>TargetTime = 0</c>, <c>PartTypeId = 0</c>. See
+/// <c>docs/specs/level-stars.md</c> §3.
+/// </summary>
+public sealed record LevelChallengeDefinition(
+    string Name,
+    LevelChallengeKind Kind,
+    int PropIndex,
+    float TargetTime,
+    uint PartTypeId);
+
 /// <summary>Engine-agnostic level definition: spawns, goal trigger zone and map bounds (ADR-002).</summary>
 public sealed record LevelContentDocument(
     string ContentVersion,
@@ -193,14 +228,16 @@ public sealed record LevelContentDocument(
     /// (<see cref="CameraLimits"/>), v6 adds the level's decoration instances (<see cref="Props"/>),
     /// v7 gives a placed prop its solid boxes (<see cref="LevelPropDefinition.Boxes"/>), v8 its
     /// trigger boxes (<see cref="LevelPropDefinition.Triggers"/>, `docs/specs/level-challenges.md`) and
-    /// v9 the level's own construction limits (<see cref="Build"/>).
+    /// v9 the level's own construction limits (<see cref="Build"/>) and v10 the level's own challenges
+    /// (<see cref="Challenges"/>, `docs/specs/level-stars.md`).
     /// </summary>
-    public const ushort SchemaVersion = 9;
+    public const ushort SchemaVersion = 10;
 
     /// <summary>
     /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill), v3 ones
     /// (fill, no edge trim), v4 ones (edge trim, no camera limits), v5 ones (camera limits, no
-    /// props).
+    /// props), v6 ones (props, no solid boxes), v7 ones (solid boxes, no trigger boxes), v8 ones
+    /// (trigger boxes, no construction limits) and v9 ones (construction limits, no challenges).
     /// </summary>
     public const ushort LegacySchemaVersion = 1;
 
@@ -230,4 +267,14 @@ public sealed record LevelContentDocument(
     /// cell (the sandbox levels), which the room then does not constrain.
     /// </summary>
     public LevelBuildLimits? Build { get; init; }
+
+    /// <summary>
+    /// The level's own challenges, in the original's own numbering order -- its registry sorted by
+    /// instance name, `m_challengeNumber` 1..N (`Challenge.cs:62-81`). <c>Challenges[0]</c> is the
+    /// second star and <c>Challenges[1]</c> the third (<c>LevelComplete.cs:422/460</c>), and both must
+    /// be completed for the swap that only reorders the icons (<c>LevelComplete.cs:262-267</c>); a
+    /// third challenge (one original level has one) only ever grants an icon. Empty on a v10 document
+    /// whose level has no challenge at all (14 of the 277 original levels) and on every v1-v9 one.
+    /// </summary>
+    public IReadOnlyList<LevelChallengeDefinition> Challenges { get; init; } = Array.Empty<LevelChallengeDefinition>();
 }

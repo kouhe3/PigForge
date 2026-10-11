@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_2",
   "goalZone": {
     "min": [
@@ -70,6 +70,10 @@
     {"id":"Bush","x":-168.673,"y":7.877798,"z":-1,"rotation":6.0986505,"scaleX":1,"scaleY":1},
     {"id":"Flower2","x":-174.716,"y":0.8267975,"z":0.9,"rotation":3.685061,"scaleX":1,"scaleY":1},
     {"id":"WindowBgSmall","x":-172.843,"y":20.5978,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":5}
   ],
   "terrain": [
     {

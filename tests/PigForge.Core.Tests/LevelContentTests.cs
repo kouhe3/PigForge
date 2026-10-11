@@ -124,7 +124,7 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 10,
+            "schemaVersion": 11,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
@@ -550,7 +550,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)9, LevelContentDocument.SchemaVersion);
+        Assert.Equal((ushort)10, LevelContentDocument.SchemaVersion);
         Assert.Empty(level.Terrain);
         Assert.Collection(
             level.Props,
@@ -621,7 +621,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)9, LevelContentDocument.SchemaVersion);
+        Assert.Equal((ushort)10, LevelContentDocument.SchemaVersion);
         Assert.Collection(
             level.Props,
             prop =>
@@ -882,6 +882,185 @@ public sealed class LevelContentTests
 
         LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
         Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// v10 carries the level's own challenges: the instance registry `Challenge.Awake` fills and
+    /// `LevelComplete` takes the second and third star out of (`Challenge.cs:62-81`,
+    /// `LevelComplete.cs:422/460`). `challenges[0]` is the second star, `challenges[1]` the third, a
+    /// third only ever grants an icon, and two instances may share a name (3 of the 277 original levels
+    /// do). Every kind carries exactly the properties it uses, and a v10 document with no challenge at
+    /// all (14 of the 277 original levels) carries an empty array.
+    /// </summary>
+    [Fact]
+    public void AVersionTenLevelCarriesItsChallenges()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 10,
+            "contentVersion": "challenges-v10",
+            "goalZone": { "min": [12, -0.5, -2], "max": [16, 2.5, 2] },
+            "bounds": { "min": [-30, -12, -8], "max": [30, 30, 8] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "props": [
+                { "id": "Grass_06", "x": 8.645143, "y": 4.4807925, "z": -5, "rotation": 6.060668, "scaleX": 1, "scaleY": 1 },
+                { "id": "Box_01", "x": 4, "y": 2, "z": -5, "rotation": 0, "scaleX": 1, "scaleY": 1 }
+            ],
+            "challenges": [
+                { "name": "BoxChallenge", "kind": "box", "propIndex": 1 },
+                { "name": "TimeChallenge", "kind": "time", "targetTime": 4 },
+                { "name": "PerfectFlightChallenge", "kind": "perfectFlight" },
+                { "name": "DontUsePartChallenge", "kind": "dontUseParts", "partTypeId": 32 },
+                { "name": "TransportChallenge", "kind": "transport", "partTypeId": 32 },
+                { "name": "BoxChallenge", "kind": "box", "propIndex": 0 }
+            ]
+        }
+        """;
+
+        LevelContentDocument level = LevelContentParser.Parse(json);
+
+        Assert.Equal((ushort)10, LevelContentDocument.SchemaVersion);
+        Assert.Collection(
+            level.Challenges,
+            challenge =>
+            {
+                Assert.Equal("BoxChallenge", challenge.Name);
+                Assert.Equal(LevelChallengeKind.Box, challenge.Kind);
+                Assert.Equal(1, challenge.PropIndex);
+                Assert.Equal(0f, challenge.TargetTime);
+                Assert.Equal(0u, challenge.PartTypeId);
+            },
+            challenge =>
+            {
+                Assert.Equal("TimeChallenge", challenge.Name);
+                Assert.Equal(LevelChallengeKind.Time, challenge.Kind);
+                Assert.Equal(-1, challenge.PropIndex);
+                Assert.Equal(4f, challenge.TargetTime);
+                Assert.Equal(0u, challenge.PartTypeId);
+            },
+            challenge =>
+            {
+                Assert.Equal("PerfectFlightChallenge", challenge.Name);
+                Assert.Equal(LevelChallengeKind.PerfectFlight, challenge.Kind);
+                Assert.Equal(-1, challenge.PropIndex);
+                Assert.Equal(0f, challenge.TargetTime);
+                Assert.Equal(0u, challenge.PartTypeId);
+            },
+            challenge =>
+            {
+                Assert.Equal("DontUsePartChallenge", challenge.Name);
+                Assert.Equal(LevelChallengeKind.DontUseParts, challenge.Kind);
+                Assert.Equal(-1, challenge.PropIndex);
+                Assert.Equal(0f, challenge.TargetTime);
+                Assert.Equal(32u, challenge.PartTypeId);
+            },
+            challenge =>
+            {
+                Assert.Equal("TransportChallenge", challenge.Name);
+                Assert.Equal(LevelChallengeKind.Transport, challenge.Kind);
+                Assert.Equal(-1, challenge.PropIndex);
+                Assert.Equal(0f, challenge.TargetTime);
+                Assert.Equal(32u, challenge.PartTypeId);
+            },
+            challenge =>
+            {
+                Assert.Equal("BoxChallenge", challenge.Name);
+                Assert.Equal(LevelChallengeKind.Box, challenge.Kind);
+                Assert.Equal(0, challenge.PropIndex);
+            });
+
+        // Two instances of one level really do share a name (episode_6_level_25 / _32 / _IX), so
+        // duplicates are legal and both keep their own place in the numbering order.
+        Assert.Equal(2, level.Challenges.Count(challenge => challenge.Name == "BoxChallenge"));
+
+        // A v10 document whose level has no challenge at all carries an empty array.
+        LevelContentDocument bare = LevelContentParser.Parse("""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 10,
+            "contentVersion": "sandbox-v10",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [0, 0], "size": [1, 1] },
+            "spawns": [],
+            "props": [],
+            "challenges": []
+        }
+        """);
+        Assert.Empty(bare.Challenges);
+    }
+
+    [Theory]
+    // Only a v10 document may carry the array, and a v10 one must.
+    [InlineData("""[{ "name": "BoxChallenge", "kind": "box", "propIndex": 0 }]""", 9, "only a schemaVersion 10")]
+    [InlineData("""3""", 10, "must be an array")]
+    [InlineData("""[3]""", 10, "must be an object")]
+    // `name` and `kind` always, and the name is a non-empty string.
+    [InlineData("""[{ "kind": "box", "propIndex": 0 }]""", 10, "name")]
+    [InlineData("""[{ "name": "", "kind": "box", "propIndex": 0 }]""", 10, "name")]
+    [InlineData("""[{ "name": "BoxChallenge", "propIndex": 0 }]""", 10, "kind")]
+    [InlineData("""[{ "name": "BoxChallenge", "kind": "boxes", "propIndex": 0 }]""", 10, "kind")]
+    // A box challenge needs its prop's index, inside this document's own props.
+    [InlineData("""[{ "name": "BoxChallenge", "kind": "box" }]""", 10, "propIndex")]
+    [InlineData("""[{ "name": "BoxChallenge", "kind": "box", "propIndex": -1 }]""", 10, "propIndex")]
+    [InlineData("""[{ "name": "BoxChallenge", "kind": "box", "propIndex": 4 }]""", 10, "propIndex")]
+    [InlineData("""[{ "name": "BoxChallenge", "kind": "box", "propIndex": 0.5 }]""", 10, "propIndex")]
+    // A time challenge needs a finite, non-negative target time.
+    [InlineData("""[{ "name": "TimeChallenge", "kind": "time" }]""", 10, "targetTime")]
+    [InlineData("""[{ "name": "TimeChallenge", "kind": "time", "targetTime": "4" }]""", 10, "targetTime")]
+    [InlineData("""[{ "name": "TimeChallenge", "kind": "time", "targetTime": -1 }]""", 10, "targetTime")]
+    // The part challenges need a positive base family id.
+    [InlineData("""[{ "name": "DontUsePartChallenge", "kind": "dontUseParts" }]""", 10, "partTypeId")]
+    [InlineData("""[{ "name": "DontUsePartChallenge", "kind": "dontUseParts", "partTypeId": 0 }]""", 10, "partTypeId")]
+    [InlineData("""[{ "name": "TransportChallenge", "kind": "transport" }]""", 10, "partTypeId")]
+    // A property the kind does not use is drift, and so is an unknown one.
+    [InlineData("""[{ "name": "TimeChallenge", "kind": "time", "targetTime": 4, "propIndex": 0 }]""", 10, "propIndex")]
+    [InlineData("""[{ "name": "PerfectFlightChallenge", "kind": "perfectFlight", "partTypeId": 32 }]""", 10, "partTypeId")]
+    [InlineData("""[{ "name": "BoxChallenge", "kind": "box", "propIndex": 0, "extra": 1 }]""", 10, "extra")]
+    [InlineData("""[{ "name": "BoxChallenge", "name": "Other", "kind": "box", "propIndex": 0 }]""", 10, "duplicate")]
+    public void TheChallengesAreVersionBoundAndWellFormed(string challenges, int version, string expected)
+    {
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": {{version}},
+            "contentVersion": "versioned-challenges",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "props": [
+                { "id": "Grass_06", "x": 8.645143, "y": 4.4807925, "z": -5, "rotation": 6.060668, "scaleX": 1, "scaleY": 1 },
+                { "id": "Box_01", "x": 4, "y": 2, "z": -5, "rotation": 0, "scaleX": 1, "scaleY": 1 }
+            ],
+            "challenges": {{challenges}}
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AMissingChallengesArrayOnAVersionTenDocumentIsRejected()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 10,
+            "contentVersion": "no-challenges",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "props": []
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains("root.challenges", exception.Message, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryDirectory(string relativePath)

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "test54",
   "goalZone": {
     "min": [
@@ -82,6 +82,10 @@
     {"id":"Branch_03","x":-27.507158,"y":0.42467117,"z":-5,"rotation":1.4249386,"scaleX":1,"scaleY":1},
     {"id":"Bird_Red_01","x":18.689943,"y":7.3428817,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Bird_Blue_01","x":21.737028,"y":6.956057,"z":-5.5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":30}
   ],
   "terrain": [
     {

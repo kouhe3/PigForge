@@ -170,9 +170,49 @@ function buildText(build, schemaVersion) {
   return `{\n    "origin": ${compact(build.origin)},\n    "rows": ${compact(build.rows)},\n    "partCounts": ${counts}\n  }`;
 }
 
+/// The `"challenges"` array (v10): one line per element, in the original's own numbering
+/// (`Challenge.Refresh` sorts the registry by instance label and renumbers it 1..N,
+/// `Challenge.cs:62-81`). Which parameter an element carries is decided by its `kind`, so a
+/// half-written element is refused here rather than emitted -- the same gate the writer keeps for
+/// every other version-specific field. A v10 document always carries the array (possibly empty);
+/// v1-v9 documents must not.
+function challengesText(challenges, schemaVersion) {
+  if (schemaVersion < 10) {
+    if (challenges !== undefined) throw new Error("level challenges are a v10 field");
+    return null;
+  }
+  if (!Array.isArray(challenges)) {
+    throw new Error("a v10 document needs the level's challenges (an array, possibly empty)");
+  }
+  for (const challenge of challenges) {
+    if (typeof challenge.name !== "string" || challenge.name.length === 0) {
+      throw new Error(`a v10 challenge needs a non-empty name, got ${JSON.stringify(challenge.name)}`);
+    }
+    if (challenge.kind === "box") {
+      if (!Number.isInteger(challenge.propIndex) || challenge.propIndex < 0) {
+        throw new Error(`challenge "${challenge.name}": a box challenge needs a non-negative propIndex`);
+      }
+    } else if (challenge.kind === "time") {
+      if (!Number.isFinite(challenge.targetTime) || challenge.targetTime < 0) {
+        throw new Error(`challenge "${challenge.name}": a time challenge needs a non-negative targetTime`);
+      }
+    } else if (challenge.kind === "dontUseParts" || challenge.kind === "transport") {
+      if (!Number.isInteger(challenge.partTypeId) || challenge.partTypeId <= 0) {
+        throw new Error(`challenge "${challenge.name}": a ${challenge.kind} challenge needs a positive partTypeId`);
+      }
+    } else if (challenge.kind !== "perfectFlight") {
+      throw new Error(`challenge "${challenge.name}": unknown kind ${JSON.stringify(challenge.kind)}`);
+    }
+  }
+
+  if (challenges.length === 0) return "[]";
+  return `[\n${challenges.map((challenge) => `    ${compact(challenge)}`).join(",\n")}\n  ]`;
+}
+
 /// A PigForge level-content document, in the schema's own key order: `format`, `schemaVersion`,
 /// `contentVersion`, `goalZone`, `bounds`, `build` (v9), `cameraLimits` (v5), `spawns`, `props`
-/// (v6), `terrain`.
+/// (v6), `challenges` (v10), `terrain`. `challenges` sits next to `props` because a box challenge's
+/// `propIndex` indexes into that array.
 export function formatLevelDocument(document) {
   if (document.schemaVersion >= 5 && document.cameraLimits === undefined) {
     throw new Error("a v5 document needs the level's own cameraLimits");
@@ -182,6 +222,7 @@ export function formatLevelDocument(document) {
   }
   const props = propsText(document.props, document.schemaVersion);
   const build = buildText(document.build, document.schemaVersion);
+  const challenges = challengesText(document.challenges, document.schemaVersion);
   return `${[
     "{",
     `  "format": ${JSON.stringify(document.format)},`,
@@ -193,6 +234,7 @@ export function formatLevelDocument(document) {
     ...(document.cameraLimits === undefined ? [] : [`  "cameraLimits": ${compact(document.cameraLimits)},`]),
     `  "spawns": ${pretty(document.spawns, 2)},`,
     ...(props === null ? [] : [`  "props": ${props},`]),
+    ...(challenges === null ? [] : [`  "challenges": ${challenges},`]),
     `  "terrain": ${terrainText(document.terrain, document.schemaVersion)}`,
     "}",
   ].join("\n")}\n`;

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_13",
   "goalZone": {
     "min": [
@@ -183,6 +183,10 @@
     {"id":"GoldenPigNest","x":-222.678,"y":37.25,"z":1.5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"GoldenPigNest","x":-152.27,"y":-4.57,"z":1.5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"GoldenPigNest","x":-153.56,"y":-4.57,"z":1.5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge1","kind":"box","propIndex":0},
+    {"name":"BoxChallenge2","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

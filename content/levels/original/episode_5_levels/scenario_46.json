@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_46",
   "goalZone": {
     "min": [
@@ -196,6 +196,10 @@
     {"id":"Crumbs_Line_02","x":17.277842,"y":-6.6207237,"z":-5.1,"rotation":0,"scaleX":1.5182841,"scaleY":1.5182841},
     {"id":"Candy_04_Yellow","x":-89.54927,"y":-4.345131,"z":-5,"rotation":0.26868847,"scaleX":1,"scaleY":1},
     {"id":"Cream_Line_02","x":-2.6312027,"y":8.520889,"z":-5,"rotation":5.993906,"scaleX":2,"scaleY":2}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":3},
+    {"name":"BoxChallenge1","kind":"box","propIndex":2}
   ],
   "terrain": [
     {

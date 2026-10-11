@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_II",
   "goalZone": {
     "min": [
@@ -190,6 +190,10 @@
     {"id":"Mushroom4","x":-202.139,"y":23.677,"z":1.7,"rotation":1.1584624,"scaleX":1,"scaleY":1},
     {"id":"AncestorPig","x":-186.12,"y":4.48,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"AncestorPig","x":-201.896,"y":17.40699,"z":0,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"DynamicBoxChallenge","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

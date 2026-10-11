@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_88",
   "goalZone": {
     "min": [
@@ -59,6 +59,10 @@
     {"id":"Twig_1","x":-44.78759,"y":-7.145525,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass_08","x":-60.403122,"y":-4.876074,"z":-5,"rotation":0.28186184,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_04","x":-82.52487,"y":-6.8226147,"z":-4.902391,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"BoxChallenge2","kind":"box","propIndex":3}
   ],
   "terrain": [
     {

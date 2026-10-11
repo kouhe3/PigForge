@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_IX",
   "goalZone": {
     "min": [
@@ -164,6 +164,10 @@
     {"id":"FGStones01","x":-195.09,"y":-6.879999,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"BreakableWall","x":-167.416,"y":56.901,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-165.291,"y":56.9,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"BoxChallenge","kind":"box","propIndex":1}
   ],
   "terrain": [
     {

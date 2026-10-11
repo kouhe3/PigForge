@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_51",
   "goalZone": {
     "min": [
@@ -86,6 +86,10 @@
     {"id":"Flower_01","x":-9.184462,"y":-7.215599,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Mushroom_06","x":-25.418224,"y":-4.596224,"z":-5,"rotation":5.851344,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_02","x":69.204796,"y":-6.7689953,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":3},
+    {"name":"PerfectFlightChallenge","kind":"perfectFlight"}
   ],
   "terrain": [
     {

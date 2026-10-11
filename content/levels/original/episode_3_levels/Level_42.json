@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "Level_42",
   "goalZone": {
     "min": [
@@ -117,6 +117,10 @@
     {"id":"Gravel_01","x":2.3647022,"y":-7.347207,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Mushroom_03","x":-47.429344,"y":11.798322,"z":-4.5,"rotation":5.6195235,"scaleX":1,"scaleY":1},
     {"id":"Grass_03","x":25.031713,"y":15.65491,"z":-5,"rotation":0.2512279,"scaleX":-1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":5},
+    {"name":"TransportChallenge","kind":"transport","partTypeId":24}
   ],
   "terrain": [
     {

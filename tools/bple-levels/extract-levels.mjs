@@ -2,6 +2,9 @@
 // that give their prefab indices meaning, then reports what a PigForge level port has to account
 // for. This is the ONLY admissible source for level geometry: no number in a PigForge level file
 // may be hand-written when this tool can read it out of the original (the rule tools/bple-* set).
+// Its census also covers the levels' own challenges -- the instances whose palette prefab carries a
+// `Challenge` subclass, each with the parameter its `PrefabOverrides` block mounts -- which is what
+// content v10's `challenges` array is (`lib/challenges.mjs`, shared with `build-levels.mjs`).
 //
 // Where the data lives (BPLE project, read-only):
 //
@@ -53,7 +56,10 @@
 //   - every file decodes byte-exactly (no trailing bytes, no short read);
 //   - every level has exactly one `LevelLoader` prefab whose `m_sceneName` matches its file name;
 //   - every `PrefabIndex` is inside that palette and every palette guid resolves to a real asset;
-//   - every level places at least one terrain object.
+//   - every level places at least one terrain object;
+//   - the pack's own challenges add up (527 instances over 263 levels, 281 box / 113 time / 79
+//     dontUseParts / 44 perfectFlight / 10 transport, 14 levels with none), the same census
+//     `build-levels.mjs` writes into `challenges` (`docs/specs/level-stars.md` §3, §7).
 //
 // The decoder itself lives in `lib/` and is shared with `build-levels.mjs`; this file is the CLI
 // that reports on it. See `docs/specs/original-level-pack.md` for the measured totals.
@@ -68,6 +74,14 @@ import { OUTLINE_LOOP, classifyOutline } from "./lib/outline.mjs";
 import { loadTerrainFillTiles, readTextureImport } from "./lib/fill.mjs";
 import { curveLayerRuns, curveRows, readCurveTextureWrap } from "./lib/curve.mjs";
 import { readCameraLimits } from "./lib/overrides.mjs";
+import {
+  CHALLENGE_LESS_LEVELS,
+  CHALLENGE_KIND_BY_CLASS,
+  challengeInstances,
+  challengeParameters,
+  openChallengePrefabs,
+} from "./lib/challenges.mjs";
+import { resolvePartTypes } from "../lib/part-types.mjs";
 import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap } from "./lib/pack.mjs";
 import { formatJson } from "./lib/write.mjs";
 
@@ -90,6 +104,15 @@ const guidToPath = buildGuidIndex(BPLE, ASSETS);
 const loadersByScene = loadLoaders(BPLE, ASSETS, check);
 const episodes = loadEpisodes(BPLE, ASSETS, check);
 const episodeByScene = episodeIndex(episodes);
+
+// The level's own challenges (`docs/specs/level-stars.md`): one prefab reader for the whole run
+// (each palette prefab's `m_Script` decides whether it is a `Challenge` and which one), and the
+// PartType enum -> PigForge partTypeId bridge the census resolves through (`resolvePartTypes` is
+// the only implementation of that mapping; an enum value is never an id).
+const challengePrefabs = openChallengePrefabs(BPLE, check);
+const partMap = loadPartMap();
+check(partMap.duplicates.length === 0, `part-map.json maps ${partMap.duplicates.join(", ")} to more than one partTypeId`);
+const partTypes = resolvePartTypes(BPLE, { parts: partMap.partsByType, variants: partMap.variantsByType }, check);
 
 // ---------------------------------------------------------------- scan + decode every level
 
@@ -121,6 +144,33 @@ let curveRuns = 0;
 let curveNodesInSecondLayer = 0;
 let levelsWithGoal = 0;
 
+/** The challenge census, the same one `build-levels.mjs` pins (`docs/specs/level-stars.md` §7):
+ * every map counts `{ instances, levels }`, so a level that starts or stops placing a challenge
+ * shows up as a number rather than as silence. */
+const challengeCensus = {
+  instances: 0,
+  levels: 0,
+  kinds: new Map(),
+  classes: new Map(),
+  prefabs: new Map(),
+  labels: new Map(),
+  perLevel: new Map(),
+  targetTimes: new Map(),
+  prefabDefaults: [],
+  dontUseParts: new Map(),
+  transport: new Map(),
+  partTypeIds: new Map(),
+  duplicateLabels: [],
+};
+/** The census entry for one instance of `key`, counted per level (a level placing two of the same
+ * kind counts one instance twice, one level once). */
+const countChallenge = (map, key, sceneName) => {
+  const entry = map.get(key) ?? { instances: 0, levels: new Set() };
+  entry.instances += 1;
+  entry.levels.add(sceneName);
+  map.set(key, entry);
+};
+
 for (const { bundle, file } of dataFiles) {
   const sceneName = basename(file).replace(/_data\.bytes$/, "");
   bundleCounts[bundle] = (bundleCounts[bundle] ?? 0) + 1;
@@ -147,6 +197,50 @@ for (const { bundle, file } of dataFiles) {
   for (const name of data.instanceNames.keys()) {
     if (!paletteNames.has(name)) nameMismatches.push(`${basename(file)}: instance "${name}" matches no palette prefab name`);
   }
+  // The level's own challenges: the instances whose palette prefab carries a `Challenge` subclass,
+  // with the parameter the instance's own `PrefabOverrides` block mounts (a block that does not
+  // mount the class leaves the prefab's serialized value in place). The census counts what the
+  // builder writes into `challenges` (v10), one level at a time.
+  const challengeNodes = challengeInstances(data, palette, challengePrefabs);
+  const challengeTexts = new Map(data.overrides.map(({ node, text }) => [node, text]));
+  const challengeNames = new Set();
+  const levelChallenges = [];
+  for (const [node, instance] of challengeNodes) {
+    check(instance.name.length > 0, `${basename(file)}: a ${instance.prefabName} instance has an empty label`);
+    const parameters = challengeParameters(instance, challengeTexts.get(node), check);
+    levelChallenges.push({ name: instance.name, kind: instance.kind });
+    challengeCensus.instances += 1;
+    countChallenge(challengeCensus.kinds, instance.kind, sceneName);
+    countChallenge(challengeCensus.classes, instance.className, sceneName);
+    countChallenge(challengeCensus.prefabs, instance.prefabName, sceneName);
+    countChallenge(challengeCensus.labels, instance.name, sceneName);
+    if (challengeNames.has(instance.name)) challengeCensus.duplicateLabels.push({ sceneName, label: instance.name });
+    challengeNames.add(instance.name);
+    if (instance.kind === "time") {
+      const targetTime = parameters.targetTime ?? instance.targetTime;
+      check(Number.isFinite(targetTime) && targetTime >= 0, `${sceneName}: challenge "${instance.name}": m_targetTime is ${targetTime}`);
+      countChallenge(challengeCensus.targetTimes, targetTime, sceneName);
+      if (parameters.targetTime === null) challengeCensus.prefabDefaults.push({ sceneName, name: instance.name, targetTime });
+    } else if (instance.kind === "dontUseParts" || instance.kind === "transport") {
+      const partType = parameters.partTypeEnum ?? instance.partTypeEnum;
+      const partTypeId = partType === null ? undefined : partTypes.byEnum.get(partType);
+      check(
+        partTypeId !== undefined,
+        `${sceneName}: challenge "${instance.name}" (${instance.prefabName}): PartType ${partType ?? "?"} (${partTypes.names.get(partType) ?? "?"}) has no PigForge base`,
+      );
+      countChallenge(instance.kind === "dontUseParts" ? challengeCensus.dontUseParts : challengeCensus.transport, partType, sceneName);
+      countChallenge(challengeCensus.partTypeIds, partTypeId, sceneName);
+    }
+  }
+  if (challengeNodes.size > 0) challengeCensus.levels += 1;
+  challengeCensus.perLevel.set(challengeNodes.size, (challengeCensus.perLevel.get(challengeNodes.size) ?? 0) + 1);
+  // The order content v10 writes them in: the ordinal sort of the instance labels (the original's
+  // own numbering, `Challenge.Refresh`), with same-labelled instances left in the file's order
+  // (`Array#sort` is stable) -- so a level's `challengeKinds` reads exactly like its document.
+  const challengeKinds = levelChallenges
+    .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
+    .map((entry) => entry.kind);
+
   // `m_references` is the terrain's texture table: the fill material/texture and the curve
   // textures index into it, and the control texture is the PNG embedded in the level file.
   const referencePaths = (loader?.referenceGuids ?? []).map((guid) => {
@@ -284,6 +378,10 @@ for (const { bundle, file } of dataFiles) {
     prefabOverrides: data.overrideBytes.length,
     overrideBytes: data.overrideBytes.reduce((sum, value) => sum + value, 0),
     cameraLimits: readCameraLimits(data.overrides, check),
+    // The level's own challenges (content v10): how many `Challenge` instances it places and which
+    // kinds they are -- 0 for the 14 sandbox levels, which write `challenges: []`.
+    challenges: challengeKinds.length,
+    challengeKinds: challengeKinds.join(","),
     paletteSize: palette.length,
     references: loader?.referenceCount ?? null,
     terrain: data.terrain.length,
@@ -336,7 +434,6 @@ check(
 
 // ---------------------------------------------------------------- part coverage
 
-const partMap = loadPartMap();
 const prefabToPartTypeId = new Map();
 for (const [partTypeId, prefab] of partMap.partsByType) prefabToPartTypeId.set(prefab, partTypeId);
 
@@ -349,6 +446,81 @@ for (const usage of [...paletteUsage.values()].sort((left, right) => right.insta
   if (partTypeId !== undefined) parts.push(entry);
   else props.push(entry);
 }
+
+// ---------------------------------------------------------------- challenges
+
+// The challenge census, pinned the way the fill/curve/part ones are: the same numbers
+// `build-levels.mjs` asserts (`docs/specs/level-stars.md` §7), so a prefab that stops resolving to
+// its `Challenge` subclass, a level that stops placing one or a PartType that loses its PigForge
+// base fails both tools rather than one of them.
+const challengeRows = (map) =>
+  [...map.entries()]
+    .map(([key, entry]) => ({ key, instances: entry.instances, levels: entry.levels.size }))
+    .sort((left, right) => right.instances - left.instances || String(left.key).localeCompare(String(right.key)));
+const challengePartTypes = (map) =>
+  challengeRows(map).map((entry) => ({
+    partType: entry.key,
+    name: partTypes.names.get(entry.key) ?? null,
+    partTypeId: partTypes.byEnum.get(entry.key) ?? null,
+    instances: entry.instances,
+    levels: entry.levels,
+  }));
+const challengePerLevel = [...challengeCensus.perLevel.entries()]
+  .sort((left, right) => left[0] - right[0])
+  .map(([count, countOfLevels]) => ({ instances: count, levels: countOfLevels }));
+const challengeKindCounts = Object.fromEntries(
+  [...challengeCensus.kinds].map(([kind, entry]) => [kind, entry.instances]).sort(([left], [right]) => left.localeCompare(right)),
+);
+const challengeZeroLevels = levels.filter((level) => level.challenges === 0).map((level) => level.sceneName).sort();
+check(challengeCensus.instances === 527, `challenge instances: ${challengeCensus.instances}, expected 527`);
+check(challengeCensus.levels === 263, `levels with a challenge: ${challengeCensus.levels}, expected 263 of ${levels.length}`);
+check(
+  JSON.stringify(challengePerLevel) === JSON.stringify([
+    { instances: 0, levels: 14 },
+    { instances: 2, levels: 262 },
+    { instances: 3, levels: 1 },
+  ]),
+  `challenges per level: ${JSON.stringify(challengePerLevel)}, expected 14 levels with 0, 262 with 2 and 1 with 3`,
+);
+check(
+  JSON.stringify(challengeKindCounts) ===
+    JSON.stringify({ box: 281, dontUseParts: 79, perfectFlight: 44, time: 113, transport: 10 }),
+  `challenges per kind: ${JSON.stringify(challengeKindCounts)}, expected 281 box / 113 time / 79 dontUseParts / 44 perfectFlight / 10 transport`,
+);
+check(
+  JSON.stringify(challengeZeroLevels) === JSON.stringify(CHALLENGE_LESS_LEVELS),
+  `levels with no challenge: ${challengeZeroLevels.join(", ")}, expected ${CHALLENGE_LESS_LEVELS.join(", ")}`,
+);
+check(
+  challengeCensus.prefabDefaults.length === 1 && challengeCensus.prefabDefaults[0].sceneName === "episode_6_level_V",
+  `challenges on the prefab's own default: ${JSON.stringify(challengeCensus.prefabDefaults)}, expected episode_6_level_V alone`,
+);
+const challengeReport = {
+  instances: challengeCensus.instances,
+  levels: challengeCensus.levels,
+  perLevel: challengePerLevel,
+  kinds: challengeRows(challengeCensus.kinds),
+  classes: challengeRows(challengeCensus.classes),
+  prefabs: challengeRows(challengeCensus.prefabs),
+  labels: challengeRows(challengeCensus.labels),
+  // `seconds` -> instances: the value a `TimeChallenge` is compared against, whether the level wrote
+  // it or it is the prefab's own serialized `m_targetTime` (the one entry in `prefabDefaults`).
+  targetTimes: challengeRows(challengeCensus.targetTimes).map((entry) => ({
+    seconds: entry.key,
+    instances: entry.instances,
+    levels: entry.levels,
+  })),
+  prefabDefaults: challengeCensus.prefabDefaults,
+  dontUseParts: challengePartTypes(challengeCensus.dontUseParts),
+  transport: challengePartTypes(challengeCensus.transport),
+  partTypeIds: challengeRows(challengeCensus.partTypeIds).map((entry) => ({
+    partTypeId: entry.key,
+    instances: entry.instances,
+    levels: entry.levels,
+  })),
+  duplicateLabels: challengeCensus.duplicateLabels,
+  zeroLevels: challengeZeroLevels,
+};
 
 // ---------------------------------------------------------------- report
 
@@ -387,6 +559,9 @@ const report = {
     curveTriangles: sum("curveTriangles"),
     curveTextures: sum("curveTextures"),
     controlTextures: sum("controlTextures"),
+    challengeInstances: challengeCensus.instances,
+    challengeLevels: challengeCensus.levels,
+    challengeKinds: challengeKindCounts,
   },
   episodes,
   levels: levels.sort((left, right) => left.bundle.localeCompare(right.bundle) || left.sceneName.localeCompare(right.sceneName)),
@@ -422,6 +597,7 @@ const report = {
     levelsWithGoal,
     names: sortedHistogram(goalNameHistogram),
   },
+  challenges: challengeReport,
   textures: [...referenceUsage.entries()]
     .map(([path, count]) => ({ path, levels: count }))
     .sort((left, right) => right.levels - left.levels || left.path.localeCompare(right.path)),
@@ -450,7 +626,8 @@ md.push(`- 实例总数 **${report.totals.prefabInstances}**（group ${report.to
 md.push(`  \`PrefabOverrides\` ${report.totals.prefabOverrides} 条 / ${report.totals.overrideBytes} 字节`);
 md.push(`- 相机界（\`PrefabOverrides\` 里 \`LevelManager.m_cameraLimits\`，\`Pig.cs:396-403\` 的出界矩形）**${report.totals.cameraLimits}/${report.counts.files}** 关有`);
 md.push(`- 地形网格合计：fill ${report.totals.fillVertices} 顶点 / ${report.totals.fillTriangles} 索引，curve ${report.totals.curveVertices} 顶点 / ${report.totals.curveTriangles} 索引，`);
-md.push(`  curve texture 条目 ${report.totals.curveTextures}，control texture ${report.totals.controlTextures}`, "");
+md.push(`  curve texture 条目 ${report.totals.curveTextures}，control texture ${report.totals.controlTextures}`);
+md.push(`- 关卡自己的挑战（内容 v10 的 \`challenges\`）：**${report.challenges.instances}** 个实例落在 **${report.challenges.levels}/${report.counts.files}** 关，每类 ${report.challenges.kinds.map((entry) => `**${entry.key}** ${entry.instances}`).join(" / ")}，**${report.challenges.zeroLevels.length}** 关没有挑战（写空数组）`, "");
 md.push("## 非零件道具（PigForge 没有对应件，搬关必须先有）", "");
 md.push("| prefab | 实例数 | 出现关卡数 |", "|---|---|---|");
 for (const prop of props.slice(0, 40)) md.push(`| \`${prop.name}\` | ${prop.instances} | ${prop.levels} |`);
@@ -502,14 +679,45 @@ for (const texture of report.curve.textures) {
 }
 md.push("", "⇒ 内容 v4 写 `curve { nodes, stripe, textures[{ texture, wrap }], uScale, splat1 }`：控制贴图只用来折出 `splat1` 运行段，");
 md.push("其余三样都直接进内容；wrap 必须保留——u = 弧长 × 10（≈ 每米 10 次）远超 1，Clamp 的层只会显示贴图最右一列。", "");
+md.push("", "## 挑战（内容 v10 的 `challenges`）", "");
+md.push("挑战是关卡实例：`实例 → 调色板 prefab → 该 prefab 的 m_Script guid → Challenge 子类`（`lib/challenges.mjs`），");
+md.push("类名在 `WaypointChallenge`（挑战箱，`BoxChallenge`/`DynamicBoxChallenge` 两个 prefab 同属）/ `TimeChallenge` / `DontUsePartChallenge` /");
+md.push("`PerfectFlightChallenge` / `TransportChallenge` 里；`NoChallenge` 在 277 关里 0 实例、0 个 prefab 携带。");
+md.push("逐关参数只来自该实例自己的 `PrefabOverrides` 块（`TimeChallenge.m_targetTime` 是 `Float`，`DontUsePartChallenge.m_partType` 与");
+md.push("`TransportChallenge.partToTransport` 是 `Enum`）；块没挂那个类就保留 prefab 自己的序列化值。元素顺序 = 实例名的**序数**排序（原版 `Challenge.Refresh` 的编号顺序，见规格 D1）。", "");
+md.push(`- 实例 **${report.challenges.instances}** 个 / **${report.challenges.levels}/${report.counts.files}** 关，标签去重后 **${report.challenges.labels.length}** 种`);
+md.push(`- 每关实例数：${report.challenges.perLevel.map((entry) => `**${entry.instances}** 个 → ${entry.levels} 关`).join("、")}`);
+md.push(`- 重名实例（排序无法唯一定序）：${report.challenges.duplicateLabels.map((entry) => `\`${entry.sceneName}\` 的 \`${entry.label}\``).join("、") || "无"}`);
+md.push(`- 没有挑战的 **${report.challenges.zeroLevels.length}** 关（内容 v10 写 \`challenges: []\`）：${report.challenges.zeroLevels.map((name) => `\`${name}\``).join("、")}`, "");
+md.push("| 类 | kind | 实例数 | 关卡数 | 平均每关 |", "|---|---|---|---|---|");
+for (const entry of report.challenges.classes) {
+  md.push(
+    `| \`${entry.key}\` | \`${CHALLENGE_KIND_BY_CLASS.get(entry.key)}\` | ${entry.instances} | ${entry.levels} | ${(entry.instances / entry.levels).toFixed(2)} |`,
+  );
+}
+md.push("", "| prefab | 实例数 | 关卡数 |", "|---|---|---|");
+for (const entry of report.challenges.prefabs) md.push(`| \`${entry.key}\` | ${entry.instances} | ${entry.levels} |`);
+md.push("", "`time` 的 `m_targetTime`（对比值本身；`prefab 默认` = 该实例的 override 块没挂 `TimeChallenge`）：", "");
+md.push("| 秒 | 实例数 | 关卡数 |", "|---|---|---|");
+for (const entry of report.challenges.targetTimes) md.push(`| ${entry.seconds} | ${entry.instances} | ${entry.levels} |`);
+md.push("", `用 prefab 默认值的实例：${report.challenges.prefabDefaults.map((entry) => `\`${entry.sceneName}\`（${entry.targetTime} 秒）`).join("、") || "无"}`, "");
+md.push("`dontUseParts` / `transport` 的枚举（`BasePart.PartType`）与它们解析到的 PigForge 基座 id（`tools/lib/part-types.mjs` 是唯一的桥）：", "");
+md.push("| kind | PartType | 名称 | PigForge partTypeId | 实例数 | 关卡数 |", "|---|---|---|---|---|---|");
+for (const [kind, entries] of [["dontUseParts", report.challenges.dontUseParts], ["transport", report.challenges.transport]]) {
+  for (const entry of entries) {
+    md.push(`| \`${kind}\` | ${entry.partType} | \`${entry.name}\` | \`${entry.partTypeId}\` | ${entry.instances} | ${entry.levels} |`);
+  }
+}
+md.push("", "⇒ 内容 v10 每关写 `challenges`（必填、可为空数组）：`box` 带该挑战箱在本文档 `props` 里的 `propIndex`，");
+md.push("`time` 带 `targetTime`，`dontUseParts`/`transport` 带 `partTypeId`，`perfectFlight` 只带身份；星 2/星 3 = 前两个挑战（规格 §2.2）。", "");
 md.push("", "## 地形贴图表（`m_references`）", "");
 md.push(`去重后 **${report.textures.length}** 个资源，被 loader 引用；每个地形还有一张**嵌在关卡文件里**的控制贴图（PNG，合计 ${report.totals.controlTextures} 张）。`, "");
 md.push("| 资源 | 被多少关卡的 loader 引用 |", "|---|---|");
 for (const texture of report.textures.slice(0, 25)) md.push(`| \`${texture.path}\` | ${texture.levels} |`);
 md.push("", "## 每关", "");
-md.push("| bundle | scene | episode | # | 字节 | 实例 | group | 地形 | fill 顶点 | curve 顶点 | overrides | 调色板 |", "|---|---|---|---|---|---|---|---|---|---|---|---|");
+md.push("| bundle | scene | episode | # | 字节 | 实例 | group | 地形 | fill 顶点 | curve 顶点 | overrides | 挑战 | 调色板 |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const level of report.levels) {
-  md.push(`| ${level.bundle} | \`${level.sceneName}\` | ${level.episode ?? "—"} | ${level.indexInEpisode ?? "—"} | ${level.bytes} | ${level.prefabInstances} | ${level.groups} | ${level.terrain} | ${level.fillVertices} | ${level.curveVertices} | ${level.prefabOverrides} | ${level.paletteSize} |`);
+  md.push(`| ${level.bundle} | \`${level.sceneName}\` | ${level.episode ?? "—"} | ${level.indexInEpisode ?? "—"} | ${level.bytes} | ${level.prefabInstances} | ${level.groups} | ${level.terrain} | ${level.fillVertices} | ${level.curveVertices} | ${level.prefabOverrides} | ${level.challenges === 0 ? "—" : `${level.challenges} (${level.challengeKinds})`} | ${level.paletteSize} |`);
 }
 md.push("", "## 实例标签 vs 调色板 prefab 名", "");
 md.push("关卡作者给每个实例起的名字（`LevelLoader.cs:113` 的 `gameObject.name = text`）**不是** prefab 名：");
@@ -530,6 +738,11 @@ console.log(
     `tile ${report.fill.tileSizes.map((entry) => entry.key).join("/")}, ${report.fill.colors.length} color(s)`,
 );
 console.log(`name mismatches: ${nameMismatches.length}`);
+console.log(
+  `challenges: ${report.challenges.instances} instance(s) over ${report.challenges.levels}/${report.counts.files} levels (` +
+    `${report.challenges.kinds.map((entry) => `${entry.key} ${entry.instances}`).join(" / ")}, ` +
+    `${report.challenges.prefabs.length} prefab(s))  no challenge: ${report.challenges.zeroLevels.length} level(s)`,
+);
 if (failures.length > 0) {
   console.error(`\n${failures.length} invariant failure(s):`);
   for (const failure of failures.slice(0, 40)) console.error(`  - ${failure}`);

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_V",
   "goalZone": {
     "min": [
@@ -145,6 +145,10 @@
     {"id":"SecretStatue","x":-114.06,"y":1.75,"z":1,"rotation":0.20188008,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0.02604163,"dz":0,"sizeX":2.552083,"sizeY":3.333333,"sizeZ":0,"rotation":0}]},
     {"id":"PressureButtonRed","x":-139.806,"y":7.365,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":-0.15,"dz":0,"sizeX":1.6,"sizeY":0.5,"sizeZ":1,"rotation":0}]},
     {"id":"ActivatedHingeDoorRed","x":-134.35,"y":18.81,"z":0,"rotation":3.1415932,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"DynamicBoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":30}
   ],
   "terrain": [
     {

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_35",
   "goalZone": {
     "min": [
@@ -96,6 +96,10 @@
     {"id":"Spear3","x":-184.145,"y":1.0629997,"z":-3,"rotation":6.177825,"scaleX":1,"scaleY":1},
     {"id":"Spear3","x":-187.162,"y":0.7420006,"z":-3,"rotation":0.11906308,"scaleX":1,"scaleY":0.99999994},
     {"id":"Spear3","x":-190.907,"y":0.18400192,"z":-3,"rotation":6.1854525,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"DontUsePartChallenge","kind":"dontUseParts","partTypeId":271}
   ],
   "terrain": [
     {

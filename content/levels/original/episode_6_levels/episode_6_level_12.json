@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "episode_6_level_12",
   "goalZone": {
     "min": [
@@ -136,6 +136,10 @@
     {"id":"Fan","x":-142.72,"y":6.03,"z":0,"rotation":6.0479317,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]},
     {"id":"WindowLarge","x":-169.51,"y":29.85,"z":-2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Fan","x":-178.28,"y":28.7,"z":0,"rotation":5.96736,"scaleX":1,"scaleY":1,"triggers":[{"dx":-0.000007271767,"dy":4.825125,"dz":0,"sizeX":3.81,"sizeY":9.650253,"sizeZ":0,"rotation":0}]}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":0},
+    {"name":"TimeChallenge","kind":"time","targetTime":6}
   ],
   "terrain": [
     {

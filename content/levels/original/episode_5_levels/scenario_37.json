@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "contentVersion": "scenario_37",
   "goalZone": {
     "min": [
@@ -138,6 +138,10 @@
     {"id":"Colorful_Sparkles_04","x":-86.46684,"y":-2.8614182,"z":-5,"rotation":6.251837,"scaleX":1,"scaleY":1},
     {"id":"Pumpkin_Leaf","x":63.95156,"y":17.578121,"z":-5.063932,"rotation":1.837618,"scaleX":1.4640849,"scaleY":1.4640849},
     {"id":"Colorful_Sparkles_04","x":-26.790344,"y":10.57963,"z":-5,"rotation":0,"scaleX":1,"scaleY":1}
+  ],
+  "challenges": [
+    {"name":"BoxChallenge","kind":"box","propIndex":2},
+    {"name":"TimeChallenge","kind":"time","targetTime":15}
   ],
   "terrain": [
     {
