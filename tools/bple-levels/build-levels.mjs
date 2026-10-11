@@ -1,8 +1,13 @@
-// Level builder: turns the original's 277 binary level files into PigForge level content v5
+// Level builder: turns the original's 277 binary level files into PigForge level content v9
 // (`content/levels/original/<area>/<scene>.json`) -- the level's own `PrefabOverrides` camera limits
 // (the rectangle the original drops the pig out of, `Pig.cs:396-403`), every `e2dTerrain` object (its
 // collision outline, whether it carries a MeshCollider, and the fill texture/color/tile that draw its
-// ground), the finish trigger, the map bounds and the (rare) placed parts.
+// ground), the finish trigger, the map bounds, the (rare) placed parts, and the level's own build
+// limits (v9): the construction grid its `m_constructionGridRows` describes, anchored on its
+// `LevelStart` instance, and the part allowances its `m_partTypeCounts` leaves (`lib/overrides.mjs`
+// reads both as the patches on the `LevelManager` prefab's own table that the original's
+// `ObjectDeserializer` makes them; `build` is optional, because the sandbox levels the tool carves
+// out carry no limit at all).
 //
 // It is the write side of the same decoder the extractor reports with (`lib/`), so every emitted
 // number comes out of the pack: the palette resolves a `PrefabIndex` to its prefab, the goal zone
@@ -12,7 +17,7 @@
 // docs/specs/original-level-pack.md §3). Nothing here is hand-written that the pack defines.
 //
 // Output shape (`lib/write.mjs`): the readable 2-space layout for `format`/`schemaVersion`/
-// `contentVersion`/`goalZone`/`bounds`/`spawns`, one line for `cameraLimits`, one `terrain` entry per
+// `contentVersion`/`goalZone`/`bounds`/`build`/`spawns`, one line for `cameraLimits`, one `terrain` entry per
 // object with its `position`, `depth` and `loops`, and one line per outline loop -- the pack is three quarters
 // outline points, so those carry the file (33.8 MB pretty-printed, 8.7 MB this way). Every number
 // in a content file is exactly a float32 -- the pack reaches us through `BinaryReader.ReadSingle`
@@ -49,7 +54,8 @@ import { BUNDLE_EXPECT, REPO, discoverDataFiles, loadPartMap, readCollisionMeshD
 import { readBoxCollider } from "./lib/goal.mjs";
 import { assertTerrainFillTileSizes, readE2dTerrainGuid, readImportState, readTerrainFillTile } from "./lib/fill.mjs";
 import { curveBlockOf } from "./lib/curve.mjs";
-import { readCameraLimits } from "./lib/overrides.mjs";
+import { readBuildLimits, readCameraLimits, readLevelManagerDefaults } from "./lib/overrides.mjs";
+import { resolvePartTypes } from "../lib/part-types.mjs";
 import { formatJson, formatLevelDocument, sha256 } from "./lib/write.mjs";
 
 const BPLE = resolve(arg("bple", process.env.BPLE_ROOT ?? join(REPO, "..", "BPLE 2022.1.9")));
@@ -87,6 +93,20 @@ const BOUNDS_MARGIN = 25;
 const contentVersionOf = (sceneName) => sceneName.replaceAll(" ", "-");
 const areaOf = (bundle) => bundle.replace(/\.unity3d$/, "");
 
+// Levels whose content carries no `build` block. The original's sandbox levels are the one place a
+// level's table is not the whole allowance: `BaseGameMode.GetPartCount` adds the *player's* own
+// `GameProgress` sandbox unlocks on top of `m_partTypeCounts` (`BaseGameMode.cs:568-578`), which
+// PigForge does not model, so a `build` block would forbid exactly the parts the sandbox player has
+// unlocked. `Level_Sandbox_02`/`Level_Sandbox_06` are the two the content spec carves out; the
+// report names them, their real grid and their allowance, and `check`s that they are the only ones.
+const WITHOUT_BUILD = new Set(["Level_Sandbox_02", "Level_Sandbox_06"]);
+
+// PartTypes that have no PigForge base at all (see `tools/lib/part-types.mjs`), so a level that
+// offers one cannot carry that allowance across. Listed explicitly rather than derived from the
+// map, because a PartType *becoming* mappable (G91's `Pumpkin`/`GoldenPig`) must be noticed here,
+// and the check below re-confirms each value against the pack's own prefabs on every run.
+const WITHOUT_PIGFORGE_BASE = new Set([8, 37, 38, 42, 45]);
+
 /// Unity `Quaternion.Euler(x, y, z)` is R = Ry * Rx * Rz (degrees). Levels are 2D so only z is
 /// ever non-zero, but the goal box is an AABB of a full 3D box, so the general form is used.
 function eulerMatrix(degrees) {
@@ -123,12 +143,54 @@ function boxZone(position, eulerDegrees, scale, center, size) {
   return bounds;
 }
 
+/// The construction grid a `m_constructionGridRows` list describes, straight out of the original's
+/// own rectangle (`BaseGameMode.InitGameMode`, `BaseGameMode.cs:49-71`) for the vanilla settings
+/// (`InfiniteGrid=false`, `GridSize=1` -- both the pack's own `INDeclarationSettingsExp.json`
+/// values, which is the branch `LevelManager.CanPlacePartAtGridCell` tests for): `columns` is the
+/// widest row's highest set bit + 1 (at least 1), `height` the last non-zero row's index + 1 (at
+/// least 1 -- the original seeds both counters with 1), `xMin`/`xMax` the half-open span
+/// `-(columns-1)/2 .. columns/2` in C# integer division, and `cells` how many of those (i, j)
+/// actually have their bit set. Only the census needs the numbers; the content carries the list.
+function gridExtent(rows) {
+  let columns = 1;
+  let height = 1;
+  rows.forEach((row, index) => {
+    if (row === 0) return;
+    for (let bit = 30; bit >= 0; bit -= 1) {
+      if ((row & (1 << bit)) !== 0) {
+        columns = Math.max(columns, bit + 1);
+        break;
+      }
+    }
+    height = index + 1;
+  });
+  const xMin = -Math.trunc((columns - 1) / 2);
+  const xMax = Math.trunc(columns / 2);
+  let cells = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = xMin; x <= xMax; x += 1) {
+      if ((rows[height - 1 - y] & (1 << (x - xMin))) !== 0) cells += 1;
+    }
+  }
+  return { columns, height, cells };
+}
+
 const guidToPath = buildGuidIndex(BPLE, ASSETS);
 const loadersByScene = loadLoaders(BPLE, ASSETS, check);
 // Read for its invariants only: the eight Episode*Levels manifests must still list all 277 levels.
 loadEpisodes(BPLE, ASSETS, check);
 const partMap = loadPartMap();
 check(partMap.duplicates.length === 0, `part-map.json maps ${partMap.duplicates.join(", ")} to more than one partTypeId`);
+// The PartType enum -> PigForge partTypeId bridge a level's `m_partTypeCounts` is read with
+// (`tools/lib/part-types.mjs`), built from the map's own prefabs so an enum never reaches the
+// content as an id.
+const partTypes = resolvePartTypes(BPLE, { parts: partMap.partsByType, variants: partMap.variantsByType }, check);
+for (const type of WITHOUT_PIGFORGE_BASE) {
+  check(!partTypes.byEnum.has(type), `PartType ${type} (${partTypes.names.get(type) ?? "?"}) is in the no-base list but the part map resolves it`);
+}
+// The levels' `m_constructionGridRows` / `m_partTypeCounts` are patches on the prefab's own table,
+// so the table is read once, from the pack (`lib/overrides.mjs`).
+const LEVEL_MANAGER_DEFAULTS = readLevelManagerDefaults(BPLE, check);
 const DEPTH = readCollisionMeshDepth(BPLE, check);
 const E2D_TERRAIN_GUID = readE2dTerrainGuid(BPLE, check);
 
@@ -224,6 +286,19 @@ const propCensus = new Map();
 const skippedTerrains = [];
 const skippedFills = [];
 const skippedCurves = [];
+/** The build-limits census: what `build` blocks the content carries, and every part of it that did
+ * not cross over. `shapes` is `columns x height` -> levels, `rowsShapes` the raw row lists. */
+const buildCensus = {
+  levels: 0,
+  shapes: new Map(),
+  rowsShapes: new Map(),
+  families: 0,
+  parts: 0,
+  secondStar: new Map(),
+  sandbox: [],
+  withoutBuild: [],
+  unmapped: new Map(),
+};
 const totals = {
   terrain: 0,
   loops: 0,
@@ -480,6 +555,84 @@ for (const { bundle, file } of dataFiles) {
   const cameraLimits = readCameraLimits(data.overrides, check);
   if (cameraLimits) totals.cameraLimits += 1;
 
+  // ---------------------------------------------------------------- construction limits
+  // The level's own build limits: the grid its `m_constructionGridRows` describes (a patch on the
+  // `LevelManager` prefab's own default -- see `lib/overrides.mjs`) and the part allowances its
+  // `m_partTypeCounts` patches leave. Both hang off the level's own `LevelStart` instance, which is
+  // what the original hands `LevelManager.CreateGrid` (`BaseGameMode.cs:70-71`,
+  // `LevelManager.cs:1261-1278`): a cell (i, j) is the world point anchor + (i, j)
+  // (`Contraption.SetPartPos`, `Contraption.cs:1579-1590`). PigForge's cells are integer world
+  // units, so the rule layer floors this origin; the content carries it exactly.
+  const limits = readBuildLimits(data.overrides, LEVEL_MANAGER_DEFAULTS, check);
+  const anchors = data.instanceList.filter((instance) => palette[instance.prefabIndex]?.endsWith("LevelStart.prefab"));
+  check(anchors.length === 1, `${basename(file)}: ${anchors.length} LevelStart instance(s), expected exactly one`);
+  const anchor = anchors[0] ?? null;
+  if (anchor !== null) {
+    // The original only ever reads the position, so a rotated or scaled anchor would mean the grid
+    // no longer lines up with the level it was authored against.
+    check(
+      anchor.euler.every((value) => Math.abs(value) <= ROTATION_EPSILON) &&
+        anchor.localScale.every((value) => Math.abs(value - 1) <= SCALE_EPSILON),
+      `${basename(file)}: LevelStart instance "${anchor.name}" is not a plain translation (euler ${JSON.stringify(anchor.euler)}, scale ${JSON.stringify(anchor.localScale)})`,
+    );
+    check(
+      Number.isFinite(anchor.position[0]) && Number.isFinite(anchor.position[1]),
+      `${basename(file)}: LevelStart instance "${anchor.name}" has a non-finite position ${JSON.stringify(anchor.position)}`,
+    );
+  }
+  // `BaseGameMode.GetPartCount` takes the *first* entry whose type matches, so a list naming a
+  // PartType twice gives the earlier entry's count (`BaseGameMode.cs:558-578`); the bar then hides
+  // every PartType whose count is zero (`ConstructionUI.CheckUnlockedParts`,
+  // `ConstructionUI.cs:545-549`), so only the positive ones are content.
+  const allowances = new Map();
+  for (const entry of limits.partTypeCounts) if (!allowances.has(entry.type)) allowances.set(entry.type, entry.count);
+  const partCounts = [];
+  for (const [type, count] of allowances) {
+    if (count <= 0) continue;
+    const partTypeId = partTypes.byEnum.get(type);
+    if (partTypeId === undefined) {
+      const name = partTypes.names.get(type) ?? `PartType ${type}`;
+      check(
+        WITHOUT_PIGFORGE_BASE.has(type),
+        `${basename(file)}: ${name} has no PigForge base and is not in the recorded no-base list`,
+      );
+      const census = buildCensus.unmapped.get(type) ?? { name, levels: [] };
+      census.levels.push(sceneName);
+      buildCensus.unmapped.set(type, census);
+      continue;
+    }
+    partCounts.push({ partTypeId, count });
+  }
+  partCounts.sort((left, right) => left.partTypeId - right.partTypeId);
+
+  const extent = gridExtent(limits.rows);
+  const build = WITHOUT_BUILD.has(sceneName) || anchor === null
+    ? null
+    : { origin: [Math.fround(anchor.position[0]), Math.fround(anchor.position[1])], rows: limits.rows.slice(), partCounts };
+  buildCensus.shapes.set(`${extent.columns}x${extent.height}`, (buildCensus.shapes.get(`${extent.columns}x${extent.height}`) ?? 0) + 1);
+  const rowsShape = JSON.stringify(limits.rows);
+  buildCensus.rowsShapes.set(rowsShape, (buildCensus.rowsShapes.get(rowsShape) ?? 0) + 1);
+  for (const field of limits.secondStar) buildCensus.secondStar.set(field, (buildCensus.secondStar.get(field) ?? 0) + 1);
+  if (limits.sandbox) buildCensus.sandbox.push(sceneName);
+  if (build === null) {
+    buildCensus.withoutBuild.push({
+      sceneName,
+      bundle,
+      sandbox: limits.sandbox,
+      rows: limits.rows,
+      rowsPatched: limits.rowsPatched,
+      columns: extent.columns,
+      height: extent.height,
+      cells: extent.cells,
+      families: partCounts.length,
+      parts: partCounts.reduce((total, entry) => total + entry.count, 0),
+    });
+  } else {
+    buildCensus.levels += 1;
+    buildCensus.families += partCounts.length;
+    buildCensus.parts += partCounts.reduce((total, entry) => total + entry.count, 0);
+  }
+
   // ---------------------------------------------------------------- drawable props
   // The level's dressing: grass, mushrooms, crystals, wall art, and the backdrop sets with their
   // parallax layers -- one entry per instance, drawn by the client in the original's own depth order
@@ -556,13 +709,12 @@ for (const { bundle, file } of dataFiles) {
   const relativePath = `content/levels/original/${area}/${contentVersion}.json`;
   const document = {
     format: "pigforge.level-content",
-    // A document declares the highest version it needs: v7 only where a prop brought solid boxes.
-    schemaVersion: propInstances.some((prop) => prop.triggers !== undefined)
-      ? 8
-      : propInstances.some((prop) => prop.boxes !== undefined)
-        ? 7
-        : 6,
+    // v9 is the version that may carry the level's own construction limits (`build`), and every
+    // original level is v9 -- including the sandbox levels `WITHOUT_BUILD` carves out, whose
+    // document simply omits the block rather than dropping back to v8.
+    schemaVersion: 9,
     contentVersion,
+    ...(build === null ? {} : { build }),
     goalZone,
     bounds: levelBounds,
     cameraLimits,
@@ -593,7 +745,8 @@ for (const { bundle, file } of dataFiles) {
   console.log(
     `${state.padEnd(5)} ${relativePath}  terrain=${terrainEntries.length} loops=${loops} points=${points}` +
       ` spawns=${spawns.length} goal=${data.goalInstances.length === 1 ? basename(palette[data.goalInstances[0].prefabIndex], ".prefab") : "none"}` +
-      ` props=${propInstances.length} skipped=${skippedHere} bytes=${bytes}`,
+      ` props=${propInstances.length} skipped=${skippedHere} bytes=${bytes}` +
+      ` build=${build === null ? "none" : `${extent.columns}x${extent.height} families=${build.partCounts.length} parts=${build.partCounts.reduce((total, entry) => total + entry.count, 0)}`}`,
   );
 
   rows.push({
@@ -611,6 +764,20 @@ for (const { bundle, file } of dataFiles) {
     skipped: skippedHere,
     spawns: spawns.length,
     props: propInstances.length,
+    // The level's own construction limits: the grid its `m_constructionGridRows` describes, and --
+    // for a level that carries a `build` block -- how many part families and parts it allows.
+    build: {
+      carried: build !== null,
+      sandbox: limits.sandbox,
+      columns: extent.columns,
+      height: extent.height,
+      cells: extent.cells,
+      rows: limits.rows.length,
+      rowsPatched: limits.rowsPatched,
+      families: partCounts.length,
+      parts: partCounts.reduce((total, entry) => total + entry.count, 0),
+      secondStar: limits.secondStar,
+    },
     goalSource,
     changed,
   });
@@ -628,6 +795,40 @@ check(totals.triggerProps === 948, `props with trigger boxes: ${totals.triggerPr
 check(totals.cloudInstances === 1020, `cloud instances: ${totals.cloudInstances}, expected 1020`);
 const cachedInstances = [...propCensus.values()].reduce((total, count) => total + count, 0) + totals.spawns;
 check(cachedInstances === 26072, `classified instances: ${cachedInstances}, expected 26072`);
+
+// The build-limits census: every level's grid and allowance is read, so a level that stops being
+// walked cannot hide behind a quieter report. The no-`build` levels are named, not counted: the
+// carve-out is a content decision (see `WITHOUT_BUILD`), and the assertion keeps it to exactly the
+// levels the spec records -- each of them a sandbox level, whose allowance the original tops up
+// from the player's own unlocks.
+const withoutBuildNames = buildCensus.withoutBuild.map((entry) => entry.sceneName).sort();
+check(
+  JSON.stringify(withoutBuildNames) === JSON.stringify([...WITHOUT_BUILD].sort()),
+  `levels without a build block: ${withoutBuildNames.join(", ")}, expected ${[...WITHOUT_BUILD].sort().join(", ")}`,
+);
+check(
+  buildCensus.withoutBuild.every((entry) => entry.sandbox),
+  `levels without a build block that are not sandbox levels: ${buildCensus.withoutBuild.filter((entry) => !entry.sandbox).map((entry) => entry.sceneName).join(", ")}`,
+);
+check(
+  buildCensus.levels === 275,
+  `levels with a build block: ${buildCensus.levels}, expected 275 of ${rows.length}`,
+);
+// The exempt levels are exactly the ones that never wrote a grid of their own: their override
+// touches one row of the `LevelManager` prefab's default and inherits the rest. Naming a level in
+// `WITHOUT_BUILD` that does define its own grid (or leaving one out) is drift, not a judgement call.
+const partialRows = rows
+  .filter((row) => row.build.rowsPatched < row.build.rows)
+  .map((row) => row.sceneName)
+  .sort();
+check(
+  JSON.stringify(partialRows) === JSON.stringify(withoutBuildNames),
+  `levels whose m_constructionGridRows override does not write every row: ${partialRows.join(", ")}, expected exactly the exempt ones (${withoutBuildNames.join(", ")})`,
+);
+// No level in the pack is unplaceable: the carve-out above is about the sandbox allowance, never
+// about an empty grid (`gridExtent` reads the original's own rectangle).
+const unplaceable = rows.filter((row) => row.build.cells === 0).map((row) => row.sceneName);
+check(unplaceable.length === 0, `levels with no placeable grid cell: ${unplaceable.join(", ")}`);
 
 // ---------------------------------------------------------------- level textures
 
@@ -678,6 +879,35 @@ rows.sort((left, right) => left.bundle.localeCompare(right.bundle) || left.scene
 const changed = rows.filter((row) => row.changed).length;
 const unchanged = rows.length - changed;
 
+// The build-limits census in the order the report reads it: the grid shapes the levels describe
+// (`columns x height`), the raw row lists behind them, the second-star fields, and every allowance
+// that could not cross over because no part-map prefab declares its PartType.
+const gridShapes = [...buildCensus.shapes]
+  .map(([shape, levels]) => ({ columns: Number(shape.split("x")[0]), height: Number(shape.split("x")[1]), levels }))
+  .sort((left, right) => left.columns - right.columns || left.height - right.height)
+  .map((shape) => ({ shape: `${shape.columns}x${shape.height}`, columns: shape.columns, height: shape.height, levels: shape.levels }));
+const rowShapes = [...buildCensus.rowsShapes]
+  .map(([shape, levels]) => ({ rows: JSON.parse(shape), levels }))
+  .sort((left, right) => right.levels - left.levels || JSON.stringify(left.rows).localeCompare(JSON.stringify(right.rows)));
+const secondStar = Object.fromEntries([...buildCensus.secondStar.entries()].sort());
+const noPigForgeBase = [...buildCensus.unmapped]
+  .map(([type, census]) => ({ type, name: census.name, levels: census.levels.length, levelNames: census.levels }))
+  .sort((left, right) => left.type - right.type);
+
+// The census totals, pinned the way the prop counts above are: a prefab table that stops being read
+// or an element applied to the wrong slot moves `families`/`parts`, and the second-star triple
+// (counted, never carried -- D3) catches a level that starts or stops declaring one.
+check(buildCensus.families === 1926, `build allowances: ${buildCensus.families} part families over ${buildCensus.levels} levels, expected 1926`);
+check(buildCensus.parts === 3394, `build allowances: ${buildCensus.parts} parts over ${buildCensus.levels} levels, expected 3394`);
+check(secondStar.m_secondStarConstructionGridRows === 20, `m_secondStarConstructionGridRows: ${secondStar.m_secondStarConstructionGridRows} level(s), expected 20`);
+check(secondStar.m_extraPartsForSecondStar === 21, `m_extraPartsForSecondStar: ${secondStar.m_extraPartsForSecondStar} level(s), expected 21`);
+check(secondStar.m_gridForSecondStar === 22, `m_gridForSecondStar: ${secondStar.m_gridForSecondStar} level(s), expected 22`);
+const noBaseLevels = Object.fromEntries(noPigForgeBase.map((entry) => [entry.type, entry.levels]));
+check(
+  noBaseLevels[42] === 16 && noBaseLevels[45] === 14,
+  `no-PigForge-base allowances: ${JSON.stringify(noBaseLevels)}, expected Pumpkin(42) 16 and GoldenPig(45) 14 levels`,
+);
+
 const report = {
   format: "pigforge.bple-level-build",
   schemaVersion: 1,
@@ -714,7 +944,26 @@ const report = {
     levelTexturesRemoved: staleTextures.length,
     fillTextures: fillTextureNames.size,
     curveTextures: curveTextureNames.size,
+    buildLevels: buildCensus.levels,
+    buildWithout: buildCensus.withoutBuild.length,
+    buildFamilies: buildCensus.families,
+    buildParts: buildCensus.parts,
+    buildGridShapes: gridShapes.length,
+    buildRowShapes: rowShapes.length,
+    buildSandboxLevels: buildCensus.sandbox.length,
+    buildNoPigForgeBase: noPigForgeBase.length,
     textureRoot: OUT_TEXTURES,
+  },
+  build: {
+    levels: buildCensus.levels,
+    families: buildCensus.families,
+    parts: buildCensus.parts,
+    gridShapes,
+    rowShapes,
+    secondStar,
+    sandboxLevels: [...buildCensus.sandbox].sort(),
+    noPigForgeBase,
+    withoutBuild: buildCensus.withoutBuild,
   },
   skipped: skippedTerrains,
   skippedFills,
@@ -737,6 +986,7 @@ md.push(`- 边缘条带（\`curve.shader\`）节点 **${totals.curveNodes}**，�
 md.push(`- 关卡贴图 **${textureRows.length}** 张 / ${textureBytes} 字节（fill ${fillTextureNames.size} + curve ${curveTextureNames.size}，Bilinear 已断言），复制到 \`${OUT_TEXTURES}\``);
 md.push(`- 零件实例 **${totals.spawns}**，有终点的关卡 **${totals.goals}**，无终点（沙盒/MM）**${totals.levelsWithoutGoal}**`);
 md.push(`- 相机界（\`PrefabOverrides\` 的 \`LevelManager.m_cameraLimits\`，原版出界判定的矩形）**${totals.cameraLimits}/${rows.length}** 关`);
+md.push(`- 建造限制（\`build\`，v9）：**${buildCensus.levels}/${rows.length}** 关携带，**${buildCensus.withoutBuild.length}** 关豁免；零件族合计 **${buildCensus.families}**，配额合计 **${buildCensus.parts}**，网格形状 **${gridShapes.length}** 种（\`columns x height\`），原始 rows 列表 **${rowShapes.length}** 种`);
 md.push(`- 深度 **${DEPTH}**（\`e2dConstants.cs\`），bounds 外扩 **${BOUNDS_MARGIN}** m`);
 md.push(`- 跳过地形 **${skippedTerrains.length}**（轮廓不可走）+ **${skippedFills.length}**（fill 不可组装）+ **${skippedCurves.length}**（条带不可组装），失败 **${failures.length}**`);
 md.push("", `**${changed} changed / ${unchanged} unchanged**${DRY_RUN ? " (dry-run，未写盘)" : ""}，合计 ${totals.bytes} 字节。`, "");
@@ -759,11 +1009,46 @@ for (const texture of textureRows) {
 }
 if (staleTextures.length > 0) md.push("", `已删除不再被引用的：${staleTextures.map((name) => `\`${name}\``).join("、")}`);
 md.push("");
+md.push("## 建造限制", "");
+md.push("`build` 块的三个字段都来自原版：`origin` = 该关 `LevelStart` 实例的 `(x, y)`（float32 精确；单元格 → 世界 = 锚点 + (i, j)，`Contraption.cs:1579-1590`），");
+md.push("`rows` = 该关 `m_constructionGridRows` 原样，`partCounts` = `m_partTypeCounts` 里第一个 `type` 匹配项的 `count`（`BaseGameMode.GetPartCount`，`BaseGameMode.cs:558-578`），只保留 `count > 0` 且能解析到 PigForge 基座的行。");
+md.push("两者都是对 `Assets/GameObject/LevelManager.prefab` 自己那张表的**按下标补丁**（`ObjectDeserializer.ReadArray`，`ObjectDeserializer.cs:720-800`：`ArraySize` 截断、`Element <下标>` 就地改写、缺字段保留原值、缺元素保留原槽），所以默认表读自 prefab，工具里没有硬编码。");
+md.push(`网格的列数/行数按原版自己的矩形（\`BaseGameMode.InitGameMode\`，\`BaseGameMode.cs:49-71\`，vanilla 设置 \`InfiniteGrid=false\`/\`GridSize=1\`）：\`columns\` = 最宽行的最高位 + 1，\`height\` = 最后一个非零行的下标 + 1，两者最小 1。`)
+md.push(`- 关卡 **${rows.length}**，携带 \`build\` **${buildCensus.levels}**，豁免 **${buildCensus.withoutBuild.length}**（逐关见下）`);
+md.push(`- 零件族合计 **${buildCensus.families}**，配额合计 **${buildCensus.parts}**`);
+md.push(`- 网格形状（\`columns x height\`）**${gridShapes.length}** 种，原始 rows 列表 **${rowShapes.length}** 种`);
+md.push(`- 第二星字段（原版反编译源码里没有任何读取者，本批不搬）：${Object.entries(secondStar).map(([field, levels]) => `\`${field}\` ${levels} 关`).join("、")}`);
+md.push(`- 无 PigForge 基座的 PartType：${noPigForgeBase.map((entry) => `\`${entry.name}\`(${entry.type}) ${entry.levels} 关`).join("、")}`);
+md.push("", "### 网格形状直方图", "");
+md.push("| columns x height | 关卡数 |", "|---|---|");
+for (const shape of gridShapes) md.push(`| ${shape.shape} | ${shape.levels} |`);
+md.push("", "### rows 列表（按关卡数）", "");
+md.push("| rows | 关卡数 |", "|---|---|");
+for (const shape of rowShapes) md.push(`| \`${JSON.stringify(shape.rows)}\` | ${shape.levels} |`);
+md.push("", "### 豁免关卡（不写 `build`）", "");
+md.push("原版沙盒模式的零件来源是 `GameProgress` 的解锁表（`BaseGameMode.GetPartCount` 在 `m_sandbox` 时叠加玩家自己的解锁，我们没建模），");
+md.push("所以这几关不写 `build`（= 不限制，即今天的行为）。它们也是**唯一**不自己写整套 `rows` 的关卡：override 只写了个别行，其余继承 `LevelManager` prefab 自己的 7×1023 默认表，");
+md.push(`按原版公式仍是 ${[...new Set(buildCensus.withoutBuild.map((entry) => `${entry.columns}x${entry.height}`))].join(" / ")}，共 ${buildCensus.withoutBuild.reduce((total, entry) => total + entry.cells, 0)} 个可放单元，\`m_sandbox\` 全为真。`, "");
+md.push("| area | scene | m_sandbox | 自写行/总行 | rows | 网格 | 可放单元 | 族 | 配额 |", "|---|---|---|---|---|---|---|---|---|");
+for (const entry of buildCensus.withoutBuild) {
+  md.push(
+    `| ${areaOf(entry.bundle)} | \`${entry.sceneName}\` | ${entry.sandbox} | ${entry.rowsPatched}/${entry.rows.length} | \`${JSON.stringify(entry.rows)}\` | ${entry.columns}x${entry.height} | ${entry.cells} | ${entry.families} | ${entry.parts} |`,
+  );
+}
+md.push("", "### 无 PigForge 基座的 PartType", "");
+md.push("一个 `PartType` 只有在 `part-map.json` 名下的某个 prefab 声明它时才有 PigForge 基座（`tools/lib/part-types.mjs`）；枚举值本身永远不是 `partTypeId`。");
+md.push("没有基座的配额搬不进内容（PigForge 没有对应零件），逐条计数如下（`Pumpkin`/`GoldenPig` 是 G91 未交付，见规格 D4）。");
+md.push("统计覆盖全部 277 关的原始配额表，包含上面不写 `build` 的豁免关。", "");
+md.push("| PartType | 名称 | 出现关数 | 关卡 |", "|---|---|---|---|");
+for (const entry of noPigForgeBase) md.push(`| ${entry.type} | \`${entry.name}\` | ${entry.levels} | ${entry.levelNames.map((name) => `\`${name}\``).join("、")} |`);
+md.push("");
 md.push("## 每关", "");
-md.push("| area | scene | contentVersion | 地形 | 环 | 点 | 零件 | 字节 | 终点来源 | hash |", "|---|---|---|---|---|---|---|---|---|---|");
+md.push("| area | scene | contentVersion | 地形 | 环 | 点 | 零件 | 网格 | 族 | 配额 | 字节 | 终点来源 | hash |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const row of rows) {
   md.push(
-    `| ${row.area} | \`${row.sceneName}\` | \`${row.contentVersion}\` | ${row.terrain} | ${row.loops} | ${row.points} | ${row.spawns} | ${row.bytes} | ${row.goalSource.replaceAll("|", "\\|")} | \`${row.hash.slice(0, 12)}\` |`,
+    `| ${row.area} | \`${row.sceneName}\` | \`${row.contentVersion}\` | ${row.terrain} | ${row.loops} | ${row.points} | ${row.spawns}` +
+      ` | ${row.build.carried ? `${row.build.columns}x${row.build.height}` : "—"} | ${row.build.families} | ${row.build.parts} | ${row.bytes}` +
+      ` | ${row.goalSource.replaceAll("|", "\\|")} | \`${row.hash.slice(0, 12)}\` |`,
   );
 }
 md.push("", "## 产出文件", "");
@@ -780,6 +1065,17 @@ console.log(`levels: ${rows.length}  terrain: ${totals.terrain}  loops: ${totals
 console.log(`curve: nodes: ${totals.curveNodes}  second-layer runs: ${totals.curveRuns}`);
 console.log(`goal: ${totals.goals}  no-goal: ${totals.levelsWithoutGoal}  depth: ${DEPTH}  bounds margin: ${BOUNDS_MARGIN}`);
 console.log(`camera limits: ${totals.cameraLimits}/${rows.length} levels`);
+console.log(
+  `build limits: ${buildCensus.levels}/${rows.length} levels (${buildCensus.withoutBuild.length} without: ` +
+    `${buildCensus.withoutBuild.map((entry) => entry.sceneName).join(", ") || "none"}), ` +
+    `${buildCensus.families} families / ${buildCensus.parts} parts, ` +
+    `${gridShapes.length} grid shape(s), ${rowShapes.length} row list(s)`,
+);
+console.log(
+  `build no-base PartTypes: ${noPigForgeBase.map((entry) => `${entry.name}(${entry.type}) x${entry.levels}`).join(", ") || "none"}` +
+    `  sandbox levels: ${buildCensus.sandbox.length}` +
+    `  second-star fields: ${Object.entries(secondStar).map(([field, levels]) => `${field}=${levels}`).join(" ")}`,
+);
 console.log(
   `terrain collider/visual: ${totals.colliderTerrains}/${totals.terrain - totals.colliderTerrains}` +
     `  skipped: ${skippedTerrains.length} outline + ${skippedFills.length} fill + ${skippedCurves.length} curve`,

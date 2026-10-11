@@ -1,3 +1,5 @@
+using System.Numerics;
+
 using PigForge.Physics.Abstractions;
 
 using PigForge.Core.Content;
@@ -30,7 +32,15 @@ public enum ConstructionError
     UnsupportedShape,
     NotOwnedByPlayer,
     PartNotSwitchable,
-    PartNotMirrorable
+    PartNotMirrorable,
+
+    /// <summary>The part's base family has no allowance left for this owner on this level
+    /// (<c>LevelBuildLimits.PartCounts</c>; a family the table does not name allows none).</summary>
+    PartAllowanceExceeded = 17,
+
+    /// <summary>The anchor cell of the part sits outside the level's own build grid
+    /// (<c>LevelManager.CanPlacePartAtGridCell</c>, <c>LevelManager.cs:1280-1297</c>).</summary>
+    OutsideConstructionGrid = 18
 }
 
 public readonly record struct ConstructionResult(EntityId Entity, ConstructionError Error)
@@ -89,6 +99,20 @@ public sealed class ConstructionRules
     private readonly Dictionary<uint, uint> _ownerByEntity = new();
     private readonly Dictionary<uint, int> _partCountByOwner = new();
 
+    // The level's own construction limits (schemaVersion 9), precomputed once when the room
+    // installs them: null means the level neither draws a build grid nor quota-caps any family,
+    // which is every v1-v8 document and both hand-authored suites. The grid geometry is the
+    // original's CanPlacePartAtGridCell: the anchor cell is the floored LevelStart position, the
+    // rows bound which local cells exist, and the allowance table keys a base family to the count
+    // the level places (a variant counts against its base).
+    private int _gridOriginX;
+    private int _gridOriginY;
+    private int _gridHeight;
+    private int _gridXMin;
+    private int _gridXMax;
+    private int[]? _gridRows;
+    private Dictionary<uint, int>? _allowanceByFamily;
+
     // The build pose's handedness, kept beside the pose because a quaternion cannot carry it
     // unambiguously (see BuildPose). It survives FreezeAll: starting the simulation rewrites the
     // transforms with physics poses, and the mirror is a property of how the part was built.
@@ -109,6 +133,62 @@ public sealed class ConstructionRules
     }
 
     public int PartCount => _footprintByEntity.Count;
+
+    /// <summary>
+    /// Installs the level's own construction limits (schemaVersion 9; <see cref="LevelBuildLimits"/>):
+    /// <see cref="Place"/> then rejects a part whose anchor cell is off the level's build grid or
+    /// whose base family has no allowance left, and <see cref="Move"/>/<see cref="Rotate"/>/
+    /// <see cref="Scale"/> reject a target pose whose anchor cell is off the grid. The geometry and
+    /// the family table are resolved here once so neither rejection allocates or recomputes in
+    /// <c>Place</c>. <c>null</c> clears them, restoring the unrestricted behaviour every v1-v8
+    /// document and both hand-authored suites expect.
+    /// </summary>
+    public void UseLevelBuildLimits(LevelBuildLimits? limits)
+    {
+        if (limits is null)
+        {
+            _gridRows = null;
+            _allowanceByFamily = null;
+            return;
+        }
+
+        // CanPlacePartAtGridCell's own geometry: columns is the widest row's bit count, height the
+        // last non-zero row's index plus one, and the x spread is centred on the anchor with the
+        // original's truncating integer division.
+        int columns = 0;
+        int height = 0;
+        for (int row = 0; row < limits.Rows.Count; row++)
+        {
+            int bits = 32 - BitOperations.LeadingZeroCount((uint)limits.Rows[row]);
+            if (bits > columns)
+            {
+                columns = bits;
+            }
+
+            if (limits.Rows[row] != 0)
+            {
+                height = row + 1;
+            }
+        }
+
+        _gridOriginX = (int)MathF.Floor(limits.OriginX);
+        _gridOriginY = (int)MathF.Floor(limits.OriginY);
+        _gridHeight = height;
+        _gridXMin = -(columns - 1) / 2;
+        _gridXMax = columns / 2;
+        _gridRows = limits.Rows as int[] ?? limits.Rows.ToArray();
+
+        // The level file never lists a zero-count family (ConstructionUI.CheckUnlockedParts hides
+        // it), but a hand-authored document may: keep every entry and let an absent or zero count
+        // both read as "allows none". First match wins, so a second entry for a family is ignored.
+        Dictionary<uint, int> allowances = new(limits.PartCounts.Count);
+        foreach (LevelPartAllowance partCount in limits.PartCounts)
+        {
+            allowances.TryAdd(partCount.PartTypeId, (int)partCount.Count);
+        }
+
+        _allowanceByFamily = allowances;
+    }
 
     /// <summary>Placed (player-built) entity ids, including frozen ones; level-authoring
     /// spawns are not construction entities and are excluded.</summary>
@@ -343,6 +423,16 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.PartNotMirrorable);
         }
 
+        if (!AllowsCell((int)MathF.Floor(positionX), (int)MathF.Floor(positionY)))
+        {
+            return Failure(ConstructionError.OutsideConstructionGrid);
+        }
+
+        if (ExceedsPartAllowance(owner, part))
+        {
+            return Failure(ConstructionError.PartAllowanceExceeded);
+        }
+
         PartFootprint footprint = PartFootprint.ForPart(part, positionX, positionY, angle, mirrored, scale);
         (float minX, float minY, float maxX, float maxY) = footprint.Bounds();
         int areaInCells = (int)MathF.Ceiling(maxX - minX) * (int)MathF.Ceiling(maxY - minY);
@@ -490,6 +580,13 @@ public sealed class ConstructionRules
         if (targetMirrored && part.Capabilities?.Mirror != true)
         {
             return Failure(ConstructionError.PartNotMirrorable);
+        }
+
+        // Moving/rotating/scaling never changes the part count, so the level's quota does not apply
+        // here -- only where the transformed anchor lands on the build grid.
+        if (!AllowsCell((int)MathF.Floor(targetX), (int)MathF.Floor(targetY)))
+        {
+            return Failure(ConstructionError.OutsideConstructionGrid);
         }
 
         // The pose is yaw + handedness, so a move/scale keeps both from the stored pose: a mirrored
@@ -878,6 +975,71 @@ public sealed class ConstructionRules
 
     private int OwnerPartCount(uint owner) =>
         _partCountByOwner.TryGetValue(owner, out int count) ? count : 0;
+
+    /// <summary>
+    /// Whether a whole world cell exists on the level's build grid, or true when the level installs
+    /// no grid. The cell is the part's floored anchor, exactly as the original tests
+    /// <c>CanPlacePartAtGridCell(x, y)</c> before a placement (the part's body may still hang over
+    /// the edge).
+    /// </summary>
+    private bool AllowsCell(int worldX, int worldY)
+    {
+        int[]? rows = _gridRows;
+        if (rows is null)
+        {
+            return true;
+        }
+
+        int localX = worldX - _gridOriginX;
+        int localY = worldY - _gridOriginY;
+        if (localX < _gridXMin || localX > _gridXMax || localY < 0 || localY >= _gridHeight)
+        {
+            return false;
+        }
+
+        // The original indexes its rows top-down: Rows[height - 1 - j], bit (i - xMin).
+        return (rows[_gridHeight - 1 - localY] & (1 << (localX - _gridXMin))) != 0;
+    }
+
+    /// <summary>
+    /// Whether the owner already holds the level's full allowance of this part's base family. The
+    /// family is the part's <c>VariantOf</c> base (one level only; a variant counts against its
+    /// base, <c>Contraption.GetPartCount</c>, <c>Contraption.cs:515</c>), the quota is the owner's
+    /// own (<c>LevelBuildLimits.PartCounts</c>; see ADR-026), and a family the table does not name
+    /// allows none -- the original never shows a zero-count type in the build bar.
+    /// </summary>
+    private bool ExceedsPartAllowance(uint owner, PartDefinition part)
+    {
+        if (_allowanceByFamily is not { } allowances)
+        {
+            return false;
+        }
+
+        uint family = part.VariantOf ?? part.PartTypeId;
+        int allowance = allowances.TryGetValue(family, out int allowed) ? allowed : 0;
+        return CountOfFamily(owner, family) >= allowance;
+    }
+
+    /// <summary>How many parts one owner holds in one base family. Build-phase scan: the registry
+    /// holds at most a few hundred parts and this never runs on the tick path.</summary>
+    private int CountOfFamily(uint owner, uint family)
+    {
+        int count = 0;
+        foreach ((uint entityValue, uint entityOwner) in _ownerByEntity)
+        {
+            if (entityOwner != owner || !_parts.TryGet(new EntityId(entityValue), out PartLink link))
+            {
+                continue;
+            }
+
+            if ((_content.GetPart(link.PartTypeId).VariantOf ?? link.PartTypeId) == family)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
 
     /// <summary>Removes construction bookkeeping only; the entity store is never touched here.</summary>
     private void DetachEntity(uint entityValue)

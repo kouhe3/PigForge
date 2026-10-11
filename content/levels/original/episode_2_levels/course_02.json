@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "contentVersion": "course_02",
   "goalZone": {
     "min": [
@@ -24,6 +24,17 @@
       55.606697,
       71.85346,
       35
+    ]
+  },
+  "build": {
+    "origin": [-59.07781,-5.35112],
+    "rows": [15,15,0,0],
+    "partCounts": [
+      {"partTypeId":4,"count":1},
+      {"partTypeId":16,"count":2},
+      {"partTypeId":18,"count":4},
+      {"partTypeId":28,"count":2},
+      {"partTypeId":271,"count":1}
     ]
   },
   "cameraLimits": {"topLeft":[-74.8,37.2],"size":[81.5,52.16]},

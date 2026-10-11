@@ -128,6 +128,10 @@ public sealed class GameRoom : IDisposable
     private PhysicsEvent[] _eventBuffer = Array.Empty<PhysicsEvent>();
     private readonly List<uint> _entityOrder = new();
     private LevelContentDocument? _level;
+    // The document whose construction limits are currently installed (schemaVersion 9 Build).
+    // SetupFromLevel also runs on every return to the building phase, so this keys the install on
+    // the document: the grid geometry and family table are resolved once, not per re-entry.
+    private LevelContentDocument? _buildLimitsLevel;
     private readonly List<PhysicsBodyId> _terrainBodies = new();
 
     /// <summary>How many static terrain bodies the level brought (test-visible).</summary>
@@ -318,6 +322,17 @@ public sealed class GameRoom : IDisposable
         _level = level;
         EnsureTerrainBodies(level);
         EnsurePropBodies(level);
+        // The level's own build grid and per-family quota (schemaVersion 9, Build) gate every
+        // construction command from here on; a v1-v8 document carries none and leaves the room
+        // unrestricted. SetupFromLevel runs again on each return to the building phase, so the
+        // install is keyed on the document: UseLevelBuildLimits resolves and caches the geometry
+        // and the family table, and re-running it would only re-allocate them.
+        if (!ReferenceEquals(_buildLimitsLevel, level))
+        {
+            _construction.UseLevelBuildLimits(level.Build);
+            _buildLimitsLevel = level;
+        }
+
         foreach (LevelSpawnDefinition spawn in level.Spawns)
         {
             Spawn(new RoomSpawnSpec(

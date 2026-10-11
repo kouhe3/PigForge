@@ -154,6 +154,30 @@ public sealed record LevelTerrainDefinition(
     LevelTerrainFillDefinition? Fill = null,
     LevelCurveDefinition? Curve = null);
 
+/// <summary>
+/// One base part type's build quota on a v9 document: <see cref="PartTypeId"/> is the base family id
+/// (a variant counts against its base's family) and <see cref="Count"/> is how many of it the level
+/// places. Zero-count types are never written, because a type the level allows none of never enters
+/// the build bar (<c>ConstructionUI.CheckUnlockedParts</c>, <c>ConstructionUI.cs:534-612</c>).
+/// </summary>
+public sealed record LevelPartAllowance(uint PartTypeId, uint Count);
+
+/// <summary>
+/// The level's own construction limits, straight out of the level file's own
+/// <c>LevelManager.m_constructionGridRows</c> and <c>m_partTypeCounts</c> (schemaVersion 9):
+/// <see cref="OriginX"/>/<see cref="OriginY"/> are the level's <c>LevelStart</c> instance position, the
+/// build grid's anchor (cell (i, j) sits at the anchor plus (i, j); the room floors the anchor because
+/// the cells are whole <c>ConstructionRules.CellSize</c> metres), <see cref="Rows"/> is
+/// <c>CanPlacePartAtGridCell</c>'s own row bit masks (<c>LevelManager.cs:1280-1297</c>) and
+/// <see cref="PartCounts"/> is the quota <c>BaseGameMode.GetPartCount</c> answers
+/// (<c>BaseGameMode.cs:558-578</c>), keyed by base part type. See <c>docs/specs/advanced-building.md</c>.
+/// </summary>
+public sealed record LevelBuildLimits(
+    float OriginX,
+    float OriginY,
+    IReadOnlyList<int> Rows,
+    IReadOnlyList<LevelPartAllowance> PartCounts);
+
 /// <summary>Engine-agnostic level definition: spawns, goal trigger zone and map bounds (ADR-002).</summary>
 public sealed record LevelContentDocument(
     string ContentVersion,
@@ -167,10 +191,11 @@ public sealed record LevelContentDocument(
     /// The version this code writes: v3 gives every terrain its collider bit and its fill, v4 adds the
     /// edge trim (<see cref="LevelCurveDefinition"/>), v5 adds the level's own camera limits
     /// (<see cref="CameraLimits"/>), v6 adds the level's decoration instances (<see cref="Props"/>),
-    /// v7 gives a placed prop its solid boxes (<see cref="LevelPropDefinition.Boxes"/>) and v8 its
-    /// trigger boxes (<see cref="LevelPropDefinition.Triggers"/>, `docs/specs/level-challenges.md`).
+    /// v7 gives a placed prop its solid boxes (<see cref="LevelPropDefinition.Boxes"/>), v8 its
+    /// trigger boxes (<see cref="LevelPropDefinition.Triggers"/>, `docs/specs/level-challenges.md`) and
+    /// v9 the level's own construction limits (<see cref="Build"/>).
     /// </summary>
-    public const ushort SchemaVersion = 8;
+    public const ushort SchemaVersion = 9;
 
     /// <summary>
     /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill), v3 ones
@@ -197,4 +222,12 @@ public sealed record LevelContentDocument(
     /// so nothing here reaches the physics world. Empty on a v1-v5 document.
     /// </summary>
     public IReadOnlyList<LevelPropDefinition> Props { get; init; } = Array.Empty<LevelPropDefinition>();
+
+    /// <summary>
+    /// The level's own construction limits (`LevelManager.m_constructionGridRows`,
+    /// `m_partTypeCounts`): the build grid the room gates placement by and the per-part-type quota the
+    /// build bar draws from. Null on a v1-v8 document and on a v9 one whose own grid has no placeable
+    /// cell (the sandbox levels), which the room then does not constrain.
+    /// </summary>
+    public LevelBuildLimits? Build { get; init; }
 }

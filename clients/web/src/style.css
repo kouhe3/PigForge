@@ -126,6 +126,11 @@ label {
   font-size: 0.8rem;
 }
 
+/* A local placement notice (an out-of-grid click), distinct from a server-driven error. */
+.notice {
+  color: #f0b060;
+}
+
 .palette {
   display: flex;
   flex-wrap: wrap;
@@ -139,6 +144,27 @@ label {
   justify-content: center;
   min-width: 2.2rem;
   min-height: 2.2rem;
+  position: relative;
+}
+
+/* The level's remaining allowance for a part family (v9); hidden when the build is unlimited. */
+.palette button .allowance {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  min-width: 1rem;
+  padding: 0 0.2rem;
+  border-radius: 0.6rem;
+  background: #4a6a8a;
+  color: #eaf2ff;
+  font-size: 0.65rem;
+  line-height: 1rem;
+  text-align: center;
+}
+
+.palette button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .part-icon {

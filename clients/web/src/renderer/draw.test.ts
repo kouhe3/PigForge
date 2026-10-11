@@ -5,7 +5,7 @@ import type { PartTexture, PartTextureSet } from "./atlas";
 import { drawFrame, drawOrder, propDepthBuckets, wheelAxle } from "./draw";
 import { createCamera } from "./camera";
 import type { DrawEntity, PartContentDocument } from "@/schema/types";
-import type { LevelProp, LevelTerrain } from "@/schema/levelContent";
+import type { LevelBuildLimits, LevelProp, LevelTerrain } from "@/schema/levelContent";
 import type { DecorationQuad, LevelPropsSet } from "./levelProps";
 
 function makeCtx() {
@@ -367,6 +367,53 @@ describe("drawFrame level props", () => {
     expect(at("image:ground")).toBeLessThan(at("image:part"));
     expect(at("image:part")).toBeLessThan(at("image:plane"));
     expect(at("image:plane")).toBeLessThan(at("image:near"));
+  });
+
+  // Fake props carrying a parallax factor, so the manager's own table can be checked: `Level_05`
+  // really parks a `ParallaxLayerFar` (0.6) layer at z = -13..-15, which the level's depth split
+  // alone would paint over the level's own build area.
+  function bucketsOf(entries: readonly { id: string; z: number; factor: number }[]): Record<string, string[]> {
+    const list: LevelProp[] = entries.map((entry) => ({ id: entry.id, x: 0, y: 0, z: entry.z, rotation: 0, scaleX: 1, scaleY: 1 }));
+    const quadSet: LevelPropsSet = {
+      atlases: new Map(entries.map((entry) => [`${entry.id}.png`, { tag: entry.id } as unknown as CanvasImageSource])),
+      props: new Map(
+        entries.map((entry) => [
+          entry.id,
+          [{ atlas: `${entry.id}.png`, x: 0, y: 0, w: 1, h: 1, cx: 0, cy: 0, sx: 1, sy: 1, dx: 0, dy: 0, dz: 0, rotation: 0, scaleX: 1, scaleY: 1, parallax: { x: entry.factor, y: 0 } }],
+        ]),
+      ),
+    };
+    const buckets = propDepthBuckets(list, quadSet);
+    return Object.fromEntries(Object.entries(buckets).map(([name, bucket]) => [name, bucket.map((entry) => entry.prop.id)]));
+  }
+
+  it("sorts a parallax layer by its own factor, not by the level's depths", () => {
+    const buckets = bucketsOf([
+      { id: "sky", z: 20, factor: 0.8 },
+      { id: "far", z: -14.28, factor: 0.6 },
+      { id: "near", z: 6, factor: 0.4 },
+      { id: "foreground", z: -9, factor: -0.4 },
+      { id: "crate", z: -14.28, factor: 0 },
+    ]);
+    // Deepest factor first, whatever the z says; the scenery is never in `near`.
+    expect(buckets.backdrop).toEqual(["sky", "far", "near"]);
+    expect(buckets.near).toEqual(["crate", "foreground"]);
+    expect(buckets.far).toEqual([]);
+    expect(buckets.mid).toEqual([]);
+  });
+
+  it("paints the parallax scenery behind the ground", () => {
+    const { ctx, order } = makeOrderCtx();
+    const scenery: LevelProp = { id: "scenery", x: 0, y: 0, z: -14.28, rotation: 0, scaleX: 1, scaleY: 1 };
+    const scenerySet: LevelPropsSet = {
+      atlases: new Map([["scenery.png", { tag: "scenery" } as unknown as CanvasImageSource]]),
+      props: new Map([["scenery", [{ atlas: "scenery.png", x: 0, y: 0, w: 1, h: 1, cx: 0, cy: 0, sx: 1, sy: 1, dx: 0, dy: 0, dz: 0, rotation: 0, scaleX: 1, scaleY: 1, parallax: { x: 0.6, y: 0 } }]]]),
+    };
+    drawFrame(ctx, createCamera(), [block], content, [], undefined, undefined, textured({ tag: "part" } as unknown as CanvasImageSource), null, null, [terrain], null, { props: [scenery], set: scenerySet });
+    const at = (marker: string): number => order.indexOf(marker);
+    expect(at("image:scenery")).toBeGreaterThanOrEqual(0);
+    expect(at("image:scenery")).toBeLessThan(at("fill"));
+    expect(at("image:scenery")).toBeLessThan(at("image:part"));
   });
 
   it("draws the same frame when the level has no decorations", () => {
@@ -992,5 +1039,23 @@ describe("drawFrame mirrored parts", () => {
     expect(plain.scales).toEqual([[-1, 1]]);
     expect(mirrored.scales).toEqual([]);
     expectTail(mirrored.translations, [[-11.16, 0]]);
+  });
+});
+
+describe("drawFrame construction grid", () => {
+  const build: LevelBuildLimits = { origin: [2.4379761, 5.4575901], rows: [15, 15, 0, 0], partCounts: [] };
+
+  it("borders one cell per set bit of a v9 level's grid", () => {
+    const { ctx, calls } = makeCtx();
+    drawFrame(ctx, createCamera(), [], content, [], undefined, undefined, undefined, null, null, null, null, null, build);
+    expect(calls.strokeRect).toBe(8);
+    expect(calls.fillRect).toBe(9); // the background plus the eight cells
+  });
+
+  it("draws no build cells without a grid", () => {
+    const { ctx, calls } = makeCtx();
+    drawFrame(ctx, createCamera(), [], content, []);
+    expect(calls.strokeRect ?? 0).toBe(0);
+    expect(calls.fillRect).toBe(1);
   });
 });

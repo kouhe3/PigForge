@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "contentVersion": "Episode_6_Dark-Sandbox",
   "goalZone": {
     "min": [
@@ -24,6 +24,33 @@
       7.5076447,
       196.67047,
       35
+    ]
+  },
+  "build": {
+    "origin": [-115.27,-6.69],
+    "rows": [511,511,511,511,511,511,511,0],
+    "partCounts": [
+      {"partTypeId":1,"count":8},
+      {"partTypeId":4,"count":1},
+      {"partTypeId":8,"count":2},
+      {"partTypeId":10,"count":2},
+      {"partTypeId":12,"count":4},
+      {"partTypeId":14,"count":4},
+      {"partTypeId":16,"count":6},
+      {"partTypeId":18,"count":10},
+      {"partTypeId":19,"count":2},
+      {"partTypeId":20,"count":2},
+      {"partTypeId":28,"count":2},
+      {"partTypeId":37,"count":4},
+      {"partTypeId":38,"count":4},
+      {"partTypeId":39,"count":1},
+      {"partTypeId":40,"count":2},
+      {"partTypeId":41,"count":1},
+      {"partTypeId":43,"count":4},
+      {"partTypeId":44,"count":2},
+      {"partTypeId":45,"count":2},
+      {"partTypeId":46,"count":2},
+      {"partTypeId":271,"count":4}
     ]
   },
   "cameraLimits": {"topLeft":[-308.26,149.5],"size":[279.3,166.2]},

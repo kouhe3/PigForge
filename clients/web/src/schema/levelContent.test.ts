@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { cameraLimitsRect, decodeLevelContent, validateLevelContent, zoneRect } from "./levelContent";
+import {
+  cameraLimitsRect,
+  constructionCellExists,
+  constructionGridShape,
+  decodeLevelContent,
+  validateLevelContent,
+  zoneRect,
+} from "./levelContent";
 
 /** The v2 document from the client brief: one terrain outline, one spawn, a goal zone and bounds. */
 const v2 = {
@@ -65,7 +72,7 @@ describe("validateLevelContent root", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expectRejected({ schemaVersion: 9 }, "root.schemaVersion");
+    expectRejected({ schemaVersion: 10 }, "root.schemaVersion");
   });
 
   it("rejects an empty, padded or non-string contentVersion", () => {
@@ -525,8 +532,8 @@ describe("validateLevelContent trigger boxes", () => {
       .toContain("root.props[0].triggers[0].sizeX: a solid box needs a positive size.");
   });
 
-  it("rejects an unsupported schema version past v8", () => {
-    expectRejected({ schemaVersion: 9 }, "root.schemaVersion");
+  it("rejects an unsupported schema version past v9", () => {
+    expectRejected({ schemaVersion: 10 }, "root.schemaVersion");
   });
 });
 
@@ -538,5 +545,124 @@ describe("cameraLimitsRect", () => {
     expect(rect.maxY).toBeCloseTo(13.45);
     // size extends *down* from topLeft (`IngameCamera.cs:599` builds the rect that way).
     expect(rect.minY).toBeCloseTo(-11.25);
+  });
+});
+
+/** The v9 document: the v8 one plus the level's own construction limits (`build`). */
+const v9 = {
+  ...structuredClone(v8),
+  schemaVersion: 9,
+  build: {
+    origin: [2.4379761, 5.4575901],
+    rows: [15, 15, 0, 0],
+    partCounts: [
+      { partTypeId: 4, count: 1 },
+      { partTypeId: 1, count: 3 },
+    ],
+  },
+};
+
+/** The v9 document with its `build` replaced by `value`. */
+function withBuild(value: unknown): string[] {
+  return validateLevelContent({ ...structuredClone(v9), build: value });
+}
+
+describe("validateLevelContent build limits", () => {
+  it("accepts a v9 document with the level's construction limits", () => {
+    expect(validateLevelContent(v9)).toEqual([]);
+  });
+
+  it("accepts a v9 document with no build (the server's nullable limits)", () => {
+    const bare = structuredClone(v9) as Record<string, unknown>;
+    delete bare.build;
+    expect(validateLevelContent(bare)).toEqual([]);
+    expect(decodeLevelContent(bare).level?.build).toBeUndefined();
+  });
+
+  it("refuses build before v9", () => {
+    for (const schemaVersion of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const older = { ...structuredClone(v9), schemaVersion };
+      expect(validateLevelContent(older))
+        .toContain("root.build: only a schemaVersion 9 document carries the level's construction limits.");
+    }
+  });
+
+  it("rejects a malformed build block", () => {
+    expect(withBuild(3)).toContain("root.build: must be a JSON object.");
+    expect(withBuild({})).toContain("root.build: missing required property 'origin'.");
+    expect(withBuild({ origin: [0, 0], rows: [1], partCounts: [], extra: 1 }))
+      .toContain("root.build: unknown property 'extra'.");
+    expect(withBuild({ origin: [0], rows: [1], partCounts: [] }))
+      .toContain("root.build.origin: must be [x, y] with finite numbers.");
+    expect(withBuild({ origin: [0, Number.NaN], rows: [1], partCounts: [] }))
+      .toContain("root.build.origin: must be [x, y] with finite numbers.");
+    expect(withBuild({ origin: [0, 0], rows: 3, partCounts: [] }))
+      .toContain("root.build.rows: must be an array of row bitmasks.");
+    expect(withBuild({ origin: [0, 0], rows: [], partCounts: [] }))
+      .toContain("root.build.rows: needs at least one row.");
+    expect(withBuild({ origin: [0, 0], rows: [1, -1], partCounts: [] }))
+      .toContain("root.build.rows[1]: must be a non-negative integer bitmask.");
+    expect(withBuild({ origin: [0, 0], rows: [1], partCounts: 3 }))
+      .toContain("root.build.partCounts: must be an array of allowances.");
+  });
+
+  it("rejects a malformed allowance entry", () => {
+    expect(withBuild({ origin: [0, 0], rows: [1], partCounts: [3] }))
+      .toContain("root.build.partCounts[0]: must be a JSON object.");
+    expect(withBuild({ origin: [0, 0], rows: [1], partCounts: [{ partTypeId: 4 }] }))
+      .toContain("root.build.partCounts[0]: missing required property 'count'.");
+    expect(withBuild({ origin: [0, 0], rows: [1], partCounts: [{ partTypeId: 0, count: 1 }] }))
+      .toContain("root.build.partCounts[0].partTypeId: must be a positive 32-bit integer.");
+    expect(withBuild({ origin: [0, 0], rows: [1], partCounts: [{ partTypeId: 4, count: 0 }] }))
+      .toContain("root.build.partCounts[0].count: must be a positive 32-bit integer.");
+    expect(withBuild({ origin: [0, 0], rows: [1], partCounts: [{ partTypeId: 4, count: 1, extra: 1 }] }))
+      .toContain("root.build.partCounts[0]: unknown property 'extra'.");
+  });
+});
+
+describe("constructionGridShape / constructionCellExists", () => {
+  it("reads the vanilla 4x2 shape (21 levels use [15, 15, 0, 0])", () => {
+    const rows = [15, 15, 0, 0];
+    expect(constructionGridShape(rows)).toEqual({ columns: 4, height: 2, xMin: -1, xMax: 2 });
+    for (let j = 0; j < 2; j += 1) {
+      for (let i = -1; i <= 2; i += 1) {
+        expect(constructionCellExists(rows, i, j)).toBe(true);
+      }
+    }
+    expect(constructionCellExists(rows, -2, 0)).toBe(false);
+    expect(constructionCellExists(rows, 3, 0)).toBe(false);
+    expect(constructionCellExists(rows, 0, -1)).toBe(false);
+    expect(constructionCellExists(rows, 0, 2)).toBe(false);
+  });
+
+  it("reads the vanilla 5x3 shape (29 levels use [31, 31, 31, 0])", () => {
+    const rows = [31, 31, 31, 0];
+    expect(constructionGridShape(rows)).toEqual({ columns: 5, height: 3, xMin: -2, xMax: 2 });
+    let cells = 0;
+    for (let j = 0; j < 3; j += 1) {
+      for (let i = -2; i <= 2; i += 1) {
+        if (constructionCellExists(rows, i, j)) {
+          cells += 1;
+        }
+      }
+    }
+    expect(cells).toBe(15);
+  });
+
+  it("treats a cleared bit as a hole (vanilla ships no ragged level rows)", () => {
+    // Row 0 sets bits 0, 2, 3; row 1 sets bit 1 only -- the formula's hole branch.
+    const rows = [0b1101, 0b0010];
+    expect(constructionGridShape(rows)).toEqual({ columns: 4, height: 2, xMin: -1, xMax: 2 });
+    expect(constructionCellExists(rows, 0, 0)).toBe(true);
+    expect(constructionCellExists(rows, 0, 1)).toBe(false);
+    expect(constructionCellExists(rows, -1, 1)).toBe(true);
+    expect(constructionCellExists(rows, 2, 1)).toBe(true);
+    expect(constructionCellExists(rows, -1, 0)).toBe(false);
+    expect(constructionCellExists(rows, 1, 0)).toBe(false);
+  });
+
+  it("owns no cell when the grid is rows of zeros", () => {
+    expect(constructionGridShape([0, 0, 0])).toEqual({ columns: 0, height: 0, xMin: 0, xMax: 0 });
+    expect(constructionCellExists([0, 0, 0], 0, 0)).toBe(false);
   });
 });

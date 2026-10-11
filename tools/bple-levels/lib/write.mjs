@@ -138,8 +138,41 @@ function propsText(props, schemaVersion) {
   return `[\n${props.map((prop) => `    ${compact(prop)}`).join(",\n")}\n  ]`;
 }
 
+/// The `"build"` block (v9): the level's own construction limits, straight out of the level file's
+/// `LevelManager` overrides. `origin` is the `LevelStart` instance the grid hangs off (float32,
+/// exact, like every other content number); `rows` the original's own `m_constructionGridRows`
+/// verbatim -- the row bitmaps the original's cell test reads (`LevelManager.CanPlacePartAtGridCell`,
+/// `LevelManager.cs:1280-1297`); `partCounts` the level's part allowances, `partTypeId` ascending,
+/// one compact entry per line (like a prop), and never an entry with a count of zero (a zero-count
+/// PartType is not in the construction bar at all -- `ConstructionUI.CheckUnlockedParts`,
+/// `ConstructionUI.cs:545-549`). v9 may
+/// omit the block entirely: the levels the builder carves out carry no limit (`build-levels.mjs`
+/// names them).
+function buildText(build, schemaVersion) {
+  if (schemaVersion < 9) {
+    if (build !== undefined) throw new Error("level build limits are a v9 field");
+    return null;
+  }
+  if (build === undefined) return null;
+  if (!Array.isArray(build.origin) || build.origin.length !== 2) throw new Error("a v9 build origin is two numbers");
+  if (!Array.isArray(build.rows) || build.rows.some((row) => !Number.isInteger(row))) {
+    throw new Error("a v9 build rows is a list of integers");
+  }
+  if (!Array.isArray(build.partCounts)) throw new Error("a v9 build block needs partCounts (an array, possibly empty)");
+  for (const entry of build.partCounts) {
+    if (!Number.isInteger(entry.partTypeId) || !Number.isInteger(entry.count) || entry.count <= 0) {
+      throw new Error(`a v9 build partCount needs a partTypeId and a positive count, got ${JSON.stringify(entry)}`);
+    }
+  }
+  const counts = build.partCounts.length === 0
+    ? "[]"
+    : `[\n${build.partCounts.map((entry) => `      ${compact(entry)}`).join(",\n")}\n    ]`;
+  return `{\n    "origin": ${compact(build.origin)},\n    "rows": ${compact(build.rows)},\n    "partCounts": ${counts}\n  }`;
+}
+
 /// A PigForge level-content document, in the schema's own key order: `format`, `schemaVersion`,
-/// `contentVersion`, `goalZone`, `bounds`, `cameraLimits` (v5), `spawns`, `props` (v6), `terrain`.
+/// `contentVersion`, `goalZone`, `bounds`, `build` (v9), `cameraLimits` (v5), `spawns`, `props`
+/// (v6), `terrain`.
 export function formatLevelDocument(document) {
   if (document.schemaVersion >= 5 && document.cameraLimits === undefined) {
     throw new Error("a v5 document needs the level's own cameraLimits");
@@ -148,6 +181,7 @@ export function formatLevelDocument(document) {
     throw new Error("cameraLimits is a v5 field");
   }
   const props = propsText(document.props, document.schemaVersion);
+  const build = buildText(document.build, document.schemaVersion);
   return `${[
     "{",
     `  "format": ${JSON.stringify(document.format)},`,
@@ -155,6 +189,7 @@ export function formatLevelDocument(document) {
     `  "contentVersion": ${JSON.stringify(document.contentVersion)},`,
     `  "goalZone": ${pretty(document.goalZone, 2)},`,
     `  "bounds": ${pretty(document.bounds, 2)},`,
+    ...(build === null ? [] : [`  "build": ${build},`]),
     ...(document.cameraLimits === undefined ? [] : [`  "cameraLimits": ${compact(document.cameraLimits)},`]),
     `  "spawns": ${pretty(document.spawns, 2)},`,
     ...(props === null ? [] : [`  "props": ${props},`]),

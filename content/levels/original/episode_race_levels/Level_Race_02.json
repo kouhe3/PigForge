@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "contentVersion": "Level_Race_02",
   "goalZone": {
     "min": [
@@ -24,6 +24,36 @@
       130.5631,
       104.31428,
       35
+    ]
+  },
+  "build": {
+    "origin": [-70.568085,-5.976789],
+    "rows": [31,31,31,31],
+    "partCounts": [
+      {"partTypeId":1,"count":6},
+      {"partTypeId":4,"count":1},
+      {"partTypeId":7,"count":2},
+      {"partTypeId":8,"count":2},
+      {"partTypeId":10,"count":3},
+      {"partTypeId":11,"count":2},
+      {"partTypeId":12,"count":2},
+      {"partTypeId":13,"count":2},
+      {"partTypeId":14,"count":2},
+      {"partTypeId":15,"count":2},
+      {"partTypeId":18,"count":6},
+      {"partTypeId":19,"count":3},
+      {"partTypeId":20,"count":3},
+      {"partTypeId":21,"count":2},
+      {"partTypeId":22,"count":2},
+      {"partTypeId":23,"count":2},
+      {"partTypeId":25,"count":2},
+      {"partTypeId":35,"count":2},
+      {"partTypeId":36,"count":2},
+      {"partTypeId":37,"count":2},
+      {"partTypeId":38,"count":2},
+      {"partTypeId":40,"count":2},
+      {"partTypeId":270,"count":2},
+      {"partTypeId":271,"count":2}
     ]
   },
   "cameraLimits": {"topLeft":[-99.38,63.9],"size":[202.6,78.98]},

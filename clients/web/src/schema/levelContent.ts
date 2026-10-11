@@ -142,7 +142,7 @@ export interface LevelPropBox {
 
 export interface LevelContentDocument {
   format: "pigforge.level-content";
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   contentVersion: string;
   goalZone: LevelZone;
   bounds: LevelZone;
@@ -158,6 +158,30 @@ export interface LevelContentDocument {
   terrain?: LevelTerrain[];
   /** v6 only; an older document places no decorations. */
   props?: LevelProp[];
+  /**
+   * v9 only: the level's own construction limits -- the build grid its `m_constructionGridRows`
+   * describes and the per-part allowance its `m_partTypeCounts` grants. A v1-v8 document (and the
+   * hand-written `slope-v1` / `terrain-v1` fixtures) carries none, so the build plane is unlimited
+   * exactly as it was before (`docs/specs/level-build-limits.md`).
+   */
+  build?: LevelBuildLimits;
+}
+
+/** One entry of a v9 level's `partCounts`: how many of a base part family the player may place. */
+export interface LevelBuildLimit {
+  partTypeId: number;
+  count: number;
+}
+
+/**
+ * A v9 level's own build limits: `origin` is the `LevelStart` instance's (x, y), `rows` its own
+ * `m_constructionGridRows` verbatim (index 0 is the original's row 0) and `partCounts` the
+ * per-family allowance the level patches over the prefab's default table.
+ */
+export interface LevelBuildLimits {
+  origin: [number, number];
+  rows: number[];
+  partCounts: LevelBuildLimit[];
 }
 
 /** A v5 level's own camera rectangle, in the original's own `topLeft` + `size` form. */
@@ -190,12 +214,56 @@ export function cameraLimitsRect(limits: LevelCameraLimits): WorldRect {
   return { minX: left, minY: top - height, maxX: left + width, maxY: top };
 }
 
+/**
+ * A level's construction grid in its own cell indices, from `m_constructionGridRows` (vanilla
+ * `LevelManager.CanPlacePartAtGridCell`, rows[0] the top row). `columns` is the widest row's bit
+ * count, `height` the last non-zero row's index plus one, and the x range straddles zero with C#'s
+ * truncating integer division. The client mirrors the server exactly (`LevelBuildLimits`).
+ */
+export interface ConstructionGridShape {
+  columns: number;
+  height: number;
+  xMin: number;
+  xMax: number;
+}
+
+export function constructionGridShape(rows: readonly number[]): ConstructionGridShape {
+  let columns = 0;
+  let height = 0;
+  rows.forEach((row, index) => {
+    if (row !== 0) {
+      height = index + 1;
+    }
+    // Width of the row's bitmask: 0 for an empty row, else the highest set bit index + 1.
+    const used = row > 0 ? 32 - Math.clz32(row) : 0;
+    if (used > columns) {
+      columns = used;
+    }
+  });
+  // `xMin = -(columns - 1) / 2` with C#'s truncating integer division (unary minus binds first).
+  return { columns, height, xMin: Math.trunc(-(columns - 1) / 2), xMax: columns >> 1 };
+}
+
+/**
+ * Whether the level's grid owns cell `(i, j)`: inside the shape and the row's bit set at that
+ * column (column 0 is `xMin`). Cells outside every row (a carved-out hole) are not placeable.
+ */
+export function constructionCellExists(rows: readonly number[], i: number, j: number): boolean {
+  const shape = constructionGridShape(rows);
+  if (j < 0 || j >= shape.height || i < shape.xMin || i > shape.xMax) {
+    return false;
+  }
+  return (rows[shape.height - 1 - j] & (1 << (i - shape.xMin))) !== 0;
+}
+
 const ROOT_REQUIRED_KEYS = ["format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns"];
 // v1 has no `terrain`, but the server parser accepts the v2 addition on either version, and the
 // client only ever decodes what the server already parsed.
-const ROOT_KEYS = [...ROOT_REQUIRED_KEYS, "terrain", "cameraLimits", "props"];
+const ROOT_KEYS = [...ROOT_REQUIRED_KEYS, "terrain", "cameraLimits", "props", "build"];
 const ZONE_KEYS = ["min", "max"];
 const CAMERA_LIMITS_KEYS = ["topLeft", "size"];
+const BUILD_KEYS = ["origin", "rows", "partCounts"];
+const BUILD_COUNT_KEYS = ["partTypeId", "count"];
 const SPAWN_REQUIRED_KEYS = ["partTypeId", "position"];
 const SPAWN_KEYS = [...SPAWN_REQUIRED_KEYS, "angle", "role", "tntFuseTicks", "motorImpulsePerTick", "motorDirectionX", "wheel"];
 const TERRAIN_REQUIRED_KEYS = ["position", "depth", "loops"];
@@ -228,16 +296,19 @@ export function validateLevelContent(value: unknown): string[] {
   }
   if (document.schemaVersion !== 1 && document.schemaVersion !== 2
     && document.schemaVersion !== 3 && document.schemaVersion !== 4 && document.schemaVersion !== 5
-    && document.schemaVersion !== 6 && document.schemaVersion !== 7 && document.schemaVersion !== 8) {
-    errors.push("root.schemaVersion: versions 1 to 8 are supported.");
+    && document.schemaVersion !== 6 && document.schemaVersion !== 7 && document.schemaVersion !== 8
+    && document.schemaVersion !== 9) {
+    errors.push("root.schemaVersion: versions 1 to 9 are supported.");
   }
+  // A malformed version is already an error above, so an unknown one reads as the oldest.
+  const version = typeof document.schemaVersion === "number" ? document.schemaVersion : 0;
   if (!isContentVersion(document.contentVersion)) {
     errors.push("root.contentVersion: must contain 1 to 128 non-whitespace-padded characters.");
   }
   validateZone(document.goalZone, "root.goalZone", errors);
   validateZone(document.bounds, "root.bounds", errors);
   // v5 carries the level's own camera rectangle and every v5+ document must; older versions must not.
-  if (document.schemaVersion === 5 || document.schemaVersion === 6 || document.schemaVersion === 7 || document.schemaVersion === 8) {
+  if (version >= 5) {
     if (document.cameraLimits === undefined) {
       errors.push(`root.cameraLimits: required on a schemaVersion ${document.schemaVersion} document.`);
     } else {
@@ -256,8 +327,7 @@ export function validateLevelContent(value: unknown): string[] {
       errors.push("root.terrain: must be an array.");
     } else {
       // The terrain shape is version-gated: v3 gives it the collider bit and the fill, v4 the edge
-      // trim. A malformed version is already an error above, so an unknown one reads as the oldest.
-      const version = typeof document.schemaVersion === "number" ? document.schemaVersion : 0;
+      // trim.
       const modern = version >= 3;
       const curved = version >= 4;
       document.terrain.forEach((terrain, index) => {
@@ -267,18 +337,28 @@ export function validateLevelContent(value: unknown): string[] {
   }
   // v6 carries the level's props and every v6+ document must; older versions must not. v7 also lets a
   // prop carry its own solid boxes.
-  if (document.schemaVersion === 6 || document.schemaVersion === 7 || document.schemaVersion === 8) {
+  if (version >= 6) {
     if (document.props === undefined) {
       errors.push(`root.props: required on a schemaVersion ${document.schemaVersion} document.`);
     } else if (!Array.isArray(document.props)) {
       errors.push("root.props: must be an array.");
     } else {
-      const withBoxes = document.schemaVersion >= 7;
-      const withTriggers = document.schemaVersion >= 8;
+      const withBoxes = version >= 7;
+      const withTriggers = version >= 8;
       document.props.forEach((prop, index) => validateProp(prop, `root.props[${index}]`, withBoxes, withTriggers, errors));
     }
   } else if (document.props !== undefined) {
     errors.push("root.props: only a schemaVersion 6 or newer document places the level's props.");
+  }
+  // v9 may carry the level's own construction limits; older versions must not. A missing v9 `build`
+  // (the server's nullable `LevelBuildLimits`) leaves the build plane unlimited rather than
+  // rejecting the whole document, so terrain and props still load (`docs/specs/level-build-limits.md`).
+  if (document.build !== undefined) {
+    if (version >= 9) {
+      validateBuild(document.build, "root.build", errors);
+    } else {
+      errors.push("root.build: only a schemaVersion 9 document carries the level's construction limits.");
+    }
   }
   return errors;
 }
@@ -347,6 +427,55 @@ function validateCameraLimits(value: unknown, path: string, errors: string[]): v
   } else if (limits.size[0] <= 0 || limits.size[1] <= 0) {
     errors.push(`${path}.size: must be positive on both axes.`);
   }
+}
+
+/**
+ * A v9 `build` block: the `LevelStart` anchor pair, the construction grid rows verbatim and the
+ * per-family allowance. Rows are the original's `int[]` bitmasks; a count of zero is the level's own
+ * "this family never appears", so it is legal but the client filters it out of the palette (D5).
+ */
+function validateBuild(value: unknown, path: string, errors: string[]): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`${path}: must be a JSON object.`);
+    return;
+  }
+
+  const build = value as Record<string, unknown>;
+  validateKeys(build, BUILD_KEYS, BUILD_KEYS, path, errors);
+  if (!isPoint2(build.origin)) {
+    errors.push(`${path}.origin: must be [x, y] with finite numbers.`);
+  }
+  if (!Array.isArray(build.rows)) {
+    errors.push(`${path}.rows: must be an array of row bitmasks.`);
+  } else {
+    if (build.rows.length === 0) {
+      errors.push(`${path}.rows: needs at least one row.`);
+    }
+    build.rows.forEach((row, index) => {
+      if (!Number.isInteger(row) || (row as number) < 0) {
+        errors.push(`${path}.rows[${index}]: must be a non-negative integer bitmask.`);
+      }
+    });
+  }
+  if (!Array.isArray(build.partCounts)) {
+    errors.push(`${path}.partCounts: must be an array of allowances.`);
+    return;
+  }
+  build.partCounts.forEach((entry, index) => {
+    const entryPath = `${path}.partCounts[${index}]`;
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      errors.push(`${entryPath}: must be a JSON object.`);
+      return;
+    }
+    const limit = entry as Record<string, unknown>;
+    validateKeys(limit, BUILD_COUNT_KEYS, BUILD_COUNT_KEYS, entryPath, errors);
+    if (!Number.isInteger(limit.partTypeId) || (limit.partTypeId as number) < 1) {
+      errors.push(`${entryPath}.partTypeId: must be a positive 32-bit integer.`);
+    }
+    if (!Number.isInteger(limit.count) || (limit.count as number) < 1) {
+      errors.push(`${entryPath}.count: must be a positive 32-bit integer.`);
+    }
+  });
 }
 
 /** One decoration instance: the sprite-manifest key plus the six numbers of its transform. */

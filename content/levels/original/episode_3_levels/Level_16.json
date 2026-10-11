@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "contentVersion": "Level_16",
   "goalZone": {
     "min": [
@@ -24,6 +24,16 @@
       60.46617,
       29.235146,
       34
+    ]
+  },
+  "build": {
+    "origin": [9.093746,-6.0202875],
+    "rows": [3,3,0,0],
+    "partCounts": [
+      {"partTypeId":1,"count":1},
+      {"partTypeId":4,"count":1},
+      {"partTypeId":19,"count":1},
+      {"partTypeId":40,"count":1}
     ]
   },
   "cameraLimits": {"topLeft":[0.32,12.4],"size":[36.64,24.3]},

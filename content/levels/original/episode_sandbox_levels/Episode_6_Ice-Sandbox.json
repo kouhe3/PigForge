@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "contentVersion": "Episode_6_Ice-Sandbox",
   "goalZone": {
     "min": [
@@ -24,6 +24,18 @@
       2.8124237,
       171.96358,
       36
+    ]
+  },
+  "build": {
+    "origin": [-96.021,55.205],
+    "rows": [255,255,255,255,0,0,0,0],
+    "partCounts": [
+      {"partTypeId":4,"count":1},
+      {"partTypeId":18,"count":3},
+      {"partTypeId":38,"count":1},
+      {"partTypeId":43,"count":4},
+      {"partTypeId":46,"count":1},
+      {"partTypeId":271,"count":2}
     ]
   },
   "cameraLimits": {"topLeft":[-230,135],"size":[201,150]},

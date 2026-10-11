@@ -54,7 +54,9 @@ public sealed class OriginalLevelTests
     public void ALevelRoomKeepsPlayingPastTheInventedTickLimit()
     {
         using GameRoom room = PlayHost.CreateLevelRoom("original/episode_1_levels/Level_05.json");
-        Assert.Equal(CommandStatus.Accepted, room.Submit(new PlacePartCommand(0, SequencePlace, 1, PartPlayer, 43.2f, -6.8f, 0f, 1f)).Status);
+        // Level_05's own build grid (v9 `build`) accepts an anchor cell only inside x 1..4, y 5..6,
+        // so the block goes down at cell (2, 5) rather than anywhere on the plane.
+        Assert.Equal(CommandStatus.Accepted, room.Submit(new PlacePartCommand(0, SequencePlace, 1, PartPlayer, 2.5f, 5.5f, 0f, 1f)).Status);
         Assert.Equal(CommandStatus.Accepted, room.Submit(new StartSimulationCommand(0, SequenceStart, 1)).Status);
 
         List<string> transitions = new();
@@ -330,7 +332,10 @@ public sealed class OriginalLevelTests
     /// its height and speed after <see cref="Ticks"/> ticks of the real Bepu world.</summary>
     private static FallResult Fall(LevelContentDocument level, PhysicsVector3 drop)
     {
-        using GameRoom room = CreateRoom(level);
+        // The drop point is the middle of the level's own high ground, which is not a cell of that
+        // level's own build grid: this test is about terrain collision, so the room is built from the
+        // document with its construction limits cleared (`ConstructionLimitsRoomTests` covers those).
+        using GameRoom room = CreateRoom(level with { Build = null });
         // The room builds a body per *colliding* terrain: a v3 decoration terrain draws but has no
         // MeshCollider in the original either (`hasCollider`).
         Assert.Equal(level.Terrain.Count(terrain => terrain.Collider), room.TerrainBodyCount);

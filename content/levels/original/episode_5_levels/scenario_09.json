@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "contentVersion": "scenario_09",
   "goalZone": {
     "min": [
@@ -24,6 +24,17 @@
       16.928722,
       65.53451,
       35
+    ]
+  },
+  "build": {
+    "origin": [-72.14274,-5.904352],
+    "rows": [7,7,7,0],
+    "partCounts": [
+      {"partTypeId":1,"count":2},
+      {"partTypeId":4,"count":1},
+      {"partTypeId":9,"count":1},
+      {"partTypeId":11,"count":1},
+      {"partTypeId":19,"count":2}
     ]
   },
   "cameraLimits": {"topLeft":[-85.59,32.4],"size":[93.3,45.6]},

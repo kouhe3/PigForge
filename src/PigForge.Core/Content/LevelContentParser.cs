@@ -24,10 +24,16 @@ public static class LevelContentParser
     private static readonly string[] RequiredRootProperties = { "format", "schemaVersion", "contentVersion", "goalZone", "bounds", "spawns" };
 
     /// <summary>Version-gated additions; an older document simply omits them.</summary>
-    private static readonly string[] OptionalRootProperties = { "terrain", "cameraLimits", "props" };
+    private static readonly string[] OptionalRootProperties = { "terrain", "cameraLimits", "props", "build" };
 
     /// <summary>The two halves of a v5 `cameraLimits` block, and nothing else.</summary>
     private static readonly string[] CameraLimitProperties = { "topLeft", "size" };
+
+    /// <summary>The three parts of a v9 `build` block, and nothing else.</summary>
+    private static readonly string[] BuildProperties = { "origin", "rows", "partCounts" };
+
+    /// <summary>The two properties one `build.partCounts` entry carries.</summary>
+    private static readonly string[] PartCountProperties = { "partTypeId", "count" };
 
     public static LevelContentDocument Parse(string json)
     {
@@ -198,6 +204,22 @@ public static class LevelContentParser
             errors.Add("root.props: a schemaVersion 6 document must carry the level's props (an empty array is fine).");
         }
 
+        // v9: the level's own construction limits -- its `m_constructionGridRows` grid and its
+        // `m_partTypeCounts` quota. Optional: the two sandbox levels whose own grid has no placeable
+        // cell carry none, and so does every v1-v8 document, which must not carry one.
+        LevelBuildLimits? build = null;
+        if (seen.Contains("build") && root.TryGetProperty("build", out JsonElement buildElement))
+        {
+            if (schemaVersion >= 9)
+            {
+                build = ReadBuildLimits(buildElement, "root.build", errors);
+            }
+            else
+            {
+                errors.Add("root.build: only a schemaVersion 9 or newer document carries the level's construction limits.");
+            }
+        }
+
         if (errors.Count > 0)
         {
             throw new LevelContentException(errors);
@@ -208,6 +230,7 @@ public static class LevelContentParser
             Terrain = terrain,
             CameraLimits = cameraLimits,
             Props = props,
+            Build = build,
         };
     }
 
@@ -1081,6 +1104,166 @@ public static class LevelContentParser
             motorDirection,
             wheel,
             angle));
+    }
+
+    /// <summary>
+    /// The level's own construction limits (`root.build`, v9): its `m_constructionGridRows` grid and
+    /// its `m_partTypeCounts` quota, anchored at the level's `LevelStart` instance
+    /// (`LevelManager.CanPlacePartAtGridCell`, `LevelManager.cs:1280-1297`; `BaseGameMode.GetPartCount`,
+    /// `BaseGameMode.cs:558-578`). Exactly `origin`, `rows` and `partCounts`.
+    /// </summary>
+    private static LevelBuildLimits? ReadBuildLimits(JsonElement element, string path, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be a JSON object.");
+            return null;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+            else if (!BuildProperties.Contains(property.Name, StringComparer.Ordinal))
+            {
+                errors.Add($"{path}: unknown property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, BuildProperties, path, errors);
+
+        PhysicsVector3? origin = ReadPoint2(element, path, "origin", seen, errors);
+        IReadOnlyList<int>? rows = ReadGridRows(element, path, seen, errors);
+        List<LevelPartAllowance> partCounts = new();
+        if (seen.Contains("partCounts") && element.TryGetProperty("partCounts", out JsonElement partCountsElement))
+        {
+            ParsePartCounts(partCountsElement, $"{path}.partCounts", partCounts, errors);
+        }
+
+        if (origin is not { } anchor || rows is null)
+        {
+            return null;
+        }
+
+        return new LevelBuildLimits(anchor.X, anchor.Y, rows, partCounts);
+    }
+
+    /// <summary>
+    /// `root.build.rows`: the level file's own `m_constructionGridRows`, at least one entry, each a
+    /// non-negative bit mask of build columns (`LevelManager.CanPlacePartAtGridCell`).
+    /// </summary>
+    private static IReadOnlyList<int>? ReadGridRows(JsonElement parent, string path, HashSet<string> seen, List<string> errors)
+    {
+        const string field = "rows";
+        if (!seen.Contains(field) || !parent.TryGetProperty(field, out JsonElement value))
+        {
+            return null;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add($"{path}.{field}: must be a non-empty array of non-negative integers.");
+            return null;
+        }
+
+        List<int> rows = new();
+        int index = 0;
+        foreach (JsonElement rowElement in value.EnumerateArray())
+        {
+            if (rowElement.ValueKind != JsonValueKind.Number || !rowElement.TryGetInt32(out int row) || row < 0)
+            {
+                errors.Add($"{path}.{field}[{index}]: must be a non-negative integer.");
+            }
+            else
+            {
+                rows.Add(row);
+            }
+
+            index++;
+        }
+
+        if (rows.Count == 0)
+        {
+            errors.Add($"{path}.{field}: must be a non-empty array of non-negative integers.");
+            return null;
+        }
+
+        return rows;
+    }
+
+    /// <summary>`root.build.partCounts`: one quota per base part type the level allows at least one of.</summary>
+    private static void ParsePartCounts(JsonElement element, string path, List<LevelPartAllowance> partCounts, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add($"{path}: must be an array.");
+            return;
+        }
+
+        int index = 0;
+        foreach (JsonElement allowanceElement in element.EnumerateArray())
+        {
+            ParsePartCount(allowanceElement, $"{path}[{index}]", partCounts, errors);
+            index++;
+        }
+    }
+
+    /// <summary>
+    /// One quota entry: exactly `partTypeId` and `count`, both a positive integer -- a zero count is
+    /// never written (a type the level allows none of never enters the build bar) and a part type id is
+    /// a positive base family id.
+    /// </summary>
+    private static void ParsePartCount(JsonElement element, string path, List<LevelPartAllowance> partCounts, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be an object.");
+            return;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, PartCountProperties, path, errors);
+        foreach (string property in seen)
+        {
+            if (!PartCountProperties.Contains(property, StringComparer.Ordinal))
+            {
+                errors.Add($"{path}: unknown property '{property}'.");
+            }
+        }
+
+        uint partTypeId = 0;
+        if (seen.Contains("partTypeId") && element.TryGetProperty("partTypeId", out JsonElement idElement)
+            && (idElement.ValueKind != JsonValueKind.Number || !idElement.TryGetUInt32(out partTypeId) || partTypeId == 0))
+        {
+            errors.Add($"{path}.partTypeId: must be a positive integer.");
+            partTypeId = 0;
+        }
+
+        uint count = 0;
+        if (seen.Contains("count") && element.TryGetProperty("count", out JsonElement countElement)
+            && (countElement.ValueKind != JsonValueKind.Number || !countElement.TryGetUInt32(out count) || count == 0))
+        {
+            errors.Add($"{path}.count: must be a positive integer.");
+            count = 0;
+        }
+
+        if (partTypeId == 0 || count == 0)
+        {
+            return;
+        }
+
+        partCounts.Add(new LevelPartAllowance(partTypeId, count));
     }
 
     /// <summary>

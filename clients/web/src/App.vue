@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
-import { variantLabel, variantsOf } from "./builder/palette";
+import { allowedPalette, partFamily, remainingCounts, variantLabel, variantsOf, type PaletteEntry } from "./builder/palette";
 import { GOAL_ZONE, MAP_BOUNDS, PALETTE, PLAY_PARTS } from "./builder/slope";
 import { MOVE_SNAP, TOOLS, type ToolId, placePose, toolByHotkey } from "./editor/tools";
 import { attachCanvasGestures } from "./gesture/canvasGestures";
@@ -19,7 +19,7 @@ import { drawFrame } from "./renderer/draw";
 import { fitBounds } from "./renderer/camera";
 import { groundTextureNames, loadGroundTextures, type GroundTextureSet } from "./renderer/terrain";
 import { curveTextureNames } from "./renderer/terrainCurve";
-import { cameraLimitsRect, zoneRect } from "./schema/levelContent";
+import { cameraLimitsRect, constructionCellExists, zoneRect } from "./schema/levelContent";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
 import { viewState } from "./viewState";
@@ -113,6 +113,46 @@ const selectedBaseId = computed(() => {
 /** Part lookup for the move-drag contact snap; rebuilt when content arrives. */
 const partById = computed(() => new Map((session.content?.parts ?? []).map((part) => [part.partTypeId, part])));
 
+/** A local placement notice (an out-of-grid click); the server stays the authority on the build. */
+const buildNotice = ref("");
+
+/** The level's own construction limits (v9), or null when the document imposes none (v1-v8). */
+const buildLimits = computed(() => session.level?.build ?? null);
+
+/** The palette rows to show: every row with no level limits, else only the level's allowed families. */
+const paletteParts = computed<readonly PaletteEntry[]>(() => {
+  const limits = buildLimits.value;
+  return limits === null ? PALETTE : allowedPalette(limits);
+});
+
+/**
+ * Parts already in the room, per base family (variants spend their family). A level room is ONE
+ * shared contraption: `GameRoom.ExecuteCommand` places every player's part under owner 0, so the
+ * server's allowance is a room-wide count and the palette must count every placed entity, not just
+ * this client's own (a level room's parts come from `content/parts.json` spawns too, which the
+ * server does not count -- `docs/specs/level-build-limits.md` records that as a deviation).
+ */
+const placedByFamily = computed<Map<number, number>>(() => {
+  void liveFrame.value;
+  const counts = new Map<number, number>();
+  for (const entity of viewState.entities) {
+    const family = partFamily(session.content, entity.partTypeId);
+    counts.set(family, (counts.get(family) ?? 0) + 1);
+  }
+  return counts;
+});
+
+/** Remaining allowance per family, or null when the level imposes none (unlimited). */
+const remainingByFamily = computed<Map<number, number> | null>(() => {
+  const limits = buildLimits.value;
+  return limits === null ? null : remainingCounts(limits, placedByFamily.value);
+});
+
+/** Remaining allowance for a palette row's family, or null when the level imposes none. */
+function remainingFor(family: number): number | null {
+  return remainingByFamily.value?.get(family) ?? null;
+}
+
 /**
  * The collected challenge markers off a frame's tail. A set is only rebuilt when the list actually
  * changes, so an idle frame allocates nothing (`docs/specs/level-challenges.md` §5).
@@ -142,6 +182,7 @@ function dispatch(build: (sequence: number) => ClientCommand, kind: CommandKind,
 /** Picking a part starts placement, like a Besiege block pick. */
 function selectPalettePart(partTypeId: number): void {
   selectedPart.value = partTypeId;
+  buildNotice.value = "";
   // A different part may not declare the mirror at all, and the server refuses a mirrored part
   // that has no `capabilities.mirror` (ADR-030): arming a part resets the pending handedness.
   placeMirrored.value = false;
@@ -159,12 +200,32 @@ function resetSimulation(): void {
 /**
  * PGFC kind 0. A click carries no drag to align with, so placement snaps on the client: both
  * axes to the 0.5 grid, then flush against a neighbouring part the click points at (flush
- * contact is what makes the server connect two parts). The server still validates the command
- * and owns identity, geometry and the phase.
+ * contact is what makes the server connect two parts). When the level has a construction grid
+ * (v9), a click outside it is refused locally with a notice instead of a doomed command; the
+ * server still validates the command and owns identity, geometry and the phase.
  */
 function placePart(x: number, y: number): void {
   const pose = { x, y, yaw: placeAngle.value, scale: placeScale.value };
   const snapped = placePose(pose);
+  const limits = buildLimits.value;
+  if (limits !== null) {
+    // The original anchors at the LevelStart instance's fractional position; the client floors it
+    // onto the integer build grid (deviation D1), so cell (i, j) is at (anchor + i, anchor + j).
+    const anchorX = Math.floor(limits.origin[0]);
+    const anchorY = Math.floor(limits.origin[1]);
+    if (!constructionCellExists(limits.rows, snapped.x - anchorX, snapped.y - anchorY)) {
+      buildNotice.value = "该位置不在建造网格内，无法放置。";
+      return;
+    }
+    // The allowance is a room-wide count and the server owns it; a spent family is refused here so
+    // a click on a used-up part does not spend a command on a rejection (`remainingFor` reads the
+    // same room entities the server counts).
+    if ((remainingFor(partFamily(session.content, selectedPart.value)) ?? 1) <= 0) {
+      buildNotice.value = "该零件数量已达关卡上限。";
+      return;
+    }
+  }
+  buildNotice.value = "";
   dispatch(
     (sequence) => ({
       kind: 0,
@@ -315,6 +376,7 @@ function paint(now: number): void {
     level?.props !== undefined && levelProps.value !== null
       ? { props: level.props, set: levelProps.value, parallaxFrom: parallaxFrom.value, collected: collectedProps.value }
       : null,
+    level?.build ?? null,
   );
   raf = requestAnimationFrame(paint);
 }
@@ -746,17 +808,20 @@ onUnmounted(() => {
       <template v-if="activeTab === 'live'">
         <h1>零件</h1>
         <p class="meta">工具 1–5：放置/选择/移动/旋转/缩放。拖动选中零件变换（移动默认自由，靠近零件自动贴合；Alt 吸附 0.5 网格），方向键微调移动。选择工具左键拖拽空白框选（Shift 加选），中键拖拽平移。Q/E 放置角，Alt+滚轮放置缩放，R 旋转，Delete 删除。不提交位姿。</p>
+        <p v-if="buildNotice" class="meta notice" role="status">{{ buildNotice }}</p>
         <div class="palette">
-          <template v-for="part in PALETTE" :key="part.partTypeId">
+          <template v-for="part in paletteParts" :key="part.partTypeId">
             <button
               type="button"
               :class="{ selected: selectedPart === part.partTypeId }"
               :title="part.label"
               :aria-label="part.label"
+              :disabled="remainingFor(part.partTypeId) === 0"
               @click="selectPalettePart(part.partTypeId)"
             >
               <img v-if="partThumb(part.partTypeId)" class="part-icon" :src="partThumb(part.partTypeId) ?? ''" alt="" />
               <span v-else>{{ part.label }}</span>
+              <span v-if="remainingFor(part.partTypeId) !== null" class="allowance">{{ remainingFor(part.partTypeId) }}</span>
             </button>
             <div v-if="selectedBaseId === part.partTypeId && variantsOf(session.content, part.partTypeId).length" class="variants">
               <button
@@ -766,10 +831,12 @@ onUnmounted(() => {
                 :class="{ selected: selectedPart === variant.partTypeId }"
                 :title="variantLabel(part.label, index + 1, variant)"
                 :aria-label="variantLabel(part.label, index + 1, variant)"
+                :disabled="remainingFor(part.partTypeId) === 0"
                 @click="selectPalettePart(variant.partTypeId)"
               >
                 <img v-if="partThumb(variant.partTypeId)" class="part-icon" :src="partThumb(variant.partTypeId) ?? ''" alt="" />
                 <span v-else>{{ variantLabel(part.label, index + 1, variant) }}</span>
+                <span v-if="remainingFor(part.partTypeId) !== null" class="allowance">{{ remainingFor(part.partTypeId) }}</span>
               </button>
             </div>
           </template>

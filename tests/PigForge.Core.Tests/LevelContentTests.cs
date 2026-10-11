@@ -124,7 +124,7 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 9,
+            "schemaVersion": 10,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
@@ -550,7 +550,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)8, LevelContentDocument.SchemaVersion);
+        Assert.Equal((ushort)9, LevelContentDocument.SchemaVersion);
         Assert.Empty(level.Terrain);
         Assert.Collection(
             level.Props,
@@ -621,7 +621,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)8, LevelContentDocument.SchemaVersion);
+        Assert.Equal((ushort)9, LevelContentDocument.SchemaVersion);
         Assert.Collection(
             level.Props,
             prop =>
@@ -722,6 +722,109 @@ public sealed class LevelContentTests
         }
 
         Assert.Equal(948, triggerProps);
+    }
+
+    /// <summary>
+    /// v9 carries the level's own construction limits: the build grid `LevelManager.CanPlacePartAtGridCell`
+    /// walks (`LevelManager.cs:1280-1297`), anchored at the level's `LevelStart` instance, and the
+    /// per-part-type quota `BaseGameMode.GetPartCount` answers (`BaseGameMode.cs:558-578`). A v9 document
+    /// may carry none -- the sandbox levels whose own grid has no placeable cell do -- and a v1-v8
+    /// document must not carry one.
+    /// </summary>
+    [Fact]
+    public void AVersionNineLevelCarriesItsConstructionLimits()
+    {
+        const string json = """
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 9,
+            "contentVersion": "build-v9",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "props": [],
+            "terrain": [],
+            "build": {
+                "origin": [2.4379761, 5.4575901],
+                "rows": [15, 15, 0],
+                "partCounts": [ { "partTypeId": 1, "count": 3 }, { "partTypeId": 4, "count": 1 } ]
+            }
+        }
+        """;
+
+        LevelContentDocument level = LevelContentParser.Parse(json);
+
+        LevelBuildLimits build = Assert.IsType<LevelBuildLimits>(level.Build);
+        Assert.Equal(2.4379761f, build.OriginX);
+        Assert.Equal(5.4575901f, build.OriginY);
+        int[] expectedRows = [15, 15, 0];
+        Assert.Equal(expectedRows, build.Rows);
+        Assert.Collection(
+            build.PartCounts,
+            allowance =>
+            {
+                Assert.Equal(1u, allowance.PartTypeId);
+                Assert.Equal(3u, allowance.Count);
+            },
+            allowance =>
+            {
+                Assert.Equal(4u, allowance.PartTypeId);
+                Assert.Equal(1u, allowance.Count);
+            });
+
+        // A v9 document without one poses no construction limit: the sandbox levels' own grid has no
+        // placeable cell, so they carry no `build` at all.
+        LevelContentDocument unlimited = LevelContentParser.Parse("""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": 9,
+            "contentVersion": "sandbox-v9",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [0, 0], "size": [1, 1] },
+            "spawns": [],
+            "props": [],
+            "terrain": []
+        }
+        """);
+        Assert.Null(unlimited.Build);
+    }
+
+    [Theory]
+    // Only a v9 document may carry the block at all.
+    [InlineData("""{ "origin": [0, 0], "rows": [1], "partCounts": [] }""", 8, "build")]
+    // The origin is exactly two finite numbers, the rows are non-empty non-negative bit masks.
+    [InlineData("""{ "origin": [0], "rows": [1], "partCounts": [] }""", 9, "origin")]
+    [InlineData("""{ "origin": [0, 0], "rows": [], "partCounts": [] }""", 9, "rows")]
+    [InlineData("""{ "origin": [0, 0], "rows": [1, -1], "partCounts": [] }""", 9, "rows")]
+    // A quota is a positive base part type with a positive count, and nothing else.
+    [InlineData("""{ "origin": [0, 0], "rows": [1], "partCounts": 4 }""", 9, "partCounts")]
+    [InlineData("""{ "origin": [0, 0], "rows": [1], "partCounts": [ { "partTypeId": 4, "count": 0 } ] }""", 9, "count")]
+    [InlineData("""{ "origin": [0, 0], "rows": [1], "partCounts": [ { "partTypeId": 4, "count": -1 } ] }""", 9, "count")]
+    [InlineData("""{ "origin": [0, 0], "rows": [1], "partCounts": [ { "partTypeId": 0, "count": 1 } ] }""", 9, "partTypeId")]
+    [InlineData("""{ "origin": [0, 0], "rows": [1], "partCounts": [ { "partTypeId": 4, "count": 1, "extra": 1 } ] }""", 9, "extra")]
+    [InlineData("""{ "origin": [0, 0], "rows": [1], "partCounts": [], "extra": 1 }""", 9, "extra")]
+    [InlineData("""{ "origin": [0, 0], "origin": [1, 1], "rows": [1], "partCounts": [] }""", 9, "duplicate")]
+    public void TheBuildLimitsAreVersionBoundAndWellFormed(string build, int version, string expected)
+    {
+        string json = $$"""
+        {
+            "format": "pigforge.level-content",
+            "schemaVersion": {{version}},
+            "contentVersion": "versioned-build",
+            "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
+            "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
+            "cameraLimits": { "topLeft": [-10.46, 13.45], "size": [56.3, 24.7] },
+            "spawns": [],
+            "props": [],
+            "terrain": [],
+            "build": {{build}}
+        }
+        """;
+
+        LevelContentException exception = Assert.Throws<LevelContentException>(() => LevelContentParser.Parse(json));
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]

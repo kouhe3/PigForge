@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "contentVersion": "episode_6_level_18",
   "goalZone": {
     "min": [
@@ -24,6 +24,18 @@
       -78.39209,
       56.186886,
       35
+    ]
+  },
+  "build": {
+    "origin": [-183.98,-6.3],
+    "rows": [15,15,15,15,0,0,0,0],
+    "partCounts": [
+      {"partTypeId":1,"count":2},
+      {"partTypeId":4,"count":1},
+      {"partTypeId":7,"count":1},
+      {"partTypeId":8,"count":1},
+      {"partTypeId":17,"count":1},
+      {"partTypeId":45,"count":1}
     ]
   },
   "cameraLimits": {"topLeft":[-202.43,28.3],"size":[96.5,49.7]},

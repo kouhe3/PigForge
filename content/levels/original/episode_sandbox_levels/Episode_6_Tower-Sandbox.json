@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "contentVersion": "Episode_6_Tower-Sandbox",
   "goalZone": {
     "min": [
@@ -24,6 +24,40 @@
       -19.362637,
       159.52313,
       35
+    ]
+  },
+  "build": {
+    "origin": [-256.24,76.91],
+    "rows": [255,255,255,255,255,255,0,0],
+    "partCounts": [
+      {"partTypeId":1,"count":4},
+      {"partTypeId":4,"count":1},
+      {"partTypeId":7,"count":2},
+      {"partTypeId":8,"count":2},
+      {"partTypeId":9,"count":2},
+      {"partTypeId":10,"count":2},
+      {"partTypeId":12,"count":2},
+      {"partTypeId":13,"count":2},
+      {"partTypeId":14,"count":2},
+      {"partTypeId":16,"count":2},
+      {"partTypeId":17,"count":2},
+      {"partTypeId":18,"count":3},
+      {"partTypeId":19,"count":1},
+      {"partTypeId":20,"count":1},
+      {"partTypeId":21,"count":2},
+      {"partTypeId":28,"count":2},
+      {"partTypeId":30,"count":2},
+      {"partTypeId":31,"count":1},
+      {"partTypeId":32,"count":1},
+      {"partTypeId":33,"count":1},
+      {"partTypeId":34,"count":1},
+      {"partTypeId":37,"count":1},
+      {"partTypeId":38,"count":2},
+      {"partTypeId":41,"count":1},
+      {"partTypeId":43,"count":2},
+      {"partTypeId":46,"count":2},
+      {"partTypeId":270,"count":2},
+      {"partTypeId":271,"count":1}
     ]
   },
   "cameraLimits": {"topLeft":[-283.89,129.6],"size":[234.4,145]},

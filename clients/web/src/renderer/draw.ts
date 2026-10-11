@@ -1,5 +1,5 @@
 import type { DrawEntity, MarqueeRect, PartContentDocument, PartDefinition, PartShape } from "@/schema/types";
-import type { LevelTerrain } from "@/schema/levelContent";
+import { constructionCellExists, constructionGridShape, type LevelBuildLimits, type LevelTerrain } from "@/schema/levelContent";
 import { activationOverlayFor, poseFor, type ActivationOverlay, type AnimationState } from "./animation";
 import { layoutSprites, subEntityTexture, type PartTexture, type PartTextureSet } from "./atlas";
 import { type Camera, worldToScreen } from "./camera";
@@ -24,20 +24,32 @@ export interface DecorationLayer {
 }
 
 /**
- * The level's decoration quads split at the depths the frame itself has: `far` behind the ground,
- * `ground` on the ground's own plane (z = 0), `mid` between the ground and the game plane, `plane`
- * level with the contraption (the original's z = -5, measured on its own pre-placed parts) and `near`
- * in front of it. The original tests depth per pixel, and a prop's own quads sit on their own depths
- * (a backdrop's sky is 20 units behind the level, its beach bands 15 in front), so the split is per
+ * The level's decoration quads split at the depths the frame itself has: `backdrop` behind
+ * everything (the `ParallaxManager` scenery layers), `far` behind the ground, `ground` on the
+ * ground's own plane (z = 0), `mid` between the ground and the game plane, `plane` level with the
+ * contraption (the original's z = -5, measured on its own pre-placed parts) and `near` in front of
+ * it. The original tests depth per pixel, and a prop's own quads sit on their own depths (a
+ * backdrop's sky is 20 units behind the level, its beach bands 15 in front), so the split is per
  * quad: the painter paints one bucket at each of those breaks. Equal depths keep the level file's own
  * order and then the prefab's own quad order, because `sort` is stable -- which is all the original's
  * depth test can do for a tie either.
+ *
+ * A `ParallaxManager` layer is the exception to the depth rule. Its z is a depth *inside the
+ * backdrop pass*, not in the level's own -15..+20 range, and 79 of the 277 levels park a
+ * `ParallaxLayerFar` layer at z = -15..-13 -- nearer than the play plane, so the depth split would
+ * paint that scenery over the level (measured on `Level_05`: three `background_jungle_01_set` quads
+ * at z = -15.31/-14.28/-13.25 hid the level's own build area). The factor the manager moves the
+ * layer by says which side it belongs on (`ParallaxManager.cs:82-99`): the positive ones (Sky 0.8,
+ * Further 0.7, Far 0.6, Near 0.4) are scenery *behind* the world, deepest factor first, and only
+ * `ParallaxLayerForeground` (-0.4) belongs in front -- `docs/specs/level-props.md` §4.2 has the
+ * extracted table.
  */
 export function propDepthBuckets(
   props: readonly LevelProp[],
   set: LevelPropsSet,
   collected?: ReadonlySet<number>,
 ): {
+  backdrop: DecorationQuad[];
   far: DecorationQuad[];
   ground: DecorationQuad[];
   mid: DecorationQuad[];
@@ -57,12 +69,22 @@ export function propDepthBuckets(
   });
   const sorted = quads.sort((left, right) => right.prop.z + right.quad.dz - (left.prop.z + left.quad.dz));
   const depthOf = (entry: DecorationQuad): number => entry.prop.z + entry.quad.dz;
+  const factorOf = (entry: DecorationQuad): number => entry.quad.parallax?.x ?? 0;
+  // The parallax factor's own sign picks the side (the manager's table); the deeper factor is farther.
+  const backdrop = quads
+    .filter((entry) => factorOf(entry) > 0)
+    .sort((left, right) => factorOf(right) - factorOf(left) || depthOf(right) - depthOf(left));
+  // Everything else still splits by depth; a foreground layer (a negative factor) stays in front
+  // whatever its z says.
+  const local = sorted.filter((entry) => factorOf(entry) === 0);
+  const foreground = sorted.filter((entry) => factorOf(entry) < 0);
   return {
-    far: sorted.filter((entry) => depthOf(entry) > 0),
-    ground: sorted.filter((entry) => depthOf(entry) === 0),
-    mid: sorted.filter((entry) => depthOf(entry) < 0 && depthOf(entry) > GAME_PLANE_Z),
-    plane: sorted.filter((entry) => depthOf(entry) === GAME_PLANE_Z),
-    near: sorted.filter((entry) => depthOf(entry) < GAME_PLANE_Z),
+    backdrop,
+    far: local.filter((entry) => depthOf(entry) > 0),
+    ground: local.filter((entry) => depthOf(entry) === 0),
+    mid: local.filter((entry) => depthOf(entry) < 0 && depthOf(entry) > GAME_PLANE_Z),
+    plane: local.filter((entry) => depthOf(entry) === GAME_PLANE_Z),
+    near: [...local.filter((entry) => depthOf(entry) < GAME_PLANE_Z), ...foreground],
   };
 }
 
@@ -72,6 +94,9 @@ const DYNAMIC_FILL = "#c4a574";
 const SELECT_STROKE = "#f0d090";
 const PREVIEW_ALPHA = 0.45;
 const ACTIVE_STROKE = "#ffd166";
+/** The level's own build region (v9): a translucent cell fill with a border so a hole reads as a gap. */
+const CONSTRUCTION_FILL = "rgba(86, 156, 214, 0.12)";
+const CONSTRUCTION_STROKE = "rgba(86, 156, 214, 0.55)";
 /** The original's game plane, where its contraption and its pre-placed parts sit (z = -5, measured on
  * the level pack's own part instances -- `docs/specs/level-props.md` §4). The decorations are sorted
  * around it so the grass the original draws over the cart is drawn over it here too. */
@@ -251,6 +276,8 @@ function turningSprites(texture: PartTexture, part: PartDefinition): boolean[] {
  * level's own fill art, see `./terrain` and `./terrainCurve`) right behind it. Every terrain's
  * ground fill is painted first and the `_curve` bands after them, like the original's curve mesh
  * sitting in front of the fills.
+ * `buildGrid` (a v9 level's own construction limits) paints over the ground and under the parts;
+ * a document without one draws no build region.
  */
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -266,6 +293,7 @@ export function drawFrame(
   terrains?: readonly LevelTerrain[] | null,
   groundTextures?: GroundTextureSet | null,
   decorations?: DecorationLayer | null,
+  buildGrid?: LevelBuildLimits | null,
 ): void {
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
@@ -280,7 +308,10 @@ export function drawFrame(
   ctx.fillStyle = "#1c211c";
   ctx.fillRect(0, 0, width, height);
   drawGrid(ctx, camera, width, height);
-  // Behind the ground: the level's own backdrop layers (clouds, sky fills).
+  // Behind everything: the level's parallax scenery, in the manager's own factor order (a
+  // `ParallaxManager` layer's z is a depth inside the backdrop pass, not the level's own).
+  paintProps(props?.backdrop);
+  // Behind the ground: the level's own backdrop props (clouds, sky fills).
   paintProps(props?.far);
   if (terrains && terrains.length > 0) {
     drawTerrain(ctx, camera, terrains, groundTextures ?? null, width, height);
@@ -290,6 +321,10 @@ export function drawFrame(
   paintProps(props?.ground);
   if (terrains && terrains.length > 0) {
     drawTerrainCurves(ctx, camera, terrains, groundTextures ?? null, width, height);
+  }
+  // The level's own construction region (v9): over the ground, under its props and the parts.
+  if (buildGrid) {
+    drawConstructionGrid(ctx, camera, buildGrid, width, height);
   }
   if (goal) {
     const a = worldToScreen(camera, goal.minX, goal.maxY, width, height);
@@ -600,4 +635,36 @@ function drawGrid(ctx: CanvasRenderingContext2D, camera: Camera, width: number, 
     ctx.lineTo(width, y);
   }
   ctx.stroke();
+}
+
+/**
+ * The level's own build region (v9): one cell per `rows` bit the grid owns, anchored on the
+ * `LevelStart` instance floored onto the integer build grid (deviation D1). A cell the bitmask
+ * does not set is left unpainted, so a carved-out hole shows as a gap in the block.
+ */
+function drawConstructionGrid(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  limits: LevelBuildLimits,
+  width: number,
+  height: number,
+): void {
+  const { rows } = limits;
+  const shape = constructionGridShape(rows);
+  const anchorX = Math.floor(limits.origin[0]);
+  const anchorY = Math.floor(limits.origin[1]);
+  ctx.fillStyle = CONSTRUCTION_FILL;
+  ctx.strokeStyle = CONSTRUCTION_STROKE;
+  ctx.lineWidth = 1;
+  for (let j = 0; j < shape.height; j += 1) {
+    for (let i = shape.xMin; i <= shape.xMax; i += 1) {
+      if (!constructionCellExists(rows, i, j)) {
+        continue;
+      }
+      const topLeft = worldToScreen(camera, anchorX + i - 0.5, anchorY + j + 0.5, width, height);
+      const bottomRight = worldToScreen(camera, anchorX + i + 0.5, anchorY + j - 0.5, width, height);
+      ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+      ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+    }
+  }
 }

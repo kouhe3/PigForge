@@ -56,7 +56,7 @@ describe("decodeSnapshotFrame", () => {
     expect(decoded.collected).toEqual([4, 91]);
     // A frame with nothing collected still carries the section's count.
     const empty = decodeSnapshotFrame(writeFrame());
-    expect(empty === "string" ? empty : empty.collected).toEqual([]);
+    expect(typeof empty === "string" ? empty : empty.collected).toEqual([]);
   });
 
   it("reports a truncated collected tail", () => {
