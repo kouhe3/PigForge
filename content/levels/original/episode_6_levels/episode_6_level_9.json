@@ -108,6 +108,7 @@
     {"id":"Grass17","x":-167.55301,"y":36.0288,"z":-3,"rotation":6.2824774,"scaleX":-1,"scaleY":1},
     {"id":"Grass17","x":-178.213,"y":35.3378,"z":-3,"rotation":6.2824774,"scaleX":1,"scaleY":1},
     {"id":"Fan","x":-174.06,"y":18.45,"z":0,"rotation":5.736724,"scaleX":1,"scaleY":1},
+    {"id":"Bridge","x":-178.27,"y":35.61,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"WindowBgLarge","x":-177.34,"y":11.19,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Fan","x":-212.5,"y":23.17,"z":0,"rotation":6.049336,"scaleX":1,"scaleY":1}
   ],

@@ -50,6 +50,11 @@ const ALLOWED_EXTRA = [
   // quad they move is the prefab's own, so a still picture of it is the prefab's own pose.
   "CloudMover",
   "ParallaxCloudMover",
+  // The bridge's own pieces: `Step.prefab` carries `BridgeStep : LevelRigidbody` (its `Awake` caches the
+  // hinge and the transform, `OnDataLoaded` is empty) and `JointBreakEvent` has no load-time body at
+  // all; `StepRope.prefab` is a plain sprite. Whichever way the bridge is built, the picture is theirs.
+  "BridgeStep",
+  "JointBreakEvent",
   // `AncestorPig` is a level's stone ancestor: `Start` only caches children and picks a blink timer
   // (`AncestorPig.cs:44-70`), and the blinks, waking and sleeping all happen later, so the prefab's own
   // pose is the load picture.
@@ -69,9 +74,10 @@ const ALLOWED_EXTRA = [
 /// and the one quad it writes to the same `MeshFilter` first -- is not what stays on screen.
 const PANEL_CLASSES = ["Panel", "SpriteReference"];
 
-/// The one class that *is* a prop's picture without drawing it itself: `CloudGenerator` spawns the
-/// clouds out of its own `m_cloudSet` at load, and `cloudQuads` turns that into quads.
-const GENERATOR_CLASSES = ["CloudGenerator"];
+/// The classes that *are* a prop's picture without drawing it themselves: `CloudGenerator` spawns the
+/// clouds out of its own `m_cloudSet` at load (`cloudSpec`) and `Bridge` lays its steps and ropes out
+/// along its own axis (`bridgeArt`); both are turned into quads before the record is handed out.
+const GENERATOR_CLASSES = ["CloudGenerator", "Bridge"];
 
 /// Scripts the level's own *solid* furniture may carry: a crate, a wall, a plank, a door, a fan, the
 /// goal's flag, a secret, a button, a challenge box. Each was read for what it does between `Awake` and
@@ -241,6 +247,8 @@ function readHierarchy(text, guidToClass) {
       slingshot: parts.find((part) => part.classId === 114 && classOf(part) === "Slingshot"),
       /// The cloud sets' own component: it spawns the clouds at load (`cloudQuads`).
       generator: parts.find((part) => part.classId === 114 && classOf(part) === "CloudGenerator"),
+      /// A bridge's own component: it lays its steps and ropes out at load (`bridgeArt`).
+      bridge: parts.find((part) => part.classId === 114 && classOf(part) === "Bridge"),
       spriteAnimation: parts.find((part) => part.classId === 114 && classOf(part) === "SpriteAnimation"),
       renderer: parts.find((part) => part.classId === 23 || part.classId === 212),
       /// A serialized mesh (`MeshFilter.m_Mesh`): `{ guid, fileID }`, or null for a runtime-built one.
@@ -668,6 +676,48 @@ export function openProps(bpleRoot) {
   };
 
   /**
+   * A bridge (`Bridge.OnDataLoaded`): the prefab carries no art of its own -- the script builds
+   * `floor(|EndPoint - root| / (stepLength + stepGap))` steps out of `stepPrefab` along its own local +x,
+   * each centred at `(k + 0.5) * (stepLength + stepGap)`, and one `stepRopePrefab` at every step plus one
+   * more at the end point. The steps are children of the instance (the clouds are the other way round:
+   * `SpawnCloud` writes world positions), so both are baked into the prop's own frame here.
+   */
+  const bridgeArt = (name, objects) => {
+    const script = objects.find((object) => object.bridge !== undefined)?.bridge.body;
+    must(script !== undefined, `${name}: no Bridge component`);
+    const asset = (field_) => {
+      const guid = assetReferenceOf(script, field_);
+      must(guid !== null, `${name}: the Bridge component names no ${field_}`);
+      const path = guidToPath.get(guid);
+      must(typeof path === "string", `${name}: ${field_} resolves to no asset`);
+      return relative(bpleRoot, path).replaceAll("\\", "/");
+    };
+    const steps = read(asset("stepPrefab"));
+    const ropes = read(asset("stepRopePrefab"));
+    must(steps.drawable && steps.quads.length > 0, `${name}: the bridge's step prefab is not drawable`);
+    must(ropes.drawable && ropes.quads.length > 0, `${name}: the bridge's rope prefab is not drawable`);
+    const endPoint = objects.find((object) => object.name === "EndPoint");
+    must(endPoint !== undefined, `${name}: a bridge with no EndPoint child`);
+    const spacing = field("stepLength", script, "Bridge", 1) + field("stepGap", script, "Bridge", 0.2);
+    must(spacing > 0, `${name}: a bridge with a ${spacing} step spacing`);
+    const count = Math.floor(Math.hypot(endPoint.position[0], endPoint.position[1]) / spacing);
+    must(count > 0, `${name}: a bridge of ${count} steps`);
+    const quads = [];
+    // Every piece stands on the bridge's own plane, unrotated, at the offset the script gives it.
+    const place = (source, dx, dy) => {
+      for (const quad of source.quads) {
+        quads.push({ ...quad, dx: round(quad.dx + dx), dy: round(quad.dy + dy) });
+      }
+    };
+    for (let index = 0; index < count; index += 1) place(steps, (index + 0.5) * spacing, 0);
+    for (let index = 0; index <= count; index += 1) {
+      // The last rope hangs on the end point rather than on a step.
+      place(ropes, index < count ? (index + 0.5) * spacing : endPoint.position[0], index < count ? 0 : endPoint.position[1]);
+    }
+    return quads;
+  };
+
+  /**
    * One solid box: a non-trigger `BoxCollider` of `props.mjs`'s walk, in the prop's own frame, the way
    * the quads are -- `dx/dy/dz` and `rotation` place it, `sizeX/sizeY/sizeZ` are the collider's own
    * `m_Size` folded through the transform chain's scale (its `m_Center` is the box's own offset). The
@@ -784,9 +834,11 @@ export function openProps(bpleRoot) {
     // `m_cloudSet` at load, so the record carries the *generator* and the level builder turns it into
     // one prop per cloud (`docs/specs/level-props.md` §3.7).
     const cloudSet = objects.some((object) => object.generator !== undefined);
+    const bridge = objects.some((object) => object.bridge !== undefined);
     const drawable =
-      (!cloudSet && rendererObjects.length > 0) &&
+      ((!cloudSet && !bridge && rendererObjects.length > 0) || bridge) &&
       (cloudSet ||
+        bridge ||
         rendererObjects.every(
           (object) =>
             object.renderers === 1 &&
@@ -813,6 +865,9 @@ export function openProps(bpleRoot) {
       boxes: [],
       clouds: cloudSet ? cloudSpec(name, objects) : null,
     };
+    if (bridge) {
+      record.quads.push(...bridgeArt(name, objects));
+    }
     if (drawable) {
       // What the walk has to visit: everything that draws, plus every object whose *own* box collider
       // is part of the prop's solid geometry. A trigger is the original's own "someone came through

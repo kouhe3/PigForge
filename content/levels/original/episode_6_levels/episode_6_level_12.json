@@ -119,6 +119,7 @@
     {"id":"Grass06","x":-119.624,"y":16.139,"z":-3,"rotation":0.3717368,"scaleX":1,"scaleY":1},
     {"id":"MayanArt2","x":-110.936,"y":30.696,"z":0.9,"rotation":0,"scaleX":0.8,"scaleY":0.8},
     {"id":"SecretPartPineapple","x":-195.629,"y":31.884,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1.18,"sizeY":1.72,"sizeZ":1,"rotation":0}]},
+    {"id":"Bridge","x":-126.87,"y":16.29,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Fan","x":-158.97,"y":-1.97,"z":0,"rotation":5.2148376,"scaleX":1,"scaleY":1},
     {"id":"Fan","x":-142.72,"y":6.03,"z":0,"rotation":6.0479317,"scaleX":1,"scaleY":1},
     {"id":"WindowLarge","x":-169.51,"y":29.85,"z":-2,"rotation":0,"scaleX":1,"scaleY":1},

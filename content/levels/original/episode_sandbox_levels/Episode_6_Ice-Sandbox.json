@@ -134,6 +134,7 @@
     {"id":"FGStones01","x":-156.79001,"y":-7.170002,"z":-3,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Flower9","x":-210.748,"y":57.51,"z":-3,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"RedArrow","x":-183.316,"y":60.564,"z":2.8,"rotation":4.721178,"scaleX":1,"scaleY":1},
+    {"id":"Bridge","x":-136.4,"y":27.63,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"ActivatedHingeDoorBlue_Ice","x":-92.29393,"y":38.06253,"z":-1,"rotation":3.4906588,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue_Ice","x":-46.36993,"y":70.38153,"z":-1,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"ActivatedHingeDoorBlue_Ice","x":-44.87693,"y":80.15253,"z":-1,"rotation":3.141593,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},

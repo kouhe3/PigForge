@@ -570,7 +570,7 @@ public sealed class LevelContentTests
                 Assert.Equal(6.060668f, prop.Rotation);
             });
 
-        // The converted pack carries them: the 320 drawable props are placed 18180 times across the
+        // The converted pack carries them: the 321 drawable props are placed 18204 times across the
         // 277 levels (the cloud sets' own 1020 clouds and the 218 goal areas among them), and Level_05's
         // own first instance is its jungle backdrop at the origin.
         LevelContentDocument real =

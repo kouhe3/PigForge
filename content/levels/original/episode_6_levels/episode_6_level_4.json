@@ -195,7 +195,9 @@
     {"id":"MayanArt7","x":-174.183,"y":51.927795,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"MayanArt6","x":-181.933,"y":57.7978,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"WindowLarge","x":-181.238,"y":60.435997,"z":1.9,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"WindowBgSmall","x":-176.393,"y":74.5478,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"WindowBgSmall","x":-176.393,"y":74.5478,"z":4.9,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bridge","x":-130.65,"y":46.7,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"Bridge","x":-131.00865,"y":2.7768753,"z":0,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

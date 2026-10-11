@@ -137,10 +137,10 @@ check(singleQuads.length === 273, `single-quad props: ${singleQuads.length}, exp
 check(decorInstances === 15881, `single-quad instances: ${decorInstances}, expected 15881`);
 const multiQuads = [...drawable.keys()].filter((name) => quadsByProp.get(name) > 1).sort();
 const drawableInstances = [...drawable.keys()].reduce((total, name) => total + (counts.get(name)?.instances ?? 0), 0);
-check(drawable.size === 320, `drawable props: ${drawable.size}, expected 320`);
-check(drawableInstances === 17160, `drawable instances: ${drawableInstances}, expected 17160`);
+check(drawable.size === 321, `drawable props: ${drawable.size}, expected 321`);
+check(drawableInstances === 17184, `drawable instances: ${drawableInstances}, expected 17184`);
 const quadTotal = [...quadsByProp.values()].reduce((total, count) => total + count, 0);
-check(quadTotal === 1100, `quads: ${quadTotal}, expected 1100`);
+check(quadTotal === 1105, `quads: ${quadTotal}, expected 1105`);
 // The multi-quad families: the level's backdrop sets, its five windows, one slingshot, seven birds, two
 // stones, the solid furniture that is more than one quad (the doors, the fan, the four buttons and one of
 // the two secret part boxes), the four challenge boxes and the five goal areas whose banner, glow and
@@ -164,6 +164,7 @@ const EXPECTED_MULTI_QUADS = [
   "Bird_Yellow",
   "Bird_Yellow_01",
   "BoxChallenge",
+  "Bridge",
   "DynamicBoxChallenge",
   "DynamicStarBox",
   "Fan",

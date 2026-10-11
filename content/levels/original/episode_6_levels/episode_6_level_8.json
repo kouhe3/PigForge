@@ -31,6 +31,7 @@
   "props": [
     {"id":"BoxChallenge","x":-153.598,"y":32.085,"z":0,"rotation":6.111302,"scaleX":1,"scaleY":1},
     {"id":"BoxChallenge","x":-184.70001,"y":33.64,"z":0.01,"rotation":6.039763,"scaleX":1,"scaleY":1},
+    {"id":"Bridge","x":-182.83,"y":96.17,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"WoodenSign","x":-178.05301,"y":79.7278,"z":3,"rotation":6.282877,"scaleX":1,"scaleY":1},
     {"id":"WoodenSign","x":-170.339,"y":65.579796,"z":3,"rotation":0.0013532048,"scaleX":1,"scaleY":1},
     {"id":"WoodenSign","x":-157.033,"y":46.542793,"z":3,"rotation":6.2772937,"scaleX":-1,"scaleY":1},

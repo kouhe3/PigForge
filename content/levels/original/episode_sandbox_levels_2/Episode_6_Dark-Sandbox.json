@@ -51,6 +51,7 @@
     {"id":"BreakableWall","x":-185.35345,"y":64.92661,"z":-0.0050001144,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-183.21846,"y":64.93961,"z":-0.0050001144,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
     {"id":"BreakableWall","x":-184.28746,"y":64.94061,"z":-0.0050001144,"rotation":3.1415927,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.0003786087,"dy":0.001799583,"dz":0,"sizeX":1.091744,"sizeY":0.4924548,"sizeZ":1,"rotation":0}]},
+    {"id":"Bridge","x":-123.37046,"y":79.68961,"z":-0.0050001144,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"LitCrystal_01","x":-69.7,"y":31.27,"z":0.9,"rotation":0.5140012,"scaleX":1,"scaleY":1},
     {"id":"LitCrystal_02","x":-245.41,"y":72.37,"z":0.9,"rotation":5.2252436,"scaleX":1,"scaleY":1},
     {"id":"LitMushroom_03","x":-268.53546,"y":117.05961,"z":-2.875,"rotation":0,"scaleX":1,"scaleY":1},

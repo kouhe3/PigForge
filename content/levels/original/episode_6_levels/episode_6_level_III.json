@@ -179,7 +179,8 @@
     {"id":"Fan","x":-154.9,"y":56.35,"z":0,"rotation":5.579539,"scaleX":1,"scaleY":1},
     {"id":"Fan","x":-107.75,"y":40.25,"z":0,"rotation":2.5968456,"scaleX":1,"scaleY":1},
     {"id":"Fan","x":-153.96,"y":16.36,"z":0,"rotation":0.960629,"scaleX":1,"scaleY":1},
-    {"id":"Fan","x":-119.05,"y":21.38,"z":0,"rotation":1.7440699,"scaleX":1,"scaleY":1}
+    {"id":"Fan","x":-119.05,"y":21.38,"z":0,"rotation":1.7440699,"scaleX":1,"scaleY":1},
+    {"id":"Bridge","x":-236.08,"y":77.5,"z":0,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {
