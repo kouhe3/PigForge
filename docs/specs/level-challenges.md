@@ -90,8 +90,7 @@ P4c 的 v7 `boxes` 里**故意跳过**了 trigger（那些是"有人经过这里
    溯源：本片没有存档层）。
 2. **路点顺序不建模**：`WaypointChallenge` 如果要求"按顺序经过"，本片先按"经过即达成"。
 3. **收集判定用 AABB 近似**（不是物理接触事件），命中范围与"贴着边缘经过"的边界情况会有差别。
-4. **不做 HUD/星级/计时**：原版的星数、计时挑战（`TimeChallenge`）、`DontUsePartChallenge` 属于进度系统，
-   本片只到"房间知道某件已被收集、客户端不再画它"。
+4. ~~**不做 HUD/星级/计时**~~ —— **已交付**（2026-10-11 第三十三轮，`docs/specs/level-stars.md` + `ADR-038`）：星 1/2/3 的判据、原版跑表、PGFS v8 的 `elapsedSeconds`/`challengeFlags` 与客户端 HUD 都在那一刀里；本片留下的「箱子被收集」正是 `box` 挑战的判据（`challenges[].propIndex` 指的就是这里的 `props` 下标）。
 5. **不做"同分量 2.5 米内的邻居零件"那条兜底**（`Goal.cs:44-53`）：只认猪所在的复合体本身；贴着触发盒边缘、
    靠别的零件擦过去的边界情况会与原版不同。
 6. **已收集的视觉只有"不画"**：原版是隐藏渲染器 + 收集特效 + 音效 + （星箱）飞出鼻币；本片先只让客户端不画
@@ -106,7 +105,8 @@ P4c 的 v7 `boxes` 里**故意跳过**了 trigger（那些是"有人经过这里
 | **P5-b-2 ✅** | 房间的 AABB 收集规则（`LevelChallengeTriggers.Build` + `GameplayRules.CheckChallenges` + `GameRoom.CollectedPropCount`） | `ChallengeRoomTests` 3 条：猪在标记里 → 收集 1 件且不重复；猪在 50 米外 → 0 件；`Retry` 清空并可在下一轮再收 |
 | **P5-b-3 ✅** | PGFS v7 的 `collected` 段（`SnapshotFrame` 的 `TryWriteCollected`/`TryReadCollected`、三个发布路径、`GetMaxByteCount(n, collected)`）+ 客户端解码（`decodeSnapshot`、两种 socket、`App.vue` 的 `applyCollected`）+ `propDepthBuckets` 跳过 | Protocol **43**（+1 往返、两处版本/尺寸期望）；web **380**（+2 尾段解码与截断）；实机：把猪放在 `Level_05` 的 `BoxChallenge`（props 索引 5）上 → 113 帧里 `collected` 由 `[]` 变 `[5]`，关掉该件后一帧少画 **2 个四边面** |
 
-**不做的**（本片范围外，另行开片）：存档、星级、计时、HUD、收集特效/音效/飞星、`Dynamic*` 的动态体
+**不做的**（本片范围外，另行开片）：~~星级、计时、HUD~~（**已交付**，2026-10-11 第三十三轮：
+`docs/specs/level-stars.md` + `ADR-038`）、存档（仍待 `A3`「存哪」）、收集特效/音效/飞星、`Dynamic*` 的动态体
 （这条另有原因：**动态道具的位姿变化没有上线的通道** —— 道具不是实体、不进快照，一动起来客户端就与服务器
 脱节 ✗；要让它们动，得先把道具变成可按索引上线的实体，属独立一刀）。
 
