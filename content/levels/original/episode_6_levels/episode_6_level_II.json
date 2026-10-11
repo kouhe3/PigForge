@@ -31,6 +31,9 @@
   "props": [
     {"id":"BoxChallenge","x":-179.92401,"y":33.721,"z":0,"rotation":6.048076,"scaleX":1,"scaleY":1},
     {"id":"DynamicBoxChallenge","x":-201.896,"y":16.468376,"z":0,"rotation":5.530832,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"AncestorPig","x":-209.84212,"y":12.28009,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"AncestorPig","x":-215.13,"y":6.01,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"AncestorPig","x":-191.5,"y":15.24,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"SecretStatue","x":-254.53,"y":17.045,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"FGMayanThing02","x":-226.37,"y":-7.5200005,"z":0.9,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Grass06","x":-252.206,"y":46.958,"z":0.9,"rotation":1.1145211,"scaleX":1,"scaleY":1},
@@ -168,7 +171,9 @@
     {"id":"Cave_Mushroom_06_0","x":-110.138,"y":49.839,"z":0.9,"rotation":0.06362791,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_05_0","x":-112.458984,"y":49.45,"z":0.9,"rotation":6.213819,"scaleX":1,"scaleY":1},
     {"id":"Cave_Mushroom_04_0","x":-115.14801,"y":49.829,"z":0.9,"rotation":6.1898875,"scaleX":1,"scaleY":1},
-    {"id":"Mushroom4","x":-202.139,"y":23.677,"z":1.7,"rotation":1.1584624,"scaleX":1,"scaleY":1}
+    {"id":"Mushroom4","x":-202.139,"y":23.677,"z":1.7,"rotation":1.1584624,"scaleX":1,"scaleY":1},
+    {"id":"AncestorPig","x":-186.12,"y":4.48,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"AncestorPig","x":-201.896,"y":17.40699,"z":0,"rotation":0,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

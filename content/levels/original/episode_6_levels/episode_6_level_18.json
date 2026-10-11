@@ -41,6 +41,8 @@
   ],
   "props": [
     {"id":"DynamicBoxChallenge","x":-138,"y":20.3,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":1,"sizeY":1,"sizeZ":1,"rotation":0}]},
+    {"id":"AncestorPig","x":-176.97,"y":6,"z":0,"rotation":3.1415927,"scaleX":1,"scaleY":1},
+    {"id":"AncestorPig","x":-142.85,"y":15.19,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1},
     {"id":"ActivatedHingeDoorRed","x":-135.62,"y":9.121,"z":0,"rotation":1.2509435,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"PressureButtonYellow","x":-174.35,"y":2.18,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"ActivatedHingeDoorYellow","x":-150.993,"y":-0.802,"z":0,"rotation":4.8520155,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
@@ -104,7 +106,8 @@
     {"id":"Grass23","x":-122.582,"y":10.92,"z":-3,"rotation":5.090516,"scaleX":1,"scaleY":1},
     {"id":"Grass24","x":-113,"y":17.37,"z":-1,"rotation":3.2749155,"scaleX":1,"scaleY":1},
     {"id":"Grass21","x":-131.428,"y":7.631,"z":-3,"rotation":1.2297962,"scaleX":1,"scaleY":1},
-    {"id":"PressureButtonRed","x":-142.83,"y":9.98,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1}
+    {"id":"PressureButtonRed","x":-142.83,"y":9.98,"z":0.2,"rotation":0,"scaleX":1,"scaleY":1},
+    {"id":"AncestorPig","x":-138.01,"y":21.13,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

@@ -50,6 +50,10 @@ const ALLOWED_EXTRA = [
   // quad they move is the prefab's own, so a still picture of it is the prefab's own pose.
   "CloudMover",
   "ParallaxCloudMover",
+  // `AncestorPig` is a level's stone ancestor: `Start` only caches children and picks a blink timer
+  // (`AncestorPig.cs:44-70`), and the blinks, waking and sleeping all happen later, so the prefab's own
+  // pose is the load picture.
+  "AncestorPig",
   "DynamicObject",
   "SpriteAnimation",
   "AnimationHandler",

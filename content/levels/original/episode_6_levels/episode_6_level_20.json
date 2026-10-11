@@ -101,7 +101,9 @@
     {"id":"Mushroom2","x":-159.892,"y":-2.647,"z":-3,"rotation":6.2601023,"scaleX":1,"scaleY":1},
     {"id":"Mushroom1","x":-160.19,"y":-3.164,"z":2.2,"rotation":0.27091268,"scaleX":-1,"scaleY":1},
     {"id":"Grass23","x":-169.52,"y":11.271,"z":-3,"rotation":4.28051,"scaleX":1,"scaleY":1},
-    {"id":"ActivatedHingeDoorYellow","x":-173.405,"y":29.42,"z":0,"rotation":1.2729154,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]}
+    {"id":"AncestorPig","x":-168.99,"y":42.06,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1},
+    {"id":"ActivatedHingeDoorYellow","x":-173.405,"y":29.42,"z":0,"rotation":1.2729154,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"AncestorPig","x":-161.68,"y":36.15,"z":0,"rotation":3.141593,"scaleX":1,"scaleY":1}
   ],
   "terrain": [
     {

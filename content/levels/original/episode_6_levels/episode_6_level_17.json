@@ -35,6 +35,7 @@
     {"id":"ActivatedHingeDoorBlue","x":-185.98,"y":16.16,"z":0,"rotation":4.146531,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
     {"id":"LitMushroom_03","x":-177.902,"y":22.64,"z":8,"rotation":0,"scaleX":0,"scaleY":0},
     {"id":"ActivatedHingeDoorRed","x":-170.49,"y":6.99,"z":0,"rotation":4.147582,"scaleX":1,"scaleY":1,"boxes":[{"dx":0.00000267606,"dy":-2.357424,"dz":0.75,"sizeX":0.33,"sizeY":4.101594,"sizeZ":2,"rotation":0}]},
+    {"id":"AncestorPig","x":-180.638,"y":33.114,"z":0,"rotation":3.298624,"scaleX":1,"scaleY":1},
     {"id":"PressureButtonGreen","x":-180.151,"y":8.125,"z":0.2,"rotation":5.708888,"scaleX":1,"scaleY":1},
     {"id":"SecretStatue","x":-178.35,"y":-5.53,"z":1,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"PressureButtonBlue","x":-186.77,"y":12.112,"z":0.2,"rotation":5.6702228,"scaleX":1,"scaleY":1},
