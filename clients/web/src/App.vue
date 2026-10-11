@@ -63,6 +63,9 @@ const levelProps = shallowRef<LevelPropsSet | null>(null);
 // The camera the loaded level was framed on: the reference a backdrop layer's parallax is measured
 // from (`ParallaxManager.Update` accumulates the camera's own movement since the level loaded).
 const parallaxFrom = ref<{ x: number; y: number } | undefined>(undefined);
+// The challenge markers the level has collected, straight off the v7 snapshot's tail
+// (`docs/specs/level-challenges.md` §5): the painter hides them, the original's `DisableGoal(true)`.
+const collectedProps = shallowRef<ReadonlySet<number>>(new Set());
 // Animation state and its wall clock; both stay outside Vue reactivity like the view state.
 const animations = createAnimationState();
 const animationClock = createAnimationClock();
@@ -109,6 +112,19 @@ const selectedBaseId = computed(() => {
 
 /** Part lookup for the move-drag contact snap; rebuilt when content arrives. */
 const partById = computed(() => new Map((session.content?.parts ?? []).map((part) => [part.partTypeId, part])));
+
+/**
+ * The collected challenge markers off a frame's tail. A set is only rebuilt when the list actually
+ * changes, so an idle frame allocates nothing (`docs/specs/level-challenges.md` §5).
+ */
+function applyCollected(collected: readonly number[]): void {
+  const current = collectedProps.value;
+  if (collected.length === current.size && collected.every((index) => current.has(index))) {
+    return;
+  }
+
+  collectedProps.value = new Set(collected);
+}
 
 function syncPlayer(): void {
   playerPhase.value = player.phase;
@@ -297,7 +313,7 @@ function paint(now: number): void {
     level?.terrain ?? null,
     groundTextures.value,
     level?.props !== undefined && levelProps.value !== null
-      ? { props: level.props, set: levelProps.value, parallaxFrom: parallaxFrom.value }
+      ? { props: level.props, set: levelProps.value, parallaxFrom: parallaxFrom.value, collected: collectedProps.value }
       : null,
   );
   raf = requestAnimationFrame(paint);
@@ -377,6 +393,7 @@ function connectLive(): void {
       (frame) => {
         noteActivationEdges(animations, frame.entities, partTextures.value);
         session.applyLiveEntities(frame.tick, frame.entities, frame.phase);
+        applyCollected(frame.collected);
         liveFrame.value += 1;
       },
       (message) => session.setErrors([message]),
@@ -391,6 +408,7 @@ function connectLive(): void {
       // two paints (see `renderer/animation/activation.ts`).
       noteActivationEdges(animations, snapshot.entities, partTextures.value);
       session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase);
+      applyCollected(snapshot.collected);
       liveFrame.value += 1;
     },
     (ack) => {

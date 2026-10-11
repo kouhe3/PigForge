@@ -37,7 +37,9 @@ public sealed class SnapshotWireTests
     {
         Assert.Equal(15, SnapshotFrame.HeaderByteCount);
         Assert.Equal(73, SnapshotFrame.EntityByteCount);
-        Assert.Equal(15 + (10 * 73), SnapshotFrame.GetMaxByteCount(10));
+        // v7's collected section is two bytes when empty, four per marker when not.
+        Assert.Equal(15 + (10 * 73) + 2, SnapshotFrame.GetMaxByteCount(10));
+        Assert.Equal(15 + (10 * 73) + 2 + (3 * 4), SnapshotFrame.GetMaxByteCount(10, 3));
     }
 
     [Fact]
@@ -146,7 +148,50 @@ public sealed class SnapshotWireTests
         Assert.True(SnapshotFrame.TryDecodeHeader(buffer[..writer.WrittenBytes], out _, out SnapshotFrameReader reader));
         Assert.True(reader.TryReadEntity(out SnapshotEntity decoded));
         Assert.Equal((byte)0b111, decoded.Flags);
-        Assert.Equal(6, SnapshotFrame.CurrentVersion);
+        Assert.Equal(7, SnapshotFrame.CurrentVersion);
+    }
+
+    /// <summary>
+    /// v7's tail: the challenge markers a level has collected (`docs/specs/level-challenges.md` §5). A
+    /// frame always carries the section, so the reader can tell "nothing collected" from a truncated
+    /// frame, and the indices come back in the order they were written.
+    /// </summary>
+    [Fact]
+    public void CollectedMarkersSurviveTheRoundTrip()
+    {
+        SnapshotEntity[] entities = CreateEntities(2);
+        uint[] collected = [4, 91];
+        Span<byte> buffer = stackalloc byte[SnapshotFrame.GetMaxByteCount(2, collected.Length)];
+        Assert.True(SnapshotFrame.TryEncodeHeader(
+            buffer,
+            new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, 5, 0, 2),
+            out SnapshotFrameWriter writer));
+        foreach (SnapshotEntity entity in entities)
+        {
+            Assert.True(writer.WriteEntity(entity));
+        }
+
+        Assert.True(writer.TryWriteCollected(collected));
+        Assert.True(SnapshotFrame.TryDecodeHeader(buffer[..writer.WrittenBytes], out _, out SnapshotFrameReader reader));
+        Assert.True(reader.TryReadEntity(out _));
+        Assert.True(reader.TryReadEntity(out _));
+        Assert.Equal(0u, reader.Remaining);
+        Span<uint> read = stackalloc uint[4];
+        Assert.True(reader.TryReadCollected(read, out int count));
+        Assert.Equal(2, count);
+        Assert.Equal(collected, read[..count].ToArray());
+
+        // An empty section still writes its count, and a frame with room for none reports it.
+        Span<byte> empty = stackalloc byte[SnapshotFrame.GetMaxByteCount(0)];
+        Assert.True(SnapshotFrame.TryEncodeHeader(empty, new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, 1, 0, 0), out SnapshotFrameWriter emptyWriter));
+        Assert.True(emptyWriter.TryWriteCollected(ReadOnlySpan<uint>.Empty));
+        Assert.Equal(SnapshotFrame.HeaderByteCount + SnapshotFrame.CollectedCountByteCount, emptyWriter.WrittenBytes);
+        Assert.True(SnapshotFrame.TryDecodeHeader(empty[..emptyWriter.WrittenBytes], out _, out SnapshotFrameReader emptyReader));
+        Assert.True(emptyReader.TryReadCollected(Span<uint>.Empty, out int none));
+        Assert.Equal(0, none);
+
+        // A destination that cannot hold every marker is refused rather than truncated.
+        Assert.False(writer.TryWriteCollected(collected));
     }
 
     [Fact]

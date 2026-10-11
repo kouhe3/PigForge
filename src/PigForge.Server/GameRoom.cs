@@ -133,12 +133,27 @@ public sealed class GameRoom : IDisposable
     /// <summary>How many static terrain bodies the level brought (test-visible).</summary>
     internal int TerrainBodyCount => _terrainBodies.Count;
     private readonly List<PhysicsBodyId> _propBodies = new();
-    /// <summary>The level props the challenge rule has collected, as indices into the document's `props`
-    /// (`docs/specs/level-challenges.md` §4). Cleared by `Retry`, like the original's `OnReset`.</summary>
-    private readonly HashSet<int> _collectedProps = new();
+    /// <summary>The level props the challenge rule has collected, as indices into the document's `props`,
+    /// kept sorted so a published frame is byte-identical between two runs of the same commands
+    /// (`docs/specs/level-challenges.md` §5). Cleared by `Retry`, like the original's `OnReset`.</summary>
+    private readonly List<uint> _collectedProps = new();
 
     /// <summary>How many of the level's challenge markers have been collected (test-visible).</summary>
     internal int CollectedPropCount => _collectedProps.Count;
+
+    /// <summary>
+    /// Records one collected challenge marker, keeping the list sorted: the wire carries it in order, so
+    /// two runs of the same commands publish the same bytes.
+    /// </summary>
+    private void MarkPropCollected(int propIndex)
+    {
+        uint value = (uint)propIndex;
+        int at = _collectedProps.BinarySearch(value);
+        if (at < 0)
+        {
+            _collectedProps.Insert(~at, value);
+        }
+    }
 
     /// <summary>How many static bodies the level's own solid props brought (test-visible).</summary>
     internal int PropBodyCount => _propBodies.Count;
@@ -1446,7 +1461,7 @@ public sealed class GameRoom : IDisposable
 
         foreach (int propIndex in _output.CollectedProps)
         {
-            _collectedProps.Add(propIndex);
+            MarkPropCollected(propIndex);
         }
 
         if (_sandboxMode)
@@ -1616,6 +1631,12 @@ public sealed class GameRoom : IDisposable
             }
         }
 
+        if (!writer.TryWriteCollected(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_collectedProps)))
+        {
+            bytesWritten = 0;
+            return false;
+        }
+
         bytesWritten = writer.WrittenBytes;
         return true;
     }
@@ -1658,6 +1679,12 @@ public sealed class GameRoom : IDisposable
                 bytesWritten = 0;
                 return false;
             }
+        }
+
+        if (!writer.TryWriteCollected(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_collectedProps)))
+        {
+            bytesWritten = 0;
+            return false;
         }
 
         bytesWritten = writer.WrittenBytes;
@@ -1728,6 +1755,12 @@ public sealed class GameRoom : IDisposable
                 bytesWritten = 0;
                 return false;
             }
+        }
+
+        if (!writer.TryWriteCollected(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_collectedProps)))
+        {
+            bytesWritten = 0;
+            return false;
         }
 
         bytesWritten = writer.WrittenBytes;

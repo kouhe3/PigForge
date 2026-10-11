@@ -6,6 +6,11 @@ export interface LiveSnapshot {
   tick: number;
   phase: number;
   entities: DrawEntity[];
+  /**
+   * v7: the level props a challenge has collected, as indices into the level document's own `props`
+   * (`docs/specs/level-challenges.md` §5).
+   */
+  collected: number[];
 }
 
 /** Client never sends pose, contact, break, or outcome — snapshots inbound only. */
@@ -30,6 +35,7 @@ export function connectSnapshotSocket(
       tick: decoded.tick,
       phase: decoded.phase,
       entities: toDrawEntities(decoded.entities),
+      collected: decoded.collected,
     });
   });
   socket.addEventListener("error", () => onError("Live snapshot socket failed."));

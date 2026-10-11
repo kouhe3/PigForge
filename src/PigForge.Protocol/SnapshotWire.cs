@@ -33,7 +33,11 @@ public readonly record struct SnapshotFrameHeader(ushort Version, uint Tick, byt
 /// </summary>
 public static class SnapshotFrame
 {
-	public const ushort CurrentVersion = 6;
+	// v7 appends the collected challenge markers after the entities: `uint16 count` then `count` little
+	// endian `uint32` prop indices (indices into the level document's own `props`,
+	// `docs/specs/level-challenges.md` §5). A frame always carries the section -- two zero bytes when
+	// nothing has been collected.
+	public const ushort CurrentVersion = 7;
 
 	/// <summary>Flags bit 0: the part's switch state.</summary>
 	public const byte FlagActive = 0x01;
@@ -50,7 +54,14 @@ public static class SnapshotFrame
 
 	public const int EntityByteCount = 13 + (4 * 15);
 
-	public static int GetMaxByteCount(int entityCount) => HeaderByteCount + (entityCount * EntityByteCount);
+	/// <summary>One collected prop's index on the wire.</summary>
+	public const int CollectedEntryByteCount = 4;
+
+	/// <summary>How many markers a frame carries before its entries.</summary>
+	public const int CollectedCountByteCount = 2;
+
+	public static int GetMaxByteCount(int entityCount, int collectedCount = 0) =>
+		HeaderByteCount + (entityCount * EntityByteCount) + CollectedCountByteCount + (collectedCount * CollectedEntryByteCount);
 
 	public static bool TryEncodeHeader(Span<byte> destination, SnapshotFrameHeader header, out SnapshotFrameWriter writer)
 	{
@@ -135,6 +146,29 @@ public ref struct SnapshotFrameWriter
 		return true;
 	}
 
+	/// <summary>
+	/// Appends the collected challenge markers (v7): `uint16 count` then the indices, in the caller's own
+	/// order. Always written -- an empty span writes the two zero bytes a frame's tail needs.
+	/// </summary>
+	public bool TryWriteCollected(ReadOnlySpan<uint> collectedProps)
+	{
+		int required = SnapshotFrame.CollectedCountByteCount + (collectedProps.Length * SnapshotFrame.CollectedEntryByteCount);
+		if (_destination.Length - _position < required)
+		{
+			return false;
+		}
+
+		Span<byte> span = _destination[_position..];
+		BinaryPrimitives.WriteUInt16LittleEndian(span, (ushort)collectedProps.Length);
+		for (int index = 0; index < collectedProps.Length; index++)
+		{
+			BinaryPrimitives.WriteUInt32LittleEndian(span[(SnapshotFrame.CollectedCountByteCount + (index * SnapshotFrame.CollectedEntryByteCount))..], collectedProps[index]);
+		}
+
+		_position += required;
+		return true;
+	}
+
 	private static void WriteVector3(Span<byte> span, ReplayVector3 value)
 	{
 		BinaryPrimitives.WriteSingleLittleEndian(span, value.X);
@@ -165,6 +199,37 @@ public ref struct SnapshotFrameReader
 	}
 
 	public uint Remaining => _remaining;
+
+	/// <summary>
+	/// Reads the collected challenge markers (v7) once every entity has been read. The destination is the
+	/// caller's own buffer, so the hot path stays allocation-free; a frame with more markers than the
+	/// destination holds reports false rather than truncating.
+	/// </summary>
+	public bool TryReadCollected(Span<uint> destination, out int count)
+	{
+		count = 0;
+		if (_remaining != 0 || _source.Length - _position < SnapshotFrame.CollectedCountByteCount)
+		{
+			return false;
+		}
+
+		ushort written = BinaryPrimitives.ReadUInt16LittleEndian(_source[_position..]);
+		int required = written * SnapshotFrame.CollectedEntryByteCount;
+		if (destination.Length < written || _source.Length - _position - SnapshotFrame.CollectedCountByteCount < required)
+		{
+			return false;
+		}
+
+		int start = _position + SnapshotFrame.CollectedCountByteCount;
+		for (int index = 0; index < written; index++)
+		{
+			destination[index] = BinaryPrimitives.ReadUInt32LittleEndian(_source[(start + (index * SnapshotFrame.CollectedEntryByteCount))..]);
+		}
+
+		_position = start + required;
+		count = written;
+		return true;
+	}
 
 	public bool TryReadEntity(out SnapshotEntity entity)
 	{

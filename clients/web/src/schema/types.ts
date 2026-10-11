@@ -334,6 +334,11 @@ export interface SnapshotFrame {
   tick: number;
   phase: number;
   entities: SnapshotEntity[];
+  /**
+   * v7: the indices (into the level document's own `props`) of the challenge markers already collected.
+   * The painter hides them (`docs/specs/level-challenges.md` §5).
+   */
+  collected: number[];
 }
 
 export interface DrawEntity {

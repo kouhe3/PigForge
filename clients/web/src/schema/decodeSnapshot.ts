@@ -1,6 +1,9 @@
 import type { SnapshotEntity, SnapshotFrame, Vec3, Quat } from "./types";
 
-export const SNAPSHOT_VERSION = 6;
+export const SNAPSHOT_VERSION = 7;
+/** v7 appends the collected challenge markers: a count, then one index each. */
+export const SNAPSHOT_COLLECTED_COUNT_BYTES = 2;
+export const SNAPSHOT_COLLECTED_ENTRY_BYTES = 4;
 export const SNAPSHOT_BUILDING_PHASE = 0x10;
 export const SNAPSHOT_HEADER_BYTES = 15;
 export const SNAPSHOT_ENTITY_BYTES = 73;
@@ -46,7 +49,25 @@ export function decodeSnapshotFrame(source: Uint8Array): SnapshotFrame | string 
     });
   }
 
-  return { version, tick, phase, entities };
+  // v7's tail: the level props collected so far (docs/specs/level-challenges.md §5). The painter hides
+  // them, which is the original's `DisableGoal(true)` on this side of the wire.
+  const collectedOffset = needed;
+  if (source.length < collectedOffset + SNAPSHOT_COLLECTED_COUNT_BYTES) {
+    return "Snapshot collected payload is truncated.";
+  }
+
+  const collectedCount = view.getUint16(collectedOffset, true);
+  const collectedEnd = collectedOffset + SNAPSHOT_COLLECTED_COUNT_BYTES + collectedCount * SNAPSHOT_COLLECTED_ENTRY_BYTES;
+  if (source.length < collectedEnd) {
+    return "Snapshot collected payload is truncated.";
+  }
+
+  const collected: number[] = [];
+  for (let index = 0; index < collectedCount; index++) {
+    collected.push(view.getUint32(collectedOffset + SNAPSHOT_COLLECTED_COUNT_BYTES + index * SNAPSHOT_COLLECTED_ENTRY_BYTES, true));
+  }
+
+  return { version, tick, phase, entities, collected };
 }
 
 function readVec3(view: DataView, offset: number): Vec3 {

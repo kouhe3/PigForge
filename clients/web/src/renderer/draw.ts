@@ -11,6 +11,12 @@ import type { LevelProp } from "@/schema/levelContent";
 
 /** The level's decorations: the document's own instances plus the art manifest they draw from. */
 export interface DecorationLayer {
+  /**
+   * The level props a challenge already collected, as indices into the level document's own `props`
+   * (`docs/specs/level-challenges.md` §5): the original hides the box (`DisableGoal(true)`), so the
+   * painter draws neither the prop nor its depth bucket entry.
+   */
+  collected?: ReadonlySet<number>;
   props: readonly LevelProp[];
   set: LevelPropsSet;
   /** The camera the level started on: what a backdrop layer's parallax is measured from. */
@@ -30,6 +36,7 @@ export interface DecorationLayer {
 export function propDepthBuckets(
   props: readonly LevelProp[],
   set: LevelPropsSet,
+  collected?: ReadonlySet<number>,
 ): {
   far: DecorationQuad[];
   ground: DecorationQuad[];
@@ -38,11 +45,16 @@ export function propDepthBuckets(
   near: DecorationQuad[];
 } {
   const quads: DecorationQuad[] = [];
-  for (const prop of props) {
+  props.forEach((prop, index) => {
+    // A collected challenge marker is not drawn at all: the original hides the box (`DisableGoal`).
+    if (collected !== undefined && collected.has(index)) {
+      return;
+    }
+
     for (const quad of set.props.get(prop.id) ?? []) {
       quads.push({ prop, quad });
     }
-  }
+  });
   const sorted = quads.sort((left, right) => right.prop.z + right.quad.dz - (left.prop.z + left.quad.dz));
   const depthOf = (entry: DecorationQuad): number => entry.prop.z + entry.quad.dz;
   return {
@@ -260,7 +272,7 @@ export function drawFrame(
   // The level's decorations are split once per frame: the painter then paints one bucket at each
   // depth break (`propDepthBuckets`).
   const decorationSet = decorations?.set ?? null;
-  const props = decorations ? propDepthBuckets(decorations.props, decorations.set) : null;
+  const props = decorations ? propDepthBuckets(decorations.props, decorations.set, decorations.collected) : null;
   const paintProps = (bucket: readonly DecorationQuad[] | undefined): void => {
     if (props === null || bucket === undefined) return;
     drawProps(ctx, camera, bucket, decorationSet, width, height, decorations?.parallaxFrom);

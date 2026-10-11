@@ -261,7 +261,11 @@ public static class PlayHost
     /// </summary>
     private sealed class SnapshotBroadcaster
     {
-        private byte[] _buffer = new byte[SnapshotFrame.GetMaxByteCount(256)];
+        /// <summary>The most challenge markers one frame can carry: a level's whole prop list, which is
+        /// the bound the collected section is sized with (`docs/specs/level-challenges.md` §5).</summary>
+        private const int MaxCollected = 1024;
+
+        private byte[] _buffer = new byte[SnapshotFrame.GetMaxByteCount(256, MaxCollected)];
 
         public async Task BroadcastAsync(
             GameRoom room,
@@ -271,7 +275,7 @@ public static class PlayHost
             int written;
             lock (room)
             {
-                int required = SnapshotFrame.GetMaxByteCount(room.MaxSnapshotEntityCount);
+                int required = SnapshotFrame.GetMaxByteCount(room.MaxSnapshotEntityCount, MaxCollected);
                 if (_buffer.Length < required)
                 {
                     _buffer = new byte[required];

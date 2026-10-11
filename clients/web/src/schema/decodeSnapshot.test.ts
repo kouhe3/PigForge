@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { decodeSnapshotFrame, SNAPSHOT_BUILDING_PHASE, SNAPSHOT_ENTITY_BYTES, SNAPSHOT_HEADER_BYTES } from "./decodeSnapshot";
+import {
+  decodeSnapshotFrame,
+  SNAPSHOT_BUILDING_PHASE,
+  SNAPSHOT_COLLECTED_COUNT_BYTES,
+  SNAPSHOT_COLLECTED_ENTRY_BYTES,
+  SNAPSHOT_ENTITY_BYTES,
+  SNAPSHOT_HEADER_BYTES,
+} from "./decodeSnapshot";
 
-function writeFrame(flags = 1): Uint8Array {
-  const bytes = new Uint8Array(SNAPSHOT_HEADER_BYTES + SNAPSHOT_ENTITY_BYTES);
+function writeFrame(flags = 1, collected: readonly number[] = []): Uint8Array {
+  const bytes = new Uint8Array(
+    SNAPSHOT_HEADER_BYTES + SNAPSHOT_ENTITY_BYTES + SNAPSHOT_COLLECTED_COUNT_BYTES + collected.length * SNAPSHOT_COLLECTED_ENTRY_BYTES,
+  );
   const view = new DataView(bytes.buffer);
   bytes.set([0x50, 0x47, 0x46, 0x53], 0);
-  view.setUint16(4, 6, true);
+  view.setUint16(4, 7, true);
   view.setUint32(6, 7, true);
   view.setUint8(10, 1);
   view.setUint32(11, 1, true);
@@ -28,11 +37,34 @@ function writeFrame(flags = 1): Uint8Array {
   view.setFloat32(79, 1, true);
   view.setFloat32(83, 0.75, true);
   view.setUint8(87, flags);
+  // v7's tail: the collected challenge markers, none unless the caller asks for them.
+  const tail = SNAPSHOT_HEADER_BYTES + SNAPSHOT_ENTITY_BYTES;
+  view.setUint16(tail, collected.length, true);
+  collected.forEach((index, position) => {
+    view.setUint32(tail + SNAPSHOT_COLLECTED_COUNT_BYTES + position * SNAPSHOT_COLLECTED_ENTRY_BYTES, index, true);
+  });
   return bytes;
 }
 
 describe("decodeSnapshotFrame", () => {
-  it("decodes a v6 PGFS frame", () => {
+  it("reads the collected markers off the tail", () => {
+    const decoded = decodeSnapshotFrame(writeFrame(1, [4, 91]));
+    expect(typeof decoded).not.toBe("string");
+    if (typeof decoded === "string") {
+      return;
+    }
+    expect(decoded.collected).toEqual([4, 91]);
+    // A frame with nothing collected still carries the section's count.
+    const empty = decodeSnapshotFrame(writeFrame());
+    expect(empty === "string" ? empty : empty.collected).toEqual([]);
+  });
+
+  it("reports a truncated collected tail", () => {
+    const bytes = writeFrame(1, [4, 91]).slice(0, SNAPSHOT_HEADER_BYTES + SNAPSHOT_ENTITY_BYTES + 4);
+    expect(decodeSnapshotFrame(bytes)).toBe("Snapshot collected payload is truncated.");
+  });
+
+  it("decodes a v7 PGFS frame", () => {
     const decoded = decodeSnapshotFrame(writeFrame());
     expect(typeof decoded).not.toBe("string");
     if (typeof decoded === "string") {
@@ -84,7 +116,7 @@ describe("decodeSnapshotFrame", () => {
     new DataView(versioned.buffer).setUint16(4, 1, true);
     expect(decodeSnapshotFrame(versioned)).toBe("Snapshot version 1 is unsupported.");
     const previous = writeFrame();
-    new DataView(previous.buffer).setUint16(4, 5, true);
-    expect(decodeSnapshotFrame(previous)).toBe("Snapshot version 5 is unsupported.");
+    new DataView(previous.buffer).setUint16(4, 6, true);
+    expect(decodeSnapshotFrame(previous)).toBe("Snapshot version 6 is unsupported.");
   });
 });

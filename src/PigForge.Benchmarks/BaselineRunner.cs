@@ -68,7 +68,7 @@ public static class BaselineRunner
             double[] tickMs = new double[ticks];
             double[] allocBytes = new double[ticks];
             int snapshotMax = 0;
-            byte[] snapshotBuffer = new byte[SnapshotFrame.GetMaxByteCount(256)];
+            byte[] snapshotBuffer = new byte[SnapshotFrame.GetMaxByteCount(256, 1024)];
 
             for (uint tick = 0; tick < ticks; tick++)
             {

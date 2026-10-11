@@ -62,7 +62,7 @@ public static class DemoSnapshotHost
         ConcurrentDictionary<Guid, WebSocket> clients,
         CancellationToken cancellationToken)
     {
-        byte[] buffer = new byte[SnapshotFrame.GetMaxByteCount(256)];
+        byte[] buffer = new byte[SnapshotFrame.GetMaxByteCount(256, 1024)];
         using PeriodicTimer timer = new(TimeSpan.FromSeconds(1.0 / 60.0));
         while (await timer.WaitForNextTickAsync(cancellationToken))
         {

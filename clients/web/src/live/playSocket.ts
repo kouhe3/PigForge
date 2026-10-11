@@ -7,6 +7,11 @@ export interface PlaySnapshot {
   tick: number;
   phase: number;
   entities: DrawEntity[];
+  /**
+   * v7: the level props a challenge has collected, as indices into the level document's own `props`
+   * (`docs/specs/level-challenges.md` §5).
+   */
+  collected: number[];
 }
 
 export function connectPlaySocket(
@@ -42,6 +47,7 @@ export function connectPlaySocket(
       onSnapshot({
         tick: decoded.tick,
         phase: decoded.phase,
+        collected: decoded.collected,
         entities: toDrawEntities(decoded.entities),
       });
       return;
