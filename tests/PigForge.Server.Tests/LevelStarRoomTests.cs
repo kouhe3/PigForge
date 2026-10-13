@@ -23,8 +23,9 @@ public sealed class LevelStarRoomTests
     private const uint PartTnt = 9;
     private const uint PartWoodenBlock = 1;
 
-    /// <summary>A rocket of the <c>m_explodes</c> family: the one part family that ignites without a
-    /// switch, because a level room registers no activations.</summary>
+    /// <summary>A rocket of the <c>m_explodes</c> family. Its switch is a button
+    /// (<c>activation: "trigger"</c>), and a level room registers switches like any other room
+    /// (gap G115), so this fixture presses it after Start.</summary>
     private const uint PartRocket = 158;
     private const uint PartPlayer = 1;
     private const uint SequencePlace = 1;
@@ -146,12 +147,13 @@ public sealed class LevelStarRoomTests
     [Fact]
     public void APerfectFlightChallengeIsLostOnceAPartLeavesTheContraption()
     {
-        // A rocket welded next to the pig's frame auto-ignites (a level room registers no switch, and
-        // the family ignites without one) and its thrust tears the seam it shares with the rig: the rig
-        // comes apart mid-run, which is the joint loss the original marks the contraption broken for
-        // (Contraption.cs:2810-2812). The room's seam threshold is zero in this fixture, so the split is
-        // that thrust and not a physics coincidence; what the test pins is the room's break -> challenge
-        // wiring, not the threshold (docs/specs/level-stars.md §4.2).
+        // A rocket welded next to the pig's frame burns once its button is pressed (the rig presses it
+        // after Start -- `Rocket.Awake` leaves `m_enabled` false, Rocket.cs:123) and its thrust tears
+        // the seam it shares with the rig: the rig comes apart mid-run, which is the joint loss the
+        // original marks the contraption broken for (Contraption.cs:2810-2812). The room's seam
+        // threshold is zero in this fixture, so the split is that thrust and not a physics coincidence;
+        // what the test pins is the room's break -> challenge wiring, not the threshold
+        // (docs/specs/level-stars.md §4.2).
         using GameRoom lost = StartWeldedRig(withRocket: true);
         Assert.Equal(GameplayPhase.Won, lost.Phase);
         Assert.Equal(0, lost.ChallengeFlags);
@@ -200,23 +202,33 @@ public sealed class LevelStarRoomTests
 
         uint sequence = 1;
         Place(room, ref sequence, PartWoodenBlock, 0f, 0.5f);
+        uint rocket = 0;
         if (withRocket)
         {
-            Place(room, ref sequence, PartRocket, 1f, 0.5f);
+            rocket = Place(room, ref sequence, PartRocket, 1f, 0.5f);
         }
 
         Place(room, ref sequence, PartPig, 0f, 0.5f);
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, 0), PartPlayer)).IsAccepted);
+        if (withRocket)
+        {
+            // `Rocket.Awake` clears `m_enabled` (Rocket.cs:123), so the part waits for its switch:
+            // the press is what arms the burn whose thrust tears the seam.
+            Assert.True(room.Submit(PlayHost.BindPlayer(
+                new SetPartActiveCommand(0, ++sequence, PartPlayer, rocket, true), PartPlayer)).IsAccepted);
+        }
+
         room.RunTicks(240);
         return room;
     }
 
-    private static void Place(GameRoom room, ref uint sequence, uint partTypeId, float x, float y)
+    private static uint Place(GameRoom room, ref uint sequence, uint partTypeId, float x, float y)
     {
         CommandOutcome outcome = room.Submit(PlayHost.BindPlayer(
             new PlacePartCommand(0, ++sequence, 0, partTypeId, x, y, Angle: 0f, Scale: 1f),
             PartPlayer));
         Assert.True(outcome.IsAccepted, $"place {partTypeId} at ({x},{y}): {outcome.Status}/{outcome.Error}");
+        return outcome.EntityId;
     }
 
     /// <summary>A level room with the given challenges, its pig placed at <paramref name="drop"/> and started.</summary>

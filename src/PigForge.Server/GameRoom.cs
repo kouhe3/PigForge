@@ -465,6 +465,9 @@ public sealed class GameRoom : IDisposable
             _rules.AddWheel(entity);
         }
 
+        // A level-authored actor belongs to no player, so neither the sandbox nor a level room can
+        // address its switch on the wire; it keeps the pre-switch automatic path (see
+        // RegisterPlacedRole for the parts a player does place).
         if (_sandboxMode && IsSwitchable(spec.PartTypeId))
         {
             _rules.AddActivation(entity);
@@ -869,7 +872,14 @@ public sealed class GameRoom : IDisposable
             _rules.AddDetacher(entity);
         }
 
-        if (_sandboxMode && IsSwitchable(partTypeId))
+        // The switch belongs to the part, not to the room: the original builds its button list out
+        // of `Contraption.Instance.Parts` in every game mode (`UIPartButtonList.CreateButtons`,
+        // UIPartButtonList.cs:499-575), so a part a player placed and whose content declares an
+        // activation is switchable in a level room exactly as in the sandbox (gap G115). Ownership
+        // stays enforced by SetPartActive/SetPartTypeActive, and the phase matrix still rejects a
+        // switch while the room is Building. A level-authored actor (`Spawn`, never a player's
+        // part and unreachable on the wire) keeps the pre-switch automatic path.
+        if (IsSwitchable(partTypeId))
         {
             _rules.AddActivation(entity);
         }

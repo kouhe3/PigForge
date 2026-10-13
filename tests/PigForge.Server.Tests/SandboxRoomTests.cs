@@ -739,20 +739,24 @@ public sealed class SandboxRoomTests
     }
 
     [Fact]
-    public void LegacyRoomRejectsSwitchCommands()
+    public void LevelRoomSwitchesAPlacedPart()
     {
         ScriptedWorld world = new();
         using GameRoom room = CreateLegacyRoom(world);
         room.SetupFromLevel(Level());
         uint entityId = room.Submit(PlacePart(1, PlayerOne, PartMotor, 0.5f, 0.5f)).EntityId;
 
+        // The switch belongs to the part in every game mode (`UIPartButtonList.CreateButtons` builds
+        // its buttons from `Contraption.Instance.Parts`), so a goal-based room registers one for a
+        // placed part exactly as the sandbox does (gap G115); the original's parts still only answer
+        // while the run is Running (BasePart.ProcessTouch, BasePart.cs:924-935).
         CommandOutcome building = room.Submit(SetActive(2, PlayerOne, entityId, active: true));
         Assert.Equal(CommandStatus.WrongMode, building.Status);
 
         room.Start();
         CommandOutcome running = room.Submit(SetActive(3, PlayerOne, entityId, active: true));
-        Assert.Equal(CommandStatus.RuleRejected, running.Status);
-        Assert.Equal(ConstructionError.PartNotSwitchable, running.Error);
+        Assert.True(running.IsAccepted);
+        Assert.Equal((byte)1, PublishEntities(room, out _).Single(entity => entity.EntityId == entityId).Flags);
     }
 
     [Fact]
