@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "scenario_28",
   "goalZone": {
     "min": [
@@ -48,9 +48,9 @@
   "props": [
     {"id":"background_night_01_set_1","x":-25.39165,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoalArea_Night","x":-1.4972086,"y":-5.319213,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
-    {"id":"TNT_Box","x":-23.35852,"y":24.625551,"z":0,"rotation":6.076354,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-4.8462825,"y":24.831736,"z":0,"rotation":0.19003808,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-35.141403,"y":28.737694,"z":0,"rotation":1.7368442,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-23.35852,"y":24.625551,"z":0,"rotation":6.076354,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-4.8462825,"y":24.831736,"z":0,"rotation":0.19003808,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-35.141403,"y":28.737694,"z":0,"rotation":1.7368442,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"BoxChallenge","x":0.37247694,"y":-3.0408309,"z":0,"rotation":0.09394373,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"BoxChallenge","x":-19.189657,"y":23.83841,"z":0,"rotation":6.127408,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},

@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "scenario_81",
   "goalZone": {
     "min": [
@@ -45,7 +45,7 @@
   "props": [
     {"id":"background_forest_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoalArea_Morning","x":43.400295,"y":-5.3165803,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
-    {"id":"TNT_Box","x":-89.28771,"y":9.064081,"z":0,"rotation":6.091094,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-89.28771,"y":9.064081,"z":0,"rotation":6.091094,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"BoxChallenge","x":-87.44174,"y":8.09296,"z":0,"rotation":5.614116,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Bush_02_0","x":-95.13907,"y":10.954,"z":-5,"rotation":0.10076034,"scaleX":1,"scaleY":1},
     {"id":"Crystal_02","x":4.975422,"y":0.57239723,"z":-5,"rotation":4.7767606,"scaleX":1,"scaleY":1},

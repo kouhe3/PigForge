@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "scenario_10",
   "goalZone": {
     "min": [
@@ -44,10 +44,10 @@
   "props": [
     {"id":"background_halloween","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoalArea_Halloween","x":11.404392,"y":34.765907,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
-    {"id":"TNT_Box","x":52.374184,"y":-6.118983,"z":0,"rotation":4.712636,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":40.077896,"y":-6.143431,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":36.683952,"y":-3.9485502,"z":0,"rotation":0.08129563,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-20.185675,"y":-4.9127336,"z":0,"rotation":0.17867091,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":52.374184,"y":-6.118983,"z":0,"rotation":4.712636,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":40.077896,"y":-6.143431,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":36.683952,"y":-3.9485502,"z":0,"rotation":0.08129563,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-20.185675,"y":-4.9127336,"z":0,"rotation":0.17867091,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"BoxChallenge","x":-19.153402,"y":22.044731,"z":0,"rotation":6.233606,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"BoxChallenge","x":60.557972,"y":-1.0249506,"z":0,"rotation":0.28178814,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Crumbs_Line_02","x":21.03455,"y":-6.640115,"z":-5.1,"rotation":0,"scaleX":-1.5015088,"scaleY":1.5015088},

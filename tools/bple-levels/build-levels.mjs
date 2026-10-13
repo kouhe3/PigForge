@@ -354,6 +354,7 @@ const totals = {
   propInstances: 0,
   cloudInstances: 0,
   triggerProps: 0,
+  explosiveProps: 0,
   goals: 0,
   levelsWithoutGoal: 0,
   cameraLimits: 0,
@@ -749,6 +750,10 @@ for (const { bundle, file } of dataFiles) {
       // (`docs/specs/level-challenges.md` §3).
       ...(record.boxes.length > 0 ? { boxes: boxesOf(record.boxes) } : {}),
       ...(record.triggers.length > 0 ? { triggers: boxesOf(record.triggers) } : {}),
+      // A crate that blows up when it is hit (schemaVersion 11): the original's own `TNTBox`
+      // component's three numbers, which the room's impact rule reads (`docs/specs/level-props.md`
+      // §3.8). The prop's own solid collider is the `boxes` entry beside this one.
+      ...(record.explosive === null ? {} : { explosive: record.explosive }),
     });
     // One instance object, one slot: the challenge's own entry (if it is one) points back at it.
     if (challengeNodes.has(instance)) challengePropIndex.set(instance, propInstances.length - 1);
@@ -774,10 +779,11 @@ for (const { bundle, file } of dataFiles) {
   const challenges = challengeRead.challenges;
   const document = {
     format: "pigforge.level-content",
-    // v10 is the version that carries the level's own challenges, and every original level is v10 --
-    // including the sandbox levels, whose document carries `challenges: []` rather than dropping
-    // back to v9 (the array is required; only its contents may be empty).
-    schemaVersion: 10,
+    // v11 adds a prop's own `explosive` numbers (the vanilla `TNTBox` crates), on top of v10's
+    // challenges -- which every original level carries, including the sandbox levels, whose document
+    // holds `challenges: []` rather than dropping back (the array is required, only its contents may
+    // be empty).
+    schemaVersion: 11,
     contentVersion,
     ...(build === null ? {} : { build }),
     goalZone,
@@ -821,6 +827,7 @@ for (const { bundle, file } of dataFiles) {
   totals.propInstances += propInstances.length;
   totals.cloudInstances += cloudInstances;
   totals.triggerProps += propInstances.filter((prop) => prop.triggers !== undefined).length;
+  totals.explosiveProps += propInstances.filter((prop) => prop.explosive !== undefined).length;
   totals.bytes += bytes;
 
   const state = DRY_RUN ? (changed ? "new" : "same") : changed ? "wrote" : "same";
@@ -919,6 +926,9 @@ check(skippedCurves.length === 0, `${skippedCurves.length} terrain(s) have no us
 // is the pack's own instance count -- a prop family that stops being classified cannot hide.
 check(totals.propInstances === 18204, `placed prop instances: ${totals.propInstances}, expected 18204`);
 check(totals.triggerProps === 948, `props with trigger boxes: ${totals.triggerProps}, expected 948`);
+// Every vanilla `TNT_Box` in the pack: the original's own crates (`DynamicTNTBox` is the four
+// level-authored ones that carry a rigidbody, a different prop the room does not make yet).
+check(totals.explosiveProps === 322, `props with an explosive TNTBox: ${totals.explosiveProps}, expected 322`);
 check(totals.cloudInstances === 1020, `cloud instances: ${totals.cloudInstances}, expected 1020`);
 const cachedInstances = [...propCensus.values()].reduce((total, count) => total + count, 0) + totals.spawns;
 check(cachedInstances === 26072, `classified instances: ${cachedInstances}, expected 26072`);

@@ -41,6 +41,16 @@ public sealed class ImpactRulesRoomTests
         Boxes = [new LevelPropBoxDefinition(X: 0f, Y: 0f, Z: 0f, SizeX: 20f, SizeY: 1f, SizeZ: 1f, Rotation: 0f)],
     };
 
+    /// <summary>
+    /// The same crate with the vanilla `TNT_Box` component's own numbers (schemaVersion 11,
+    /// `docs/specs/level-props.md` §3.8): a level's own crate blows up when something hits it faster
+    /// than 2 m/s, reaching 8 m with 25 N*s of impulse.
+    /// </summary>
+    private static readonly LevelPropDefinition ExplosiveCrate = Crate with
+    {
+        Explosive = new LevelPropExplosiveDefinition(TriggerSpeed: 2f, ExplosionRadius: 8f, ExplosionImpulse: 25f),
+    };
+
     [Fact]
     public void AChargeThatLandsHardOnACrateIgnoresNothingAndBlows()
     {
@@ -103,7 +113,43 @@ public sealed class ImpactRulesRoomTests
         Assert.NotNull(Find(room, tnt));
     }
 
-    private static GameRoom StartRoom()
+    /// <summary>
+    /// A level's own crate answers an impact itself: the vanilla `TNT_Box` is a static collider whose
+    /// component explodes it above its own trigger speed (`TNTBox.cs:15-19`). The room builds the crate's
+    /// static body out of the prop's `boxes` and reads the document's v11 `explosive` numbers
+    /// (`docs/specs/level-props.md` §3.8); the blast takes the crate out of the world with its art, which
+    /// is what the client's collected-prop hiding already does -- a level crate could be driven into and
+    /// nothing happened before this.
+    /// </summary>
+    [Fact]
+    public void AChargeDroppedOntoAnExplosiveCrateBlowsTheCrateUpWithIt()
+    {
+        using GameRoom room = StartRoom(ExplosiveCrate);
+        Assert.Equal(1, room.PropBodyCount);
+        uint tnt = Place(room, 0f, 8f);
+        Assert.True(room.Submit(Start()).IsAccepted);
+
+        // The crate leaves the world on its own impact tick; the charge it arms needs its fuse, so the
+        // window runs past the explosion either way.
+        uint exploded = 0;
+        for (uint tick = 1; tick <= 240; tick++)
+        {
+            room.Tick();
+            if (exploded == 0 && room.CollectedPropCount > 0)
+            {
+                exploded = tick;
+            }
+        }
+
+        // The crate's own component answered the landing: the prop is collected (its art goes and its
+        // static body with it), and the charge that landed on it blew with it.
+        Assert.NotEqual(0u, exploded);
+        Assert.Equal(1, room.CollectedPropCount);
+        Assert.Equal(0, room.PropBodyCount);
+        Assert.Null(Find(room, tnt));
+    }
+
+    private static GameRoom StartRoom(LevelPropDefinition? prop = null)
     {
         string root = FindRepositoryRoot();
         PartContentLibrary parts = PartContentLibrary.Load(Path.Combine(root, "content", "parts.json"));
@@ -113,7 +159,7 @@ public sealed class ImpactRulesRoomTests
             MapBounds: FarBounds,
             Spawns: [])
         {
-            Props = [Crate],
+            Props = [prop ?? Crate],
         };
         GameplayConfig config = new(
             level.GoalZone,

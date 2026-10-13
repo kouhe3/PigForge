@@ -73,7 +73,7 @@ describe("validateLevelContent root", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expectRejected({ schemaVersion: 11 }, "root.schemaVersion");
+    expectRejected({ schemaVersion: 12 }, "root.schemaVersion");
   });
 
   it("rejects an empty, padded or non-string contentVersion", () => {
@@ -533,8 +533,8 @@ describe("validateLevelContent trigger boxes", () => {
       .toContain("root.props[0].triggers[0].sizeX: a solid box needs a positive size.");
   });
 
-  it("rejects an unsupported schema version past v10", () => {
-    expectRejected({ schemaVersion: 11 }, "root.schemaVersion");
+  it("rejects an unsupported schema version past v11", () => {
+    expectRejected({ schemaVersion: 12 }, "root.schemaVersion");
   });
 });
 
@@ -695,6 +695,44 @@ describe("validateLevelContent challenges", () => {
       .toContain("root.challenges[0]: unknown property 'partTypeId' for a 'perfectFlight' challenge.");
     expect(withChallenges([{ name: "BoxChallenge", kind: "box", propIndex: 0, extra: 1 }]))
       .toContain("root.challenges[0]: unknown property 'extra'.");
+  });
+});
+
+/** The v11 document: the v10 one with its first prop carrying a vanilla crate's own blast. */
+const v11 = {
+  ...structuredClone(v10),
+  schemaVersion: 11,
+  props: [
+    {
+      ...structuredClone(v10.props[0]),
+      explosive: { triggerSpeed: 2, explosionRadius: 8, explosionImpulse: 25 },
+    },
+    structuredClone(v10.props[1]),
+  ],
+};
+
+describe("validateLevelContent prop blasts", () => {
+  it("accepts a v11 document whose prop carries a blast", () => {
+    expect(validateLevelContent(v11)).toEqual([]);
+  });
+
+  it("refuses a blast before v11 and malformed blasts on v11", () => {
+    const older = structuredClone(v11) as Record<string, unknown>;
+    older.schemaVersion = 10;
+    expect(validateLevelContent(older)).toContain("root.props[0]: unknown property 'explosive'.");
+
+    const malformed = (explosive: unknown): string[] =>
+      validateLevelContent({ ...structuredClone(v11), props: [{ ...structuredClone(v11.props[0]), explosive }] });
+    expect(malformed(3)).toContain("root.props[0].explosive: must be a JSON object.");
+    expect(malformed({ triggerSpeed: 2, explosionRadius: 8 })).toContain(
+      "root.props[0].explosive: missing required property 'explosionImpulse'.",
+    );
+    expect(malformed({ triggerSpeed: -1, explosionRadius: 8, explosionImpulse: 25 })).toContain(
+      "root.props[0].explosive.triggerSpeed: must not be negative.",
+    );
+    expect(malformed({ triggerSpeed: 2, explosionRadius: 0, explosionImpulse: 25 })).toContain(
+      "root.props[0].explosive.explosionRadius: must be positive.",
+    );
   });
 });
 

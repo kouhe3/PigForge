@@ -105,8 +105,14 @@ public sealed class ConstructionRules
     // original's CanPlacePartAtGridCell: the anchor cell is the floored LevelStart position, the
     // rows bound which local cells exist, and the allowance table keys a base family to the count
     // the level places (a variant counts against its base).
-    private int _gridOriginX;
-    private int _gridOriginY;
+    /// <summary>The level's own lattice anchor: the `LevelStart` instance's position, kept as the
+    /// fractional float the level file stores. The original anchors its construction UI there
+    /// (`BaseGameMode.cs:70`) and puts cell (x, y) at `anchor + (x, y)` (`ConstructionUI.cs:388`), so
+    /// the whole lattice is offset by that fraction; flooring it sank Level_05's grid 0.46 into the
+    /// ground it is supposed to hover just above (measured 2026-10-13 -> `docs/specs/
+    /// level-build-limits.md`).</summary>
+    private float _gridOriginX;
+    private float _gridOriginY;
     private int _gridHeight;
     private int _gridXMin;
     private int _gridXMax;
@@ -149,6 +155,8 @@ public sealed class ConstructionRules
         {
             _gridRows = null;
             _allowanceByFamily = null;
+            _gridOriginX = 0f;
+            _gridOriginY = 0f;
             return;
         }
 
@@ -171,8 +179,8 @@ public sealed class ConstructionRules
             }
         }
 
-        _gridOriginX = (int)MathF.Floor(limits.OriginX);
-        _gridOriginY = (int)MathF.Floor(limits.OriginY);
+        _gridOriginX = limits.OriginX;
+        _gridOriginY = limits.OriginY;
         _gridHeight = height;
         _gridXMin = -(columns - 1) / 2;
         _gridXMax = columns / 2;
@@ -320,8 +328,8 @@ public sealed class ConstructionRules
             return null;
         }
 
-        int cellX = (int)MathF.Floor(origin.Position.X / CellSize);
-        int cellY = (int)MathF.Floor(origin.Position.Y / CellSize);
+        int cellX = (int)MathF.Round((origin.Position.X - _gridOriginX) / CellSize);
+        int cellY = (int)MathF.Round((origin.Position.Y - _gridOriginY) / CellSize);
         int stepX = Math.Sign(directionX);
         int stepY = Math.Sign(directionY);
         for (int distance = 1; distance <= maxCells; distance++)
@@ -338,8 +346,8 @@ public sealed class ConstructionRules
 
     private EntityId FindAnchorInCell(int cellX, int cellY, uint attach, uint owner)
     {
-        float minX = cellX * CellSize;
-        float minY = cellY * CellSize;
+        float minX = _gridOriginX + (cellX * CellSize);
+        float minY = _gridOriginY + (cellY * CellSize);
         float maxX = minX + CellSize;
         float maxY = minY + CellSize;
         EntityId anchor = default;
@@ -423,7 +431,11 @@ public sealed class ConstructionRules
             return Failure(ConstructionError.PartNotMirrorable);
         }
 
-        if (!AllowsCell((int)MathF.Floor(positionX), (int)MathF.Floor(positionY)))
+        // The part's own lattice cell: the nearest anchor point, which is what the client's own snap
+        // produced (`RoundToInt(pointer - contraption.position)`, `ConstructionUI.cs:1055-1057`).
+        if (!AllowsCell(
+            (int)MathF.Round((positionX - _gridOriginX) / CellSize),
+            (int)MathF.Round((positionY - _gridOriginY) / CellSize)))
         {
             return Failure(ConstructionError.OutsideConstructionGrid);
         }
@@ -584,7 +596,9 @@ public sealed class ConstructionRules
 
         // Moving/rotating/scaling never changes the part count, so the level's quota does not apply
         // here -- only where the transformed anchor lands on the build grid.
-        if (!AllowsCell((int)MathF.Floor(targetX), (int)MathF.Floor(targetY)))
+        if (!AllowsCell(
+            (int)MathF.Round((targetX - _gridOriginX) / CellSize),
+            (int)MathF.Round((targetY - _gridOriginY) / CellSize)))
         {
             return Failure(ConstructionError.OutsideConstructionGrid);
         }
@@ -977,12 +991,12 @@ public sealed class ConstructionRules
         _partCountByOwner.TryGetValue(owner, out int count) ? count : 0;
 
     /// <summary>
-    /// Whether a whole world cell exists on the level's build grid, or true when the level installs
-    /// no grid. The cell is the part's floored anchor, exactly as the original tests
-    /// <c>CanPlacePartAtGridCell(x, y)</c> before a placement (the part's body may still hang over
-    /// the edge).
+    /// Whether a lattice cell exists on the level's build grid, or true when the level installs no
+    /// grid. <paramref name="cellX"/>/<paramref name="cellY"/> are the cell's own offsets from the
+    /// level's anchor -- what the original passes to <c>CanPlacePartAtGridCell(x, y)</c> before a
+    /// placement (the part's body may still hang over the edge).
     /// </summary>
-    private bool AllowsCell(int worldX, int worldY)
+    private bool AllowsCell(int cellX, int cellY)
     {
         int[]? rows = _gridRows;
         if (rows is null)
@@ -990,15 +1004,13 @@ public sealed class ConstructionRules
             return true;
         }
 
-        int localX = worldX - _gridOriginX;
-        int localY = worldY - _gridOriginY;
-        if (localX < _gridXMin || localX > _gridXMax || localY < 0 || localY >= _gridHeight)
+        if (cellX < _gridXMin || cellX > _gridXMax || cellY < 0 || cellY >= _gridHeight)
         {
             return false;
         }
 
         // The original indexes its rows top-down: Rows[height - 1 - j], bit (i - xMin).
-        return (rows[_gridHeight - 1 - localY] & (1 << (localX - _gridXMin))) != 0;
+        return (rows[_gridHeight - 1 - cellY] & (1 << (cellX - _gridXMin))) != 0;
     }
 
     /// <summary>

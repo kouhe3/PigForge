@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "test08",
   "goalZone": {
     "min": [
@@ -42,8 +42,8 @@
   "props": [
     {"id":"background_plateau_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoalArea_02","x":50.04751,"y":-5.332498,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
-    {"id":"TNT_Box","x":-4.2795553,"y":-6.08599,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":13.318317,"y":0.08287239,"z":0,"rotation":0.085420236,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-4.2795553,"y":-6.08599,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":13.318317,"y":0.08287239,"z":0,"rotation":0.085420236,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"BoxChallenge","x":14.943874,"y":0.41184056,"z":0,"rotation":0.11936407,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Background_Cloud_02_SET_0","x":50.04816,"y":13.881093,"z":15.841622,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_02_SET_0","x":24.98075,"y":20.526688,"z":15.56657,"rotation":0,"scaleX":1,"scaleY":1},

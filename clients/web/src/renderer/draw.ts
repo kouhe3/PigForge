@@ -639,7 +639,9 @@ function drawGrid(ctx: CanvasRenderingContext2D, camera: Camera, width: number, 
 
 /**
  * The level's own build region (v9): one cell per `rows` bit the grid owns, anchored on the
- * `LevelStart` instance floored onto the integer build grid (deviation D1). A cell the bitmask
+ * `LevelStart` instance's own fractional position -- the lattice the original places parts on
+ * (`BaseGameMode.cs:70`, `ConstructionUI.cs:388`), so a grid whose anchor is not a whole number
+ * hovers where the original's does instead of sinking into the ground below it. A cell the bitmask
  * does not set is left unpainted, so a carved-out hole shows as a gap in the block.
  */
 function drawConstructionGrid(
@@ -651,8 +653,8 @@ function drawConstructionGrid(
 ): void {
   const { rows } = limits;
   const shape = constructionGridShape(rows);
-  const anchorX = Math.floor(limits.origin[0]);
-  const anchorY = Math.floor(limits.origin[1]);
+  const anchorX = limits.origin[0];
+  const anchorY = limits.origin[1];
   ctx.fillStyle = CONSTRUCTION_FILL;
   ctx.strokeStyle = CONSTRUCTION_STROKE;
   ctx.lineWidth = 1;

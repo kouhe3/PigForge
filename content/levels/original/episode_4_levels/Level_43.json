@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "Level_43",
   "goalZone": {
     "min": [
@@ -43,7 +43,7 @@
   "props": [
     {"id":"background_night_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoalArea_Night","x":26.408401,"y":7.2837567,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
-    {"id":"TNT_Box","x":35.304165,"y":13.052384,"z":0,"rotation":0.7150678,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":35.304165,"y":13.052384,"z":0,"rotation":0.7150678,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"BoxChallenge","x":32.083405,"y":12.536894,"z":0,"rotation":0.1364071,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Background_Cloud_01_SET_1","x":-19.41722,"y":12.077818,"z":15.156633,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"Background_Cloud_01_SET_1","x":1.1637086,"y":14.51051,"z":15.505628,"rotation":0,"scaleX":1,"scaleY":1},

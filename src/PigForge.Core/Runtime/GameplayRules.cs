@@ -260,6 +260,10 @@ public sealed class GameplayRules
     // strongest restitution and the summed mass of its members, and the members are tracked so
     // a seam split or a rebind recomputes them instead of dropping the value.
     private readonly Dictionary<uint, List<uint>> _membersByBody = new();
+    // The level's own crates: a static prop body whose own component blows it up when something hits
+    // it (`TNTBox.cs:15-19`). The room declares one per prop body it builds; a body that has exploded
+    // is dropped, so the state's presence is also "this crate is still there".
+    private readonly Dictionary<uint, ExplosivePropState> _explosiveProps = new();
     private readonly Dictionary<uint, float> _restitutionByBody = new();
     private readonly Dictionary<uint, float> _massByBody = new();
     private readonly HashSet<uint> _bouncedBodies = new();
@@ -381,6 +385,10 @@ public sealed class GameplayRules
     /// own build rotation inside that entity's body.</summary>
     private readonly record struct WheelAttach(EntityId Parent, PhysicsQuaternion LocalRotation);
 
+    /// <summary>One level crate that blows up when it is hit: the prop it stands for (so the room can
+    /// hide it) and the original component's own three numbers.</summary>
+    private readonly record struct ExplosivePropState(int PropIndex, float TriggerSpeed, float Radius, float Impulse);
+
     private readonly Dictionary<uint, PeakApproachSample> _peakApproachByBody = new();
     private uint _tick;
 
@@ -479,6 +487,22 @@ public sealed class GameplayRules
     /// <summary>Drops every collected challenge marker: the room's `Retry` runs it, matching the
     /// original's `Collectable.OnReset` (`docs/specs/level-challenges.md` §2).</summary>
     public void ClearChallenges() => _collectedChallenges.Clear();
+
+    /// <summary>
+    /// Declares a level prop that blows up when something hits it hard enough: the vanilla `TNT_Box`
+    /// crate, whose own component carries the trigger speed, the radius and the impulse
+    /// (`TNTBox.cs:15-19`, `docs/specs/level-props.md` §3.8). The room declares one per static prop
+    /// body it builds; the impact rule then reads that body's own contact events, the way the
+    /// original's crate reads its own collider's `OnCollisionEnter`.
+    /// </summary>
+    public void AddExplosiveProp(PhysicsBodyId body, int propIndex, float triggerSpeed, float radius, float impulse)
+    {
+        _explosiveProps[body.Value] = new ExplosivePropState(propIndex, triggerSpeed, radius, impulse);
+    }
+
+    /// <summary>Forgets every declared crate: the room's `Retry` rebuilds the prop bodies and declares
+    /// them again, so the stale body ids must not answer for the new ones.</summary>
+    public void ClearExplosiveProps() => _explosiveProps.Clear();
 
     public void LinkBody(
         EntityId entity,
@@ -1122,20 +1146,30 @@ public sealed class GameplayRules
                             -physicsEvent.ContactNormal.X,
                             -physicsEvent.ContactNormal.Y,
                             -physicsEvent.ContactNormal.Z));
+                    // Per ADR-002 a strong impact ignites TNT, breaks an egg and fires a detacher; a
+                    // gentle touch (resting on ground) must not trigger them. The signal is the pair's
+                    // approach speed -- the same estimate the bounce gate uses (ADR-031: the impact
+                    // quantity is how fast the pair was closing, not how much either body's velocity
+                    // happened to change). Reading it off the event alone is not enough: the backend's
+                    // `ContactStarted` for a hard landing arrives after the solver has absorbed most of
+                    // it (measured on a box landing at 11.61 m/s: the event carried 2.60 m/s two steps
+                    // after the last free tick), so the recent peak is what rescues the ignition -- gap
+                    // G116.
+                    //
+                    // Ignition reads a *persisted* contact too: the original's charge fires on its own
+                    // collider's `OnCollisionEnter` (`TNT.cs:78-83`), while our contact events are per
+                    // body pair, so a rig already touching the terrain body and then crashing into
+                    // another face of that same body is one continuing pair and never ignited (measured
+                    // 2026-10-13: a cart drove into the level's own cliff with its charge intact). Only
+                    // the ignition moved: the egg, the detacher and the bounce are unchanged reads of
+                    // `ContactStarted`, the event that names a pair's first contact.
+                    float pairImpact = PairApproachSpeed(physicsEvent);
+                    IgniteTntOnBody(physicsEvent.BodyA, pairImpact);
+                    IgniteTntOnBody(physicsEvent.BodyB, pairImpact);
+                    ExplodePropOnImpact(physicsEvent.BodyA, pairImpact, output);
+                    ExplodePropOnImpact(physicsEvent.BodyB, pairImpact, output);
                     if (physicsEvent.Kind == PhysicsEventKind.ContactStarted)
                     {
-                        // Per ADR-002 the original game ignites TNT, breaks eggs and fires detachers on
-                        // strong impact only; a gentle touch (resting on ground) must not trigger them.
-                        // The signal is the pair's approach speed -- the same estimate the bounce gate
-                        // uses (ADR-031: the impact quantity is how fast the pair was closing, not how
-                        // much either body's velocity happened to change). Reading it off the event
-                        // alone is not enough: the backend's `ContactStarted` for a hard landing arrives
-                        // after the solver has absorbed most of it (measured on a box landing at 11.61
-                        // m/s: the event carried 2.60 m/s two steps after the last free tick), so the
-                        // recent peak is what rescues the ignition -- gap G116.
-                        float pairImpact = PairApproachSpeed(physicsEvent);
-                        IgniteTntOnBody(physicsEvent.BodyA, pairImpact);
-                        IgniteTntOnBody(physicsEvent.BodyB, pairImpact);
                         ChallengeEggsOnImpact(physicsEvent.BodyA, pairImpact, output);
                         ChallengeEggsOnImpact(physicsEvent.BodyB, pairImpact, output);
                         DetachOnImpact(physicsEvent.BodyA, pairImpact, output);
@@ -1169,18 +1203,100 @@ public sealed class GameplayRules
         _groundNormalByBody[body] = outwardNormal;
     }
 
+    /// <summary>
+    /// Ignites every charge riding the body an impact landed on. The original's charge is ignited by
+    /// its **own** collider (`TNT.cs:78-83`), so a TNT welded into a contraption counts even though it
+    /// is not that body's single representative entity -- reading the representative alone missed
+    /// exactly that case, which is why a rig's TNT never blew up (measured 2026-10-13).
+    /// </summary>
     private void IgniteTntOnBody(PhysicsBodyId body, float impactSpeed)
     {
         if (impactSpeed < _config.TntIgniteImpactSpeed
-            || !_entitiesByBody.TryGetValue(body.Value, out EntityId entity)
-            || !_tnt.TryGet(entity, out TntState tnt)
-            || tnt.Ignited
-            || !tnt.IgniteOnImpact)
+            || !_membersByBody.TryGetValue(body.Value, out List<uint>? members))
         {
             return;
         }
 
-        _tnt.Set(entity, tnt with { Ignited = true });
+        foreach (uint memberValue in members)
+        {
+            EntityId entity = new(memberValue);
+            if (_tnt.TryGet(entity, out TntState tnt) && !tnt.Ignited && tnt.IgniteOnImpact)
+            {
+                _tnt.Set(entity, tnt with { Ignited = true });
+            }
+        }
+    }
+
+    /// <summary>
+    /// A level crate taking a hit: the vanilla `TNT_Box` is a static collider whose own
+    /// <c>OnCollisionEnter</c> runs <c>Explode</c> once the collision's relative speed beats its own
+    /// `m_triggerSpeed` (`TNTBox.cs:15-19`). <c>Explode</c> then
+    /// (<c>TNTBox.cs:44-100</c>) takes every rigidbody a `Physics.OverlapSphere(m_explosionRadius)`
+    /// finds, hands it `AddExplosionForce`'s own impulse -- <c>m_explosionImpulse / max(distance, 1)^1.5</c>,
+    /// scaled down for a target lighter than 0.4 kg -- along the direction from the crate to it, calls
+    /// <c>Explode</c> on every charge the sphere found, and finally hides the crate and deactivates its
+    /// GameObject. This reports the crate through <see cref="GameplayTickOutput.CollectedProps"/> (the
+    /// channel the client already hides a prop's art through) and drops its own state, so the room takes
+    /// its static body out and the same crate can never fire twice.
+    /// <para>
+    /// One deviation, the same one the charge's own blast makes: the impulse lands at the target body's
+    /// own centre of mass with no per-collider divisor, because a PigForge compound is one body where the
+    /// original has one rigidbody per collider (<c>ADR-029</c> §偏差).
+    /// </para>
+    /// </summary>
+    private void ExplodePropOnImpact(PhysicsBodyId body, float impactSpeed, GameplayTickOutput output)
+    {
+        if (!_explosiveProps.TryGetValue(body.Value, out ExplosivePropState crate)
+            || impactSpeed < crate.TriggerSpeed
+            || !_kinematicsByBody.TryGetValue(body.Value, out var center))
+        {
+            return;
+        }
+
+        _explosiveProps.Remove(body.Value);
+        output.CollectedProps.Add(crate.PropIndex);
+        PhysicsVector3 origin = center.Position;
+        // Sorted body ids keep the command order deterministic across replays.
+        uint[] bodyIds = _kinematicsByBody.Keys.ToArray();
+        Array.Sort(bodyIds);
+        foreach (uint bodyId in bodyIds)
+        {
+            if (!_dynamicBodies.Contains(bodyId) || !_kinematicsByBody.TryGetValue(bodyId, out var kinematics))
+            {
+                continue;
+            }
+
+            float distance = PhysicsVector3.Distance(kinematics.Position, origin);
+            if (distance >= crate.Radius)
+            {
+                continue;
+            }
+
+            float magnitude = crate.Impulse / MathF.Pow(MathF.Max(distance, 1f), 1.5f);
+            if (_massByBody.TryGetValue(bodyId, out float mass) && mass > 0f)
+            {
+                if (mass < 0.1f)
+                {
+                    magnitude *= mass;
+                }
+                else if (mass < 0.4f)
+                {
+                    magnitude *= mass / 0.4f;
+                }
+            }
+
+            PhysicsVector3 direction = distance > float.Epsilon
+                ? PhysicsVector3.Normalize(kinematics.Position - origin)
+                : new PhysicsVector3(0f, 1f, 0f);
+            output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                new PhysicsBodyId(bodyId),
+                direction * magnitude,
+                kinematics.Position));
+        }
+
+        // The sphere detonates the charges it found, exactly as the original's loop calls their own
+        // `Explode` -- here their fuse is what arms them.
+        IgniteChargesInRadius(default, origin, crate.Radius);
     }
 
     /// <summary>
@@ -2503,7 +2619,7 @@ public sealed class GameplayRules
             Explode(entity, output);
             if (chain && hasCenter)
             {
-                IgniteChargesInRadius(entity, blastCenter);
+                IgniteChargesInRadius(entity, blastCenter, _config.TntBlastRadius);
             }
         }
     }
@@ -2511,7 +2627,7 @@ public sealed class GameplayRules
     /// <summary>Original TNT chain: every other charge inside the blast radius lights up
     /// (its own fuse runs from the next tick). Sorted entity ids keep it deterministic;
     /// the chain never recurses inside the same tick.</summary>
-    private void IgniteChargesInRadius(EntityId source, PhysicsVector3 center)
+    private void IgniteChargesInRadius(EntityId source, PhysicsVector3 center, float radius)
     {
 
         List<uint> ignited = null!;
@@ -2529,7 +2645,7 @@ public sealed class GameplayRules
                 continue;
             }
 
-            if (PhysicsVector3.Distance(kinematics.Position, center) < _config.TntBlastRadius)
+            if (PhysicsVector3.Distance(kinematics.Position, center) < radius)
             {
                 (ignited ??= new List<uint>()).Add(charges.CurrentId.Value);
             }
@@ -2682,9 +2798,14 @@ public sealed class GameplayRules
 
     /// <summary>
     /// The level's challenge markers (`docs/specs/level-challenges.md` §4): once the pig reaches a prop's
-    /// own trigger box, that prop is collected for the rest of the run. The original tests a part
-    /// connected to the pig (`Goal.cs:18-55`); this first cut tests the pig itself, which is what rides a
-    /// contraption through a waypoint -- the difference is one of the spec's deviations.
+    /// own trigger box, that prop is collected for the rest of the run. The original tests the part whose
+    /// **collider** entered the box, and accepts any part of the pig's own connected component
+    /// (`Goal.cs:18-20` -&gt; `IsConnectedToPig`, plus `CheckIfPartReachedGoal`'s same-component 2.5 m
+    /// fallback, `Goal.cs:31-53`) -- so a rig whose frame sweeps the box collects it even though the pig
+    /// itself never touched it, which is what a car built around the pig does (measured 2026-10-13: a
+    /// cart drove straight through the box and nothing happened). A welded member rides the pig's body; a
+    /// hinged wheel is a body of its own, and both answer
+    /// <see cref="AreConnected"/>, the joint graph the original's component is.
     /// </summary>
     private void CheckChallenges(GameplayTickOutput output)
     {
@@ -2696,22 +2817,39 @@ public sealed class GameplayRules
         var pigs = _pigs.GetEnumerator();
         while (pigs.MoveNext())
         {
-            if (!_bodies.TryGet(pigs.CurrentId, out PhysicsBodyLink link)
-                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            if (!_bodies.TryGet(pigs.CurrentId, out _))
             {
                 continue;
             }
 
-            ResolvePartFrame(pigs.CurrentId, link.Body.Value, kinematics.Position, out PhysicsVector3 pigPosition, out _);
-            foreach (ChallengeTriggerDefinition trigger in triggers)
+            uint cluster = PowerClusterKey(pigs.CurrentId);
+            foreach (var body in _membersByBody)
             {
-                if (_collectedChallenges.Contains(trigger.PropIndex) || !trigger.Zone.Contains(pigPosition))
+                if (!_kinematicsByBody.TryGetValue(body.Key, out var kinematics))
                 {
                     continue;
                 }
 
-                _collectedChallenges.Add(trigger.PropIndex);
-                output.CollectedProps.Add(trigger.PropIndex);
+                foreach (uint memberValue in body.Value)
+                {
+                    EntityId member = new(memberValue);
+                    if (PowerClusterKey(member) != cluster)
+                    {
+                        continue;
+                    }
+
+                    ResolvePartFrame(member, body.Key, kinematics.Position, out PhysicsVector3 position, out _);
+                    foreach (ChallengeTriggerDefinition trigger in triggers)
+                    {
+                        if (_collectedChallenges.Contains(trigger.PropIndex) || !trigger.Zone.Contains(position))
+                        {
+                            continue;
+                        }
+
+                        _collectedChallenges.Add(trigger.PropIndex);
+                        output.CollectedProps.Add(trigger.PropIndex);
+                    }
+                }
             }
         }
     }

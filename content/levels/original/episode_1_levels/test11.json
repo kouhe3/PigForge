@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "test11",
   "goalZone": {
     "min": [
@@ -42,7 +42,7 @@
   "props": [
     {"id":"background_jungle_01_set","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoalArea_01","x":36.937954,"y":-5.297713,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
-    {"id":"TNT_Box","x":4.7036552,"y":-2.9897583,"z":0,"rotation":0.17048605,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":4.7036552,"y":-2.9897583,"z":0,"rotation":0.17048605,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"BoxChallenge","x":5.9970856,"y":-2.0695972,"z":0,"rotation":1.7484555e-7,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Daisy_02","x":46.163593,"y":-4.97735,"z":-5,"rotation":6.06662,"scaleX":-1,"scaleY":1},
     {"id":"Daisy_01","x":43.114906,"y":-1.9247704,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

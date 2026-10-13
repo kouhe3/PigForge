@@ -249,6 +249,8 @@ function readHierarchy(text, guidToClass) {
       generator: parts.find((part) => part.classId === 114 && classOf(part) === "CloudGenerator"),
       /// A bridge's own component: it lays its steps and ropes out at load (`bridgeArt`).
       bridge: parts.find((part) => part.classId === 114 && classOf(part) === "Bridge"),
+      /// A level's TNT crate: the component whose own numbers arm the blast (`explosiveOf`).
+      tntBox: parts.find((part) => part.classId === 114 && classOf(part) === "TNTBox"),
       spriteAnimation: parts.find((part) => part.classId === 114 && classOf(part) === "SpriteAnimation"),
       renderer: parts.find((part) => part.classId === 23 || part.classId === 212),
       /// A serialized mesh (`MeshFilter.m_Mesh`): `{ guid, fileID }`, or null for a runtime-built one.
@@ -776,6 +778,25 @@ export function openProps(bpleRoot) {
   };
 
   /**
+   * A level's TNT crate is a static collider whose own `OnCollisionEnter` blows it up: hit it at more
+   * than `m_triggerSpeed` and `TNTBox.Explode` takes every rigidbody inside an `m_explosionRadius`
+   * OverlapSphere with `m_explosionImpulse` (plus `DisableGoal`'s own hide, `TNTBox.cs:15-19,44-110`).
+   * All three numbers are the component's own, so the room reads them off the level instance the way it
+   * reads a prop's `boxes`; a prop without a `TNTBox` component carries nothing (the key is absent, not
+   * zeroed). The prefab's own static collider is what the room already builds from `boxes`.
+   */
+  const explosiveOf = (objects) => {
+    const component = objects.find((object) => object.tntBox !== undefined)?.tntBox.body;
+    if (component === undefined) return null;
+    const value = (field_, fallback) => field(field_, component, "TNTBox", fallback);
+    return {
+      triggerSpeed: value("m_triggerSpeed", 2),
+      explosionRadius: value("m_explosionRadius", 8),
+      explosionImpulse: value("m_explosionImpulse", 25),
+    };
+  };
+
+  /**
    * What one prop prefab is. `kind` is one of
    *
    *   terrain  the `e2dTerrain` family -- the level file's own terrain objects (see `docs/specs/original-level-pack.md`)
@@ -864,6 +885,7 @@ export function openProps(bpleRoot) {
       quads: [],
       boxes: [],
       triggers: [],
+      explosive: explosiveOf(objects),
       clouds: cloudSet ? cloudSpec(name, objects) : null,
     };
     if (bridge) {

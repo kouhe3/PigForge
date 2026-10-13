@@ -266,4 +266,16 @@ describe("part contact snap", () => {
     }
   });
 
+  it("lands on the level's own lattice, whose anchor is fractional", () => {
+    // Level_05's `LevelStart` is at (2.4379761, 5.45759) and the original puts cell (x, y) there plus
+    // its offsets (`BaseGameMode.cs:70`, `ConstructionUI.cs:388`), so a click near a cell belongs to
+    // that cell of *that* lattice -- not to a whole world unit (measured 2026-10-13: flooring the
+    // anchor sank the drawn grid and every placed part 0.46 into the ground under it).
+    const originX = 2.4379761;
+    const originY = 5.4575901;
+    expect(placePose({ x: 1.9, y: 5.9, yaw: 0, scale: 1 }, originX, originY)).toEqual({ x: originX - 1, y: originY });
+    expect(placePose({ x: 2.5, y: 5.5, yaw: 0, scale: 1 }, originX, originY)).toEqual({ x: originX, y: originY });
+    expect(placePose({ x: 3.4, y: 6.9, yaw: 0, scale: 1 }, originX, originY)).toEqual({ x: originX + 1, y: originY + 1 });
+  });
+
 });

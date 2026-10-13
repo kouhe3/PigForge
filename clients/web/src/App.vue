@@ -260,14 +260,16 @@ function resetSimulation(): void {
  */
 function placePart(x: number, y: number): void {
   const pose = { x, y, yaw: placeAngle.value, scale: placeScale.value };
-  const snapped = placePose(pose);
   const limits = buildLimits.value;
+  // The original anchors at the LevelStart instance's own (fractional) position, so cell (i, j) is
+  // at (anchor + i, anchor + j) and the click snaps to that lattice, not to whole world units.
+  const snapped = placePose(pose, limits?.origin[0] ?? 0, limits?.origin[1] ?? 0);
   if (limits !== null) {
-    // The original anchors at the LevelStart instance's fractional position; the client floors it
-    // onto the integer build grid (deviation D1), so cell (i, j) is at (anchor + i, anchor + j).
-    const anchorX = Math.floor(limits.origin[0]);
-    const anchorY = Math.floor(limits.origin[1]);
-    if (!constructionCellExists(limits.rows, snapped.x - anchorX, snapped.y - anchorY)) {
+    if (!constructionCellExists(
+      limits.rows,
+      Math.round(snapped.x - limits.origin[0]),
+      Math.round(snapped.y - limits.origin[1]),
+    )) {
       buildNotice.value = "该位置不在建造网格内，无法放置。";
       return;
     }

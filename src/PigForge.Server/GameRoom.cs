@@ -137,6 +137,9 @@ public sealed class GameRoom : IDisposable
     /// <summary>How many static terrain bodies the level brought (test-visible).</summary>
     internal int TerrainBodyCount => _terrainBodies.Count;
     private readonly List<PhysicsBodyId> _propBodies = new();
+    /// <summary>Which prop each of <see cref="_propBodies"/> belongs to, in the same order: a prop may
+    /// bring several boxes, and an exploding crate has to take all of its own with it.</summary>
+    private readonly List<int> _propIndexByBody = new();
     /// <summary>The level props the challenge rule has collected, as indices into the document's `props`,
     /// kept sorted so a published frame is byte-identical between two runs of the same commands
     /// (`docs/specs/level-challenges.md` §5). Cleared by `Retry`, like the original's `OnReset`.</summary>
@@ -577,8 +580,9 @@ public sealed class GameRoom : IDisposable
             return;
         }
 
-        foreach (LevelPropDefinition prop in level.Props)
+        for (int propIndex = 0; propIndex < level.Props.Count; propIndex++)
         {
+            LevelPropDefinition prop = level.Props[propIndex];
             foreach (LevelPropBoxDefinition box in prop.Boxes)
             {
                 bool mirrored = prop.ScaleX < 0f;
@@ -596,14 +600,64 @@ public sealed class GameRoom : IDisposable
                     0.5f * box.SizeX * scaleX,
                     0.5f * box.SizeY * scaleY,
                     0.5f * box.SizeZ);
-                _propBodies.Add(_world.CreateBody(new BodyDefinition(
+                PhysicsBodyId propBody = _world.CreateBody(new BodyDefinition(
                     PhysicsBodyMode.Static,
                     position,
                     PhysicsQuaternion.FromZAngle(rotation),
                     mass: 0f,
-                    [shape])));
+                    [shape]));
+                _propBodies.Add(propBody);
+                _propIndexByBody.Add(propIndex);
+                // A crate's own component arms its blast (`docs/specs/level-props.md` §3.8): the rule
+                // layer reads this body's own contact events, the way `TNTBox.OnCollisionEnter` reads
+                // its own collider's.
+                if (prop.Explosive is { } blast)
+                {
+                    _rules.AddExplosiveProp(
+                        propBody,
+                        propIndex,
+                        blast.TriggerSpeed,
+                        blast.ExplosionRadius,
+                        blast.ExplosionImpulse);
+                }
             }
         }
+    }
+
+    /// <summary>
+    /// Takes one prop's own static bodies out of the world, all of them: a crate that explodes leaves
+    /// with the art its blast collected (`TNTBox.Explode` ends in `SetActive(false)`). A prop without a
+    /// body -- every challenge marker -- is simply left alone.
+    /// </summary>
+    private void DestroyPropBodies(int propIndex)
+    {
+        for (int index = _propBodies.Count - 1; index >= 0; index--)
+        {
+            if (_propIndexByBody[index] != propIndex)
+            {
+                continue;
+            }
+
+            _world.DestroyBody(_propBodies[index]);
+            _propBodies.RemoveAt(index);
+            _propIndexByBody.RemoveAt(index);
+        }
+    }
+
+    /// <summary>
+    /// Drops every static prop body the level brought, so `SetupFromLevel` builds them again: the retry
+    /// puts every crate back the way the original's `Collectable.OnReset` restores one.
+    /// </summary>
+    private void ForgetPropBodies()
+    {
+        foreach (PhysicsBodyId body in _propBodies)
+        {
+            _world.DestroyBody(body);
+        }
+
+        _propBodies.Clear();
+        _propIndexByBody.Clear();
+        _rules.ClearExplosiveProps();
     }
 
     /// <summary>
@@ -1066,6 +1120,9 @@ public sealed class GameRoom : IDisposable
         _output.Clear();
         _collectedProps.Clear();
         _rules.ClearChallenges();
+        // Every crate comes back with the level's other furniture: the bodies the blasts took out are
+        // rebuilt by the `SetupFromLevel` below (`Collectable.OnReset`).
+        ForgetPropBodies();
         uint[] entityValues = _bodyByEntity.Keys.ToArray();
         Array.Sort(entityValues);
         HashSet<uint> destroyedBodies = new();
@@ -1716,6 +1773,9 @@ public sealed class GameRoom : IDisposable
         foreach (int propIndex in _output.CollectedProps)
         {
             MarkPropCollected(propIndex);
+            // A crate is collected by its own blast: the art goes and so does the body that art was
+            // hiding. A challenge marker carries no body, so this only ever answers a crate.
+            DestroyPropBodies(propIndex);
         }
 
         // The original judges the level's challenges the moment the pig reaches the goal

@@ -292,6 +292,9 @@ public static class LevelContentParser
     /// <summary>The seven numbers one solid box (or trigger box) carries.</summary>
     private static readonly string[] BoxProperties = { "dx", "dy", "dz", "sizeX", "sizeY", "sizeZ", "rotation" };
 
+    /// <summary>The three numbers a prop's own blast carries (a vanilla `TNTBox` crate).</summary>
+    private static readonly string[] ExplosiveProperties = { "triggerSpeed", "explosionRadius", "explosionImpulse" };
+
     /// <summary>
     /// One placed prop: the palette prefab's name plus the six numbers of its transform. The id is a
     /// sprite-manifest key, so it is a non-empty, whitespace-free string like a texture name. A v7
@@ -328,11 +331,18 @@ public static class LevelContentParser
             errors.Add($"{path}.triggers: only a schemaVersion 8 document gives a prop its trigger boxes.");
         }
 
+        bool carriesExplosive = seen.Contains("explosive");
+        if (carriesExplosive && schemaVersion < 11)
+        {
+            errors.Add($"{path}.explosive: only a schemaVersion 11 document gives a prop its own blast.");
+        }
+
         foreach (string property in seen)
         {
             if (!PropProperties.Contains(property)
                 && !(property == "boxes" && schemaVersion >= 7)
-                && !(property == "triggers" && schemaVersion >= 8))
+                && !(property == "triggers" && schemaVersion >= 8)
+                && !(property == "explosive" && schemaVersion >= 11))
             {
                 errors.Add($"{path}: unknown property '{property}'.");
             }
@@ -389,6 +399,14 @@ public static class LevelContentParser
             ParseBoxes(triggersElement, "triggers", path, triggers, errors, allowFlatDepth: true);
         }
 
+        LevelPropExplosiveDefinition? explosive = null;
+        if (carriesExplosive
+            && schemaVersion >= 11
+            && element.TryGetProperty("explosive", out JsonElement explosiveElement))
+        {
+            explosive = ParseExplosive(explosiveElement, $"{path}.explosive", errors);
+        }
+
         // A decoration keeps the record's own empty arrays, so two identical decoration entries stay
         // equal (a record compares a list member by reference).
         LevelPropDefinition prop = new(id, x, y, z, rotation, scaleX, scaleY);
@@ -397,7 +415,71 @@ public static class LevelContentParser
             prop = prop with { Boxes = boxes };
         }
 
-        props.Add(triggers.Count > 0 ? prop with { Triggers = triggers } : prop);
+        if (triggers.Count > 0)
+        {
+            prop = prop with { Triggers = triggers };
+        }
+
+        props.Add(explosive is null ? prop : prop with { Explosive = explosive });
+    }
+
+    /// <summary>
+    /// A prop's own blast: the vanilla `TNTBox` component's three numbers -- the speed a hit needs to
+    /// arm it (`m_triggerSpeed`), the radius its `OverlapSphere` reaches and the impulse it hands to
+    /// every rigidbody it finds (`TNTBox.cs:15-19,44-100`). A blast needs a positive radius and
+    /// impulse, so a zeroed or negative pair is refused rather than kept as a no-op.
+    /// </summary>
+    private static LevelPropExplosiveDefinition? ParseExplosive(JsonElement element, string path, List<string> errors)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{path}: must be an object.");
+            return null;
+        }
+
+        HashSet<string> seen = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!seen.Add(property.Name))
+            {
+                errors.Add($"{path}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        RequireExactly(seen, ExplosiveProperties, path, errors);
+        foreach (string property in seen)
+        {
+            if (!ExplosiveProperties.Contains(property))
+            {
+                errors.Add($"{path}: unknown property '{property}'.");
+            }
+        }
+
+        float Read(string name)
+        {
+            if (!seen.Contains(name)
+                || !element.TryGetProperty(name, out JsonElement value)
+                || value.ValueKind != JsonValueKind.Number
+                || !value.TryGetSingle(out float number)
+                || !IsFinite(value))
+            {
+                errors.Add($"{path}.{name}: must be a finite number.");
+                return 0f;
+            }
+
+            return number;
+        }
+
+        float triggerSpeed = Read("triggerSpeed");
+        float radius = Read("explosionRadius");
+        float impulse = Read("explosionImpulse");
+        if (triggerSpeed < 0f || radius <= 0f || impulse <= 0f)
+        {
+            errors.Add($"{path}: a blast needs a positive radius and impulse and a non-negative trigger speed.");
+            return null;
+        }
+
+        return new LevelPropExplosiveDefinition(triggerSpeed, radius, impulse);
     }
 
     /// <summary>One prop's `boxes` or `triggers`: the same seven numbers, validated the same way.</summary>

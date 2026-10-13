@@ -39,12 +39,18 @@ public sealed class ConstructionBuildLimitsTests
         ConstructionRules rules = CreateRules(Limits(Level05OriginX, Level05OriginY, Level05Rows, (PartWoodenBlock, 64)), GridProbeLimits);
 
         // Rows[15, 15, 0] -> columns 4, height 2, xMin -1, xMax 2: local x in {-1..2}, local y in
-        // {0, 1}. The anchor floors to (2, 5), so the world cells are x in {1..4}, y in {5, 6}.
-        for (int x = 1; x <= 4; x++)
+        // {0, 1}, and a cell's own point is the anchor plus its offsets.
+        for (int x = -1; x <= 2; x++)
         {
-            for (int y = 5; y <= 6; y++)
+            for (int y = 0; y <= 1; y++)
             {
-                ConstructionResult placed = rules.Place(PartWoodenBlock, x + 0.5f, y + 0.5f, 0f, 1f, OwnerA);
+                ConstructionResult placed = rules.Place(
+                    PartWoodenBlock,
+                    Level05OriginX + x,
+                    Level05OriginY + y,
+                    0f,
+                    1f,
+                    OwnerA);
                 Assert.True(placed.IsSuccess, $"cell ({x}, {y}): {placed.Error}");
             }
         }
@@ -52,10 +58,18 @@ public sealed class ConstructionBuildLimitsTests
         Assert.Equal(8, rules.PartCount);
 
         // One cell left, one right, one below and one above the grid.
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 0.5f, 5.5f, 0f, 1f, OwnerA).Error);
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 5.5f, 5.5f, 0f, 1f, OwnerA).Error);
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 2.5f, 4.5f, 0f, 1f, OwnerA).Error);
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 2.5f, 7.5f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(
+            ConstructionError.OutsideConstructionGrid,
+            rules.Place(PartWoodenBlock, Level05OriginX - 2f, Level05OriginY, 0f, 1f, OwnerA).Error);
+        Assert.Equal(
+            ConstructionError.OutsideConstructionGrid,
+            rules.Place(PartWoodenBlock, Level05OriginX + 3f, Level05OriginY, 0f, 1f, OwnerA).Error);
+        Assert.Equal(
+            ConstructionError.OutsideConstructionGrid,
+            rules.Place(PartWoodenBlock, Level05OriginX, Level05OriginY - 1f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(
+            ConstructionError.OutsideConstructionGrid,
+            rules.Place(PartWoodenBlock, Level05OriginX, Level05OriginY + 2f, 0f, 1f, OwnerA).Error);
 
         Assert.Equal(8, rules.PartCount);
     }
@@ -66,24 +80,28 @@ public sealed class ConstructionBuildLimitsTests
         ConstructionRules rules = CreateRules(Limits(Level05OriginX, Level05OriginY, Level05Rows, (PartPig, 1), (PartWoodenBlock, 3)));
 
         // The pig is allowed once (partCounts 4 -> 1) on any legal cell.
-        Assert.True(rules.Place(PartPig, 2.5f, 5.5f, 0f, 1f, OwnerA).IsSuccess);
-        ConstructionResult secondPig = rules.Place(PartPig, 3.5f, 5.5f, 0f, 1f, OwnerA);
+        Assert.True(rules.Place(PartPig, Level05OriginX, Level05OriginY, 0f, 1f, OwnerA).IsSuccess);
+        ConstructionResult secondPig = rules.Place(PartPig, Level05OriginX + 1f, Level05OriginY, 0f, 1f, OwnerA);
         Assert.Equal(ConstructionError.PartAllowanceExceeded, secondPig.Error);
 
         // The wooden block is allowed three times, and the fourth is refused.
-        Assert.True(rules.Place(PartWoodenBlock, 2.5f, 6.5f, 0f, 1f, OwnerA).IsSuccess);
-        Assert.True(rules.Place(PartWoodenBlock, 3.5f, 6.5f, 0f, 1f, OwnerA).IsSuccess);
-        Assert.True(rules.Place(PartWoodenBlock, 4.5f, 6.5f, 0f, 1f, OwnerA).IsSuccess);
-        ConstructionResult fourthBlock = rules.Place(PartWoodenBlock, 1.5f, 5.5f, 0f, 1f, OwnerA);
+        Assert.True(rules.Place(PartWoodenBlock, Level05OriginX, Level05OriginY + 1f, 0f, 1f, OwnerA).IsSuccess);
+        Assert.True(rules.Place(PartWoodenBlock, Level05OriginX + 1f, Level05OriginY + 1f, 0f, 1f, OwnerA).IsSuccess);
+        Assert.True(rules.Place(PartWoodenBlock, Level05OriginX + 2f, Level05OriginY + 1f, 0f, 1f, OwnerA).IsSuccess);
+        ConstructionResult fourthBlock = rules.Place(PartWoodenBlock, Level05OriginX - 1f, Level05OriginY, 0f, 1f, OwnerA);
         Assert.Equal(ConstructionError.PartAllowanceExceeded, fourthBlock.Error);
 
         // A family the level's table never names allows none at all -- the original hides a
         // zero-count type from the build bar (ConstructionUI.CheckUnlockedParts).
         ConstructionRules tntRules = CreateRules(Limits(Level05OriginX, Level05OriginY, Level05Rows, (PartPig, 1), (PartWoodenBlock, 3)));
-        Assert.Equal(ConstructionError.PartAllowanceExceeded, tntRules.Place(PartTnt, 2.5f, 5.5f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(
+            ConstructionError.PartAllowanceExceeded,
+            tntRules.Place(PartTnt, Level05OriginX, Level05OriginY, 0f, 1f, OwnerA).Error);
 
         // The grid is checked first: an off-grid tnt is rejected for its cell, not its family.
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, tntRules.Place(PartTnt, 5.5f, 5.5f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(
+            ConstructionError.OutsideConstructionGrid,
+            tntRules.Place(PartTnt, Level05OriginX + 3f, Level05OriginY, 0f, 1f, OwnerA).Error);
     }
 
     [Fact]
@@ -97,7 +115,7 @@ public sealed class ConstructionBuildLimitsTests
         {
             for (int y = 0; y <= 2; y++)
             {
-                ConstructionResult placed = rules.Place(PartWoodenBlock, x + 0.5f, y + 0.5f, 0f, 1f, OwnerA);
+                ConstructionResult placed = rules.Place(PartWoodenBlock, x, y, 0f, 1f, OwnerA);
                 Assert.True(placed.IsSuccess, $"cell ({x}, {y}): {placed.Error}");
                 placedCount++;
             }
@@ -105,9 +123,9 @@ public sealed class ConstructionBuildLimitsTests
 
         Assert.Equal(15, placedCount);
         Assert.Equal(15, rules.PartCount);
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 3.5f, 0.5f, 0f, 1f, OwnerA).Error);
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, -2.5f, 0.5f, 0f, 1f, OwnerA).Error);
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 0.5f, 3.5f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 3f, 0f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, -3f, 0f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 0f, 3f, 0f, 1f, OwnerA).Error);
     }
 
     [Fact]
@@ -119,12 +137,12 @@ public sealed class ConstructionBuildLimitsTests
         // it.
         ConstructionRules rules = CreateRules(Limits(0f, 0f, [1, 0, 1], (PartWoodenBlock, 8)));
 
-        Assert.True(rules.Place(PartWoodenBlock, 0.5f, 0.5f, 0f, 1f, OwnerA).IsSuccess);
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 0.5f, 1.5f, 0f, 1f, OwnerA).Error);
-        Assert.True(rules.Place(PartWoodenBlock, 0.5f, 2.5f, 0f, 1f, OwnerA).IsSuccess);
+        Assert.True(rules.Place(PartWoodenBlock, 0f, 0f, 0f, 1f, OwnerA).IsSuccess);
+        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 0f, 1f, 0f, 1f, OwnerA).Error);
+        Assert.True(rules.Place(PartWoodenBlock, 0f, 2f, 0f, 1f, OwnerA).IsSuccess);
 
         // The single column is one cell wide: there is no local x = 1.
-        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 1.5f, 0.5f, 0f, 1f, OwnerA).Error);
+        Assert.Equal(ConstructionError.OutsideConstructionGrid, rules.Place(PartWoodenBlock, 1f, 0f, 0f, 1f, OwnerA).Error);
         Assert.Equal(2, rules.PartCount);
     }
 

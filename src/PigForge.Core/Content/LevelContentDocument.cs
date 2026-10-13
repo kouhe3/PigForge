@@ -57,7 +57,25 @@ public sealed record LevelPropDefinition(
     /// overlaps them with the contraption to collect a challenge.
     /// </summary>
     public IReadOnlyList<LevelPropBoxDefinition> Triggers { get; init; } = Array.Empty<LevelPropBoxDefinition>();
+
+    /// <summary>
+    /// The instance's own blast (schemaVersion 11): a vanilla `TNT_Box` crate is a static collider
+    /// whose own `OnCollisionEnter` explodes it when something hits it faster than its trigger speed
+    /// (`TNTBox.cs:15-19`), taking every rigidbody inside its radius with it. Null for a prop that
+    /// carries no such component -- which is every prop but the crates.
+    /// </summary>
+    public LevelPropExplosiveDefinition? Explosive { get; init; }
 }
+
+/// <summary>
+/// One prop's own blast, straight off its `<c>TNTBox</c>` component
+/// (<c>docs/specs/level-props.md</c> §3.8): the relative speed a collision needs to arm it, the
+/// radius the original's <c>Physics.OverlapSphere</c> reaches, and the impulse it hands out.
+/// </summary>
+public sealed record LevelPropExplosiveDefinition(
+    float TriggerSpeed,
+    float ExplosionRadius,
+    float ExplosionImpulse);
 
 /// <summary>
 /// One solid box of a placed prop (<c>docs/specs/level-props.md</c> §3.6): the original's own box
@@ -229,15 +247,17 @@ public sealed record LevelContentDocument(
     /// v7 gives a placed prop its solid boxes (<see cref="LevelPropDefinition.Boxes"/>), v8 its
     /// trigger boxes (<see cref="LevelPropDefinition.Triggers"/>, `docs/specs/level-challenges.md`) and
     /// v9 the level's own construction limits (<see cref="Build"/>) and v10 the level's own challenges
-    /// (<see cref="Challenges"/>, `docs/specs/level-stars.md`).
+    /// (<see cref="Challenges"/>, `docs/specs/level-stars.md`) and v11 a prop's own blast
+    /// (<see cref="LevelPropDefinition.Explosive"/>, `docs/specs/level-props.md` §3.8).
     /// </summary>
-    public const ushort SchemaVersion = 10;
+    public const ushort SchemaVersion = 11;
 
     /// <summary>
     /// v1 documents (no terrain) keep parsing, and so do v2 ones (terrain, no fill), v3 ones
     /// (fill, no edge trim), v4 ones (edge trim, no camera limits), v5 ones (camera limits, no
     /// props), v6 ones (props, no solid boxes), v7 ones (solid boxes, no trigger boxes), v8 ones
-    /// (trigger boxes, no construction limits) and v9 ones (construction limits, no challenges).
+    /// (trigger boxes, no construction limits), v9 ones (construction limits, no challenges) and v10
+    /// ones (challenges, no prop blast).
     /// </summary>
     public const ushort LegacySchemaVersion = 1;
 

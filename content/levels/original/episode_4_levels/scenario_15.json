@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "scenario_15",
   "goalZone": {
     "min": [
@@ -53,7 +53,7 @@
   "props": [
     {"id":"background_cave_01_set_1","x":0,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"GoalArea_StarLevel","x":36.696674,"y":24.137169,"z":0,"rotation":0,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":2.65625,"sizeZ":5,"rotation":0}]},
-    {"id":"TNT_Box","x":11.947088,"y":-5.206975,"z":0,"rotation":0.13680238,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":11.947088,"y":-5.206975,"z":0,"rotation":0.13680238,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"BoxChallenge","x":32.07333,"y":22.755945,"z":0,"rotation":0.34781903,"scaleX":1,"scaleY":1,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":1.328125,"sizeY":1.328125,"sizeZ":1,"rotation":0}]},
     {"id":"Gravel_03","x":-3.6879644,"y":-6.7703056,"z":-5,"rotation":0,"scaleX":-1,"scaleY":1},
     {"id":"Gravel_03","x":-10.636048,"y":-6.7052994,"z":-5,"rotation":0,"scaleX":1,"scaleY":1},

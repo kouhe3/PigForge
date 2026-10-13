@@ -124,7 +124,7 @@ public sealed class LevelContentTests
         const string json = """
         {
             "format": "pigforge.level-content",
-            "schemaVersion": 11,
+            "schemaVersion": 12,
             "contentVersion": "future",
             "goalZone": { "min": [0, 0, 0], "max": [1, 1, 1] },
             "bounds": { "min": [-10, -10, -10], "max": [10, 10, 10] },
@@ -550,7 +550,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)10, LevelContentDocument.SchemaVersion);
+        Assert.Equal(LevelContentDocument.SchemaVersion, (ushort)11);
         Assert.Empty(level.Terrain);
         Assert.Collection(
             level.Props,
@@ -621,7 +621,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)10, LevelContentDocument.SchemaVersion);
+        Assert.Equal(LevelContentDocument.SchemaVersion, (ushort)11);
         Assert.Collection(
             level.Props,
             prop =>
@@ -921,7 +921,7 @@ public sealed class LevelContentTests
 
         LevelContentDocument level = LevelContentParser.Parse(json);
 
-        Assert.Equal((ushort)10, LevelContentDocument.SchemaVersion);
+        Assert.Equal(LevelContentDocument.SchemaVersion, (ushort)11);
         Assert.Collection(
             level.Challenges,
             challenge =>

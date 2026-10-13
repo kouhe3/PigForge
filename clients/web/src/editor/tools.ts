@@ -65,9 +65,13 @@ export function snapMove(value: number, snap: boolean): number {
   return snap ? Math.round(value / MOVE_SNAP) * MOVE_SNAP : value;
 }
 
-/** Snaps to the nearest cell centre. Half-cell offsets are deliberately unreachable. */
-export function snapToCell(value: number): number {
-  const snapped = Math.round(value / CELL_SIZE) * CELL_SIZE;
+/**
+ * Snaps to the nearest cell centre of the build lattice, whose anchor is `origin` -- the level's own
+ * `LevelStart` position, a fractional number (`docs/specs/level-build-limits.md`). Half-cell offsets
+ * are deliberately unreachable.
+ */
+export function snapToCell(value: number, origin = 0): number {
+  const snapped = origin + Math.round((value - origin) / CELL_SIZE) * CELL_SIZE;
   // Normalise -0 so positions compare and serialise like their positive twins.
   return snapped === 0 ? 0 : snapped;
 }
@@ -413,6 +417,6 @@ export function contactBoxes(
  * click onto half cells whenever terrain or a slanted part sat within `PART_SNAP`. Free-form
  * flush fitting stays available through the move tool.
  */
-export function placePose(pose: Pose): Vec2 {
-  return { x: snapToCell(pose.x), y: snapToCell(pose.y) };
+export function placePose(pose: Pose, originX = 0, originY = 0): Vec2 {
+  return { x: snapToCell(pose.x, originX), y: snapToCell(pose.y, originY) };
 }

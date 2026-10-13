@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createAnimationState, noteActivationEdges, updateAnimations } from "./animation";
 import type { PartTexture, PartTextureSet } from "./atlas";
 import { drawFrame, drawOrder, propDepthBuckets, wheelAxle } from "./draw";
-import { createCamera } from "./camera";
+import { createCamera, worldToScreen } from "./camera";
 import type { DrawEntity, PartContentDocument } from "@/schema/types";
 import type { LevelBuildLimits, LevelProp, LevelTerrain } from "@/schema/levelContent";
 import type { DecorationQuad, LevelPropsSet } from "./levelProps";
@@ -18,6 +18,7 @@ function makeCtx() {
   const gradient: CanvasGradient = { addColorStop: () => {} } as unknown as CanvasGradient;
   const rotations: number[] = [];
   const scales: Array<[number, number]> = [];
+  const rects: number[][] = [];
   const ctx = {
     canvas: { clientWidth: 800, clientHeight: 600, width: 800, height: 600 },
     get globalAlpha(): number {
@@ -26,9 +27,10 @@ function makeCtx() {
     set globalAlpha(value: number) {
       alpha.value = value;
     },
-    fillRect: () => {
+    fillRect: (...args: unknown[]) => {
       calls.fillRect = (calls.fillRect ?? 0) + 1;
       alphas.push(alpha.value);
+      rects.push(args as number[]);
     },
     strokeRect: () => {
       calls.strokeRect = (calls.strokeRect ?? 0) + 1;
@@ -79,7 +81,7 @@ function makeCtx() {
     textAlign: "",
     textBaseline: "",
   };
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations, draws, drawAlphas, rotations, scales };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, alphas, translations, draws, drawAlphas, rotations, scales, rects };
 }
 
 const content: PartContentDocument = {
@@ -1057,5 +1059,24 @@ describe("drawFrame construction grid", () => {
     drawFrame(ctx, createCamera(), [], content, []);
     expect(calls.strokeRect ?? 0).toBe(0);
     expect(calls.fillRect).toBe(1);
+  });
+
+  it("anchors the cells on the level's own fractional position", () => {
+    // The original parents its cell prefabs to the construction root it put at the `LevelStart`
+    // instance's own position and gives cell (x, y) the local point (x, y) (`BaseGameMode.cs:70`,
+    // `ConstructionUI.cs:388`), so a fractional anchor puts the whole grid there -- flooring it sank
+    // Level_05's grid 0.46 into the ground it is meant to hover above (measured 2026-10-13).
+    const { ctx, rects } = makeCtx();
+    const camera = createCamera();
+    drawFrame(ctx, camera, [], content, [], undefined, undefined, undefined, null, null, null, null, null, build);
+
+    // The first cell the painter reaches is the grid's own (xMin, j = 0), which is (-1, 0): its box
+    // spans a half cell around the anchor plus those offsets. `rects[0]` is the background fill.
+    const [left, top, width, height] = rects[1];
+    const centreX = left + width / 2;
+    const centreY = top + height / 2;
+    const expected = worldToScreen(camera, build.origin[0] - 1, build.origin[1], 800, 600);
+    expect(centreX).toBeCloseTo(expected.x, 6);
+    expect(centreY).toBeCloseTo(expected.y, 6);
   });
 });

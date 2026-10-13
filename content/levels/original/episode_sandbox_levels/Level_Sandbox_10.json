@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "Level_Sandbox_10",
   "goalZone": {
     "min": [
@@ -53,9 +53,9 @@
   "props": [
     {"id":"background_forest_01_set_1","x":205.82295,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_forest_01_set_1","x":5.3698654,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"TNT_Box","x":-78.58464,"y":-3.1376047,"z":0,"rotation":0.15595075,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-62.641563,"y":-1.6667507,"z":0,"rotation":0.024237651,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-69.84963,"y":-4.8595448,"z":0,"rotation":4.7819963,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-78.58464,"y":-3.1376047,"z":0,"rotation":0.15595075,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-62.641563,"y":-1.6667507,"z":0,"rotation":0.024237651,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-69.84963,"y":-4.8595448,"z":0,"rotation":4.7819963,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"StarBox","x":-55.567093,"y":39.022175,"z":0,"rotation":5.0899954,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":3.333333,"sizeY":3.333333,"sizeZ":1,"rotation":0}]},
     {"id":"StarBox","x":-91.35448,"y":6.183296,"z":0,"rotation":6.2233067,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":3.333333,"sizeY":3.333333,"sizeZ":1,"rotation":0}]},
     {"id":"StarBox","x":173.95105,"y":41.514526,"z":0,"rotation":5.8836594,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":3.333333,"sizeY":3.333333,"sizeZ":1,"rotation":0}]},

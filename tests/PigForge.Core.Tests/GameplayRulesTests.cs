@@ -292,6 +292,162 @@ public sealed class GameplayRulesTests
     }
 
     /// <summary>
+    /// A charge welded into a rig is one member of a shared body, and the body's single
+    /// representative entity is whichever member the room linked last -- so a rule that read the
+    /// representative named the frame, not the charge, and the charge never lit (measured 2026-10-13:
+    /// a cart's TNT drove into a level's own cliff and stayed intact). The original fires each
+    /// charge's **own** collider (`TNT.cs:78-83`), so every member of the struck body is asked.
+    /// </summary>
+    [Fact]
+    public void AChargeWeldedIntoARigStillFiresWhenTheRigStrikes()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId charge = entities.Create();
+        EntityId frame = entities.Create();
+        EntityId cliff = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 1);
+        harness.Link(charge, new PhysicsBodyId(1));
+        // Linked second, so the compound's representative entity is the frame, not the charge.
+        harness.Link(frame, new PhysicsBodyId(1));
+        harness.Link(cliff, new PhysicsBodyId(2));
+
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, new PhysicsVector3(-12, 0, 0));
+        harness.Tick(1, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 12f),
+        });
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+
+        Assert.Contains(charge, harness.Output.DestroyedEntities);
+    }
+
+    /// <summary>
+    /// A rig already touching the level's own static body and then crashing into another face of it
+    /// is one continuing pair, so the backend reports <c>ContactPersisted</c> and never
+    /// <c>ContactStarted</c> again (measured 2026-10-13, `docs/specs/motor-wheel-drive.md` §5: a cart
+    /// drove off the sandbox ramp into the terrain body it had been rolling on). The original's
+    /// charge reads its own collider's <c>OnCollisionEnter</c> and fires regardless, so ignition is
+    /// the one impact reading that answers a persisted contact too.
+    /// </summary>
+    [Fact]
+    public void AContinuingContactStillIgnitesTheChargeItIsClosingInto()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId charge = entities.Create();
+        EntityId cliff = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 1);
+        harness.Link(charge, new PhysicsBodyId(1));
+        harness.Link(cliff, new PhysicsBodyId(2));
+
+        // The pair is already touching: this touch is a graze, under the ignition speed.
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, new PhysicsVector3(1, 0, 0));
+        harness.Tick(1, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(1f, 0f, 0f), approachSpeed: 1f),
+        });
+        // The same pair, now driving into the face at speed.
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, new PhysicsVector3(12, 0, 0));
+        harness.Tick(2, new[]
+        {
+            PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(1f, 0f, 0f), approachSpeed: 12f),
+        });
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+
+        Assert.Contains(charge, harness.Output.DestroyedEntities);
+    }
+
+    /// <summary>
+    /// The original tests the part whose **collider** entered the mark and accepts the whole
+    /// connected component (`Goal.cs:18-20` to `IsConnectedToPig`, plus `CheckIfPartReachedGoal`'s
+    /// same-component 2.5 m fallback, `Goal.cs:31-53`), so a rig sweeping the box with a frame
+    /// collects it while the pig rides along outside. A part in a component of its own does not: the
+    /// marker answers the pig's own cluster only (measured 2026-10-13: a cart drove straight through
+    /// Level_05's star box and nothing happened).
+    /// </summary>
+    [Fact]
+    public void AFrameInThePigsOwnClusterCollectsAMarkerThePigItselfMisses()
+    {
+        EntityStore entities = new();
+        GameplayConfig config = FarZonesConfig() with
+        {
+            ChallengeTriggers =
+            [
+                new ChallengeTriggerDefinition(0, new GameplayZone(new PhysicsVector3(9, -1, -1), new PhysicsVector3(11, 1, 1))),
+                new ChallengeTriggerDefinition(1, new GameplayZone(new PhysicsVector3(29, -1, -1), new PhysicsVector3(31, 1, 1))),
+            ],
+        };
+        GameplayHarness harness = new(entities, config);
+        EntityId pig = entities.Create();
+        EntityId frame = entities.Create();
+        EntityId stranger = entities.Create();
+        harness.Rules.AddPig(pig, ownLinear: 0.2f, ownAngular: 0.05f);
+        harness.Link(pig, new PhysicsBodyId(1));
+        // The frame rides the pig's own body ten metres out, which is where the marker is.
+        harness.Link(frame, new PhysicsBodyId(1), localOffset: new PhysicsVector3(10, 0, 0));
+        // A body of its own, parked in the second marker: not the pig's component, so not a hit.
+        harness.Link(stranger, new PhysicsBodyId(2), localOffset: new PhysicsVector3(30, 0, 0));
+
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), PhysicsVector3.Zero, PhysicsVector3.Zero);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal([0], harness.Output.CollectedProps);
+    }
+
+    /// <summary>
+    /// A level's own TNT crate: the vanilla `TNT_Box` is a static collider whose own component runs
+    /// `Explode` once the collision's relative speed beats its `m_triggerSpeed`, handing every rigidbody
+    /// inside `m_explosionRadius` an impulse and then taking itself out of the world
+    /// (`TNTBox.cs:15-19,44-100`). A gentle touch is not a hit, and the numbers are the component's own,
+    /// so they ride the level document (`docs/specs/level-props.md` §3.8).
+    /// </summary>
+    [Fact]
+    public void ALevelCrateBlowsUpWhenSomethingHitsItHardEnough()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rig = entities.Create();
+        harness.Link(rig, new PhysicsBodyId(1));
+        harness.Rules.AddExplosiveProp(new PhysicsBodyId(2), propIndex: 7, triggerSpeed: 2f, radius: 8f, impulse: 25f);
+
+        // A graze, under the crate's own trigger speed.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(3, 0, 0), new PhysicsVector3(1, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(2), PhysicsVector3.Zero, PhysicsVector3.Zero);
+        harness.Tick(1, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(1f, 0f, 0f), approachSpeed: 1f),
+        });
+        Assert.Empty(harness.Output.CollectedProps);
+        Assert.Empty(harness.Output.Commands);
+
+        // The hit itself: 25 / max(3 m, 1)^1.5 pushed along the crate-to-target direction.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(3, 0, 0), new PhysicsVector3(-9, 0, 0));
+        harness.Tick(2, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(1f, 0f, 0f), approachSpeed: 9f),
+        });
+
+        Assert.Equal([7], harness.Output.CollectedProps);
+        PhysicsCommand command = Assert.Single(harness.Output.Commands);
+        Assert.Equal(PhysicsCommandKind.ApplyImpulse, command.Kind);
+        Assert.Equal(1u, command.Body.Value);
+        Assert.Equal(25f / MathF.Pow(3f, 1.5f), command.Impulse.X, 3);
+        Assert.Equal(0f, command.Impulse.Y, 3);
+
+        // The crate is spent: a later hit cannot fire it a second time.
+        harness.Output.Clear();
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(3, 0, 0), new PhysicsVector3(-9, 0, 0));
+        harness.Tick(3, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(1f, 0f, 0f), approachSpeed: 9f),
+        });
+        Assert.Empty(harness.Output.CollectedProps);
+        Assert.Empty(harness.Output.Commands);
+    }
+
+    /// <summary>
     /// G89: the original's own bounce threshold. Unity's <c>Physics.bounceThreshold</c> is BPLE's
     /// <c>ProjectSettings/DynamicsManager.asset</c> <c>m_BounceThreshold: 2</c>, and PhysX drops a
     /// contact's restitution below it -- so a landing at 1.5 m/s settles, and the same landing at

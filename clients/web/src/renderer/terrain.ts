@@ -196,6 +196,13 @@ function createOffscreen(width: number, height: number): { element: CanvasImageS
  * the terrain's own fill when that texture is available and in the flat ground colour otherwise (a
  * v2 document, or a checkout whose art was not extracted). Each loop is closed and filled on its own,
  * so a hole (a loop walked the other way round) stays a hole.
+ *
+ * The terrains are painted **far to near**: the original is a 3D scene whose camera sits at z = -15
+ * looking towards +z, so a terrain's own `position[2]` is its distance and the depth buffer draws the
+ * big value first. A level's document order is not that order -- Level_05 carries `z = 0, 0, 5`, and
+ * painting it as written puts the z = 5 backdrop rock on top of the z = 0 pillar in front of it
+ * (measured 2026-10-13: the pillar's own fill is a ring, so the backdrop showed through its middle).
+ * Equal z keeps the document's own order, which is the tie the original's own submission order breaks.
  */
 export function drawTerrain(
   ctx: CanvasRenderingContext2D,
@@ -208,7 +215,9 @@ export function drawTerrain(
 ): void {
   ctx.strokeStyle = GROUND_STROKE;
   ctx.lineWidth = 1.5;
-  for (const terrain of terrains) {
+  // Far to near: a copy, so the caller's document array keeps its own order.
+  const paintOrder = [...terrains].sort((left, right) => right.position[2] - left.position[2]);
+  for (const terrain of paintOrder) {
     const fill = terrain.fill;
     const texture = fill === undefined ? undefined : textures?.get(fill.texture) ?? undefined;
     const tile = fill === undefined || texture === undefined ? null : tint(texture, fill.color);

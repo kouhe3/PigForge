@@ -1,6 +1,6 @@
 {
   "format": "pigforge.level-content",
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "contentVersion": "Level_Sandbox_07",
   "goalZone": {
     "min": [
@@ -94,12 +94,12 @@
   "props": [
     {"id":"background_night_01_set_1","x":-0.15712309,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
     {"id":"background_night_01_set_1","x":186.29036,"y":0,"z":0,"rotation":0,"scaleX":1,"scaleY":1},
-    {"id":"TNT_Box","x":-73.038086,"y":-4.818112,"z":0,"rotation":6.1801724,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-83.04111,"y":41.630745,"z":0,"rotation":6.1036096,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-81.658585,"y":29.012995,"z":0,"rotation":5.972211,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-89.266495,"y":42.1755,"z":0,"rotation":0.087166056,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-79.68075,"y":21.802933,"z":0,"rotation":5.9805427,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
-    {"id":"TNT_Box","x":-74.943596,"y":29.10929,"z":0,"rotation":4.970394,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}]},
+    {"id":"TNT_Box","x":-73.038086,"y":-4.818112,"z":0,"rotation":6.1801724,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-83.04111,"y":41.630745,"z":0,"rotation":6.1036096,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-81.658585,"y":29.012995,"z":0,"rotation":5.972211,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-89.266495,"y":42.1755,"z":0,"rotation":0.087166056,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-79.68075,"y":21.802933,"z":0,"rotation":5.9805427,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
+    {"id":"TNT_Box","x":-74.943596,"y":29.10929,"z":0,"rotation":4.970394,"scaleX":1,"scaleY":1,"boxes":[{"dx":0,"dy":0,"dz":0,"sizeX":0.95,"sizeY":0.95,"sizeZ":0.95,"rotation":0}],"explosive":{"triggerSpeed":2,"explosionRadius":8,"explosionImpulse":25}},
     {"id":"StarBox","x":29.086655,"y":3.6443577,"z":0,"rotation":0,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":3.333333,"sizeY":3.333333,"sizeZ":1,"rotation":0}]},
     {"id":"StarBox","x":14.894333,"y":55.824646,"z":0,"rotation":0.16444845,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":3.333333,"sizeY":3.333333,"sizeZ":1,"rotation":0}]},
     {"id":"StarBox","x":-13.216461,"y":31.050863,"z":0,"rotation":6.1367173,"scaleX":0.4,"scaleY":0.4,"triggers":[{"dx":0,"dy":0,"dz":0,"sizeX":3.333333,"sizeY":3.333333,"sizeZ":1,"rotation":0}]},

@@ -127,6 +127,19 @@ export interface LevelProp {
   boxes?: readonly LevelPropBox[];
   /** v8: the prop's trigger boxes — the markers the room's challenge rule overlaps with. */
   triggers?: readonly LevelPropBox[];
+  /**
+   * v11: the prop's own blast — a vanilla `TNT_Box` crate is a static collider that explodes when a
+   * collision beats its trigger speed (`docs/specs/level-props.md` §3.8). The room owns the blast;
+   * the client only has to know the field is legal.
+   */
+  explosive?: LevelPropExplosive;
+}
+
+/** One prop's own blast (v11), straight off the original's `TNTBox` component. */
+export interface LevelPropExplosive {
+  triggerSpeed: number;
+  explosionRadius: number;
+  explosionImpulse: number;
 }
 
 /** One solid box of a placed prop, in the prop's own frame (v7). */
@@ -142,7 +155,7 @@ export interface LevelPropBox {
 
 export interface LevelContentDocument {
   format: "pigforge.level-content";
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
   contentVersion: string;
   goalZone: LevelZone;
   bounds: LevelZone;
@@ -340,7 +353,10 @@ const CURVE_TEXTURE_KEYS = ["texture", "wrap"];
 const PROP_REQUIRED_KEYS = ["id", "x", "y", "z", "rotation", "scaleX", "scaleY"];
 const PROP_KEYS_WITH_BOXES = [...PROP_REQUIRED_KEYS, "boxes"];
 const PROP_KEYS_WITH_BOXES_AND_TRIGGERS = [...PROP_KEYS_WITH_BOXES, "triggers"];
+/** v11 adds a prop's own blast (the vanilla `TNT_Box` crates, `docs/specs/level-props.md` §3.8). */
+const PROP_KEYS_V11 = [...PROP_KEYS_WITH_BOXES_AND_TRIGGERS, "explosive"];
 const PROP_BOX_KEYS = ["dx", "dy", "dz", "sizeX", "sizeY", "sizeZ", "rotation"];
+const PROP_EXPLOSIVE_KEYS = ["triggerSpeed", "explosionRadius", "explosionImpulse"];
 const LEVEL_ROLES: readonly LevelActorRole[] = ["part", "pig", "tnt"];
 const LEVEL_WRAPS: readonly LevelCurveWrap[] = ["repeat", "clamp"];
 const LEVEL_CHALLENGE_KINDS: readonly LevelChallengeKind[] = ["dontUseParts", "time", "perfectFlight", "transport", "box"];
@@ -359,8 +375,8 @@ export function validateLevelContent(value: unknown): string[] {
   if (document.schemaVersion !== 1 && document.schemaVersion !== 2
     && document.schemaVersion !== 3 && document.schemaVersion !== 4 && document.schemaVersion !== 5
     && document.schemaVersion !== 6 && document.schemaVersion !== 7 && document.schemaVersion !== 8
-    && document.schemaVersion !== 9 && document.schemaVersion !== 10) {
-    errors.push("root.schemaVersion: versions 1 to 10 are supported.");
+    && document.schemaVersion !== 9 && document.schemaVersion !== 10 && document.schemaVersion !== 11) {
+    errors.push("root.schemaVersion: versions 1 to 11 are supported.");
   }
   // A malformed version is already an error above, so an unknown one reads as the oldest.
   const version = typeof document.schemaVersion === "number" ? document.schemaVersion : 0;
@@ -407,7 +423,10 @@ export function validateLevelContent(value: unknown): string[] {
     } else {
       const withBoxes = version >= 7;
       const withTriggers = version >= 8;
-      document.props.forEach((prop, index) => validateProp(prop, `root.props[${index}]`, withBoxes, withTriggers, errors));
+      const withExplosive = version >= 11;
+      document.props.forEach((prop, index) =>
+        validateProp(prop, `root.props[${index}]`, withBoxes, withTriggers, withExplosive, errors),
+      );
     }
   } else if (document.props !== undefined) {
     errors.push("root.props: only a schemaVersion 6 or newer document places the level's props.");
@@ -607,14 +626,20 @@ function validateChallenge(value: unknown, path: string, propCount: number, erro
 }
 
 /** One decoration instance: the sprite-manifest key plus the six numbers of its transform. */
-function validateProp(value: unknown, path: string, withBoxes: boolean, withTriggers: boolean, errors: string[]): void {
+function validateProp(value: unknown, path: string, withBoxes: boolean, withTriggers: boolean, withExplosive: boolean, errors: string[]): void {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     errors.push(`${path}: prop must be a JSON object.`);
     return;
   }
 
   const prop = value as Record<string, unknown>;
-  const allowed = withTriggers ? PROP_KEYS_WITH_BOXES_AND_TRIGGERS : withBoxes ? PROP_KEYS_WITH_BOXES : PROP_REQUIRED_KEYS;
+  const allowed = withExplosive
+    ? PROP_KEYS_V11
+    : withTriggers
+      ? PROP_KEYS_WITH_BOXES_AND_TRIGGERS
+      : withBoxes
+        ? PROP_KEYS_WITH_BOXES
+        : PROP_REQUIRED_KEYS;
   validateKeys(prop, PROP_REQUIRED_KEYS, allowed, path, errors);
   if (typeof prop.id !== "string" || prop.id.length === 0 || /\s/.test(prop.id)) {
     errors.push(`${path}.id: must be a non-empty string without whitespace.`);
@@ -632,6 +657,33 @@ function validateProp(value: unknown, path: string, withBoxes: boolean, withTrig
     }
     // A wall needs real depth; a trigger may be a flat marker (the original ships one), matching the server parser.
     prop[key].forEach((box, index) => validatePropBox(box, `${path}.${key}[${index}]`, key === "triggers", errors));
+  }
+
+  // A crate's own blast: the original's `m_triggerSpeed`, `m_explosionRadius` and `m_explosionImpulse`.
+  if (withExplosive && prop.explosive !== undefined) {
+    const explosive = prop.explosive;
+    if (explosive === null || typeof explosive !== "object" || Array.isArray(explosive)) {
+      errors.push(`${path}.explosive: must be a JSON object.`);
+      return;
+    }
+
+    const blast = explosive as Record<string, unknown>;
+    validateKeys(blast, PROP_EXPLOSIVE_KEYS, PROP_EXPLOSIVE_KEYS, `${path}.explosive`, errors);
+    for (const key of PROP_EXPLOSIVE_KEYS) {
+      if (!isFiniteNumber(blast[key])) {
+        errors.push(`${path}.explosive.${key}: must be a finite number.`);
+      }
+    }
+
+    if (isFiniteNumber(blast.triggerSpeed) && (blast.triggerSpeed as number) < 0) {
+      errors.push(`${path}.explosive.triggerSpeed: must not be negative.`);
+    }
+
+    for (const key of ["explosionRadius", "explosionImpulse"]) {
+      if (isFiniteNumber(blast[key]) && (blast[key] as number) <= 0) {
+        errors.push(`${path}.explosive.${key}: must be positive.`);
+      }
+    }
   }
 }
 
