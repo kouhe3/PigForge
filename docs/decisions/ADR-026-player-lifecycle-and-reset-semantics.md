@@ -53,3 +53,21 @@ Accepted
 - 客户端：`clients/web/src/App.vue`（不再附加 `?session=`、连接与掉线都 `reset()`）、`live/playerSession.ts`（RETRY 保留 `ownEntityIds`、删 `reconnect()`）、删除 `live/playSession.ts|.test.ts`。
 - 测试：Server 112（`SandboxRoomTests` 的 RESET/出界三条改为新语义 + 三条新用例：重建被摧毁件、编辑态 RESET 不复活、`LeavePlayer` 清场；`PlayHostIdentityTests` 的 4 条 session 用例换成 3 条玩家生命周期用例；`FrameWeldRoomTests` 的 RESET 用例不再重新摆放），web 221（删 4 条 playSession 用例）。
 - 规格与意图同步：`docs/specs/multiplayer-sandbox.md`（Assumption 1/4、身份节、状态机、命令表、Web 客户端、测试策略、验收）、`docs/intent/multiplayer-sandbox.md`（Outcome/Success 两条）。
+
+### 4. 2026-10-13 修正：关卡房间的 `Retry` 用同一条规则（差距 `G117`）
+
+沙盒的 `ResetPlayer`（§2）与关卡房间的 `Retry` 本来是两套写法：`Retry` 先 `_construction.ResetAll()`、销毁**全部**零件，
+再按捕获布局重新摆放 —— 于是玩家放置的每一件在每次「回到建造态」都拿到**新的实体 id**。沙盒之外没人看见过这条
+（关卡房间此前只有测试与 demo 用），但 `--play --level` 把官方关卡变成正式玩法后它就是硬伤：**客户端只从自己的 `Place` ack 学 id**
+（owner 不上线，见 §3），用新 id 重建的布局会让页面握着一批服务器不再认识的 id —— 猪出界、房间自动回建造态之后，
+本地仍是「运行中」且无法再建造。
+
+修正后两个房间共用一条规则：**房间回到建造态时，能活的件保持身份**。
+
+- `GameRoom.Retry` 不再 `ResetAll` + 全部重建：幸存的件**留在 `ConstructionRules` 里**（同 id、同格子、回到捕获的建造位姿，
+  角色按内容重新注册），只有运行中被摧毁的件用新 id 重建（与 §3 的已知偏差同一条）。
+- 逐实体清理**先于**全局 `ResetAll`：`UnlinkBodyMember` 是清掉 `ResetAll` 不管的那几张按实体索引的表（件的局部偏移、
+  局部旋转、镜像位、风扇生成方向）的唯一路径，而它需要 `ResetAll` 随后要丢掉的 body link。
+- 关卡自带的 actor（`LevelSpawnDefinition`，不属于任何玩家）照旧销毁重建（新 id，客户端从不认识它们）。
+- 客户端配套：`live/playerSession.noteRoomPhase` 让本地相位跟着**房间自己的帧相位**回落到 `editing` —— 房间自己回建造态
+  （`ADR-036`）不走任何 ack，只有快照说得出这件事；服务器先发 ack 再广播，所以在途的旧建造帧不会撤销一次 Start。
