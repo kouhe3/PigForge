@@ -270,8 +270,10 @@ curl http://127.0.0.1:5088/level    # v10 带 challenges：BoxChallenge(box) + T
 - 配额同样在真内容上生效：同一房间再放一只猪 ⇒ `PartAllowanceExceeded`（error 17；猪的配额是 1）。
 - **跑表**：在网格内放猪（cell (−25, 7)，世界 (−24.5, 7.5)）⇒ `Start` 被接受 ⇒ `elapsedSeconds` 一路升到 **12.2 s**，
   猪随后离开关卡自己的相机矩形 ⇒ 房间按 `ADR-036` 回到建造态（帧 `phase` = 0x10），跑表归零 —— 时钟、冻结与回建造态三件事一次读数。
-- **关卡房间里的零件开关是关的**（本轮新发现，见差距 `G115`）：向一个已放置、且内容声明了 `activation` 的风箱发
-  `SetPartActive`（kind 8）⇒ **status 5 / error 15**（拒绝）。
+- **关卡房间里的零件开关**（本轮发现，差距 `G115`，**2026-10-13 已收口**）：当时向一个已放置、且内容声明了
+  `activation` 的风箱发 `SetPartActive`（kind 8）⇒ **status 5 / error 15**（拒绝），因为 `RegisterPlacedRole`
+  只在 `_sandboxMode` 下种开关条目。现在沙盒与关卡房间同一条路径，玩家放置的件都能开关（改动、真值出处与读数见
+  `docs/specs/play-part-switches.md` §「关卡房间里的开关（G115）」）。
 - 星级（`challengeFlags` 非零）在真关卡里要**真的把车开进终点区**，所以整条星级的端到端证据来自服务端房间测试
   （`LevelStarRoomTests`，真 Bepu + 合成 v10 文档）：通关出 1 星、时间挑战成/败、`dontUseParts`/`transport` 双向、
   箱子+终点区同 tick ⇒ 3 星、`Retry` 收星、载具被撕开 ⇒ `perfectFlight` 丢星。驾驶 smoke 不在本片（`玩家试玩` 是文档里的第一优先）。

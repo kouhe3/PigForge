@@ -23,7 +23,7 @@ Build order: `activation-model` → `activation-wire` → `web-gadgets`。`clien
    - **按钮的按下必须被消费，即使该件自己的门控拒绝了效果**：`TryConsumeButtonPress` 在每条规则的最前面读走它（`GameplayRules.cs`），然后才判底盘/power/方向这些门。门控扣住按下会让开关条显示一个「卡在开位、再点也关不掉」的开关（用户实测报告），既不是按钮也不是开关。
    - **可重复**：按钮件按自己的节流重臂（风箱 = 原版 0.8 s + 0.3 s inflate，`Bellows.cs:64-67`；火箭/气球/TNT 烧完即止）。任何「按一次之后永远不再响应」的实现都不是按钮。
    - **物理接触不是按钮**：原版的 `ProcessTouch` 只由 UI 到达（`Contraption.OnButtonTriggered`/`ActivateOnePartOfType`/鼠标），从不由碰撞事件到达。拳套原来把 `ContactStarted` 当触摸，会「落地就出拳」，已删除（`docs/specs/boxing-glove.md` §5）。
-3. **默认关闭**：沙盒 Start 后所有 `toggle` 零件 `Active = false`、`trigger` 零件未触发（`Active = false`），等玩家操作。**例外：气球的升力是被动效果**（原作即如此，Start 后就有升力），开关只负责放气摧毁；旋翼是 `toggle`（见 Assumption 2），Start 后推力关闭，开关只启停电机、不摧毁零件（`docs/specs/fan-propeller.md`）。旧关卡房间（`PlayHost.CreateSlopeRoom`/`CreateTerrainRoom`）**不种开关条目**（只有沙盒种），因此斜坡/地形与 `--demo-ws` 走本切片前的既有自动路径，行为逐字不变。
+3. **默认关闭**：Start 后所有 `toggle` 零件 `Active = false`、`trigger` 零件未触发（`Active = false`），等玩家操作。**例外：气球的升力是被动效果**（原作即如此，Start 后就有升力），开关只负责放气摧毁；旋翼是 `toggle`（见 Assumption 2），Start 后推力关闭，开关只启停电机、不摧毁零件（`docs/specs/fan-propeller.md`）。**开关属于零件，不属于房间**（2026-10-13 起，差距 `G115`）：`GameRoom.RegisterPlacedRole` 为**任何**房间里玩家放置的、内容声明了 `activation` 的零件种条目——沙盒与关卡房间同一条路径，因为原版的按钮表就是从 `Contraption.Instance.Parts` 取的（`UIPartButtonList.CreateButtons`，`UIPartButtonList.cs:499-575`，与游戏模式无关），且它的件默认就是关的（`Rocket.Awake` 清空 `m_enabled`，`Rocket.cs:123`；`FanPropeller.cs:64-68` 让电机待机）。**关卡自带的 actor**（`GameRoom.Spawn`：不属于任何玩家、线上寻址不到）仍走本切片前的既有自动路径。
 4. **一次性零件不再自动触发**（有意行为变更）：火箭不再 t0 自燃；风箱/抓钩不再触地自动触发；开关是唯一玩家触发。气球的升力是被动效果（见 Assumption 3），开关只做放气摧毁；旋翼改为 `toggle`，原文「点一下放气」的被动升力不再适用（`docs/specs/fan-propeller.md`）。ADR-002 的撞击语义不变：TNT 强撞击仍自燃、脱钩件强撞击仍分离、蛋仍会摔碎。
 5. **齿轮箱修正**：只有 `Active` 的齿轮箱才让同 body 的电机反向（现状是「放了齿轮箱就永远反向」）。
 6. **按钮 = 零件类型**：开关条只列该玩家自己、已 Materialized、可开关的零件类型，按 `partTypeId` 升序；按钮状态 = 该类型存在任一 `Active` 零件——但只有 `toggle` 组会因此**常亮**，`trigger` 组的按下在同一 tick 被消费（Assumption 2）。原作「发动机按钮联动所有动力零件」的特例不做。
@@ -160,7 +160,7 @@ per-player `(PlayerId, Sequence)` 语义不变。
 
 - `ConstructionError` 追加 `PartNotSwitchable`（末尾追加，字节值不变既有项）。
 - `ConstructionRules` 追加 `public uint? OwnerOf(EntityId entity)`（`_ownerByEntity` 查询）。
-- `RegisterPlacedRole` 与 `Spawn`：**仅沙盒模式**（`_sandboxMode`）为 `capabilities.Activation != None` 的零件 `_rules.AddActivation(entity)`；旧关卡房间不种条目，既有自动路径不变。
+- `RegisterPlacedRole`：为**任何**房间里放置的、`capabilities.Activation != None` 的零件 `_rules.AddActivation(entity)`（2026-10-13 起不再看 `_sandboxMode`，差距 `G115`）。`Spawn`（关卡自带的 actor）仍只在沙盒模式种条目：它不属于任何玩家，`SetPartActive` 的归属门（`_construction.OwnerOf(entity) != owner`）在那条路上也永远拒绝它，所以给它条目只会让关卡里的自带件永远等不到按钮。
 - `ExecuteCommand`（owner 0）与 `ExecuteSandboxCommand`（owner = `PlayerId`）共用：
 
 ```text
@@ -254,7 +254,7 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 
 - 门控矩阵（沙盒 Editing/Materialized、旧房间 Building/Running）。
 - 沙盒：A 的零件被 B 切换 → `RuleRejected` + `NotOwnedByPlayer`；不可开关零件 → `PartNotSwitchable`；kind 9 只影响自己的该类型零件（他人的不动）；接受后下一帧 flags 正确。
-- 旧房间不种条目：flags 全 0，`SlopePlayTests`/`PhysicsDrivenLevel` 行为不变。
+- 开关只跟着**玩家放置的件**走（2026-10-13 起，`G115`）：沙盒与关卡房间同一条注册路径，只有关卡自带的 actor 不种条目（它的 flags 全 0）；`SlopePlayTests`/`PhysicsDrivenLevel` 摆放的都是不可开关件，行为不变。
 - 双跑状态哈希含开关状态。
 
 ### Web（vitest）
@@ -298,7 +298,7 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 2. 两个标签：A Start 后载具静止；A 点「发动机」按钮（或按 `1`，或点发动机零件）→ 载具开动；再点 → 停；B 看到 A 的零件描边亮起，点它被拒且错误可见。
 3. 火箭/礼花/风箱/抓钩/TNT 只在开关触发后动作（不再 t0 自燃/触地自动触发）；气球 Start 后即提供升力，开关触发后消失；旋翼是 `toggle`，Start 后推力关闭、开关只启停电机；TNT 强撞击仍自燃。
 4. RESET → 重新 Start 后所有开关回到关闭，开关条重建。
-5. 旧房间（斜坡/地形）行为与本切片前逐字一致（不种开关条目，走既有自动路径），`--demo-ws` 只升到 v3 帧。
+5. 开关在**任何房间**都可达（沙盒与 `--play --level`；2026-10-13 起，差距 `G115`）：玩家放置的可开关零件在关卡房间收下 kind 8/9 并真的动作；关卡自带的 actor 仍走本切片前的既有自动路径，`--demo-ws` 只升到 v3 帧。
 6. 抓包：客户端→服务器只有 PGFC（含 24B 的 kind 8/9），无位姿或状态上传。
 
 ## Open Questions
@@ -363,3 +363,36 @@ export function gadgetHotkey(index: number): string | null;  // 0→"1" … 8→
 
 **非对齐件**：任意 yaw 的件落进最近的桶，不会从条上消失（原版没有这种建造角，这是我们的自由角偏差的延伸）；
 玩家仍可点零件本体（kind 8）单独切它。
+
+## 关卡房间里的开关（G115，2026-10-13）
+
+第三十三轮的 smoke 撞出来的缺口：**`SetPartActive`（PGFC kind 8）在 `--play --level` 房间里一律被拒**
+（status 5 / error 15 = `PartNotSwitchable`），因为 `RegisterPlacedRole` 只在 `_sandboxMode` 下种条目——
+于是官方关卡里玩家自己放的 TNT、风箱、拳套、电机、伞点不动，只有沙盒能玩。
+
+| # | 原版真值 | 出处 |
+|---|---|---|
+| 1 | 按钮表从**运行中的载具自己的件**生成：`UIPartButtonList.CreateButtons` 遍历 `Contraption.Instance.Parts`，对每个 `IsTriggerable()` 的件取 `GetTriggerButtonInfo()`，与游戏模式无关 | `UIPartButtonList.cs:499-575` |
+| 2 | 件默认是关的，等玩家动作：`Rocket.Awake` 里 `m_boostUsed = false; m_enabled = false`，只有 `OnTouch`（UI 到达）把它点着 | `Rocket.cs:102-123,544-581` |
+| 3 | 原版还有一条**点击零件本体**的路（`Contraption.cs:2052` → `part.ProcessTouch(vector)`）与整类渠道（`UIEvent.ActivateRockets`/`ActivateEngines`，`GameMode.cs:155-175`）；PigForge 把前者做成 kind 8、后者做成 kind 9 | 同左 |
+
+**改动**：`GameRoom.RegisterPlacedRole` 去掉 `_sandboxMode` 门（一行），`Spawn`（关卡自带的 actor）保持不变——
+它不属于任何玩家，`SetPartActive` 的归属门在那条路上永远拒绝它，种条目只会让关卡里的自带件永远等不到按钮。
+
+**测试**（`tests/PigForge.Server.Tests/LevelSwitchRoomTests.cs`，真内容 + 真 Bepu + 合成 v10 关卡文档，4 条）：
+
+| 用例 | 读数 |
+|---|---|
+| `ALevelRoomLeavesAPlacedFanOffUntilItsSwitch` | 风扇关着时 |ωz| < 0.05；按下后 30 tick 量到 **6.35 rad/s**（同一套件在沙盒里是 3.8 rad/s，那里还压在地面上） |
+| `ALevelRoomLeavesAPlacedRocketOnItsButton` | 按下前 \|vx\| < 0.05；按下后 60 tick 烧到 **20.12 m/s** |
+| `ALevelRoomSwitchesEveryPartOfAType` | kind 9 把两个风扇的 `flags` bit0 一起点亮 |
+| `ALevelRoomRejectsSwitchesWhileBuildingAndOnNonSwitchableParts` | Building + kind 8 ⇒ `WrongMode`；Running + 无 `activation` 的件 ⇒ `PartNotSwitchable` |
+
+`SandboxRoomTests.LegacyRoomRejectsSwitchCommands`（原来钉住「关卡房间拒绝开关」）随之改写成
+`LevelRoomSwitchesAPlacedPart`（Building 仍 `WrongMode`，Running 接受且快照 `flags` bit0 = 1）；
+`LevelStarRoomTests` 的 `perfectFlight` 夹具改成 Start 后**真的按下火箭的按钮**（此前它靠「关卡房间没有开关 ⇒ 火箭 t0 自燃」点火）。
+
+**非空验证**：把 `_sandboxMode` 门放回去 → 上述 4 条 + `LevelStarRoomTests` 那条**共 5 条变红**（恢复后全绿）。
+
+**已知边界（有意保留）**：关卡自带的 actor（`spawns`，全包 20 个实例，其中只有 `Level_Sandbox_07` 的伞/螺旋桨带 `activation`）
+在关卡房间里仍走既有自动路径——线上没有它的归属，客户端也不会为它出按钮。要它也可点，得先把关卡自带的件纳入某个玩家的归属，属独立一刀。
