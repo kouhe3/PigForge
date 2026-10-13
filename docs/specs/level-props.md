@@ -227,6 +227,40 @@ y∈±m_height, z∈[0, m_farPlane])`；`useCustomParallax` 时整组注册成 `
 实测：24 个实例（全部 rotation 0、scale 1×1）、每个 5…N 个四边面（`Level_24` 的短桥 = 2 台阶 + 3 绳段 = 5）；
 新图集不变（走 `IngameAtlas2.png`）。
 
+### 3.10 会炸的木箱：`TNTBox` 的撞击爆炸（关卡内容 **v11**）
+
+关卡里那个印着 TNT 的木箱（`TNT_Box.prefab`，全包 **322** 个实例、99 关；另有 4 个
+`DynamicTNTBox` 是带 `LevelRigidbody` 的动态件，本片不做）不是装饰：它的 **静态** `BoxCollider`
+（0.95³，无 `Rigidbody`）+ `TNTBox : Goal` 组件就是原版的机制 ——
+
+```
+TNTBox.cs:15-19   OnCollisionEnter(Collision c) { if (c.relativeVelocity.magnitude > m_triggerSpeed) Explode(); }
+TNTBox.cs:44-100  Explode(): OverlapSphere(m_explosionRadius) →
+                    FindParentWithRigidBody + AddExplosionForce(target, 1f / CountChildColliders(target))
+                    AddExplosionForce: impulse = factor * m_explosionImpulse / max(|目标 − 箱子|, 1)^1.5，
+                       沿 (目标 − 箱子) 方向；目标质量 < 0.1 → 再乘 mass，< 0.4 → 再乘 mass/0.4
+                   半径内每个 `TNT` 组件另外调用它自己的 Explode()
+                   最后 ShineLight()：关掉渲染器、`SetActive(false)` ⇒ 箱子从场景里消失
+```
+
+prefab 自己的三个数（`TNT_Box.prefab:19-23`）：`m_triggerSpeed: 2`、`m_explosionRadius: 8`、
+`m_explosionImpulse: 25`。工具把它们按 prefab 读出，关卡内容 **v11** 的道具多一个可选
+`explosive: { triggerSpeed, explosionRadius, explosionImpulse }`（只有 `TNTBox` 组件的那 322 个实例有），
+房间把该道具自己的静态盒体建成 body 时把它声明给规则层：
+
+| 环节 | 落点 |
+|---|---|
+| 读数 | `tools/lib/props.mjs` 的 `explosiveOf`（`field()` 直接读组件字段）→ `extract-props` 的清单记录 → `build-levels.mjs` 写进每个实例 |
+| 契约 | `schemas/level-content-v11.schema.json` 的 `$defs.propExplosive`；`LevelPropExplosiveDefinition`；客户端 `levelContent.ts` 校验（v11 才允许） |
+| 判定 | `GameplayRules.ExplodePropOnImpact`：撞击量用与点火同一个估计（事件自带 / 上一 tick / 最近 2 tick 峰值），超过 `triggerSpeed` 即炸；`ContactStarted` 与 `ContactPersisted` 都读（同一对持续接触也算撞击） |
+| 效果 | 半径内每个动态 body 一条 `ApplyImpulse`（`impulse / max(d,1)^1.5`，`_massByBody` 有正值时按 0.1/0.4 档折减）；半径内的 TNT 零件被点亮引信（原版是直接 `Explode`，我们走既有连锁语义）；道具索引进 `CollectedProps` |
+| 消失 | 房间收到 `CollectedProps` 就 `DestroyPropBodies(propIndex)`（客户端本来就会隐藏 `collected` 的道具画面）；`Retry` 重建全部道具静态体并重新声明 |
+
+与 3.6 同一套「道具自己带盒体」的路径，所以**箱子看得见、挡得住车、撞上去会炸**。
+已知偏差：冲量打在目标 body 的**质心**且没有原版的「每碰撞体 1/N」系数（PigForge 的复合体是一个 body，
+原版是每个 collider 一个 rigidbody，与 §7 / `ADR-029` 同类）；`DynamicTNTBox`（4 个带刚体的）仍是静态
+视觉件 + 静态盒体。
+
 ## 4. 深度（z）与绘制顺序
 
 原版是 3D 渲染 + 深度测试，2D 客户端必须自己排序。**近 = z 小**（相机 `IngameCamera.cs:423`

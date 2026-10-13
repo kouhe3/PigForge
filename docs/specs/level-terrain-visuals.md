@@ -195,6 +195,11 @@ PNG 并断言宽度 == `NextPowerOfTwo(节点数)`、通道只有 `r`/`g`，之�
    `f` 多出的 `tileSize.y` 是因为 Unity 的 uv 原点在**左下**而 canvas 的行从**上**开始（v = 1 − row/texH）：
    贴图第 0 行是 tile 的**上边**，即 `origin.y + tileSize.y`。
 4. **覆盖范围**：`loops` 按 nonzero 填充（孔洞是反向环，`lib/outline.mjs` 已经分开走），与 v2 一致。
+5. **画序**：三块（或更多）地形按**地形自己的 `position[2]` 降序**画（远的先画），同 z 保持文档顺序。
+   原版是 3D 深度缓冲，`position[2]` 就是距离（相机在 z = −15 朝 +z，见 `docs/specs/level-props.md` §4）；
+   文档顺序**不是** z 序。实测（2026-10-13，`Level_05`，z 序 `0, 0, 5`）：按文档顺序画会把 z=5 的远景岩体
+   盖在 z=0 的柱子**之上**（柱子的 fill 是个环，洞里露出那块远景），玩家看到的是一根中间发黑、边缘有石头的
+   柱子；按 z 降序画才与原版一致（原版截图 = 整根柱子都是石头）。
 
 **实测校核**（真 Chromium + 真 vite，三块地形的官方关卡 `original/episode_1_levels/Level_05`）：
 
