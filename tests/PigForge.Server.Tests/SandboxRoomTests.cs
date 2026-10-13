@@ -187,11 +187,12 @@ public sealed class SandboxRoomTests
             .Single(entity => entity.PartTypeId == PartGround)
             .PhysicsBodyId;
 
-        // A hard landing destroys the egg, exactly as the destroy path above does.
+        // A hard landing destroys the egg, exactly as the destroy path above does: the backend reports
+        // how fast the pair closed along the surface normal (ADR-031, gap G116).
         world.QueueSnapshot(Snapshot(bodies[egg], new PhysicsVector3(0.5f, 0.5f, 0f), PhysicsVector3.Zero));
         room.Tick();
-        world.QueueSnapshot(Snapshot(bodies[egg], new PhysicsVector3(0.5f, 0.5f, 0f), new PhysicsVector3(10f, 0f, 0f)));
-        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(bodies[egg]), new PhysicsBodyId(groundBody)));
+        world.QueueSnapshot(Snapshot(bodies[egg], new PhysicsVector3(0.5f, 0.5f, 0f), PhysicsVector3.Zero));
+        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(bodies[egg]), new PhysicsBodyId(groundBody), new PhysicsVector3(0f, 1f, 0f), approachSpeed: 10f));
         room.Tick();
         Assert.DoesNotContain(PublishEntities(room, out _), entity => entity.EntityId == egg);
 
@@ -531,8 +532,8 @@ public sealed class SandboxRoomTests
         room.Tick();
 
         // A hard landing destroys the egg; its owner drops back to editing.
-        world.QueueSnapshot(Snapshot(eggBody, new PhysicsVector3(0.5f, 0.5f, 0f), new PhysicsVector3(10f, 0f, 0f)));
-        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(eggBody), new PhysicsBodyId(groundBody)));
+        world.QueueSnapshot(Snapshot(eggBody, new PhysicsVector3(0.5f, 0.5f, 0f), PhysicsVector3.Zero));
+        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(eggBody), new PhysicsBodyId(groundBody), new PhysicsVector3(0f, 1f, 0f), approachSpeed: 10f));
         room.Tick();
 
         Assert.DoesNotContain(PublishEntities(room, out _), entity => entity.EntityId == egg);
@@ -567,8 +568,8 @@ public sealed class SandboxRoomTests
         room.Tick();
 
         world.QueueSnapshot(Snapshot(bodiesByEntity[egg], new PhysicsVector3(0.5f, 0.5f, 0f), PhysicsVector3.Zero));
-        world.QueueSnapshot(Snapshot(bodiesByEntity[block], new PhysicsVector3(5.5f, 0.5f, 0f), new PhysicsVector3(10f, 0f, 0f)));
-        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(bodiesByEntity[egg]), new PhysicsBodyId(bodiesByEntity[block])));
+        world.QueueSnapshot(Snapshot(bodiesByEntity[block], new PhysicsVector3(5.5f, 0.5f, 0f), PhysicsVector3.Zero));
+        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(bodiesByEntity[egg]), new PhysicsBodyId(bodiesByEntity[block]), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 10f));
         room.Tick();
 
         Assert.Equal(1, room.BodyCount);

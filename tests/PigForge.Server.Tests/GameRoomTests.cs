@@ -42,14 +42,15 @@ public sealed class GameRoomTests
         room.Spawn(new RoomSpawnSpec(PartTnt, new PhysicsVector3(0f, 1f, 0f), RoomActorRole.Tnt));
         room.Spawn(new RoomSpawnSpec(PartBlock, new PhysicsVector3(0f, 1f, 0f)));
         room.Start();
-        // Impact velocity change ignites the charge; fuse 1; blast next tick.
+        // A hard hit ignites the charge -- the impact is how fast the pair closed along the surface
+        // normal (ADR-031, gap G116), not a velocity change; fuse 1; blast next tick.
         world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
-        world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(2), new PhysicsVector3(1f, 1f, 0f), PhysicsQuaternion.Identity, new PhysicsVector3(10f, 0f, 0f), PhysicsVector3.Zero));
+        world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(2), new PhysicsVector3(1f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
         room.Tick();
 
         world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
         world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(2), new PhysicsVector3(1f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
-        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)));
+        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 10f));
         room.Tick();
 
         Assert.Empty(world.DestroyedBodies);

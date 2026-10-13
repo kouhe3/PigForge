@@ -48,12 +48,13 @@ public sealed class SnapshotPublishingTests
         room.Spawn(new RoomSpawnSpec(PartBlock, new PhysicsVector3(1f, 1f, 0f)));
         room.Start();
         world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
-        world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(2), new PhysicsVector3(1f, 1f, 0f), PhysicsQuaternion.Identity, new PhysicsVector3(10f, 0f, 0f), PhysicsVector3.Zero));
+        world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(2), new PhysicsVector3(1f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
         room.Tick();
 
         world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(1), new PhysicsVector3(0f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
         world.QueueSnapshot(new PhysicsBodySnapshot(new PhysicsBodyId(2), new PhysicsVector3(1f, 1f, 0f), PhysicsQuaternion.Identity, PhysicsVector3.Zero, PhysicsVector3.Zero));
-        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)));
+        // The striker closes on the charge at 10 m/s along the surface normal: the impact the rules read.
+        world.QueueEvent(PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 10f));
         room.Tick();
         room.Tick();
 

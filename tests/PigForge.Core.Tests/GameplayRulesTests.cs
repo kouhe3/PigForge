@@ -100,8 +100,10 @@ public sealed class GameplayRulesTests
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(20, 0, 0));
         harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
 
-        harness.Tick(1, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
-        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        // A real impact: the pair closes at 20 m/s along the surface normal, and the pig still survives.
+        PhysicsVector3 normal = new(-1f, 0f, 0f);
+        harness.Tick(1, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), normal, approachSpeed: 20f) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), normal, approachSpeed: 20f) });
 
         Assert.Equal(1, harness.Rules.AlivePigs);
         Assert.Empty(harness.Output.DestroyedEntities);
@@ -120,15 +122,19 @@ public sealed class GameplayRulesTests
         harness.Link(tnt, new PhysicsBodyId(1));
         harness.Link(neighbour, new PhysicsBodyId(2));
 
-        // Establish pre-impact velocities, then the contact tick shows the velocity
-        // change the strike produces (the real impact signal per ADR-002).
+        // The signal the rules read is the pair's approach speed along the surface normal (ADR-031,
+        // ADR-002), not a velocity change: the charge sits at x = 0, the striker at x = 1 closes on it
+        // at 10 m/s, and the normal that separates the charge (BodyA) therefore points -x. The
+        // backend reports that speed on the contact event and this layer keeps the fall's peak beside
+        // it, because a late event understates an impact (gap G116).
+        PhysicsVector3 normal = new(-1f, 0f, 0f);
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
-        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), new PhysicsVector3(10, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), new PhysicsVector3(-10, 0, 0));
         harness.Tick(1, Array.Empty<PhysicsEvent>());
 
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(5, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(-6, 0, 0));
         harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), PhysicsVector3.Zero);
-        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), normal, approachSpeed: 10f) });
         Assert.Empty(harness.Output.Commands);
         Assert.Empty(harness.Output.DestroyedEntities);
 
@@ -217,13 +223,13 @@ public sealed class GameplayRulesTests
         harness.Link(striker, new PhysicsBodyId(2));
 
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
-        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 1, 0), new PhysicsVector3(10, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 1, 0), new PhysicsVector3(-10, 0, 0));
         harness.Tick(1, Array.Empty<PhysicsEvent>());
 
         harness.Rules.CleanupEntityStores(removed);
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(6, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(-6, 0, 0));
         harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 1, 0), PhysicsVector3.Zero);
-        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 10f) });
         harness.Tick(3, Array.Empty<PhysicsEvent>());
 
         Assert.Contains(charge, harness.Output.DestroyedEntities);
@@ -241,15 +247,48 @@ public sealed class GameplayRulesTests
         harness.Link(striker, new PhysicsBodyId(2));
 
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), PhysicsVector3.Zero);
-        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), new PhysicsVector3(10, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), new PhysicsVector3(-10, 0, 0));
         harness.Tick(1, Array.Empty<PhysicsEvent>());
 
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(6, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(-6, 0, 0));
         harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(1, 0, 0), PhysicsVector3.Zero);
-        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        // The same hard strike as the fixture above -- a charge that opted out of impact ignition must
+        // ignore it, which is only a meaningful assertion if the impact really is strong.
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 10f) });
         harness.Tick(3, Array.Empty<PhysicsEvent>());
 
         Assert.Empty(harness.Output.DestroyedEntities);
+    }
+
+    /// <summary>
+    /// G116: the impact is the peak the pair carried, not whatever the event still reports. Measured on
+    /// a real Bepu world, a box landing at 11.61 m/s produced its <c>ContactStarted</c> two steps later
+    /// carrying 2.60 m/s -- the solver's soft recovery had already absorbed the rest -- so an ignition
+    /// that read the event's own reading (or the previous tick's velocity, which had been absorbed too)
+    /// left the charge lying unlit on whatever it landed on.
+    /// </summary>
+    [Fact]
+    public void ALateContactEventStillIgnitesTheChargeTheFallLoaded()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId charge = entities.Create();
+        EntityId floor = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 1);
+        harness.Link(charge, new PhysicsBodyId(1));
+        harness.Link(floor, new PhysicsBodyId(2));
+
+        // The free fall, two ticks before the event the backend reports.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -12, 0));
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        // The absorbed reading: neither this tick's velocity nor the event's own approach looks hard.
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0.5f, 0), new PhysicsVector3(0, -2.6f, 0));
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0.5f, 0), new PhysicsVector3(0, -2.6f, 0));
+        harness.Tick(3, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(0f, 1f, 0f), approachSpeed: 2.6f) });
+        harness.Tick(4, Array.Empty<PhysicsEvent>());
+
+        Assert.Contains(charge, harness.Output.DestroyedEntities);
     }
 
     /// <summary>
@@ -959,9 +998,14 @@ public sealed class GameplayRulesTests
             EntityId entity = _entities.Create();
             _parts.Set(entity, new PartLink(spawn.PartTypeId));
             _transforms.Set(entity, new EntityTransform(spawn.Position, PhysicsQuaternion.Identity));
-            PhysicsBodyId body = _world.CreateBody(Content.CreateBodyDefinition(spawn.PartTypeId, spawn.Position, PhysicsQuaternion.Identity));
+            BodyDefinition definition = Content.CreateBodyDefinition(spawn.PartTypeId, spawn.Position, PhysicsQuaternion.Identity);
+            PhysicsBodyId body = _world.CreateBody(definition);
             _bodies.Set(entity, new PhysicsBodyLink(body));
-            _rules.LinkBody(entity, body);
+            // The rules layer has to know which bodies the solver will move: a mass-0 part is a static
+            // body, and aiming an impulse at one throws. `GameRoom.BindCluster` passes exactly this, so a
+            // harness that always said "dynamic" would diverge from the room the moment a blast reaches a
+            // static piece (gap G116 turned the level's own TNTs into live charges).
+            _rules.LinkBody(entity, body, isDynamic: definition.Mode == PhysicsBodyMode.Dynamic);
             _bodyByEntity.Add(entity.Value, body);
             EnsureBuffers();
 
@@ -1494,12 +1538,12 @@ public sealed class GameplayRulesTests
         EntityId egg = entities.Create();
         harness.Rules.AddEgg(egg);
         harness.Link(egg, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, 10, 0));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -10, 0));
 
         // First tick just stores kinematics; a hard impact next tick breaks the egg.
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(0, -9, 0));
-        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(0f, 1f, 0f), approachSpeed: 10f) });
 
         Assert.Contains(egg, harness.Output.DestroyedEntities);
         Assert.True(harness.Rules.RestartRequested);
@@ -1513,11 +1557,11 @@ public sealed class GameplayRulesTests
         EntityId egg = entities.Create();
         harness.Rules.AddEgg(egg);
         harness.Link(egg, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -1, 0));
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -1, 0));
-        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(0f, 1f, 0f), approachSpeed: 1f) });
 
         Assert.Empty(harness.Output.DestroyedEntities);
         Assert.False(harness.Rules.RestartRequested);
@@ -1969,11 +2013,11 @@ public sealed class GameplayRulesTests
         EntityId detacher = entities.Create();
         harness.Rules.AddDetacher(detacher);
         harness.Link(detacher, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, 10, 0));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -10, 0));
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 0, 0), new PhysicsVector3(0, -9, 0));
-        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(0f, 1f, 0f), approachSpeed: 10f) });
 
         Assert.Contains(detacher, harness.Output.DetachedEntities);
         Assert.DoesNotContain(detacher, harness.Output.DestroyedEntities);
@@ -1987,11 +2031,11 @@ public sealed class GameplayRulesTests
         EntityId detacher = entities.Create();
         harness.Rules.AddDetacher(detacher);
         harness.Link(detacher, new PhysicsBodyId(1));
-        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -1, 0));
 
         harness.Tick(1, Array.Empty<PhysicsEvent>());
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(0, -1, 0));
-        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2)) });
+        harness.Tick(2, new[] { PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(2), new PhysicsVector3(0f, 1f, 0f), approachSpeed: 1f) });
 
         Assert.Empty(harness.Output.DetachedEntities);
     }

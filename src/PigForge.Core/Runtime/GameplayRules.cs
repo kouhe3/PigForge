@@ -1102,12 +1102,16 @@ public sealed class GameplayRules
                             -physicsEvent.ContactNormal.Z));
                     if (physicsEvent.Kind == PhysicsEventKind.ContactStarted)
                     {
-                        // Per ADR-002 the original game ignites TNT on strong impact only;
-                        // a gentle touch (resting on ground) must not trigger it. Post-step
-                        // velocities already include the collision response, so the impact
-                        // signal is the pair's largest velocity change (impulse per mass) —
-                        // a braced charge takes little of its own, but the striker shows it.
-                        float pairImpact = MathF.Max(VelocityChange(physicsEvent.BodyA), VelocityChange(physicsEvent.BodyB));
+                        // Per ADR-002 the original game ignites TNT, breaks eggs and fires detachers on
+                        // strong impact only; a gentle touch (resting on ground) must not trigger them.
+                        // The signal is the pair's approach speed -- the same estimate the bounce gate
+                        // uses (ADR-031: the impact quantity is how fast the pair was closing, not how
+                        // much either body's velocity happened to change). Reading it off the event
+                        // alone is not enough: the backend's `ContactStarted` for a hard landing arrives
+                        // after the solver has absorbed most of it (measured on a box landing at 11.61
+                        // m/s: the event carried 2.60 m/s two steps after the last free tick), so the
+                        // recent peak is what rescues the ignition -- gap G116.
+                        float pairImpact = PairApproachSpeed(physicsEvent);
                         IgniteTntOnBody(physicsEvent.BodyA, pairImpact);
                         IgniteTntOnBody(physicsEvent.BodyB, pairImpact);
                         ChallengeEggsOnImpact(physicsEvent.BodyA, pairImpact, output);
@@ -1123,17 +1127,6 @@ public sealed class GameplayRules
                     break;
             }
         }
-    }
-
-    private float VelocityChange(PhysicsBodyId body)
-    {
-        if (!_kinematicsByBody.TryGetValue(body.Value, out var current)
-            || !_previousVelocities.TryGetValue(body.Value, out var previous))
-        {
-            return 0f;
-        }
-
-        return PhysicsVector3.Distance(current.Velocity, previous);
     }
 
     /// <summary>
@@ -1222,15 +1215,9 @@ public sealed class GameplayRules
 
         PhysicsVector3 normal = physicsEvent.ContactNormal;
         float separation = RelativeNormalSpeed(physicsEvent.BodyA, physicsEvent.BodyB, normal);
-        // Every speed read at the moment the event arrives understates the impact, because the
-        // solver's soft recovery starts absorbing before the shapes look like they have met: a
-        // measured 9.32 m/s landing was reported as 2.56 m/s by the backend and 2.56 m/s by this
-        // layer's own previous-tick velocities (the event came two ticks after the last free
-        // tick). Only the peak the free fall left behind still holds the real number.
-        float approachSpeed = MathF.Max(
-            ApproachFromHistory(bodyA, bodyB, normal, dynamicA, dynamicB),
-            physicsEvent.ApproachSpeed);
-        approachSpeed = MathF.Max(approachSpeed, PeakApproach(bodyA, bodyB, normal, dynamicA, dynamicB));
+        // The same estimate the impact rules read (see PairApproachSpeed): the backend's reading, the
+        // previous tick's velocities, and the peak a free fall left behind.
+        float approachSpeed = PairApproachSpeed(physicsEvent);
         // The threshold gates that estimate, not the event's own reading: the backend's contact
         // event understates a landing (the solver has already absorbed part of it by the time the
         // event arrives), so a slow-looking event on a fast landing must still bounce -- and a
@@ -1269,6 +1256,30 @@ public sealed class GameplayRules
 
             _bouncedBodies.Add(bodyB);
         }
+    }
+
+    /// <summary>
+    /// How fast a contact pair was closing along the surface normal: the strongest of the backend's own
+    /// pre-solver reading, the previous step's velocities, and the peak the last few ticks left behind.
+    /// Every speed read at the moment a contact event arrives understates the impact, because the
+    /// solver's soft recovery starts absorbing before the shapes look like they have met: measured on a
+    /// box landing at 11.61 m/s, the backend's <c>ContactStarted</c> arrived two steps after the last
+    /// free tick and carried 2.60 m/s, and this layer's own previous-tick velocity was 2.60 as well --
+    /// only the peak the free fall left behind still holds the real number, which is why the impact
+    /// rules (ADR-002) and the bounce gate (ADR-025's <c>m_BounceThreshold</c>) both read this one
+    /// estimate (gap G116).
+    /// </summary>
+    private float PairApproachSpeed(in PhysicsEvent physicsEvent)
+    {
+        uint bodyA = physicsEvent.BodyA.Value;
+        uint bodyB = physicsEvent.BodyB.Value;
+        bool dynamicA = _dynamicBodies.Contains(bodyA);
+        bool dynamicB = _dynamicBodies.Contains(bodyB);
+        PhysicsVector3 normal = physicsEvent.ContactNormal;
+        float approach = MathF.Max(
+            ApproachFromHistory(bodyA, bodyB, normal, dynamicA, dynamicB),
+            physicsEvent.ApproachSpeed);
+        return MathF.Max(approach, PeakApproach(bodyA, bodyB, normal, dynamicA, dynamicB));
     }
 
     /// <summary>How fast the pair was closing along <paramref name="normal"/> at the strongest of
