@@ -60,13 +60,16 @@ PigForge 的 `GameplayRules.RunMotors` 把动力轮的出力写成**世界 +X**�
 
 | 场景 | 读数 |
 |---|---|
-| 平地（木框 + 包裹引擎 + **双**马达轮，x = −8 起） | 峰值 \|vx\| **15.03 m/s**（`15 × (150/110)^0.585 = 17.98` 上限之下，比第六轮同 fixture 的 **10.86 m/s** 快——旧值是世界轴门控 + 世界轴出力），位移 9.40 m 后撞上 terrain-v1 的第一个台阶停住 |
+| 平地（木框 + 包裹引擎 + **双**马达轮，x = −8 起；**此读数早于 G110 的斜坡**，坡道只拖慢起步的 1 秒、不改变上限） | 峰值 \|vx\| **15.03 m/s**（`15 × (150/110)^0.585 = 17.98` 上限之下，比第六轮同 fixture 的 **10.86 m/s** 快——旧值是世界轴门控 + 世界轴出力），位移 9.40 m 后撞上 terrain-v1 的第一个台阶停住 |
 | 斜坡（同一辆车摆在斜坡中段） | dx **21.28 m** / dy **4.70 m**（比值 0.22），峰值 \|vx\| **15.44**，末速度 `(14.90, 3.14)` —— 沿坡上行 |
 
 ## 5. 已知偏差 / 不做
 
 1. **施力点 = 刚体中心，不是接触点**：原版打 `hitInfo.point`。探针给了理由：原版轮子是**焊接**在车架上的（一对相邻件一条关节，只有 `OffRoadWheel` 重写 `CustomConnectToPart`），冲量打在接触点上时转矩进整车；PigForge 的轮子是**铰接**的（`ADR-008/009`），同一个冲量打在接触点会让轮胎自转（探针 `flat_hinge_contact`：行程只剩 0.414 m、车体 0.678 m/s，轮子甚至"爬"到自己车上）。打刚体中心是 PigForge 拓扑下等价的线性驱动，转矩差异记在这里。
-2. **没有 1 秒的 `m_thrust` 斜坡**（`MotorWheel.cs:266-271`）：原版点火后 `m_thrust = pow(timer, 0.4)` 到 1（第 1 帧只有满力的 20.9%），PigForge 一上来就是满力。**这是新记的差距 `G110`**，本片不动（它只影响起步那 1 秒，与取轴无关）。
+2. ~~**没有 1 秒的 `m_thrust` 斜坡**~~（`G110`，**2026-10-13 已实现**）：`MotorState.ThrustTimer` 就是原版的 `m_thrustTimer` —— 每个**被驱动**的 tick 加 `1/60`（封顶 1，`MotorWheel.cs:259-261`；原版加的是它自己的 `Time.deltaTime`，长度是秒不是 tick 数），出力乘 `pow(timer, 0.4)`：
+   60 Hz 房间的第一 tick 是满力的 **19.47 %**（原版 50 Hz 首帧 `0.02^0.4 = 0.209128`，规格 §3 的探针值），第 30 tick（0.5 s）**75.79 %**（`0.5^0.4 = 0.757858`），第 60 tick 满力。计时器在**空中也走**（原版在射线之前就加），只有**开关关掉**才归零（`MotorWheel.cs:277-279`）——所以关掉再打开会重新斜坡；重新装配（`ResetForRebuild`）也归零（原版的 relaunch 是重建零件）。
+   回归：`GameplayRulesTests.AMotorRampsUpOverItsFirstSecond`（逐 tick 形状 + 空中照走 + 封顶）、`ToggleSwitchGatesMotorThrust`（关掉再开的第一个驱动 tick 是 19.47 %）、`PowerSystemTests.ConsumerSwitchesChangeWhoDrivesButNotTheClusterConsumption`（斜坡接力在因子前面）。
+   **实机读数不可用**：`--play` 沙盒与自造平底 fixture 两次 A/B（有斜坡 / 无斜坡两个构建）读数相差 < 1 % —— 两个 rig 都是**坡度/接触主导**（沙盒那辆在往下滑），隔离不出斜坡这一项；驱动行为本身由真 Bepu 的房间用例守着（`MotorWheelRoomTests.ADrivenCartClimbsTheSandboxRamp` 仍然爬坡、`PowerSystemRoomTests.AMotorCartNeverExceedsItsTopSpeed` 上限不变）。
 3. **地面判定用接触事件而不是射线**：原版从轮胎中心沿上次接触方向射线 `r + 0.1`（还能在"刚好离开地面一点"时命中）。PigForge 用该 body 本 tick 的接触法线，因此**完全没有接触的那一 tick 不出力**（空中/微分离时与原版差一两个 tick）。同一个代理也被 `power-system.md` 的离地折抵用着。
 4. **多面同时接触取"最朝上"的那个法线**（原版只有它射线指的那一面），见 `ADR-031` 的精度边界。
 5. **左向风扇的贴地射线增益**（`FanPropeller.cs:166-197`，纯倍率，需要给契约加射线查询）仍未做，与 `G90`/`G102` 无关。
