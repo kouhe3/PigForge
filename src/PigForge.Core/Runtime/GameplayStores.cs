@@ -1,6 +1,12 @@
 namespace PigForge.Core;
 
-public readonly record struct MotorState(float ImpulsePerTick, float DirectionX);
+/// <summary>
+/// A motor's own drive state. <paramref name="ThrustTimer"/> is the original's <c>m_thrustTimer</c>
+/// (<c>MotorWheel.cs:38,259-261</c>): it counts the seconds the motor has been enabled, capped at one,
+/// and the delivered force is <c>pow(timer, 0.4)</c> of full -- so a motor ramps over its first second
+/// instead of jumping to full force (gap G110).
+/// </summary>
+public readonly record struct MotorState(float ImpulsePerTick, float DirectionX, float ThrustTimer = 0f);
 
 /// <summary>Charge state: <paramref name="ChainDetonate"/> ignites other charges inside
 /// the blast radius (original TNT chains), <paramref name="IgniteOnImpact"/> false means

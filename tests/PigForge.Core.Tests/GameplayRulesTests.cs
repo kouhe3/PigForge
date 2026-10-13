@@ -19,7 +19,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId axle = entities.Create();
-        harness.Rules.AddMotor(axle, 2f, 1f);
+        harness.Rules.AddMotor(axle, 2f, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(axle);
         harness.Link(axle, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
@@ -50,7 +50,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId axle = entities.Create();
-        harness.Rules.AddMotor(axle, 2f, 1f);
+        harness.Rules.AddMotor(axle, 2f, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(axle);
         harness.Link(axle, new PhysicsBodyId(1));
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
@@ -77,7 +77,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId axle = entities.Create();
-        harness.Rules.AddMotor(axle, 2f, 1f);
+        harness.Rules.AddMotor(axle, 2f, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(axle);
         harness.Link(axle, new PhysicsBodyId(1), localRotation: PhysicsQuaternion.FromZAngle(MathF.PI / 2f));
         // Already past the 15 m/s cap, but along world X -- not along the wheel's own right axis.
@@ -1219,7 +1219,7 @@ public sealed class GameplayRulesTests
         EntityStore entities = new();
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId motor = entities.Create();
-        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Rules.AddMotor(motor, 2f, 1f, thrustTimer: 1f);
         harness.Link(motor, new PhysicsBodyId(1));
 
         // MotorWheel.cs:101-103 caps the drive at 15 * enginePowerFactor and :292-299 tapers the
@@ -1233,6 +1233,51 @@ public sealed class GameplayRulesTests
         harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), new PhysicsVector3(15f, 0f, 0f));
         harness.Tick(2, Grounded());
         Assert.Empty(harness.Output.Commands);
+    }
+
+    /// <summary>
+    /// G110: a motor's own drive ramps over its first second. <c>MotorWheel.cs:259-261</c> advances
+    /// <c>m_thrustTimer</c> by the frame's <c>deltaTime</c> (capped at one) and delivers
+    /// <c>pow(timer, 0.4)</c> of full force, so the first tick of a 60 Hz room carries 19.5 % -- the
+    /// original's own first frame at 50 Hz was <c>0.02^0.4 = 0.209128</c>, measured on its editor --
+    /// half a second carries 75.8 % (<c>0.5^0.4 = 0.757858</c>) and one second reaches full force.
+    /// The timer is set before the original's raycast, so airborne ticks keep winding it up, and only a
+    /// switched-off motor zeroes it.
+    /// </summary>
+    [Fact]
+    public void AMotorRampsUpOverItsFirstSecond()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId motor = entities.Create();
+        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Rules.AddWheel(motor);
+        harness.Link(motor, new PhysicsBodyId(1));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(0, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Grounded());
+        Assert.Equal(2f * MathF.Pow(1f / 60f, 0.4f), Assert.Single(harness.Output.Commands).Impulse.X, 5);
+
+        // Airborne ticks still advance the ramp: no force, but the timer keeps counting.
+        for (uint tick = 2; tick <= 29; tick++)
+        {
+            harness.Tick(tick, Array.Empty<PhysicsEvent>());
+            Assert.Empty(harness.Output.Commands);
+        }
+
+        // The 30th driven tick is where the original's own half-second sample sits (0.757858 of full).
+        harness.Tick(30, Grounded());
+        Assert.Equal(0.5f, harness.Rules.MotorThrustTimer(motor), 5);
+        Assert.Equal(2f * MathF.Pow(0.5f, 0.4f), Assert.Single(harness.Output.Commands).Impulse.X, 5);
+
+        for (uint tick = 31; tick <= 59; tick++)
+        {
+            harness.Tick(tick, Array.Empty<PhysicsEvent>());
+        }
+
+        harness.Tick(60, Grounded());
+        Assert.Equal(1f, harness.Rules.MotorThrustTimer(motor), 5);
+        Assert.Equal(2f, Assert.Single(harness.Output.Commands).Impulse.X, 5);
     }
 
     [Fact]
@@ -1884,7 +1929,7 @@ public sealed class GameplayRulesTests
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId motor = entities.Create();
         EntityId gearbox = entities.Create();
-        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Rules.AddMotor(motor, 2f, 1f, thrustTimer: 1f);
         harness.Rules.AddGearbox(gearbox);
         harness.Link(motor, new PhysicsBodyId(1));
         harness.Link(gearbox, new PhysicsBodyId(1));
@@ -2120,11 +2165,15 @@ public sealed class GameplayRulesTests
         harness.Rules.SetActive(motor, true);
         harness.Tick(2, Grounded());
         PhysicsCommand command = Assert.Single(harness.Output.Commands);
-        Assert.Equal(2f, command.Impulse.X, 5);
+        // Switching a motor off zeroes its ramp (`m_thrustTimer = 0`, MotorWheel.cs:277-279), so the
+        // first driven tick after the press carries the ramp's own first step: 19.5 % of full force at
+        // 60 Hz (`pow(1/60, 0.4)`; the original's first frame at 50 Hz was `0.02^0.4 = 0.209128`).
+        Assert.Equal(2f * MathF.Pow(1f / 60f, 0.4f), command.Impulse.X, 5);
 
         harness.Rules.SetActive(motor, false);
         harness.Tick(3, Grounded());
         Assert.Empty(harness.Output.Commands);
+        Assert.Equal(0f, harness.Rules.MotorThrustTimer(motor));
     }
 
     [Fact]
@@ -2134,7 +2183,7 @@ public sealed class GameplayRulesTests
         GameplayHarness harness = new(entities, FarZonesConfig());
         EntityId motor = entities.Create();
         EntityId gearbox = entities.Create();
-        harness.Rules.AddMotor(motor, 2f, 1f);
+        harness.Rules.AddMotor(motor, 2f, 1f, thrustTimer: 1f);
         harness.Rules.AddGearbox(gearbox);
         harness.Rules.AddActivation(gearbox);
         harness.Link(motor, new PhysicsBodyId(1));

@@ -67,12 +67,14 @@ public sealed class GameRoomTests
     [Fact]
     public void GluePartPreventsSeamSplitUnderAnOverThresholdImpulse()
     {
+        // The drive's own ramp takes a second to reach its full 30 impulse (gap G110), and the seam
+        // breaks on the first tick it does, so the run is a second plus that tick.
         ScriptedPhysicsWorld gluedWorld = new() { ReportGroundContacts = true };
-        CreateMotorRoom(() => gluedWorld, withGlue: true).RunTicks(2);
+        CreateMotorRoom(() => gluedWorld, withGlue: true).RunTicks(SeamBreakTicks);
         Assert.Empty(gluedWorld.DestroyedBodies);
 
         ScriptedPhysicsWorld plainWorld = new() { ReportGroundContacts = true };
-        CreateMotorRoom(() => plainWorld, withGlue: false).RunTicks(2);
+        CreateMotorRoom(() => plainWorld, withGlue: false).RunTicks(SeamBreakTicks);
         Assert.NotEmpty(plainWorld.DestroyedBodies);
     }
 
@@ -86,7 +88,7 @@ public sealed class GameRoomTests
     {
         ScriptedPhysicsWorld world = new() { ReportGroundContacts = true };
         GameRoom room = CreateMotorRoom(() => world, withGlue: false);
-        room.RunTicks(2);
+        room.RunTicks(SeamBreakTicks);
         Assert.NotEmpty(world.DestroyedBodies);
 
         List<SnapshotEntity> entities = PublishEntities(room);
@@ -102,11 +104,11 @@ public sealed class GameRoomTests
         // Same layout and the same 30 impulse: only the declared strengths differ, so the split
         // outcome proves the per-part threshold is live (plan P3 of the joint-strength batch).
         ScriptedPhysicsWorld normalWorld = new() { ReportGroundContacts = true };
-        CreateMotorRoom(() => normalWorld, withGlue: false).RunTicks(2);
+        CreateMotorRoom(() => normalWorld, withGlue: false).RunTicks(SeamBreakTicks);
         Assert.NotEmpty(normalWorld.DestroyedBodies);
 
         ScriptedPhysicsWorld strongWorld = new() { ReportGroundContacts = true };
-        CreateMotorRoom(() => strongWorld, withGlue: false, StrongMotorContentJson).RunTicks(2);
+        CreateMotorRoom(() => strongWorld, withGlue: false, StrongMotorContentJson).RunTicks(SeamBreakTicks);
         Assert.Empty(strongWorld.DestroyedBodies);
     }
 
@@ -486,6 +488,13 @@ public sealed class GameRoomTests
 
     /// <summary>Motor + block (+ glue) placed adjacent so they weld into one compound; the
     /// motor's 30 impulse exceeds the default 10 seam threshold from the first tick.</summary>
+    /// <summary>
+    /// How long a motor room runs before its seam answers: the motor's own drive ramps over its first
+    /// second (gap G110) and reaches full force on the 60th driven tick, which is when the 30 impulse
+    /// meets the seam's threshold. A few ticks of margin keep the assertion off the exact boundary.
+    /// </summary>
+    private const int SeamBreakTicks = 65;
+
     private static GameRoom CreateMotorRoom(Func<IPhysicsWorld> factory, bool withGlue, string contentJson = MotorContentJson)
     {
         PartContentLibrary content = new(PartContentParser.Parse(contentJson));

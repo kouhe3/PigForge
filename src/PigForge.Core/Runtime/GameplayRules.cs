@@ -361,6 +361,18 @@ public sealed class GameplayRules
     /// charged to this one.</summary>
     private const uint PeakApproachLifetimeTicks = 2;
 
+    /// <summary>
+    /// How long a motor's own drive takes to reach full force (<c>MotorWheel.cs:259-261</c>): the timer
+    /// counts the seconds the motor has been enabled, capped at one, and the delivered force is
+    /// <c>pow(timer, 0.4)</c> of full -- 20.9 % on the original's own first frame (<c>0.02^0.4</c>,
+    /// measured on its editor), 75.8 % at half a second, full at one. The step is the room's fixed tick,
+    /// because the ramp's length is a duration and not a tick count (gap G110).
+    /// </summary>
+    private const float MotorThrustRampSecondsPerTick = 1f / 60f;
+
+    /// <summary>The original's own exponent for that ramp (<c>MotorWheel.cs:261</c>).</summary>
+    private const float MotorThrustRampExponent = 0.4f;
+
     /// <summary>The strongest speed a body has carried recently, tagged with the tick that set it,
     /// so a stale peak can be discarded instead of bouncing a gentle later touch.</summary>
     private readonly record struct PeakApproachSample(PhysicsVector3 Velocity, uint Tick);
@@ -591,8 +603,13 @@ public sealed class GameplayRules
 
     public bool HasGlue(EntityId entity) => _glues.TryGet(entity, out _);
 
-    public void AddMotor(EntityId entity, float impulsePerTick, float directionX) =>
-        _motors.Set(entity, new MotorState(impulsePerTick, directionX));
+    /// <summary>
+    /// Registers a motor's drive. <paramref name="thrustTimer"/> is the original's own part state
+    /// (<c>m_thrustTimer</c>, seconds of enabled drive, capped at one): a part placed and started fresh
+    /// begins at zero and ramps (gap G110), while a fixture can model a motor that is already wound up.
+    /// </summary>
+    public void AddMotor(EntityId entity, float impulsePerTick, float directionX, float thrustTimer = 0f) =>
+        _motors.Set(entity, new MotorState(impulsePerTick, directionX, thrustTimer));
 
     /// <summary>
     /// Registers a part's power data (spec docs/specs/power-system.md §4 item 1): the content's
@@ -899,6 +916,11 @@ public sealed class GameplayRules
 
     /// <summary>True when the part has an activation entry, i.e. its content declared a switch.</summary>
     public bool HasSwitch(EntityId entity) => _activations.TryGet(entity, out _);
+
+    /// <summary>A motor's own ramp reading, in seconds of enabled drive (0 when the entity is not a
+    /// motor). The delivered force is <c>pow(this, 0.4)</c> of full (gap G110).</summary>
+    public float MotorThrustTimer(EntityId entity) =>
+        _motors.TryGet(entity, out MotorState state) ? state.ThrustTimer : 0f;
 
     /// <summary>
     /// Consumes a momentary button press (content <c>activation: "trigger"</c>): false when the
@@ -1595,16 +1617,30 @@ public sealed class GameplayRules
         var motors = _motors.GetEnumerator();
         while (motors.MoveNext())
         {
-            if (!_bodies.TryGet(motors.CurrentId, out PhysicsBodyLink link)
+            EntityId motorEntity = motors.CurrentId;
+            if (!_bodies.TryGet(motorEntity, out PhysicsBodyLink link)
                 || !_kinematicsByBody.ContainsKey(link.Body.Value))
             {
                 continue;
             }
 
-            if (!IsDriven(motors.CurrentId))
+            MotorState motor = motors.CurrentValue;
+            if (!IsDriven(motorEntity))
             {
+                // `m_thrustTimer = 0f; m_thrust = 0f` (MotorWheel.cs:277-279): a motor that is switched
+                // off re-arms from zero, so switching it back on ramps all over again.
+                if (motor.ThrustTimer != 0f)
+                {
+                    _motors.Set(motorEntity, motor with { ThrustTimer = 0f });
+                }
+
                 continue;
             }
+
+            // The ramp advances on every driven tick, ground or not: the original advances the timer
+            // before it raycasts (MotorWheel.cs:259-261), so an airborne wheel keeps winding up.
+            motor = motor with { ThrustTimer = MathF.Min(1f, motor.ThrustTimer + MotorThrustRampSecondsPerTick) };
+            _motors.Set(motorEntity, motor);
 
             // MotorWheel.FixedUpdate drives off the surface the wheel stands on: it raycasts from
             // the wheel pivot and returns without driving when it finds nothing (MotorWheel.cs:285-286).
@@ -1634,7 +1670,6 @@ public sealed class GameplayRules
                 continue;
             }
 
-            MotorState motor = motors.CurrentValue;
             float directionX = motor.DirectionX;
             // A gearbox on the same body flips the drive (reverse gear).
             if (reverseBodies.Contains(link.Body.Value))
@@ -1661,7 +1696,10 @@ public sealed class GameplayRules
                 continue;
             }
 
+            // `num3 = m_thrust * m_maximumForce * f` (MotorWheel.cs:294-296): the ramped motor force
+            // times the speed taper, both of which scale the drive (gap G110).
             float thrust = motor.ImpulsePerTick * directionX * powerFactor
+                * MathF.Pow(motor.ThrustTimer, MotorThrustRampExponent)
                 * MathF.Sqrt(1f - (MathF.Abs(axialSpeed) / maximumSpeed));
 
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
@@ -2791,6 +2829,14 @@ public sealed class GameplayRules
         while (tntComponents.MoveNext())
         {
             _tnt.Set(tntComponents.CurrentId, tntComponents.CurrentValue with { Ignited = false });
+        }
+
+        // A relaunch is a fresh contraption in the original (the parts are rebuilt from the proto), so
+        // every motor's own ramp starts from zero again (MotorWheel.cs:38,259-261; gap G110).
+        var rebuiltMotors = _motors.GetEnumerator();
+        while (rebuiltMotors.MoveNext())
+        {
+            _motors.Set(rebuiltMotors.CurrentId, rebuiltMotors.CurrentValue with { ThrustTimer = 0f });
         }
 
         var rockets = _rockets.GetEnumerator();

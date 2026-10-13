@@ -66,7 +66,7 @@ public sealed class PowerSystemTests
         EntityStore entities = new();
         PowerHarness harness = new(entities);
         EntityId wheel = entities.Create();
-        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(wheel);
         harness.Rules.AddPower(wheel, WheelConsumption, 0f);
         harness.Link(wheel, new PhysicsBodyId(1));
@@ -86,7 +86,7 @@ public sealed class PowerSystemTests
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
         EntityId sticky = entities.Create();
-        harness.Rules.AddMotor(sticky, StickyWheelImpulse, 1f);
+        harness.Rules.AddMotor(sticky, StickyWheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(sticky);
         harness.Rules.AddPower(engine, 0f, EnginePower);
         harness.Rules.AddPower(sticky, StickyWheelConsumption, 0f);
@@ -111,7 +111,7 @@ public sealed class PowerSystemTests
         EntityStore entities = new();
         PowerHarness harness = new(entities);
         EntityId sticky = entities.Create();
-        harness.Rules.AddMotor(sticky, StickyWheelImpulse, 1f);
+        harness.Rules.AddMotor(sticky, StickyWheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(sticky);
         harness.Rules.AddPower(sticky, StickyWheelConsumption, 0f);
         harness.Link(sticky, new PhysicsBodyId(1));
@@ -132,7 +132,7 @@ public sealed class PowerSystemTests
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
         EntityId wheel = entities.Create();
-        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(wheel);
         harness.Rules.AddPower(engine, 0f, EnginePower);
         harness.Rules.AddPower(wheel, WheelConsumption, 0f);
@@ -156,7 +156,7 @@ public sealed class PowerSystemTests
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
         EntityId wheel = entities.Create();
-        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(wheel);
         harness.Rules.AddPower(engine, 0f, EnginePower);
         harness.Rules.AddPower(wheel, WheelConsumption, 0f);
@@ -187,7 +187,7 @@ public sealed class PowerSystemTests
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
         EntityId wheel = entities.Create();
-        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(wheel);
         harness.Rules.AddPower(engine, 0f, EnginePower);
         harness.Rules.AddPower(wheel, WheelConsumption, 0f);
@@ -223,8 +223,8 @@ public sealed class PowerSystemTests
         EntityId engine = entities.Create();
         EntityId first = entities.Create();
         EntityId second = entities.Create();
-        harness.Rules.AddMotor(first, 2f, 1f);
-        harness.Rules.AddMotor(second, 2f, 1f);
+        harness.Rules.AddMotor(first, 2f, 1f, thrustTimer: 1f);
+        harness.Rules.AddMotor(second, 2f, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(first);
         harness.Rules.AddWheel(second);
         harness.Rules.AddActivation(first);
@@ -243,19 +243,25 @@ public sealed class PowerSystemTests
         Assert.Empty(harness.Output.Commands);
         Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
 
-        // One wheel on: the factor does not move, the survivor drives at 0.80593.
+        // One wheel on: the factor does not move, the survivor drives at 0.80593 -- scaled by its own
+        // ramp, which a switched-off motor zeroes (gap G110), so the first driven tick carries
+        // pow(1/60, 0.4) of the force.
         harness.Rules.SetActive(first, true);
         Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
         harness.Tick(2, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         PhysicsCommand single = Assert.Single(harness.Output.Commands);
-        Assert.Equal(2f * 0.80593f, single.Impulse.X, 3);
+        Assert.Equal(2f * 0.80593f * MathF.Pow(1f / 60f, 0.4f), single.Impulse.X, 5);
 
-        // Both on: both wheels drive at the same factor.
+        // Both on: both wheels drive at the same factor, each at its own point on the ramp (the second
+        // wheel has just been switched on, the first has two driven ticks behind it).
         harness.Rules.SetActive(second, true);
         Assert.Equal(0.80593f, harness.Rules.ClusterPowerFactor(first), 4);
         harness.Tick(3, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         Assert.Equal(2, harness.Output.Commands.Count);
-        Assert.All(harness.Output.Commands, command => Assert.Equal(2f * 0.80593f, command.Impulse.X, 3));
+        // Both wheels ride the same body, so the commands follow registration order: `first` has two
+        // driven ticks behind it, `second` has just been switched on.
+        Assert.Equal(2f * 0.80593f * MathF.Pow(2f / 60f, 0.4f), harness.Output.Commands[0].Impulse.X, 5);
+        Assert.Equal(2f * 0.80593f * MathF.Pow(1f / 60f, 0.4f), harness.Output.Commands[1].Impulse.X, 5);
 
         // Switching one off leaves the factor alone; the switched-off wheel stops driving entirely
         // (its own motor is gated by its switch).
@@ -264,7 +270,7 @@ public sealed class PowerSystemTests
         harness.Tick(4, new[] { PhysicsEvent.ContactPersisted(new PhysicsBodyId(1), new PhysicsBodyId(2), GroundNormal) });
         PhysicsCommand survivor = Assert.Single(harness.Output.Commands);
         Assert.Equal(new PhysicsBodyId(1), survivor.Body);
-        Assert.Equal(2f * 0.80593f, survivor.Impulse.X, 3);
+        Assert.Equal(2f * 0.80593f * MathF.Pow(3f / 60f, 0.4f), survivor.Impulse.X, 5);
     }
 
     [Fact]
@@ -278,7 +284,7 @@ public sealed class PowerSystemTests
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
         EntityId wheel = entities.Create();
-        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(wheel);
         harness.Rules.AddPower(engine, 0f, EnginePower);
         harness.Rules.AddPower(wheel, WheelConsumption, 0f);
@@ -310,7 +316,7 @@ public sealed class PowerSystemTests
         EntityStore entities = new();
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
-        harness.Rules.AddMotor(engine, 2f, 1f);
+        harness.Rules.AddMotor(engine, 2f, 1f, thrustTimer: 1f);
         harness.Rules.AddPower(engine, 0f, EnginePower);
         harness.Rules.SetEngineEnclosed(engine, enclosed: true);
         harness.Link(engine, new PhysicsBodyId(1));
@@ -333,7 +339,7 @@ public sealed class PowerSystemTests
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
         EntityId wheel = entities.Create();
-        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(wheel);
         harness.Rules.AddPower(engine, 0f, EnginePower);
         harness.Rules.AddPower(wheel, WheelConsumption, 0f);
@@ -381,7 +387,7 @@ public sealed class PowerSystemTests
         PowerHarness harness = new(entities);
         EntityId engine = entities.Create();
         EntityId wheel = entities.Create();
-        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(wheel);
         harness.Rules.AddActivation(wheel);
         harness.Rules.AddPower(engine, 0f, EnginePower);
@@ -481,7 +487,7 @@ public sealed class PowerSystemTests
         harness.Rules.AddPower(engine, 0f, EnginePower);
         harness.Rules.SetEngineEnclosed(engine, enclosed: true);
         harness.Rules.AddPower(wheel, WheelConsumption, 0f);
-        harness.Rules.AddMotor(wheel, WheelImpulse, 1f);
+        harness.Rules.AddMotor(wheel, WheelImpulse, 1f, thrustTimer: 1f);
         harness.Rules.AddWheel(wheel);
         harness.Link(nearFrame, new PhysicsBodyId(1));
         harness.Link(farFrame, new PhysicsBodyId(2));
