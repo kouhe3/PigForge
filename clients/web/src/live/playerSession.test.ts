@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SNAPSHOT_BUILDING_PHASE } from "@/schema/decodeSnapshot";
 import { createPlayerSession } from "./playerSession";
 
 describe("playerSession", () => {
@@ -75,6 +76,36 @@ describe("playerSession", () => {
     // owned set survives: the player keeps selecting the parts it is about to start again.
     expect(session.phase).toBe("editing");
     expect(session.ownEntityIds.has(5)).toBe(true);
+  });
+
+  it("follows the room's own building phase back to editing", () => {
+    const session = createPlayerSession();
+    const start = session.noteSent(3);
+    session.applyAck({ sequence: start, status: 0, error: 0, entityId: 0 });
+    expect(session.phase).toBe("materialized");
+
+    // A playing frame is the run; a goal-based level answers the pig leaving its camera rectangle by
+    // returning itself to building (ADR-036), which no ack carries, so the frame has to land the page
+    // back in editing -- otherwise every later build command is answered WrongMode.
+    session.noteRoomPhase(0);
+    expect(session.phase).toBe("materialized");
+    session.noteRoomPhase(SNAPSHOT_BUILDING_PHASE);
+    expect(session.phase).toBe("editing");
+  });
+
+  it("does not let an in-flight building frame undo a start", () => {
+    const session = createPlayerSession();
+    const place = session.noteSent(0);
+    session.applyAck({ sequence: place, status: 0, error: 0, entityId: 7 });
+
+    // The server acks a command before it broadcasts, so a building frame still on the wire when the
+    // Start ack lands belongs to the phase before the run: the ack is the later word.
+    session.noteRoomPhase(SNAPSHOT_BUILDING_PHASE);
+    const start = session.noteSent(3);
+    session.applyAck({ sequence: start, status: 0, error: 0, entityId: 0 });
+
+    expect(session.phase).toBe("materialized");
+    expect(session.ownEntityIds.has(7)).toBe(true);
   });
 
   it("surfaces a rejection and changes no state", () => {

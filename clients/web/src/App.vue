@@ -527,6 +527,11 @@ function connectLive(): void {
       // two paints (see `renderer/animation/activation.ts`).
       noteActivationEdges(animations, snapshot.entities, partTextures.value);
       session.applyLiveEntities(snapshot.tick, snapshot.entities, snapshot.phase);
+      // The room owns its phase: a goal-based level returns itself to building when the pig leaves its
+      // camera rectangle (ADR-036), so the local phase has to follow the room's own frames or the page
+      // would keep offering switches and build tools to a room that answers WrongMode to all of them.
+      player.noteRoomPhase(snapshot.phase);
+      syncPlayer();
       applyCollected(snapshot.collected);
       applyRunState(snapshot.elapsedSeconds, snapshot.challengeFlags);
       liveFrame.value += 1;

@@ -12,6 +12,7 @@
  */
 
 import { describeRejection } from "./ackMessages";
+import { SNAPSHOT_BUILDING_PHASE } from "@/schema/decodeSnapshot";
 
 export type PlayerPhase = "editing" | "materialized";
 
@@ -44,6 +45,15 @@ export interface PlayerSession {
   noteSent(kind: CommandKind, entityId?: number): number;
   /** Applies a PGFA ack; returns the rejection message, or null when accepted/unknown. */
   applyAck(ack: PlayerAck): string | null;
+  /**
+   * The room's own phase, off the snapshot stream. A room can put itself back into the building
+   * phase -- a goal-based level does when the pig leaves its camera rectangle (ADR-036) -- and this
+   * session's phase otherwise only follows acks, so without this the page would stay "running" while
+   * the server rejects every later build command as WrongMode. Only the demotion is taken: the server
+   * acks a command before it broadcasts, so a building frame that lands after a Start ack is the
+   * room's own doing, while one published before the ack was already in flight.
+   */
+  noteRoomPhase(phase: number): void;
   /** Clears every state on a fresh identity (first connect, or a different room);
    * sequences stay monotonic. */
   reset(): void;
@@ -96,6 +106,11 @@ export function createPlayerSession(): PlayerSession {
         phase = "editing";
       }
       return null;
+    },
+    noteRoomPhase(roomPhase: number): void {
+      if (roomPhase === SNAPSHOT_BUILDING_PHASE) {
+        phase = "editing";
+      }
     },
     reset(): void {
       phase = "editing";

@@ -1096,21 +1096,53 @@ public sealed class GameRoom : IDisposable
         ClearSubEntities();
 
         Mode = RoomMode.Building;
-        _construction.ResetAll();
-        _rules.ResetAll();
-        ClearChallengeRun();
+
+        // Per entity first, the blanket reset second: `UnlinkBodyMember` is what clears the maps the
+        // blanket reset does not own -- a part's local offset, its local rotation, its mirror bit and a
+        // fan's spawn direction are keyed by entity and outlive `ResetAll`, and nothing may leak into the
+        // next run now that a surviving part keeps its id.
+        List<uint> partValues = new();
         var parts = _parts.GetEnumerator();
         while (parts.MoveNext())
         {
-            // Runtime rules may have destroyed an entity (TNT blast, detached member)
-            // leaving a stale entry in the part/transform stores. Only destroy handles
-            // that are still alive; dead ones are removed to keep the stores clean.
-            if (_entities.IsAlive(parts.CurrentId))
+            partValues.Add(parts.CurrentId.Value);
+        }
+
+        foreach (uint partValue in partValues)
+        {
+            _rules.CleanupEntityStores(new EntityId(partValue));
+        }
+
+        _rules.ResetAll();
+        ClearChallengeRun();
+
+        // The player's own layout is *not* rebuilt from scratch: its construction entities stay alive in
+        // their cells, so the entity ids a client learned from its Place acks survive the return to the
+        // building phase. Ownership never rides the wire (a player learns its ids from its own acks), so
+        // re-placing the layout under fresh ids would leave the page holding ids the room no longer knows
+        // -- the same rule the sandbox's `ResetPlayer` follows (ADR-026). Everything that is *not* a
+        // placed part is one of the level's own actors (a spawn, never a player's part): it is dropped for
+        // `SetupFromLevel` to re-create, exactly as before.
+        List<uint> actors = new();
+        var remaining = _parts.GetEnumerator();
+        while (remaining.MoveNext())
+        {
+            if (_construction.OwnerOf(remaining.CurrentId) is null)
             {
-                _entities.Destroy(parts.CurrentId);
+                actors.Add(remaining.CurrentId.Value);
             }
-            _parts.Remove(parts.CurrentId);
-            _transforms.Remove(parts.CurrentId);
+        }
+
+        foreach (uint actorValue in actors)
+        {
+            EntityId actor = new(actorValue);
+            if (_entities.IsAlive(actor))
+            {
+                _entities.Destroy(actor);
+            }
+
+            _parts.Remove(actor);
+            _transforms.Remove(actor);
         }
 
         if (_level is not null)
@@ -1120,11 +1152,33 @@ public sealed class GameRoom : IDisposable
 
         foreach (CapturedPart part in _retryLayout)
         {
-            ConstructionResult placed = _construction.Place(part.PartTypeId, part.PositionX, part.PositionY, part.Angle, part.Scale, 0, part.Mirrored);
-            if (placed.IsSuccess)
+            EntityId entity = new(part.EntityValue);
+            if (_entities.IsAlive(entity))
             {
-                RegisterPlacedRole(placed.Entity, part.PartTypeId);
+                // A survivor keeps its cell and its construction record; the captured build pose is written
+                // back so the preview sits where the player left it (a running room does not write the
+                // transform store, so this only makes the invariant explicit).
+                _transforms.Set(entity, new EntityTransform(
+                    new PhysicsVector3(part.PositionX, part.PositionY, 0f),
+                    BuildPose.Rotation(part.Angle, part.Mirrored),
+                    part.Scale));
             }
+            else
+            {
+                // What the run destroyed comes back at its build pose with the fresh id a placement always
+                // gets; its cell was released when it died (`Tick` -> `ConstructionRules.Forget`).
+                ConstructionResult placed = _construction.Place(part.PartTypeId, part.PositionX, part.PositionY, part.Angle, part.Scale, 0, part.Mirrored);
+                if (!placed.IsSuccess)
+                {
+                    continue;
+                }
+
+                entity = placed.Entity;
+            }
+
+            // Roles come back from content, exactly as a fresh placement registers them: the switch starts
+            // off again, charges re-arm, and the enclosure/chassis gates are re-published on the next Start.
+            RegisterPlacedRole(entity, part.PartTypeId);
         }
     }
 
