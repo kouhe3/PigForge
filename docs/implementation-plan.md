@@ -112,7 +112,7 @@ Network transport and client
 ### Task 9: Migrate runtime gameplay rules - Complete (ADR-002 semantics)
 
 - Acceptance: server rules consume physics events/snapshots and determine outcomes without renderer state; semantics per ADR-002 (no damage primitives).
-- Verify: `8` gameplay rule tests - motor/wheel contact gating, pig indestructibility, TNT ignition on impact velocity change with fuse, pure-impulse blast at target centres of mass, goal-zone win trigger, map-bounds restart request, joint-break recording; typical level fixture (Bepu, block ignites TNT, blast delivers pig into goal zone) and stress fixture (76 bodies) deterministic across double runs.
+- Verify: `8` gameplay rule tests - motor/wheel contact gating, pig indestructibility, TNT ignition on impact approach speed with fuse, pure-impulse blast at target centres of mass, goal-zone win trigger, map-bounds restart request, joint-break recording; typical level fixture (Bepu, block ignites TNT, blast delivers pig into goal zone) and stress fixture (76 bodies) deterministic across double runs.
 - Files: `src/PigForge.Core/Runtime/`, `src/PigForge.Core/Content/LevelContentParser.cs`, `schemas/part-content-v1.schema.json` (material fields), `schemas/level-content-v1.schema.json`, `src/PigForge.Physics.Bepu/` (material pair friction, sleepless dynamics), `tests/PigForge.Core.Tests/GameplayRulesTests.cs`.
 
 ## Phase 4: Headless Server

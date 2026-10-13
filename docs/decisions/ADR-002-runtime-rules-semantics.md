@@ -45,3 +45,22 @@ PigForge 的运行规则（发动机、轮子、猪、TNT、断裂、关卡结�
 - ADR-001：net10 物理后端边界
 - `docs/specs/pigforge-headless-spec.md`：运行规则迁移的验收框架
 - `docs/implementation-plan.md` Task 9：运行规则迁移范围
+
+## 2026-10-13 修正：撞击的「大小」怎么量（差距 `G116`）
+
+规则层量一次撞击强度的地方有两处：本 ADR 决策 3 的关节/缝隙断裂（走冲量），以及按内容阈值判定的三条撞击规则
+（TNT 撞击点火、蛋撞击破碎、脱钩件撞击脱离 —— `GameplayRules.ProcessEvents` 的 `ContactStarted`）。
+
+后者原先读「本 tick 与上一 tick 的快照速度差」（`VelocityChange`，取 A/B 较大者），这**测不到真正的落地**：
+求解器的穿透恢复弹簧在形状看起来还没接触时就开始吸能，接触事件比最后一个自由 tick 晚两拍 —— 实测（真 Bepu，
+一个箱子落到静态盒上）自由落体到 **11.61 m/s**，`ContactStarted` **两拍之后**才到、它自带的 `ApproachSpeed` 只剩
+**2.60 m/s**，而本层「上一 tick 速度」也只剩 2.60；于是一个 10.7 m/s 落地的 TNT 在那只箱子上**永远不点火**
+（第三十三轮 smoke 的现象）。
+
+修正后两条规则共用同一个估计（`GameplayRules.PairApproachSpeed`）：**后端自己的接触前相对法向速度**、
+**上一 tick 的速度**、与**最近 2 tick 的峰值**（峰值寿命 2 tick 是 ADR-010「已知偏差 3」量出来的）三者取最大，
+再交给各自的阈值（`TntIgniteImpactSpeed` / `EggBreakImpactSpeed` / 脱钩阈值）；弹跳门控（ADR-025 的
+`m_BounceThreshold`）读同一个值。峰值必须在里面：上面那次落地只有它还记得 11.61。
+
+回归：`GameplayRulesTests.ALateContactEventStillIgnitesTheChargeTheFallLoaded`（事件与上一 tick 都只剩残值时，
+峰值仍要点火）与 `ImpactRulesRoomTests`（真内容 + 真 Bepu：一次 10.7 m/s 的落地点火并炸掉，一次轻放不点火）。
