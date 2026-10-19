@@ -18,7 +18,7 @@ PigForge 现在把绳当成一根 3 格木板焊进车架（`CompoundAssembler.C
 |---|---|
 | 8 段子实体（ADR-027）、段体形状/质量/材质/阻尼 | 绳段的 LineRenderer 样条（客户端本片画逐段精灵，见 §9、D2） |
 | 端点 `Revolute`（= 原版 `HingeJoint axis=forward`） | B 档 IN 分支：`StableRope` / `UnbreakableRope` / `CollidableRope`（D3） |
-| **用户点击剪切**：点击位置 → 最近段（`interactiveRadius 0.5`，索引 clamp 2..n−2），新增 **PGFC v4 `CutRope`** | `HingePlate` 变体（Rope_05..08，vanilla `HingePlate=false`，D7） |
+| **剪切两条入口**：① UI 按钮（`activation: trigger`，kind 8）→ 剪**中间**；② 世界点击 → 最近段（0.5 m，clamp 2..n−2），新增 **PGFC v4 `CutRope`** | `HingePlate` 变体（Rope_05..08，vanilla `HingePlate=false`，D7） |
 | 段内力链（拉/推/空气阻/逐节阻尼） | 单发计数 `ChangeOneShotPartAmount`（D11） |
 | 张力断裂（内段 1.25 m / 端段 1.75 m，vanilla 开着） | 段体的 `-90°` gridRotation 贴图朝向细节（D10） |
 | 绳→绳串联（同朝向） | |
@@ -133,15 +133,27 @@ PigForge：`GameplayTickOutput` 增加一个 body-keyed 的阻尼覆写列表（
 - 拉伸端点拉（`PullEndpoints` 的 endpoint force）在**未剪**时执行：按 §3 的 total/factor 公式；
   只对存在邻件的一端施加（`LeftAttached/RightAttached`），施力点 = 最外段的位置。
 
-### 4.6b 用户剪切（点击位置）
+### 4.6b 剪切：两条入口（按钮 = 中间，点击 = 最近段）
 
-原版：`OnTouch(hasPosition, touchPosition)` → `FindInteractiveSegment(touchPosition)`（`Rope.cs:142-167`）：
-对每个节点取世界位置（z 置 0），与点击点距离 ≤ `m_interactiveRadius`（prefab `0.5`）且最近者，
-把索引 **clamp 到 2..n−2**（即最外侧两段不能被点断）。`Cut(node)` 置 `m_cutIndex = node`，内力链
-跳过 `j == m_cutIndex` 的那条 link。原版另一条入口 `OnTouch(hasPosition:false)`（无位置的按钮式触摸）
-直接 `Cut(n/2)`；我们的命令永远带位置，所以只走带位置那一条。
+原版有两个入口（`BasePart.cs:924-938`）：
 
-PigForge 的落地（**新增 PGFC v4 命令**，见 §9）：
+- **UI 按钮**：`ProcessTouch()`（无位置）→ `OnTouch(hasPosition:false)` → `Cut(m_nodes.Count / 2)`：
+  8 段时索引 **4**，即剪掉节点 3–4 之间那条 link。这是玩家记忆里的「剪绳子按钮」。
+- **世界点击**：`ProcessTouch(Vector3)` → `OnTouch(hasPosition:true)` → `FindInteractiveSegment`：
+  最近节点（世界 z=0，距离 ≤ `m_interactiveRadius 0.5`），索引 **clamp 2..n−2**；没有命中就 `Cut(n/2)`
+  （只有带位置且触达该件时才会派发，所以实际等价于必须落在段附近）。
+
+PigForge 两条都做：
+
+**① 按钮路径（零协议改动）**
+
+- 内容给四个绳件写 `activation: "trigger"`（`Rope` 没有覆写 `HasOnOffToggle` → 原版就是按钮型控件，
+  ADR-028）；`RegisterPlacedRole` 照 G115 注册 activation。
+- `RunRopes` 每条未剪绳先 `TryConsumeButtonPress(host)`；为真 → `CutIndex = segments / 2`（**中间**）。
+- 按钮由开关条发 kind 8（host 实体 id），`SetPartActive` 的归属/可开关门已覆盖（host 在 `ConstructionRules` 里）。
+- **host 必须在运行帧可见**，否则开关条看不到它 → §9 的 `bodyId = 0` 约定。
+
+**② 位置路径（PGFC v4 `CutRope`）**
 
 ```
 CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z 忽略）
@@ -149,15 +161,15 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 
 服务器（权威）：
 
-1. 只在 **Running** 接受；查找**本命令 owner 的**绳（沙盒 = 该玩家；关卡房间 owner 0）。
-2. 对每条未剪绳的 8 段取当前世界位置（`_kinematicsByBody`），去掉 z，找最近的段，
-   距离 ≤ **0.5**；都没有 → `RuleRejected / RopeNotAtPoint`（新增错误 19）。
+1. 只在 **Running** 接受；查找**本命令 owner 的**未剪绳（沙盒 = 该玩家；关卡房间 owner 0）。
+2. 对每条绳的段取当前世界位置（`_kinematicsByBody`），去掉 z，找最近的段，距离 ≤ **0.5**；
+   都没有 → `RuleRejected / RopeNotAtPoint`（新增错误 19）。
 3. 命中段索引 `i` → `CutIndex = clamp(i, 2, n-2)`，置剪断。
 4. 已剪的绳：**Accepted 且 no-op**（原版 `OnTouch` 在 `m_ropeCut` 时什么都不做），不报错。
 5. 归属校验与 `SetPartActive` 同一条（`_construction.OwnerOf(host) == owner`，关卡房间 owner 0）。
 
 客户端：运行期在画布上命中一个**绳段子实体**（`flags` bit1 + 内容该 part 有 `capabilities.rope`）时，
-用该点的世界坐标发 `CutRope`；服务端仍按上面的最近段规则裁决，客户端命中测试只是减少无效命令。
+用该点的世界坐标发 `CutRope`；服务端仍按最近段规则裁决，客户端命中测试只是减少无效命令。
 
 ### 4.7 视觉
 
@@ -181,6 +193,7 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
   "jointConnectionDirection": "none",
   "jointConnectionStrength": "weak",
   "jointConnectionType": "target",
+  "activation": "trigger",
   "rope": {
     "segments": 8,
     "segmentMass": 0.05,
@@ -197,7 +210,8 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
   就是 1 格）。旧内容里手写的 `box [1.5, 0.06, 0.06]` 没有原版对应物（ADR-005 §4），且会让
   `PartFootprint._all`（连接邻近）横跨 3 格。
 - `mass` 保留 0.3（host 无刚体，不被使用；仅维持 schema/目录稳定）。
-- 不写 `activation`（用户剪切不在本片）。
+- `activation: "trigger"`：原版的按钮型控件（剪中间）。
+
 
 ## 6. 工具
 
@@ -233,6 +247,7 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 - 输入：`_kinematicsByBody`（已有，记录**所有** body，包括子实体）、质量、`_rotationByBody` 不需要。
 - 输出：`output.Commands` 的 `ApplyImpulse`（世界点 = 段中心；端点拉 = 最外段位置）与 §4.5 的
   阻尼覆写。
+- `RunRopes` 里对每条未剪绳先 `TryConsumeButtonPress(host)`；为真 → `CutIndex = n/2`（按钮 = 中间）。
 - `CutRope(uint owner, float x, float y)`：按 §4.6b 解析 owner 的绳与最近段，返回 `(bool cut,
   ConstructionError error)`；由房间在 `ExecuteCommand` 调用。剪断只改 rope 状态（`CutLink`），不动刚体。
 - `AreConnected`（transport 挑战）：把每条未剪绳的左右邻件 body 视为一条边——`PowerClusterKey` 不同但
@@ -244,6 +259,8 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 | 位置 | 改动 |
 |---|---|
 | `Start` / `ResetPlayer` / `Retry` 的 `CollectPartEntities()` | 过滤掉 `capabilities.rope` 的 host（它们不进 `Assemble`） |
+| `FillEntityOrder` | 把**无刚体的 rope host** 也加进 `_entityOrder`（`bodyId = 0`），让开关条在运行帧能看到它的按钮 |
+| `RegisterPlacedRole` | `activation: trigger` 走既有 `AddActivation`（G115），host 无 body 不影响 |
 | `Start`（`BindAttachments` 之后） | `MaterializeRopes(entities)`：每条绳创建 8 个子实体 + 端点 `Revolute` + 绳→绳铰；`_rules.AddRope(...)` |
 | `RegisterPlacedRole` | 识别 `capabilities.rope`（不注册 activation/motor） |
 | `DestroySubEntitiesOf` / `ClearSubEntities` | 已有；确认 rope 段也走同一条路 |
@@ -260,8 +277,11 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
   帧长 19 + 8 = **27 B**。`ProtocolVersion.Current` 3 → 4；`schemas/client-command-v1.schema.json`
   的 `version` 与 `kind` 枚举同步；客户端 `encodeCommand.ts` 与 `SNAPSHOT/CMD` 版本常量同批改。
   旧客户端会被整帧拒绝（与 ADR-030 升 v3 同一策略）。
-- **PGFS 不变**：段是普通实体，`partTypeId` = host 的 41（或 214..216），`flags` bit1 = 子实体。
-  host 在运行帧不出现（无 body），客户端不会重复画。
+- **PGFS 版本不变**：段是普通实体，`partTypeId` = host 的 41（或 214..216），`flags` bit1 = 子实体。
+- **`bodyId = 0` 的语义扩展（无线上改动）**：建造帧里 `bodyId 0` 是预览（照画）；**运行帧里出现
+  `bodyId 0` 的实体 = 有归属但没有物理体的 host（绳件）**。客户端保留它（开关条要用它的 trigger 按钮），
+  **不画它的美术**（原版 `renderer.enabled=false`）。运行帧原本没有任何 `bodyId 0` 实体（所有件都有体），
+  所以这条规则无歧义。实现落点：`decodeSnapshot` 后的绘制过滤 `phase != Building && bodyId == 0`。
 - 客户端：现有 `subEntityTexture(texture, subEntity)` 在段实体上取 `subSprites`（新增 1 条清单数据），
   不需要新代码路径；`draw.test` 加一条「绳段用 subSprite」。
 - 建造帧与预览不变（host 的普通精灵）。
@@ -276,6 +296,7 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 3. 断判：内段 `d=1.26` 剪、端段 `1.26` 不剪、端段 `1.76` 剪；剪后跳过该 link 且不再断。
 4. 拉伸端点拉：`total > 1.18·4` 时端点力方向与 `clamp(750·factor, 0, 300)`；`factor` 下降时 ×0.7。
 5. 未连接端没有端点力。
+6. 按钮：`SetActive(host,true)` 后 `RunRopes` 消费一次，`CutIndex == segments/2`（8 → 4）；再按 no-op。
 
 ### Protocol
 
@@ -290,16 +311,18 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 4. 快速拉开一端 → 出现剪断（`CutLink >= 0`），断后两半自由。
 5. Retry / 断连 / RESET：段与铰全部销毁，host 回到预览；再次 Start 段重建。
 6. 快照：运行帧段实体带 bit1、host 缺席；双跑 hash 相等。
-7. **点击剪切**：在段 i 的世界位置发 `CutRope` → `CutIndex = clamp(i,2,6)`；点在外侧段（i=0/7）被 clamp；
+7. **按钮**：Running 下对 host 发 kind 8 → `status 0`，`CutIndex == 4`；开关条能拿到 host（运行帧里 `bodyId == 0`）。
+8. **点击剪切**：在段 i 的世界位置发 `CutRope` → `CutIndex = clamp(i,2,6)`；点在外侧段（i=0/7）被 clamp；
    点离所有段 > 0.5 → `RopeNotAtPoint`；对同一绳再点 → Accepted 且 `CutIndex` 不变；Building 下 → `WrongMode`；
    沙盒里点别人的绳 → 拒绝。
-8. `transport` 挑战：两车被绳相连 → `AreConnected` 为真；剪断后为假（T5）。
+9. `transport` 挑战：两车被绳相连 → `AreConnected` 为真；剪断后为假（T5）。
 
 ### web
 
 1. `part-textures.json` part 41 有 `subSprites`；`subEntityTexture` 返回它。
-2. `playParts.generated.json` 含 `rope` 能力（生成器一致性）。
-3. `pnpm test` / `pnpm build`。
+2. `playParts.generated.json` 含 `rope` 能力与 `activation: trigger`（生成器一致性）。
+3. 运行帧里 `bodyId 0` 的 host 不进绘制列表（`drawFrame` 不画它），但开关条把它列成「剪绳子」按钮。
+4. `pnpm test` / `pnpm build`。
 
 ### 工具
 
@@ -310,7 +333,7 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 
 | # | 偏差 | 理由 |
 |---|---|---|
-| ~~D1~~ | ~~用户点击绳段剪切不做~~ **2026-10-19 收进本片**（用户确认原版就是「点哪剪哪」）：PGFC v4 `CutRope(x,y)`，服务器按最近段（0.5 m，clamp 2..n−2）裁决 | 原版 `OnTouch` + `FindInteractiveSegment`（`Rope.cs:142-179`）；协议升 v4，见 §4.6b / §9 |
+| ~~D1~~ | ~~用户点击绳段剪切不做~~ **2026-10-19 收进本片，两条入口都做**：①按钮（kind 8）剪中间；②世界点击（PGFC v4 `CutRope(x,y)`）按最近段裁决 | 原版 `ProcessTouch()`/`ProcessTouch(Vector3)` 两个入口（`BasePart.cs:924-938`、`Rope.cs:169-190`）；见 §4.6b / §9 |
 | D2 | 不画 LineRenderer 样条 | 客户端本片逐段画精灵；样条需要把同 host 的段分组（线上没有 host id）或加线协议 |
 | D3 | `CollidableRope`（B 档）不建模 | vanilla false；B 档还会把 Rare/Epic（Rope_03/04）段提升到 Contraption 层 |
 | D4 | 50→60 Hz | 每 tick 冲量 = `F/60`（同一物理力的正确换算） |
@@ -323,6 +346,7 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 | D11 | 单发计数不建模 | PigForge 没有 `m_oneShotPartAmount` 的消费者；剪断只记布尔 |
 | D12 | 段体 `angularDamping` 取 prefab 的 0.5 | 原版只改 `drag`，angularDrag 保持 prefab 值 |
 | D13 | 非线性段碰撞 | 段碰撞关闭；原版靠 layer 15，B 档才有例外 |
+| D14 | 无刚体 host 在运行帧用 `bodyId = 0` 表达 | 不新增 flag/版本；建造帧的 `bodyId 0` 仍是预览（照画），运行帧的 `bodyId 0` = 有归属无物理体（不画美术、只进开关条）。运行帧原本没有 `bodyId 0` 实体，语义无歧义 |
 
 ## 12. 分片与验收
 
@@ -331,16 +355,17 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 | **T1** | `tools/bple-ropes` + 内容 `capabilities.rope` + schema/parser/客户端类型 + 单格 shapes | 工具两次幂等；内容 290 件仍通过加载；`PartContentTests` 新用例读 8/0.05/0.09/0 |
 | **T2** | host 过滤 + 8 段子实体 + 端点 `Revolute` + 内力链（拉/推/空气阻/阻尼） | `RopeRoomTests` 1–3、Core 1–2；实机：框-绳-框 START 后 8 段、下垂且两端不脱开 |
 | **T3** | 张力断 + 拉伸端点拉 + 绳→绳 | Core 3–5；`RopeRoomTests` 4；实机快速拉一端观察到断 |
-| **T3c** | **点击剪切**：PGFC v4 `CutRope` + `RopeNotAtPoint` + 服务器最近段裁决 | Protocol 1–2；`RopeRoomTests` 7；实机点段即断、点空白不报错 |
+| **T3c** | **按钮剪中间**：`activation: trigger` + `RunRopes` 消费按下 + host 的 `bodyId 0` 发布 | Core 6；`RopeRoomTests` 7；web 3；实机按钮剪中间 |
+| **T3d** | **世界点击剪切**：PGFC v4 `CutRope` + `RopeNotAtPoint` + 服务器最近段裁决 | Protocol 1–2；`RopeRoomTests` 8；实机点段即断、点空白不报错 |
 | **T4** | 贴图 `subSprites` + 客户端点击命中 + 浏览器验证 | web 1–3；真 Chromium 里 8 段可见、点某段该段断开 |
-| **T5** | `AreConnected` 绳边（transport） | Core 6 / Server 7；剪断前后双向 |
+| **T5** | `AreConnected` 绳边（transport） | Server 9；剪断前后双向 |
 
 检查点：T2 后（段真的被两端拉住、不再焊成木板）、T4 后（画面正确）、T5 后（挑战语义）。
 
 ## 13. 开放问题
 
 1. **视觉**是否要在本片就做样条（需要决定 host 分组方式）。
-2. `CutRope` 的世界坐标是唯一 payload：若以后要支持「点绳件本体但不在段附近也剪中段」，再加 host id（本片按原版：只在段附近才切）。
+2. `CutRope` 的世界坐标是唯一 payload（本片按原版：只在段附近才切）；按钮路径已经覆盖「不点段也剪中间」。
 3. **T5 的连接性**是否与 `power cluster` 合并方式一致（`AreConnected` 之外还有没有别的消费者）。
 4. Jolt 后端（不在 `PigForge.slnx`）对 `Revolute` 抛 `NotSupportedException` —— 绳只在 Bepu 可用，
    与轮子/弹簧的既有约定一致，是否需要文档标注（`docs/specs/physics-replay-v2.md`）。
