@@ -108,7 +108,48 @@ ADR-004 称 AlienTNT「半径/力度放大」。实测原版数据不支持：
 
 **明确不建模（皮肤处理 + 文档记录）**：`Balloon_08` 不可碰破（PigForge 气球本就不破）、`Rope_03/04` 绳段可碰撞、`Kicker_2..5` 自动/弹性/标记连接器、`PointLight` 家族的闪烁/夜视/常亮、`SpringBoxingGlove_05` 出拳距离 5 vs 2.5、`MetalFrame_09` 随机贴图、瓶子 `Cork` 装饰。
 
-**排除（原版基准件 PigForge 没有）**：Basket、JetEngine、Pumpkin、GoldenPig（后两族见 G91：需要各自的新基座）、ColoredFrame、CustomPart、电路/机械 IN 扩展件、`Part_GrapplingHook_06`（异形枪：发射弹体，需要投射物子系统）、特殊蛋 `Egg_02..05`（引力/反重力/幽灵：需要逐刚体重力与碰撞过滤，`IPhysicsWorld` 无此能力）。
+**排除（原版基准件 PigForge 没有）**：Basket、JetEngine、ColoredFrame、CustomPart、电路/机械 IN 扩展件、`Part_GrapplingHook_06`（异形枪：发射弹体，需要投射物子系统）、特殊蛋 `Egg_02..05`（引力/反重力/幽灵：需要逐刚体重力与碰撞过滤，`IPhysicsWorld` 无此能力）。（Pumpkin/GoldenPig 已由下面的 G91 段补上。）
+
+### 南瓜与金猪两族（G91，2026-10-19）
+
+G87 的警告守卫当场报出的最后两族：`Pumpkin`（PartType **42**，`Part_Pumpkin_01..02_SET`）与
+`GoldenPig`（PartType **45**，`Part_GoldenPig_01..04_SET`）。它们与引擎族同一个成因 —— 注册表里有分组、
+`part-map.json.parts` 里没有基座 prefab → 导入器无法把皮肤挂上去。补法也与 G87 相同：**先手写两个基座 +
+`part-map` 映射，再让导入器把皮肤追加上去**（`extras` 不能凭空造基座）。
+
+**原版事实（逐 prefab / 逐类读出）**：
+
+| 族 | prefab | 类 | 质量 | 碰撞体 | 能力 | 玩法 |
+|---|---|---|---|---|---|---|
+| Pumpkin | `Part_Pumpkin_01/02_SET` | `Pumpkin` | **0.5** | capsule r 0.32 / h 0.85，X 轴，中心 y −0.06 | `CanBeEnclosed` true；`jointConnectionType 0`(none)、`strength 0`(weak)、`direction 0`(any)；`EffectDirection` = Right | vanilla 声明档 `RotatablePumpkin`/`FixedPumpkin` **都是 false** ⇒ 无开关、无自动对齐，`IsEnabled` 恒 false |
+| GoldenPig | `Part_GoldenPig_01..04_SET` | `GoldenPig` | **10** | sphere r 1.0，中心 y 0.4 | `CanBeEnclosed` true；joint none/weak/any；`Initialize` 写阻尼 **0.5 / 1** | 本类**不是** `Pig`（`GoldenPig : BasePart`）；它没有 `capabilities.pig`，终点区不因它成立 |
+
+`tools/bple-grid` 的 3×2 直方图（KingPig_01..07 + GoldenPig_01..04，x[−1,1] y[0,1]）原本就把它算在
+「11 个非默认格」里，只是一直没有内容行；现在 GoldenPig 的基座与 3 个皮肤都拿到同一个 `gridBox`。
+
+**落地**（全部由工具写出，没有手写数值）：
+
+1. 基座 `287 pumpkin`（mass **0.5**）与 `288 golden-pig`（mass **3.0**）。质量是 PigForge 自己的标定刻度
+   （`tools/bple-mass` 的读法）：南瓜按「猪 = 1.0 ↔ 原版 1」取 1:1 的 0.5；金猪按原版对猪王的比值
+   （10 / 4 = 2.5）乘猪王的标定质量 1.2 = 3.0，而不是直接把 10 写进来（内容质量不是原版单位）。
+2. 皮肤由 `import-variants.mjs` 追加：`289 pumpkin-v02`、`290..292 golden-pig-v02..04`（内容 **290** 件）。
+3. `apply-shapes`：南瓜的 capsule → 沿 X 轴的 **3 球链** r 0.32（变体 02 的节点缩放让它成为 2 球链），
+   金猪一个球 r 1.0 @ y 0.4；`apply-materials`、`apply-joints`（`canBeEnclosed`，可包裹件 81 → **87**）、
+   `apply-power`、`apply-grid`（金猪 4 行）、`apply-damping`（金猪 0.5/1，`BasePart` 默认仍不写）。
+4. 贴图清单重生成（`287/290 mapped, 287 emitted`，6 个新条目各一张精灵），客户端调色板补
+   `287 南瓜` / `288 金猪`（`PALETTE` 守卫测试要求它覆盖全部动态基座）。
+5. 关卡内容 **v9** 的 `partCounts` 现在能解析这两个枚举：**28 关**的发放（16 关南瓜 + 14 关金猪，
+   其中两关各少一条是因为 `Level_Sandbox_02`/`Level_Sandbox_06` 没有 `build` 块）从「无基座」变成
+   真实配额 —— 建造栏在这 28 关里第一次能看到这两族。普查 1926/3394 → **1954/3422**。
+
+**顺带修掉的工具缺陷**：`tools/lib/parts.mjs` 的 `partSpan` 用裸 `"shapes":` 找零件自己的形状块，而
+拳套（`28`）的 `capabilities.glove` 里也有一份内联 `"shapes"` —— `apply-shapes` 会在那处切开并截断
+`capabilities`（本次先跑成 JSON 解析失败才发现；HEAD 上同样会失败）。现在按**行首 6 空格的 `"shapes":`**
+定位。按规范顺序（extract → apply-shapes → apply-brackets）重跑时，`apply-brackets` 还把 9 个机翼/尾翼的
+`condition.kind === "frame"` 支架坐标从旧的 `+0.34` 偏移改回零件原点系（旧值写在 ADR-003 的贴图参照系修正
+之前；支架本身是建造吸附/占格用的，物理体在 spawn 时才按连接状态生成）。
+
+**不建模**：南瓜的 IN 档开关/对齐（vanilla 关）、金猪的滚动音效（`AudioManager`）、两者都不是 `Pig`。
 
 ### IN 扩展件（目录口径，G109，2026-10-06 用户拍板）
 

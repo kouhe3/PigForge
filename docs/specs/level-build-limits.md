@@ -66,9 +66,10 @@ xMax    =  columns / 2
 
 只能经 prefab 的 `m_partType` 字段（`tools/bple-textures/part-map.json` 的 `parts`/`variants` + prefab YAML；
 `tools/lib/part-types.mjs` 的 `resolvePartTypes` 是唯一实现，`BasePart.cs:23-77` 的枚举名由
-`readPartTypeNames` 抄出来）。已对上 **43** 个枚举；**enum 42 `Pumpkin` / enum 45 `GoldenPig` 没有基座**
-（`G91`）——它们真的会被关卡发放（16 关 / 14 关），所以工具把它们放进显式 `unmapped` 允许表并在报告里
-计数（偏差 D4）。皮肤与其基座共享同一个枚举，因此内容的 `partCounts` 用**基座 id** 作键。
+`readPartTypeNames` 抄出来）。已对上 **45** 个枚举；enum 42 `Pumpkin` / enum 45 `GoldenPig` 曾经没有基座
+（`G91`），工具把它们放进显式 `unmapped` 允许表并在报告里计数（偏差 D4）——2026-10-19 两个基座（287/288）
+落地后，这一对也解析成真实 `partTypeId`，`unmapped` 允许表只剩 8/37/38，普查里的 no-base 列表为空。
+皮肤与其基座共享同一个枚举，因此内容的 `partCounts` 用**基座 id** 作键。
 
 ## 3. 内容契约 v9
 
@@ -153,9 +154,9 @@ xMax    =  columns / 2
 |---|---|
 | 带 `build` 的关卡 | **275 / 277**（缺的 2 个：`Level_Sandbox_02`、`Level_Sandbox_06`，`m_sandbox = True`） |
 | 网格形状 | **42 种**（columns 0…11、height 0…7；`4x2` 24 关、`4x3` 44 关、`5x3` 44 关最多） |
-| 发放的族 | 每关 **2…42** 个（`1926` 条族记录 / `3394` 件配额总和） |
+| 发放的族 | 每关 **1…28** 个（`1954` 条族记录 / `3422` 件配额总和） |
 | 第二星三件套 | `m_secondStarConstructionGridRows` 20 关、`m_extraPartsForSecondStar` 21 关、`m_gridForSecondStar` 22 关（无读取者，不搬） |
-| 没有 PigForge 基座的发放 | `Pumpkin`(42) 16 关、`GoldenPig`(45) 14 关（`G91`，报告里计数） |
+| 没有 PigForge 基座的发放 | **0**（`Pumpkin`(42) 16 关 / `GoldenPig`(45) 14 关在 `G91` 补上基座后全部解析；两关沙盒本身没有 `build`） |
 | 受天幕错层影响的关卡 | **79** 关 / **1574** 个四边面（§5.1） |
 
 ## 7. 偏差（有意，不做就是不做）
@@ -165,7 +166,7 @@ xMax    =  columns / 2
 | ~~D1~~ | ~~网格锚点取 `floor(origin)`~~ **2026-10-13 撤销**：格点就是原版的小数锚点 | 原版把建造根放在 `LevelStart` 实例的**小数**位置上（`BaseGameMode.cs:70`），单元 `(x, y)` 落在 `锚点 + (x, y)`（`ConstructionUI.cs:388`）。取整会让整张网格（以及每个零件、每个判定单元）整体偏移最多 1 格：实测 `Level_05` 锚点 `(2.4379761, 5.45759)`，floor 后底边落到 y=4.5，而该处台地顶面在 4.834 ⇒ 底行埋进地里 0.334（原版是浮在地面之上 0.12），玩家截图就是这个。现在 `ConstructionRules` / 客户端吸附 / 绘制三处都用关卡自己的小数锚点，单元索引仍是整数 |
 | D2 | 配额是**房间级**计数 | 关卡房间所有放置都记在 owner 0（一个共享串），原版也是单机一个串 |
 | D3 | 第二星字段不搬 | 反编译源码无读取者，星级系统未做 |
-| D4 | enum 42/45 的发放不出现 | `Pumpkin`/`GoldenPig` 无基座（`G91`），报告计数、关卡里不列出 |
+| ~~D4~~ | ~~enum 42/45 的发放不出现~~ **2026-10-19 撤销**（`G91`）：287/288 落地后它们正常解析 | 旧理由：`Pumpkin`/`GoldenPig` 无基座；现在只有 8/37/38 仍无基座，且没有任何关卡发放它们 |
 | D5 | `partCounts` 只写 count>0 | 与「配额 0 = 建造栏不出现」等价 |
 | D6 | 2 个沙盒关卡不写 `build` | 它们的网格行全是 0（按公式 = 没有任何可放单元），原版沙盒的零件来源是 `GameProgress` 解锁表（未建模）；搬进来只会让这两关一件都放不下 |
 | D7 | 关卡预置的 20 个零件实例不计入配额 | 原版 `Contraption.GetPartCount` 会算上布局里的件，但那 20 个实例是否进串未考证 |
@@ -176,8 +177,8 @@ xMax    =  columns / 2
 ```powershell
 # 内容（幂等；第二次 0 changed）
 node tools/bple-levels/build-levels.mjs
-#   -> 275/277 levels, 42 grid shapes, 1926 families / 3394 parts
-#      build no-base PartTypes: Pumpkin(42) x16, GoldenPig(45) x14
+#   -> 275/277 levels, 42 grid shapes, 1954 families / 3422 parts
+#      build no-base PartTypes: none (Pumpkin/GoldenPig resolve since G91)
 
 # .NET（Jolt 项目分开跑：合并跑会撞既有的原生崩溃）
 dotnet build PigForge.slnx -c Release          # 0 警告 0 错误

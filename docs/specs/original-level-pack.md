@@ -211,7 +211,7 @@ curl http://127.0.0.1:5088/level                   # 与服务器解析的同一
 `decor: 251 props / 15132 instances`、`manifest + atlas writes: 0 changed`（第二次），`build-levels` 报
 `decor instances: 15132` / `classified instances: 26072`，客户端实机读数见 `docs/specs/level-props.md` §8。
 建造限制（v9，2026-10-11）另加：`build limits: 275/277 levels (2 without: Level_Sandbox_02,
-Level_Sandbox_06), 1926 families / 3394 parts, 42 grid shape(s), 75 row list(s)`、
-`build no-base PartTypes: Pumpkin(42) x16, GoldenPig(45) x14`、`second-star fields:
+Level_Sandbox_06), 1954 families / 3422 parts, 42 grid shape(s), 75 row list(s)`、
+`build no-base PartTypes: none`（`G91` 后 42/45 也解析）、`second-star fields:
 m_extraPartsForSecondStar=21 m_gridForSecondStar=22 m_secondStarConstructionGridRows=20`，第二次运行
 `0 changed, 277 unchanged`；逐关的锚点/网格/族与总数见报告 `levels[].build`（`docs/specs/level-build-limits.md` §6）。
