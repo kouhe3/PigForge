@@ -97,7 +97,18 @@ export interface PartCapabilities {
   pig?: boolean;
   wheel?: boolean;
   motor?: { thrustPerTick: number; directionX: -1 | 0 | 1 };
-  tnt?: { fuseTicks: number; chainDetonate?: boolean; igniteOnImpact?: boolean };
+  /** The original charge's own blast (`docs/specs/tnt-blast.md`); the room owns it, the client only
+   * has to know the shape is legal. */
+  tnt?: {
+    fuseTicks: number;
+    chainDetonate?: boolean;
+    igniteOnImpact?: boolean;
+    radius?: number;
+    impulse?: number;
+    triggerSpeed?: number;
+    repeatable?: boolean;
+    chainTarget?: boolean;
+  };
   balloon?: number;
   /** A FanPropeller: the fan, the plane propeller and the rotor are one class in the original.
    * `maxSpeed` is the top speed along the thrust axis per unit power factor (absent = uncapped,

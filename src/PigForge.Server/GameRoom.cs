@@ -454,7 +454,18 @@ public sealed class GameRoom : IDisposable
                 RegisterPig(entity);
                 break;
             case RoomActorRole.Tnt:
-                _rules.AddTnt(entity, spec.TntFuseTicks);
+                // A level-authored charge is the same part, so it answers with the same blast
+                // (`docs/specs/tnt-blast.md`); a spec may override the fuse the level gives it.
+                _rules.AddTnt(
+                    entity,
+                    spec.TntFuseTicks,
+                    part.Capabilities?.TntChainDetonate ?? true,
+                    part.Capabilities?.TntIgniteOnImpact ?? true,
+                    part.Capabilities?.TntRadius ?? 0f,
+                    part.Capabilities?.TntImpulse ?? 0f,
+                    part.Capabilities?.TntTriggerSpeed ?? 0f,
+                    part.Capabilities?.TntRepeatable ?? false,
+                    part.Capabilities?.TntChainTarget ?? true);
                 break;
         }
 
@@ -833,7 +844,16 @@ public sealed class GameRoom : IDisposable
 
         if (capabilities.TntFuseTicks is ushort fuse)
         {
-            _rules.AddTnt(entity, fuse, capabilities.TntChainDetonate, capabilities.TntIgniteOnImpact);
+            _rules.AddTnt(
+                entity,
+                fuse,
+                capabilities.TntChainDetonate,
+                capabilities.TntIgniteOnImpact,
+                capabilities.TntRadius,
+                capabilities.TntImpulse,
+                capabilities.TntTriggerSpeed,
+                capabilities.TntRepeatable,
+                capabilities.TntChainTarget);
         }
 
         if (capabilities.HasBlaster)

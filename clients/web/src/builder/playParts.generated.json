@@ -219,7 +219,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "tnt": {
-          "fuseTicks": 5
+          "fuseTicks": 5,
+          "radius": 8,
+          "impulse": 25,
+          "triggerSpeed": 4
         },
         "activation": "trigger"
       },
@@ -1852,7 +1855,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "tnt": {
-          "fuseTicks": 1
+          "fuseTicks": 1,
+          "radius": 8,
+          "impulse": 25,
+          "triggerSpeed": 4
         },
         "activation": "trigger"
       },
@@ -2031,7 +2037,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "tnt": {
-          "fuseTicks": 5
+          "fuseTicks": 5,
+          "radius": 8,
+          "impulse": 25,
+          "triggerSpeed": 4
         },
         "activation": "trigger"
       },
@@ -2066,7 +2075,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "tnt": {
-          "fuseTicks": 5
+          "fuseTicks": 5,
+          "radius": 8,
+          "impulse": 25,
+          "triggerSpeed": 4
         },
         "activation": "trigger"
       },
@@ -2101,7 +2113,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "tnt": {
-          "fuseTicks": 5
+          "fuseTicks": 5,
+          "radius": 8,
+          "impulse": 25,
+          "triggerSpeed": 4
         },
         "activation": "trigger"
       },
@@ -2136,7 +2151,10 @@
         "enginePower": 0,
         "jointConnectionType": "target",
         "tnt": {
-          "fuseTicks": 5
+          "fuseTicks": 5,
+          "radius": 8,
+          "impulse": 25,
+          "triggerSpeed": 4
         },
         "activation": "trigger"
       },
@@ -8195,7 +8213,12 @@
         "jointConnectionType": "target",
         "tnt": {
           "fuseTicks": 5,
-          "igniteOnImpact": false
+          "radius": 8,
+          "impulse": 25,
+          "triggerSpeed": 4,
+          "igniteOnImpact": false,
+          "repeatable": true,
+          "chainTarget": false
         },
         "activation": "trigger"
       },

@@ -448,6 +448,119 @@ public sealed class GameplayRulesTests
     }
 
     /// <summary>
+    /// A charge's blast is its own component's (`docs/specs/tnt-blast.md`): the original reads
+    /// `m_explosionRadius` off the prefab and applies `m_explosionImpulse / max(distance, 1)^1.5`
+    /// (`TNT.cs:129,211-233`), where PigForge used one global radius/impulse with a linear falloff. The
+    /// fixture's config keeps the old 4 m / linear shape, so a body the component reaches but the config
+    /// does not is what proves whose numbers the blast used.
+    /// </summary>
+    [Fact]
+    public void AChargesOwnRadiusAndImpulseDriveItsBlast()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId charge = entities.Create();
+        EntityId near = entities.Create();
+        EntityId far = entities.Create();
+        EntityId wall = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 0, radius: 8f, impulse: 25f, triggerSpeed: 4f);
+        harness.Link(charge, new PhysicsBodyId(1));
+        harness.Link(near, new PhysicsBodyId(2));
+        harness.Link(far, new PhysicsBodyId(3));
+        harness.Link(wall, new PhysicsBodyId(4));
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, new PhysicsVector3(-6, 0, 0));
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(3, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(3), new PhysicsVector3(6, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(4), new PhysicsVector3(-1, 0, 0), PhysicsVector3.Zero);
+
+        // The impact arms it (its own 4 m/s trigger) and the zero fuse fires it in the same tick.
+        harness.Tick(1, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(4), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 6f),
+        });
+
+        Assert.Contains(charge, harness.Output.DestroyedEntities);
+        List<PhysicsCommand> impulses = harness.Output.Commands
+            .Where(command => command.Kind == PhysicsCommandKind.ApplyImpulse && command.Body.Value is 2 or 3)
+            .ToList();
+        // Bodies 2 and 3 are inside the component's 8 m; the fixture's 4 m would have dropped body 3.
+        Assert.Equal([2u, 3u], impulses.Select(command => command.Body.Value).ToArray());
+        Assert.Equal(25f / MathF.Pow(3f, 1.5f), impulses[0].Impulse.X, 3);
+        Assert.Equal(25f / MathF.Pow(6f, 1.5f), impulses[1].Impulse.X, 3);
+    }
+
+    /// <summary>
+    /// The original's alien charge (`AlienTNT.cs:8-52`) never removes itself and clears `m_triggered`
+    /// in `LateUpdate`, so it re-arms -- the vanilla cooling time is 0. Content declares that as
+    /// `repeatable`, and the fuse it was authored with comes back with the state.
+    /// </summary>
+    [Fact]
+    public void ARepeatableChargeSurvivesItsBlastAndFiresAgain()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId charge = entities.Create();
+        EntityId target = entities.Create();
+        EntityId wall = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 0, radius: 8f, impulse: 25f, triggerSpeed: 4f, repeatable: true);
+        harness.Link(charge, new PhysicsBodyId(1));
+        harness.Link(target, new PhysicsBodyId(2));
+        harness.Link(wall, new PhysicsBodyId(3));
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(2, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(3), new PhysicsVector3(-1, 0, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(3), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 6f),
+        });
+        Assert.DoesNotContain(charge, harness.Output.DestroyedEntities);
+        Assert.Contains(harness.Output.Commands, command => command.Kind == PhysicsCommandKind.ApplyImpulse && command.Body.Value == 2);
+
+        // Re-armed: the second hit blasts again, and the charge is still there afterwards.
+        harness.Output.Clear();
+        harness.Tick(2, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(3), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 6f),
+        });
+        Assert.DoesNotContain(charge, harness.Output.DestroyedEntities);
+        Assert.Contains(harness.Output.Commands, command => command.Kind == PhysicsCommandKind.ApplyImpulse && command.Body.Value == 2);
+    }
+
+    /// <summary>
+    /// Only a charge that is not an `AlienTNT` may be chained (`TNT.cs:152-156`: `component is TNT and
+    /// not (component is AlienTNT)`). Content says so with `chainTarget: false`, and the control below
+    /// shows the same blast does light a chainable neighbour.
+    /// </summary>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void AChargeThatRefusesTheChainStaysDark(bool chainTarget, bool chained)
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId source = entities.Create();
+        EntityId target = entities.Create();
+        EntityId wall = entities.Create();
+        harness.Rules.AddTnt(source, fuseTicks: 0, radius: 8f, impulse: 25f, triggerSpeed: 4f);
+        harness.Rules.AddTnt(target, fuseTicks: 0, radius: 8f, impulse: 25f, chainTarget: chainTarget);
+        harness.Link(source, new PhysicsBodyId(1));
+        harness.Link(target, new PhysicsBodyId(2));
+        harness.Link(wall, new PhysicsBodyId(3));
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(2, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(3), new PhysicsVector3(-1, 0, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, new[]
+        {
+            PhysicsEvent.ContactStarted(new PhysicsBodyId(1), new PhysicsBodyId(3), new PhysicsVector3(-1f, 0f, 0f), approachSpeed: 6f),
+        });
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(chained, harness.Output.DestroyedEntities.Contains(target));
+    }
+
+    /// <summary>
     /// G89: the original's own bounce threshold. Unity's <c>Physics.bounceThreshold</c> is BPLE's
     /// <c>ProjectSettings/DynamicsManager.asset</c> <c>m_BounceThreshold: 2</c>, and PhysX drops a
     /// contact's restitution below it -- so a landing at 1.5 m/s settles, and the same landing at

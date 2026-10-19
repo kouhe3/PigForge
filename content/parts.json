@@ -112,7 +112,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "radius": 8, "impulse": 25, "triggerSpeed": 4 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -762,7 +762,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "down", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 1 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "down", "jointConnectionStrength": "highlyExtreme", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 1, "radius": 8, "impulse": 25, "triggerSpeed": 4 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -844,7 +844,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "radius": 8, "impulse": 25, "triggerSpeed": 4 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -861,7 +861,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "radius": 8, "impulse": 25, "triggerSpeed": 4 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -878,7 +878,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "radius": 8, "impulse": 25, "triggerSpeed": 4 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -895,7 +895,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5 }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "radius": 8, "impulse": 25, "triggerSpeed": 4 }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",
@@ -3513,7 +3513,7 @@
       "mode": "dynamic",
       "mass": 1.0,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "igniteOnImpact": false }, "activation": "trigger" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "tnt": { "fuseTicks": 5, "radius": 8, "impulse": 25, "triggerSpeed": 4, "igniteOnImpact": false, "repeatable": true, "chainTarget": false }, "activation": "trigger" },
       "shapes": [
         {
           "kind": "box",

@@ -5,21 +5,35 @@
   "description": "Engine-agnostic part and collision content. Files authored against this schema contain no engine asset references (no Unity Asset GUIDs, no GameObject or scene paths); engines bind their own assets to parts via partTypeId.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "schemaVersion", "contentVersion", "physics", "parts"],
+  "required": [
+    "format",
+    "schemaVersion",
+    "contentVersion",
+    "physics",
+    "parts"
+  ],
   "properties": {
-    "format": { "const": "pigforge.part-content" },
-    "schemaVersion": { "const": 1 },
+    "format": {
+      "const": "pigforge.part-content"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
     "contentVersion": {
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
       "pattern": "^\\S+$"
     },
-    "physics": { "$ref": "#/$defs/physics" },
+    "physics": {
+      "$ref": "#/$defs/physics"
+    },
     "parts": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/partDefinition" }
+      "items": {
+        "$ref": "#/$defs/partDefinition"
+      }
     }
   },
   "$defs": {
@@ -32,33 +46,57 @@
       "description": "Unity's per-rigidbody `Rigidbody.drag` / `angularDrag` (renamed `linearDamping` / `angularDamping` in Unity 6), extracted by tools/bple-damping and never authored. Both values are required and neither may be negative, because a negative damping would accelerate a body instead of slowing it. The original applies them as PhysX does -- `v *= max(0, 1 - damping * dt)` after gravity and before the solver (`DyBodyCoreIntegrator.h::bodyCoreComputeUnconstrainedVelocity`) -- which the original's own editor confirmed to the last bit (unity/PigForge.WeldProbe body-defaults probe: 0.996 per 0.02 s step for 0.2 drag, max abs error 0 over 51 samples).",
       "type": "object",
       "additionalProperties": false,
-      "required": ["linear", "angular"],
+      "required": [
+        "linear",
+        "angular"
+      ],
       "properties": {
-        "linear": { "description": "`Rigidbody.drag` -- 0.2 on every part (BasePart.cs:1200), 1 on a wing/tail, 2 on a balloon, 1 on a sandbag, 0.5 on the king pig.", "type": "number", "minimum": 0 },
-        "angular": { "description": "`Rigidbody.angularDrag` -- 0.05 on every part (BasePart.cs:1201), 0.2 on a wing/tail, 0.5 on a balloon, 10 on a sandbag, 1 on the king pig.", "type": "number", "minimum": 0 }
+        "linear": {
+          "description": "`Rigidbody.drag` -- 0.2 on every part (BasePart.cs:1200), 1 on a wing/tail, 2 on a balloon, 1 on a sandbag, 0.5 on the king pig.",
+          "type": "number",
+          "minimum": 0
+        },
+        "angular": {
+          "description": "`Rigidbody.angularDrag` -- 0.05 on every part (BasePart.cs:1201), 0.2 on a wing/tail, 0.5 on a balloon, 10 on a sandbag, 1 on the king pig.",
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
     "physics": {
       "description": "The original's project-wide rigidbody defaults every part inherits, declared once instead of per part (tools/bple-damping). A dynamic part overrides `damping` only where its original class overrides `BasePart.EnsureRigidbody` (wing, tail, balloon, sandbag, king pig); a static part must not declare one at all.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["maximumAngularSpeed", "damping"],
+      "required": [
+        "maximumAngularSpeed",
+        "damping"
+      ],
       "properties": {
         "maximumAngularSpeed": {
           "description": "Unity's `Physics.defaultMaxAngularSpeed` in radians per second, which every original rigidbody inherits as `Rigidbody.maxAngularVelocity`: the original's `ProjectSettings/DynamicsManager.asset` declares `m_DefaultMaxAngularSpeed: 7`, no script assigns `maxAngularVelocity` and none of the 343 `Part_*.prefab` serialize `m_MaxAngularVelocity`. PhysX clamps the magnitude after damping (`if (angVelSq > maxAngularVelocitySq) angularVelocity *= sqrt(maxSq / angVelSq)`); the same editor probe measured a body seeded at 100 rad/s reading exactly 7 after one step, and 100 with the cap raised to 1000.",
           "type": "number",
           "exclusiveMinimum": 0
         },
-        "damping": { "$ref": "#/$defs/damping" }
+        "damping": {
+          "$ref": "#/$defs/damping"
+        }
       }
     },
-    "finiteNumber": { "type": "number" },
+    "finiteNumber": {
+      "type": "number"
+    },
     "vector3": {
       "type": "array",
       "prefixItems": [
-        { "$ref": "#/$defs/finiteNumber" },
-        { "$ref": "#/$defs/finiteNumber" },
-        { "$ref": "#/$defs/finiteNumber" }
+        {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        {
+          "$ref": "#/$defs/finiteNumber"
+        }
       ],
       "items": false,
       "minItems": 3,
@@ -67,31 +105,66 @@
     "material": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["restitution", "friction"],
+      "required": [
+        "restitution",
+        "friction"
+      ],
       "properties": {
-        "restitution": { "type": "number", "minimum": 0, "maximum": 1 },
-        "friction": { "type": "number", "minimum": 0, "maximum": 4 },
+        "restitution": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "friction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4
+        },
         "frictionCombine": {
           "description": "Unity's PhysicMaterialCombine, extracted per collider by tools/bple-materials. A pair uses the higher-priority mode (Average < Minimum < Multiply < Maximum); the wheel tyres are Multiply, which is why a tyre slides instead of gripping like its hub.",
-          "enum": ["average", "minimum", "multiply", "maximum"]
+          "enum": [
+            "average",
+            "minimum",
+            "multiply",
+            "maximum"
+          ]
         }
       }
     },
     "partDefinition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["partTypeId", "name", "mode", "mass", "shapes"],
+      "required": [
+        "partTypeId",
+        "name",
+        "mode",
+        "mass",
+        "shapes"
+      ],
       "properties": {
-        "partTypeId": { "$ref": "#/$defs/positiveUInt" },
+        "partTypeId": {
+          "$ref": "#/$defs/positiveUInt"
+        },
         "name": {
           "type": "string",
           "minLength": 1,
           "maxLength": 64
         },
-        "mode": { "enum": ["static", "dynamic"] },
-        "mass": { "$ref": "#/$defs/finiteNumber" },
-        "material": { "$ref": "#/$defs/material" },
-        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "mode": {
+          "enum": [
+            "static",
+            "dynamic"
+          ]
+        },
+        "mass": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "material": {
+          "$ref": "#/$defs/material"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/capabilities"
+        },
         "variantOf": {
           "description": "Base partTypeId this entry is a skin/variant of. Must reference a declared non-variant part.",
           "$ref": "#/$defs/positiveUInt"
@@ -102,13 +175,21 @@
           "minLength": 1,
           "maxLength": 64
         },
-        "gridBox": { "$ref": "#/$defs/gridBox" },
-        "connectionVisual": { "$ref": "#/$defs/connectionVisual" },
-        "damping": { "$ref": "#/$defs/damping" },
+        "gridBox": {
+          "$ref": "#/$defs/gridBox"
+        },
+        "connectionVisual": {
+          "$ref": "#/$defs/connectionVisual"
+        },
+        "damping": {
+          "$ref": "#/$defs/damping"
+        },
         "shapes": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/shapeDefinition" }
+          "items": {
+            "$ref": "#/$defs/shapeDefinition"
+          }
         }
       }
     },
@@ -116,28 +197,62 @@
       "description": "The original's build-grid cell box (BasePart.cs:197-200: m_gridXmin/m_gridXmax/m_gridYmin/m_gridYmax), the inclusive rectangle of cells a part occupies around its own grid coordinate -- ConstructionUI.cs:1279,1344 tests membership as `x + minX <= cellX && x + maxX >= cellX` and iterates the same inclusive range. Extracted per prefab by tools/bple-grid, never authored. Absent means the original's default: one cell at the origin (0..0, 0..0), which is 332 of the original's 343 prefabs -- every propeller, fan, wing, spotlight, grapple, spring and pig; only the KingPig/GoldenPig families declare the 3x2 box x[-1, 1] y[0, 1]. Occupancy (server `CellsOccupied`, cell clearing) uses this box; a collider that overhangs a neighbouring cell does not occupy it.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["minX", "maxX", "minY", "maxY"],
+      "required": [
+        "minX",
+        "maxX",
+        "minY",
+        "maxY"
+      ],
       "properties": {
-        "minX": { "description": "Leftmost occupied cell index, relative to the part's own cell (0).", "type": "integer" },
-        "maxX": { "description": "Rightmost occupied cell index, inclusive; never below minX.", "type": "integer" },
-        "minY": { "description": "Bottommost occupied cell index, relative to the part's own cell (0).", "type": "integer" },
-        "maxY": { "description": "Topmost occupied cell index, inclusive; never below minY.", "type": "integer" }
+        "minX": {
+          "description": "Leftmost occupied cell index, relative to the part's own cell (0).",
+          "type": "integer"
+        },
+        "maxX": {
+          "description": "Rightmost occupied cell index, inclusive; never below minX.",
+          "type": "integer"
+        },
+        "minY": {
+          "description": "Bottommost occupied cell index, relative to the part's own cell (0).",
+          "type": "integer"
+        },
+        "maxY": {
+          "description": "Topmost occupied cell index, inclusive; never below minY.",
+          "type": "integer"
+        }
       }
     },
     "connectionVisual": {
       "description": "The script the original prefab mounts to decide which conditional colliders are solid for the current connection state (Rocket.cs:139-165 sets `isTrigger = !activeInHierarchy`, so only the shown marker is solid; TNT.cs:86-108 / SpotLight.cs:70-105 / GrapplingHook.cs:218-255 do the same with SetActive; Wings.cs:41-75 also swaps the root collider between a thin top-only and a thick bottom form). `attachmentFallback` = Rocket.cs (each marker follows its side, and `bottom` is also the ghost shown when no other side can connect); `attachmentPlain` = TNT.cs (each marker follows its side, no fallback); `attachmentEight` = SpotLight.cs/GrapplingHook.cs (the diagonals show only on a 45-degree turn); `frame` = Wings.cs/JetEngine.cs. Copied from the sprite manifest's already-derived rule by tools/bple-connections; the client renderer keeps its own copy in that manifest (ADR-014). Absent means the part has no conditional colliders to gate.",
-      "enum": ["attachmentFallback", "attachmentPlain", "attachmentEight", "frame"]
+      "enum": [
+        "attachmentFallback",
+        "attachmentPlain",
+        "attachmentEight",
+        "frame"
+      ]
     },
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "pig": { "type": "boolean" },
-        "wheel": { "type": "boolean" },
-        "motor": { "$ref": "#/$defs/motorCapability" },
-        "tnt": { "$ref": "#/$defs/tntCapability" },
-        "balloon": { "$ref": "#/$defs/balloonCapability" },
-        "fan": { "$ref": "#/$defs/fanCapability" },
+        "pig": {
+          "type": "boolean"
+        },
+        "wheel": {
+          "type": "boolean"
+        },
+        "motor": {
+          "$ref": "#/$defs/motorCapability"
+        },
+        "tnt": {
+          "$ref": "#/$defs/tntCapability"
+        },
+        "balloon": {
+          "$ref": "#/$defs/balloonCapability"
+        },
+        "fan": {
+          "$ref": "#/$defs/fanCapability"
+        },
         "spring": {
           "description": "The original Spring's own joint (Spring.cs:100-134): a breakable y soft limit (the ConfigurableJoint branch the declaration defaults always take) holding the two neighbours at their assembly distance. It never applies an impulse -- the old bounce-pad reading is gone. Extracted per skin by tools/bple-springs, never authored.",
           "$ref": "#/$defs/springCapability"
@@ -146,34 +261,83 @@
           "description": "The interactive SpringBoxingGlove (spec docs/specs/boxing-glove.md): a second rigid body 'glove' held to the host by a y-limited, y/x-driven joint, shot out on trigger and wound back. Extracted by tools/bple-springs from the part prefab and its BoxingGlove*.prefab reference, never authored.",
           "$ref": "#/$defs/gloveCapability"
         },
-        "rocket": { "$ref": "#/$defs/rocketCapability" },
-        "egg": { "type": "boolean" },
+        "rocket": {
+          "$ref": "#/$defs/rocketCapability"
+        },
+        "egg": {
+          "type": "boolean"
+        },
         "mirror": {
           "description": "Original BasePart.m_autoAlign == FlipVertically (2): this part's build pose has a handedness (a 180-degree turn about the part's own up axis, applied inside its own frame before the yaw), which a float yaw cannot express. Extracted by tools/bple-aero from the prefab, never authored.",
           "type": "boolean"
         },
-        "wing": { "$ref": "#/$defs/wingCapability" },
-        "tail": { "$ref": "#/$defs/tailCapability" },
-        "umbrella": { "$ref": "#/$defs/umbrellaCapability" },
-        "gearbox": { "type": "boolean" },
-        "detacher": { "type": "boolean" },
-        "bellows": { "$ref": "#/$defs/bellowsCapability" },
-        "light": { "type": "number", "minimum": 0 },
-        "grapple": { "$ref": "#/$defs/grappleCapability" },
-        "blaster": { "$ref": "#/$defs/blasterCapability" },
-        "glue": { "type": "boolean" },
-        "activation": { "enum": ["toggle", "trigger"] },
+        "wing": {
+          "$ref": "#/$defs/wingCapability"
+        },
+        "tail": {
+          "$ref": "#/$defs/tailCapability"
+        },
+        "umbrella": {
+          "$ref": "#/$defs/umbrellaCapability"
+        },
+        "gearbox": {
+          "type": "boolean"
+        },
+        "detacher": {
+          "type": "boolean"
+        },
+        "bellows": {
+          "$ref": "#/$defs/bellowsCapability"
+        },
+        "light": {
+          "type": "number",
+          "minimum": 0
+        },
+        "grapple": {
+          "$ref": "#/$defs/grappleCapability"
+        },
+        "blaster": {
+          "$ref": "#/$defs/blasterCapability"
+        },
+        "glue": {
+          "type": "boolean"
+        },
+        "activation": {
+          "enum": [
+            "toggle",
+            "trigger"
+          ]
+        },
         "jointConnectionType": {
           "description": "Original BasePart.m_jointConnectionType: whether this part offers (source), accepts (target), or refuses (none) a weld. Two adjacent parts merge only when neither is none and at least one is source.",
-          "enum": ["none", "source", "target"]
+          "enum": [
+            "none",
+            "source",
+            "target"
+          ]
         },
         "jointConnectionStrength": {
           "description": "Original BasePart.m_jointConnectionStrength: the per-part weld strength enum. The floats live in the original GameData asset (GameData.asset:101-105) and are resolved in code; extracted by tools/bple-joints, never authored. Absent on the three parts with no prefab, which fall back to normal.",
-          "enum": ["weak", "normal", "high", "extreme", "highlyExtreme"]
+          "enum": [
+            "weak",
+            "normal",
+            "high",
+            "extreme",
+            "highlyExtreme"
+          ]
         },
         "jointConnectionDirection": {
           "description": "Original BasePart.m_jointConnectionDirection: the part-local sides this part may weld on (the client's build-time alignment only snaps on those sides). Extracted by tools/bple-joints, never authored.",
-          "enum": ["any", "right", "up", "left", "down", "leftAndRight", "upAndDown", "none"]
+          "enum": [
+            "any",
+            "right",
+            "up",
+            "left",
+            "down",
+            "leftAndRight",
+            "upAndDown",
+            "none"
+          ]
         },
         "canEnclose": {
           "description": "True for the frame classes whose CanEncloseParts() returns true (Frame.cs:32-35, i.e. the WoodenFrame/MetalFrame prefabs; BoxFrame returns false). Extracted by tools/bple-joints, never authored.",
@@ -207,228 +371,428 @@
         }
       }
     },
-  "dampingRampCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["speedThreshold", "base", "slope"],
-    "properties": {
-      "speedThreshold": {
-        "description": "The speed below which the ramp applies, in metres per second (`magnitude < 1f` in the original).",
-        "type": "number",
-        "exclusiveMinimum": 0
-      },
-      "base": {
-        "description": "The damping both drags fall back to as the speed approaches the threshold (`0.2f` in the original).",
-        "type": "number",
-        "minimum": 0
-      },
-      "slope": {
-        "description": "How much damping the ramp adds at a standstill (`2.5f` in the original, so 0.2 + 2.5 = 2.7 at rest).",
-        "type": "number",
-        "minimum": 0
+    "dampingRampCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "speedThreshold",
+        "base",
+        "slope"
+      ],
+      "properties": {
+        "speedThreshold": {
+          "description": "The speed below which the ramp applies, in metres per second (`magnitude < 1f` in the original).",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "base": {
+          "description": "The damping both drags fall back to as the speed approaches the threshold (`0.2f` in the original).",
+          "type": "number",
+          "minimum": 0
+        },
+        "slope": {
+          "description": "How much damping the ramp adds at a standstill (`2.5f` in the original, so 0.2 + 2.5 = 2.7 at rest).",
+          "type": "number",
+          "minimum": 0
+        }
       }
-    }
-  },
-  "attachmentCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["direction"],
-    "properties": {
-      "direction": {
-        "description": "Which way the build searches for its anchor: up = hangs from the part above it (sandbag), down = floats above the part below it (balloon).",
-        "enum": ["up", "down"]
-      },
-      "maxDistance": {
-        "description": "Constant rope length limit.",
-        "type": "number",
-        "minimum": 0
-      },
-      "offset": {
-        "description": "Where the rope's anchor sits in the anchor part's local frame; the attached part rests at most maxDistance away from that point.",
-        "$ref": "#/$defs/vector3"
-      },
-      "distanceFactor": {
-        "description": "Scaled rope limit: maxDistance = distanceFactor * (build separation + distanceOffset) + pigDistanceBonus when the anchor is a pig. Mutually exclusive with maxDistance.",
-        "type": "number",
-        "exclusiveMinimum": 0
-      },
-      "distanceOffset": { "type": "number" },
-      "pigDistanceBonus": { "type": "number", "minimum": 0 }
-    }
-  },
-  "suspensionCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["stiffness", "damper", "restOffset"],
-    "properties": {
-      "stiffness": {
-        "description": "Unity linear-limit spring of the wheel's own joint, in N/m (m_springStiffness; OffRoadWheel.cs:49 default 150, Part_MotorWheel_08_SET serializes 50).",
-        "type": "number",
-        "exclusiveMinimum": 0
-      },
-      "damper": {
-        "description": "Unity linear-limit spring damper, in N*s/m (OffRoadWheel.cs:214, a constant 5).",
-        "type": "number",
-        "minimum": 0
-      },
-      "restOffset": {
-        "description": "The limited axis' rest offset along the wheel's own Y (linearLimit.limit, 0 = hold the build separation).",
-        "type": "number"
+    },
+    "attachmentCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "direction"
+      ],
+      "properties": {
+        "direction": {
+          "description": "Which way the build searches for its anchor: up = hangs from the part above it (sandbag), down = floats above the part below it (balloon).",
+          "enum": [
+            "up",
+            "down"
+          ]
+        },
+        "maxDistance": {
+          "description": "Constant rope length limit.",
+          "type": "number",
+          "minimum": 0
+        },
+        "offset": {
+          "description": "Where the rope's anchor sits in the anchor part's local frame; the attached part rests at most maxDistance away from that point.",
+          "$ref": "#/$defs/vector3"
+        },
+        "distanceFactor": {
+          "description": "Scaled rope limit: maxDistance = distanceFactor * (build separation + distanceOffset) + pigDistanceBonus when the anchor is a pig. Mutually exclusive with maxDistance.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "distanceOffset": {
+          "type": "number"
+        },
+        "pigDistanceBonus": {
+          "type": "number",
+          "minimum": 0
+        }
       }
-    }
-  },
-  "grappleCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["impulse"],
-    "properties": {
-      "impulse": { "type": "number" },
-      "directionX": { "type": "number" },
-      "directionY": { "type": "number" }
-    }
-  },
-  "wingCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["liftConstant"],
-    "properties": {
-      "liftConstant": {
-        "description": "Original Wings.m_liftConstant (Wings.cs:6,114): lift = liftConstant * |v|^2 * curve(angle of attack), clamped to 100 N. Extracted by tools/bple-aero from the prefab, never authored.",
-        "type": "number"
+    },
+    "suspensionCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stiffness",
+        "damper",
+        "restOffset"
+      ],
+      "properties": {
+        "stiffness": {
+          "description": "Unity linear-limit spring of the wheel's own joint, in N/m (m_springStiffness; OffRoadWheel.cs:49 default 150, Part_MotorWheel_08_SET serializes 50).",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "damper": {
+          "description": "Unity linear-limit spring damper, in N*s/m (OffRoadWheel.cs:214, a constant 5).",
+          "type": "number",
+          "minimum": 0
+        },
+        "restOffset": {
+          "description": "The limited axis' rest offset along the wheel's own Y (linearLimit.limit, 0 = hold the build separation).",
+          "type": "number"
+        }
       }
-    }
-  },
-  "bellowsCapability": {
-    "description": "The original's Bellows: a puff is a 0.5 s ramp `(1 - (1 - num/0.5)^2) * m_boostForce` along `transform.TransformDirection(m_direction)` at `transform.position + dir * 0.5`, followed by 0.3 s of nothing and an inflate animation; a fresh puff is refused until the cycle ends (Bellows.cs:92-121,123-142). The 0.5 s and 0.3 s are class constants and travel in no skin; only the force and the alien skin's shorter inflate do. Written by tools/bple-bellows.",
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["directionX", "thrustPerTick", "inflateTicks"],
-    "properties": {
-      "directionX": { "enum": [-1, 0, 1] },
-      "directionY": { "enum": [-1, 0, 1] },
-      "thrustPerTick": {
-        "description": "m_boostForce / 60 (ADR-013 decision 4: ForceMode.Force at 60 Hz), 30 -> 0.5 and the alien skin 120 -> 2.0.",
-        "type": "number"
-      },
-      "inflateTicks": {
-        "description": "0.3 s of inflate for every skin, 0.15 s for the alien one (Bellows.cs:18-20,36-46), at 60 Hz.",
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 65535
+    },
+    "grappleCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impulse"
+      ],
+      "properties": {
+        "impulse": {
+          "type": "number"
+        },
+        "directionX": {
+          "type": "number"
+        },
+        "directionY": {
+          "type": "number"
+        }
       }
-    }
-  },
-  "tailCapability": {
-    "description": "Original Tail.m_liftConstant (Tail.cs:6,71), used by the same clamped |v|^2 curve the wing uses. Extracted by tools/bple-aero from the prefab, never authored.",
-    "type": "number"
-  },
-  "umbrellaCapability": {
-    "type": "number"
-  },
-  "springCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["stiffness", "damper", "limit", "bounciness", "breakForce"],
-    "properties": {
-      "stiffness": { "type": "number", "exclusiveMinimum": 0, "description": "SPRING_LIMIT_SPRING, 250 N/m (Spring.cs:7)." },
-      "damper": { "type": "number", "minimum": 0, "description": "SPRING_DAMPING, 20 N*s/m (Spring.cs:9)." },
-      "limit": { "type": "number", "minimum": 0, "description": "SPRING_LIMIT, 0.1 m; the joint's y linear limit (Spring.cs:11)." },
-      "bounciness": { "type": "number", "minimum": 0, "description": "SPRING_BOUNCINESS, 1; the linear-limit bounciness (Spring.cs:13)." },
-      "breakForce": { "type": "number", "exclusiveMinimum": 0, "description": "SPRING_BREAK_FORCE, 250 N in the declaration defaults (Spring.cs:15). Profile B's IN StrongSpringConnection is what doubles it to 1200." }
-    }
-  },
-  "gloveCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["mass", "shapes", "limit", "yDrive", "xDrive", "projectionDistance", "shoot", "wind", "solverIterationScale"],
-    "properties": {
-      "mass": { "type": "number", "exclusiveMinimum": 0, "description": "The glove prefab's rigidbody mass (0.5, BoxingGlove*.prefab)." },
-      "shapes": {
-        "type": "array",
-        "minItems": 1,
-        "items": { "$ref": "#/$defs/shapeDefinition" },
-        "description": "The glove prefab's colliders (a SphereCollider r 0.3)."
-      },
-      "limit": { "type": "number", "minimum": 0, "description": "The host-glove joint's y linear limit (1)." },
-      "yDrive": { "$ref": "#/$defs/gloveDriveCapability" },
-      "xDrive": { "$ref": "#/$defs/gloveDriveCapability" },
-      "projectionDistance": { "type": "number", "minimum": 0, "description": "ConfigurableJoint.projectionDistance (0.1, SpringBoxingGlove.cs:252)." },
-      "shoot": { "$ref": "#/$defs/gloveShootCapability" },
-      "wind": { "$ref": "#/$defs/gloveWindCapability" },
-      "solverIterationScale": { "type": "number", "exclusiveMinimum": 0, "description": "The glove rigidbody's solver iteration factor (1.6, SpringBoxingGlove.cs:262)." }
-    }
-  },
-  "gloveDriveCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["spring", "damper"],
-    "properties": {
-      "spring": { "type": "number", "exclusiveMinimum": 0 },
-      "damper": { "type": "number", "minimum": 0 }
-    }
-  },
-  "gloveShootCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["distanceY", "deviationX", "time", "limitSpring"],
-    "properties": {
-      "distanceY": { "type": "number", "minimum": 0, "description": "m_targetDistanceY; the glove's target is distanceY * IN BoxingGloveLength along the part's local -Y (the probe shows the glove travels down it)." },
-      "deviationX": { "type": "number", "minimum": 0, "description": "m_targetDeviationX, the lateral offset of the thrown glove." },
-      "time": { "type": "number", "exclusiveMinimum": 0, "description": "m_ShootTime: how long the throw lasts before the wind-back (SpringBoxingGlove.cs:280-330)." },
-      "limitSpring": { "type": "number", "minimum": 0, "description": "The linear-limit spring the throw sets (0.1, SpringBoxingGlove.cs:333)." }
-    }
-  },
-  "gloveWindCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["time", "mass", "driveSpring", "driveDamper"],
-    "properties": {
-      "time": { "type": "number", "exclusiveMinimum": 0, "description": "m_WindingTime: the wind-back deadline; the original also ends early once the glove is within 0.1 of home." },
-      "mass": { "type": "number", "exclusiveMinimum": 0, "description": "The glove's mass while winding back (0.01, SpringBoxingGlove.cs:395)." },
-      "driveSpring": { "type": "number", "exclusiveMinimum": 0, "description": "10 * m_targetDistanceY * IN BoxingGloveLength (SpringBoxingGlove.cs:385)." },
-      "driveDamper": { "type": "number", "minimum": 0, "description": "The wind-back position damper (2.5)." }
-    }
-  },
-  "rocketCapability": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["thrustPerTick", "directionX", "ignitionTicks", "boostTicks", "endTicks", "maxSpeed"],
-    "properties": {
-      "thrustPerTick": { "type": "number" },
-      "directionX": { "enum": [-1, 0, 1] },
-      "directionY": { "enum": [-1, 0, 1] },
-      "ignitionTicks": {
-        "description": "The original's burn is three phases in seconds (Rocket.cs:228-300): m_ignitionTime, m_boostDuration, m_boostEndDuration. m_ignitionTime is a no-thrust phase for the bottle family only (its m_visualization suppresses the force, :236-240); m_boostDuration is full thrust and m_boostEndDuration the linear ramp back to zero (:266-269). All three travel as 60 Hz ticks, written by tools/bple-rockets.",
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 65535
-      },
-      "boostTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
-      "endTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
-      "maxSpeed": {
-        "description": "m_maximumSpeed: past this speed along the thrust axis the force is divided by (1 + v - maxSpeed) (Rocket.cs:529-541). The vanilla declaration defaults multiply it by RocketSpeed / CokeSodaSpeed, and the legendary bottles take AlienCokeSpeedValue / AlienSodaSpeedValue outright (Rocket.cs:180-200).",
-        "type": "number",
-        "minimum": 0
-      },
-      "visualization": {
-        "description": "True only on the bottle family, whose prefab carries a `m_visualization`: while the burn is inside m_ignitionTime the original returns before applying any force (Rocket.cs:236-240). A plain rocket has none and thrusts from its first tick.",
-        "type": "boolean"
-      },
-      "explodeRadius": { "type": "number", "minimum": 0 },
-      "explodeImpulse": { "type": "number", "minimum": 0 }
-    }
-  },
-  "balloonCapability": {
+    },
+    "wingCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "liftConstant"
+      ],
+      "properties": {
+        "liftConstant": {
+          "description": "Original Wings.m_liftConstant (Wings.cs:6,114): lift = liftConstant * |v|^2 * curve(angle of attack), clamped to 100 N. Extracted by tools/bple-aero from the prefab, never authored.",
+          "type": "number"
+        }
+      }
+    },
+    "bellowsCapability": {
+      "description": "The original's Bellows: a puff is a 0.5 s ramp `(1 - (1 - num/0.5)^2) * m_boostForce` along `transform.TransformDirection(m_direction)` at `transform.position + dir * 0.5`, followed by 0.3 s of nothing and an inflate animation; a fresh puff is refused until the cycle ends (Bellows.cs:92-121,123-142). The 0.5 s and 0.3 s are class constants and travel in no skin; only the force and the alien skin's shorter inflate do. Written by tools/bple-bellows.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directionX",
+        "thrustPerTick",
+        "inflateTicks"
+      ],
+      "properties": {
+        "directionX": {
+          "enum": [
+            -1,
+            0,
+            1
+          ]
+        },
+        "directionY": {
+          "enum": [
+            -1,
+            0,
+            1
+          ]
+        },
+        "thrustPerTick": {
+          "description": "m_boostForce / 60 (ADR-013 decision 4: ForceMode.Force at 60 Hz), 30 -> 0.5 and the alien skin 120 -> 2.0.",
+          "type": "number"
+        },
+        "inflateTicks": {
+          "description": "0.3 s of inflate for every skin, 0.15 s for the alien one (Bellows.cs:18-20,36-46), at 60 Hz.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      }
+    },
+    "tailCapability": {
+      "description": "Original Tail.m_liftConstant (Tail.cs:6,71), used by the same clamped |v|^2 curve the wing uses. Extracted by tools/bple-aero from the prefab, never authored.",
+      "type": "number"
+    },
+    "umbrellaCapability": {
+      "type": "number"
+    },
+    "springCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stiffness",
+        "damper",
+        "limit",
+        "bounciness",
+        "breakForce"
+      ],
+      "properties": {
+        "stiffness": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "SPRING_LIMIT_SPRING, 250 N/m (Spring.cs:7)."
+        },
+        "damper": {
+          "type": "number",
+          "minimum": 0,
+          "description": "SPRING_DAMPING, 20 N*s/m (Spring.cs:9)."
+        },
+        "limit": {
+          "type": "number",
+          "minimum": 0,
+          "description": "SPRING_LIMIT, 0.1 m; the joint's y linear limit (Spring.cs:11)."
+        },
+        "bounciness": {
+          "type": "number",
+          "minimum": 0,
+          "description": "SPRING_BOUNCINESS, 1; the linear-limit bounciness (Spring.cs:13)."
+        },
+        "breakForce": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "SPRING_BREAK_FORCE, 250 N in the declaration defaults (Spring.cs:15). Profile B's IN StrongSpringConnection is what doubles it to 1200."
+        }
+      }
+    },
+    "gloveCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mass",
+        "shapes",
+        "limit",
+        "yDrive",
+        "xDrive",
+        "projectionDistance",
+        "shoot",
+        "wind",
+        "solverIterationScale"
+      ],
+      "properties": {
+        "mass": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "The glove prefab's rigidbody mass (0.5, BoxingGlove*.prefab)."
+        },
+        "shapes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/shapeDefinition"
+          },
+          "description": "The glove prefab's colliders (a SphereCollider r 0.3)."
+        },
+        "limit": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The host-glove joint's y linear limit (1)."
+        },
+        "yDrive": {
+          "$ref": "#/$defs/gloveDriveCapability"
+        },
+        "xDrive": {
+          "$ref": "#/$defs/gloveDriveCapability"
+        },
+        "projectionDistance": {
+          "type": "number",
+          "minimum": 0,
+          "description": "ConfigurableJoint.projectionDistance (0.1, SpringBoxingGlove.cs:252)."
+        },
+        "shoot": {
+          "$ref": "#/$defs/gloveShootCapability"
+        },
+        "wind": {
+          "$ref": "#/$defs/gloveWindCapability"
+        },
+        "solverIterationScale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "The glove rigidbody's solver iteration factor (1.6, SpringBoxingGlove.cs:262)."
+        }
+      }
+    },
+    "gloveDriveCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spring",
+        "damper"
+      ],
+      "properties": {
+        "spring": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "damper": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "gloveShootCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distanceY",
+        "deviationX",
+        "time",
+        "limitSpring"
+      ],
+      "properties": {
+        "distanceY": {
+          "type": "number",
+          "minimum": 0,
+          "description": "m_targetDistanceY; the glove's target is distanceY * IN BoxingGloveLength along the part's local -Y (the probe shows the glove travels down it)."
+        },
+        "deviationX": {
+          "type": "number",
+          "minimum": 0,
+          "description": "m_targetDeviationX, the lateral offset of the thrown glove."
+        },
+        "time": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "m_ShootTime: how long the throw lasts before the wind-back (SpringBoxingGlove.cs:280-330)."
+        },
+        "limitSpring": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The linear-limit spring the throw sets (0.1, SpringBoxingGlove.cs:333)."
+        }
+      }
+    },
+    "gloveWindCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time",
+        "mass",
+        "driveSpring",
+        "driveDamper"
+      ],
+      "properties": {
+        "time": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "m_WindingTime: the wind-back deadline; the original also ends early once the glove is within 0.1 of home."
+        },
+        "mass": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "The glove's mass while winding back (0.01, SpringBoxingGlove.cs:395)."
+        },
+        "driveSpring": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "10 * m_targetDistanceY * IN BoxingGloveLength (SpringBoxingGlove.cs:385)."
+        },
+        "driveDamper": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The wind-back position damper (2.5)."
+        }
+      }
+    },
+    "rocketCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "thrustPerTick",
+        "directionX",
+        "ignitionTicks",
+        "boostTicks",
+        "endTicks",
+        "maxSpeed"
+      ],
+      "properties": {
+        "thrustPerTick": {
+          "type": "number"
+        },
+        "directionX": {
+          "enum": [
+            -1,
+            0,
+            1
+          ]
+        },
+        "directionY": {
+          "enum": [
+            -1,
+            0,
+            1
+          ]
+        },
+        "ignitionTicks": {
+          "description": "The original's burn is three phases in seconds (Rocket.cs:228-300): m_ignitionTime, m_boostDuration, m_boostEndDuration. m_ignitionTime is a no-thrust phase for the bottle family only (its m_visualization suppresses the force, :236-240); m_boostDuration is full thrust and m_boostEndDuration the linear ramp back to zero (:266-269). All three travel as 60 Hz ticks, written by tools/bple-rockets.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "boostTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "endTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "maxSpeed": {
+          "description": "m_maximumSpeed: past this speed along the thrust axis the force is divided by (1 + v - maxSpeed) (Rocket.cs:529-541). The vanilla declaration defaults multiply it by RocketSpeed / CokeSodaSpeed, and the legendary bottles take AlienCokeSpeedValue / AlienSodaSpeedValue outright (Rocket.cs:180-200).",
+          "type": "number",
+          "minimum": 0
+        },
+        "visualization": {
+          "description": "True only on the bottle family, whose prefab carries a `m_visualization`: while the burn is inside m_ignitionTime the original returns before applying any force (Rocket.cs:236-240). A plain rocket has none and thrusts from its first tick.",
+          "type": "boolean"
+        },
+        "explodeRadius": {
+          "type": "number",
+          "minimum": 0
+        },
+        "explodeImpulse": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "balloonCapability": {
       "type": "number"
     },
     "fanCapability": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["thrustPerTick"],
+      "required": [
+        "thrustPerTick"
+      ],
       "properties": {
-        "thrustPerTick": { "type": "number" },
-        "directionX": { "type": "number" },
-        "directionY": { "type": "number" },
+        "thrustPerTick": {
+          "type": "number"
+        },
+        "directionX": {
+          "type": "number"
+        },
+        "directionY": {
+          "type": "number"
+        },
         "maxSpeed": {
           "type": "number",
           "exclusiveMinimum": 0,
@@ -443,53 +807,133 @@
     "motorCapability": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["thrustPerTick", "directionX"],
+      "required": [
+        "thrustPerTick",
+        "directionX"
+      ],
       "properties": {
-        "thrustPerTick": { "type": "number" },
-        "directionX": { "enum": [-1, 0, 1] }
+        "thrustPerTick": {
+          "type": "number"
+        },
+        "directionX": {
+          "enum": [
+            -1,
+            0,
+            1
+          ]
+        }
       }
     },
     "tntCapability": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["fuseTicks"],
+      "required": [
+        "fuseTicks"
+      ],
       "properties": {
-        "fuseTicks": { "type": "integer", "minimum": 0, "maximum": 65535 },
-        "chainDetonate": { "type": "boolean", "description": "When it explodes, ignites other charges inside the blast radius. Defaults to true (original TNT chains)." },
-        "igniteOnImpact": { "type": "boolean", "description": "False = only the part switch can light it (original AlienTNT ignores collisions). Defaults to true." }
+        "fuseTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "chainDetonate": {
+          "type": "boolean",
+          "description": "When it explodes, ignites other charges inside the blast radius. Defaults to true (original TNT chains)."
+        },
+        "igniteOnImpact": {
+          "type": "boolean",
+          "description": "False = only the part switch can light it (original AlienTNT ignores collisions). Defaults to true."
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The component's own m_explosionRadius (times the class's IN multiplier, vanilla 1.0): how far the blast reaches (`docs/specs/tnt-blast.md`). Extracted by tools/bple-tnt; 0 or absent falls back to the room's GameplayConfig default."
+        },
+        "impulse": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The component's own m_explosionImpulse: the impulse a target at 1 m takes, falling off as 1/max(distance,1)^1.5 (TNT.cs:211-233). Extracted; 0 or absent falls back to the config."
+        },
+        "triggerSpeed": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The impact speed that arms it (m_triggerSpeed, TNT.cs:78-83). Extracted; 0 or absent falls back to the config."
+        },
+        "repeatable": {
+          "type": "boolean",
+          "description": "True = the charge survives its own blast and re-arms (the original's AlienTNT, AlienTNT.cs:8-52). Defaults to false."
+        },
+        "chainTarget": {
+          "type": "boolean",
+          "description": "False = no other charge may chain it (the original skips AlienTNT, TNT.cs:152-156). Defaults to true."
+        }
       }
     },
     "blasterCapability": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["radius", "impulse"],
+      "required": [
+        "radius",
+        "impulse"
+      ],
       "properties": {
-        "radius": { "type": "number", "exclusiveMinimum": 0 },
-        "impulse": { "type": "number", "minimum": 0 },
-        "chainRadius": { "type": "number", "minimum": 0, "description": "Blasters inside this radius fire in the same tick (original BlasterTNT chain)." }
+        "radius": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "impulse": {
+          "type": "number",
+          "minimum": 0
+        },
+        "chainRadius": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Blasters inside this radius fire in the same tick (original BlasterTNT chain)."
+        }
       }
     },
     "shapeDefinition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "properties": {
         "kind": {
-          "enum": ["box", "sphere", "capsule", "convexMesh", "triangleMesh"]
+          "enum": [
+            "box",
+            "sphere",
+            "capsule",
+            "convexMesh",
+            "triangleMesh"
+          ]
         },
-        "halfExtents": { "$ref": "#/$defs/vector3" },
-        "radius": { "$ref": "#/$defs/finiteNumber" },
-        "cylinderHalfHeight": { "$ref": "#/$defs/finiteNumber" },
+        "halfExtents": {
+          "$ref": "#/$defs/vector3"
+        },
+        "radius": {
+          "$ref": "#/$defs/finiteNumber"
+        },
+        "cylinderHalfHeight": {
+          "$ref": "#/$defs/finiteNumber"
+        },
         "vertices": {
           "type": "array",
           "minItems": 4,
-          "items": { "$ref": "#/$defs/vector3" }
+          "items": {
+            "$ref": "#/$defs/vector3"
+          }
         },
         "triangles": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 0 }
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
         },
-        "offset": { "$ref": "#/$defs/vector3" },
+        "offset": {
+          "$ref": "#/$defs/vector3"
+        },
         "condition": {
           "description": "Connection-gated geometry. An `attachment` marker is the collider the original shows on one part-local side (Rocket.cs:157-160 turns a hidden marker into a trigger): the spawn-time body includes the markers the connection state shows and excludes the rest, under the part's `connectionVisual` rule. A `frame` is the mounting bracket a part is aligned and welded by (ADR-018): the editor snaps it by the bracket and the server's connection proximity includes it, and a wing's `frame` additionally selects its two-state root collider (Wings.cs:62-71). Occupancy never uses either -- that is the part's declared `gridBox` (tools/bple-grid).",
           "$ref": "#/$defs/shapeCondition"
@@ -499,14 +943,47 @@
     "shapeCondition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "properties": {
-        "kind": { "enum": ["attachment", "frame"] },
-        "side": { "enum": ["top", "bottom", "left", "right", "topLeft", "topRight", "bottomLeft", "bottomRight"] }
+        "kind": {
+          "enum": [
+            "attachment",
+            "frame"
+          ]
+        },
+        "side": {
+          "enum": [
+            "top",
+            "bottom",
+            "left",
+            "right",
+            "topLeft",
+            "topRight",
+            "bottomLeft",
+            "bottomRight"
+          ]
+        }
       },
       "oneOf": [
-        { "properties": { "kind": { "const": "attachment" } }, "required": ["side"] },
-        { "properties": { "kind": { "const": "frame" } } }
+        {
+          "properties": {
+            "kind": {
+              "const": "attachment"
+            }
+          },
+          "required": [
+            "side"
+          ]
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "frame"
+            }
+          }
+        }
       ]
     }
   }

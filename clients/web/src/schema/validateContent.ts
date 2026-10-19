@@ -220,12 +220,33 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
     }
   }
   if (value.tnt !== undefined) {
-    const tnt = value.tnt as { fuseTicks?: unknown; chainDetonate?: unknown; igniteOnImpact?: unknown } | null;
+    const tnt = value.tnt as
+      | {
+          fuseTicks?: unknown;
+          chainDetonate?: unknown;
+          igniteOnImpact?: unknown;
+          radius?: unknown;
+          impulse?: unknown;
+          triggerSpeed?: unknown;
+          repeatable?: unknown;
+          chainTarget?: unknown;
+        }
+      | null;
+    const number = (field: unknown): boolean =>
+      field === undefined || (typeof field === "number" && Number.isFinite(field) && field >= 0);
+    const flag = (field: unknown): boolean => field === undefined || typeof field === "boolean";
     if (typeof tnt !== "object" || tnt === null
       || typeof tnt.fuseTicks !== "number" || !Number.isInteger(tnt.fuseTicks) || tnt.fuseTicks < 0
-      || tnt.chainDetonate !== undefined && typeof tnt.chainDetonate !== "boolean"
-      || tnt.igniteOnImpact !== undefined && typeof tnt.igniteOnImpact !== "boolean") {
-      errors.push(`Part ${partTypeId} capabilities.tnt needs a non-negative integer fuseTicks and optional boolean chainDetonate/igniteOnImpact.`);
+      || !number(tnt.radius)
+      || !number(tnt.impulse)
+      || !number(tnt.triggerSpeed)
+      || !flag(tnt.chainDetonate)
+      || !flag(tnt.igniteOnImpact)
+      || !flag(tnt.repeatable)
+      || !flag(tnt.chainTarget)) {
+      errors.push(
+        `Part ${partTypeId} capabilities.tnt needs a non-negative integer fuseTicks, optional non-negative radius/impulse/triggerSpeed numbers and optional boolean chainDetonate/igniteOnImpact/repeatable/chainTarget.`,
+      );
     }
   }
   if (value.balloon !== undefined) {

@@ -8,10 +8,26 @@ namespace PigForge.Core;
 /// </summary>
 public readonly record struct MotorState(float ImpulsePerTick, float DirectionX, float ThrustTimer = 0f);
 
-/// <summary>Charge state: <paramref name="ChainDetonate"/> ignites other charges inside
-/// the blast radius (original TNT chains), <paramref name="IgniteOnImpact"/> false means
-/// only the part switch can light it (original AlienTNT ignores collisions).</summary>
-public readonly record struct TntState(ushort FuseTicks, bool Ignited, bool ChainDetonate = true, bool IgniteOnImpact = true);
+/// <summary>
+/// One charge's live state (`docs/specs/tnt-blast.md`). <c>ChainDetonate</c> ignites other charges
+/// inside the blast radius (the original chains); <c>IgniteOnImpact</c> false means only the part
+/// switch can light it (the original's <c>AlienTNT</c> ignores collisions). <c>FuseTicks</c> counts
+/// down once armed and <c>ReloadTicks</c> is the fuse it was authored with, which a repeatable charge
+/// (the same <c>AlienTNT</c>) is re-armed with after its blast; <c>ChainTarget</c> false means no
+/// other charge may chain it. <c>Radius</c>/<c>Impulse</c>/<c>TriggerSpeed</c> are the component's own
+/// numbers, 0 meaning "use the fixture's <c>GameplayConfig</c> default".
+/// </summary>
+public readonly record struct TntState(
+    ushort FuseTicks,
+    bool Ignited,
+    bool ChainDetonate = true,
+    bool IgniteOnImpact = true,
+    float Radius = 0f,
+    float Impulse = 0f,
+    float TriggerSpeed = 0f,
+    bool Repeatable = false,
+    bool ChainTarget = true,
+    ushort ReloadTicks = 0);
 
 public readonly record struct WheelMarker;
 

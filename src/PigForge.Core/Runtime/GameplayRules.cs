@@ -616,8 +616,34 @@ public sealed class GameplayRules
         _alivePigs++;
     }
 
-    public void AddTnt(EntityId entity, ushort fuseTicks, bool chainDetonate = true, bool igniteOnImpact = true) =>
-        _tnt.Set(entity, new TntState(fuseTicks, Ignited: false, chainDetonate, igniteOnImpact));
+    /// <summary>
+    /// Declares a charge (`docs/specs/tnt-blast.md`): the fuse it is armed with, whether it chains and
+    /// ignites on impact, and the original component's own blast -- radius, impulse, the impact speed
+    /// that arms it -- plus the two class rules an `AlienTNT` flips (it survives its own blast and
+    /// re-arms; no other charge may chain it). A zero radius/impulse/trigger speed falls back to the
+    /// room's `GameplayConfig`, which is what a hand-built fixture relies on.
+    /// </summary>
+    public void AddTnt(
+        EntityId entity,
+        ushort fuseTicks,
+        bool chainDetonate = true,
+        bool igniteOnImpact = true,
+        float radius = 0f,
+        float impulse = 0f,
+        float triggerSpeed = 0f,
+        bool repeatable = false,
+        bool chainTarget = true) =>
+        _tnt.Set(entity, new TntState(
+            fuseTicks,
+            Ignited: false,
+            chainDetonate,
+            igniteOnImpact,
+            radius,
+            impulse,
+            triggerSpeed,
+            repeatable,
+            chainTarget,
+            ReloadTicks: fuseTicks));
 
     public void AddBlaster(EntityId entity, float radius, float impulse, float chainRadius) =>
         _blasters.Set(entity, new BlasterState(radius, impulse, chainRadius));
@@ -1211,8 +1237,7 @@ public sealed class GameplayRules
     /// </summary>
     private void IgniteTntOnBody(PhysicsBodyId body, float impactSpeed)
     {
-        if (impactSpeed < _config.TntIgniteImpactSpeed
-            || !_membersByBody.TryGetValue(body.Value, out List<uint>? members))
+        if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members))
         {
             return;
         }
@@ -1220,7 +1245,12 @@ public sealed class GameplayRules
         foreach (uint memberValue in members)
         {
             EntityId entity = new(memberValue);
-            if (_tnt.TryGet(entity, out TntState tnt) && !tnt.Ignited && tnt.IgniteOnImpact)
+            // Each charge's own `m_triggerSpeed` arms it (`TNT.cs:78-83`); a fixture without one falls
+            // back to the room's default.
+            if (_tnt.TryGet(entity, out TntState tnt)
+                && !tnt.Ignited
+                && tnt.IgniteOnImpact
+                && impactSpeed >= (tnt.TriggerSpeed > 0f ? tnt.TriggerSpeed : _config.TntIgniteImpactSpeed))
             {
                 _tnt.Set(entity, tnt with { Ignited = true });
             }
@@ -1256,43 +1286,7 @@ public sealed class GameplayRules
         _explosiveProps.Remove(body.Value);
         output.CollectedProps.Add(crate.PropIndex);
         PhysicsVector3 origin = center.Position;
-        // Sorted body ids keep the command order deterministic across replays.
-        uint[] bodyIds = _kinematicsByBody.Keys.ToArray();
-        Array.Sort(bodyIds);
-        foreach (uint bodyId in bodyIds)
-        {
-            if (!_dynamicBodies.Contains(bodyId) || !_kinematicsByBody.TryGetValue(bodyId, out var kinematics))
-            {
-                continue;
-            }
-
-            float distance = PhysicsVector3.Distance(kinematics.Position, origin);
-            if (distance >= crate.Radius)
-            {
-                continue;
-            }
-
-            float magnitude = crate.Impulse / MathF.Pow(MathF.Max(distance, 1f), 1.5f);
-            if (_massByBody.TryGetValue(bodyId, out float mass) && mass > 0f)
-            {
-                if (mass < 0.1f)
-                {
-                    magnitude *= mass;
-                }
-                else if (mass < 0.4f)
-                {
-                    magnitude *= mass / 0.4f;
-                }
-            }
-
-            PhysicsVector3 direction = distance > float.Epsilon
-                ? PhysicsVector3.Normalize(kinematics.Position - origin)
-                : new PhysicsVector3(0f, 1f, 0f);
-            output.Commands.Add(PhysicsCommand.ApplyImpulse(
-                new PhysicsBodyId(bodyId),
-                direction * magnitude,
-                kinematics.Position));
-        }
+        ApplyBlast(origin, crate.Radius, crate.Impulse, output);
 
         // The sphere detonates the charges it found, exactly as the original's loop calls their own
         // `Explode` -- here their fuse is what arms them.
@@ -2605,7 +2599,8 @@ public sealed class GameplayRules
         foreach (uint entityValue in exploded)
         {
             EntityId entity = new(entityValue);
-            bool chain = _tnt.TryGet(entity, out TntState state) && state.ChainDetonate;
+            bool hasState = _tnt.TryGet(entity, out TntState state);
+            bool chain = hasState && state.ChainDetonate;
             // The source's body link disappears when it explodes, so the chain needs the
             // blast centre captured up front.
             PhysicsVector3 blastCenter = default;
@@ -2619,7 +2614,12 @@ public sealed class GameplayRules
             Explode(entity, output);
             if (chain && hasCenter)
             {
-                IgniteChargesInRadius(entity, blastCenter, _config.TntBlastRadius);
+                // The chain reaches as far as this charge's own blast (`TNT.cs:129,152-156`), which is
+                // the component's radius, not the fixture's default.
+                IgniteChargesInRadius(
+                    entity,
+                    blastCenter,
+                    hasState && state.Radius > 0f ? state.Radius : _config.TntBlastRadius);
             }
         }
     }
@@ -2634,7 +2634,9 @@ public sealed class GameplayRules
         var charges = _tnt.GetEnumerator();
         while (charges.MoveNext())
         {
-            if (charges.CurrentId == source || charges.CurrentValue.Ignited)
+            // `chainTarget` false is the original's `!(component is AlienTNT)`: a normal charge never
+            // detonates an alien one (`TNT.cs:152-156`).
+            if (charges.CurrentId == source || charges.CurrentValue.Ignited || !charges.CurrentValue.ChainTarget)
             {
                 continue;
             }
@@ -2745,14 +2747,42 @@ public sealed class GameplayRules
             return;
         }
 
+        TntState state = _tnt.TryGet(tntEntity, out TntState tnt) ? tnt : default;
         // The blast radiates from the charge part, not from the compound's centre of mass: a
         // welded charge shares its body with the parts around it, and the original measures every
         // target from TNT.transform.position (TNT.cs:236-252 AddExplosionForce). The charge's own
         // body is included, so the very contraption holding the charge is driven -- and torn --
         // by the blast the way the original's per-part rigidbodies are.
         ResolvePartFrame(tntEntity, link.Body.Value, center.Position, out PhysicsVector3 origin, out _);
+        ApplyBlast(
+            origin,
+            state.Radius > 0f ? state.Radius : _config.TntBlastRadius,
+            state.Impulse > 0f ? state.Impulse : _config.TntBlastImpulse,
+            output);
 
-        // Sorted body ids keep the command order deterministic across replays.
+        // The plain charge removes itself (`TNT.cs:170` `RemovePart`); an `AlienTNT` keeps the part and
+        // clears `m_triggered` in `LateUpdate`, so it re-arms -- the vanilla cooling time is 0
+        // (`AlienTNT.cs:8-52`, `INDeclarationSettingsExp.json`). Content declares the split as
+        // `repeatable`, and the fuse it was authored with is restored with the state.
+        if (state.Repeatable)
+        {
+            _tnt.Set(tntEntity, state with { Ignited = false, FuseTicks = state.ReloadTicks });
+            return;
+        }
+
+        DestroyEntity(tntEntity, output);
+    }
+
+    /// <summary>
+    /// The original's blast, one implementation for both the charge and a level's own crate
+    /// (`TNT.cs:211-233` `AddExplosionForce`): every dynamic body inside <paramref name="radius"/>
+    /// takes <c>impulse / max(distance, 1)^1.5</c> along the direction from the blast centre to it,
+    /// scaled down for a target lighter than 0.4 kg exactly as the original does. Sorted body ids keep
+    /// the command order deterministic across replays, and the impulse lands at the target's own centre
+    /// of mass (a compound is one body here where the original has one rigidbody per collider).
+    /// </summary>
+    private void ApplyBlast(PhysicsVector3 origin, float radius, float impulse, GameplayTickOutput output)
+    {
         uint[] bodyIds = _kinematicsByBody.Keys.ToArray();
         Array.Sort(bodyIds);
         foreach (uint bodyId in bodyIds)
@@ -2764,23 +2794,33 @@ public sealed class GameplayRules
             }
 
             float distance = PhysicsVector3.Distance(kinematics.Position, origin);
-            if (distance >= _config.TntBlastRadius)
+            if (distance >= radius)
             {
                 continue;
             }
 
-            float falloff = 1f - (distance / _config.TntBlastRadius);
+            float magnitude = impulse / MathF.Pow(MathF.Max(distance, 1f), 1.5f);
+            if (_massByBody.TryGetValue(bodyId, out float mass) && mass > 0f)
+            {
+                if (mass < 0.1f)
+                {
+                    magnitude *= mass;
+                }
+                else if (mass < 0.4f)
+                {
+                    magnitude *= mass / 0.4f;
+                }
+            }
+
             PhysicsVector3 direction = distance > float.Epsilon
                 ? PhysicsVector3.Normalize(kinematics.Position - origin)
                 : new PhysicsVector3(0f, 1f, 0f);
             // Impulse at the target's own centre of mass: blasts push, they do not spin.
             output.Commands.Add(PhysicsCommand.ApplyImpulse(
                 new PhysicsBodyId(bodyId),
-                direction * (_config.TntBlastImpulse * falloff),
+                direction * magnitude,
                 kinematics.Position));
         }
-
-        DestroyEntity(tntEntity, output);
     }
 
     private void DropCommandsForDestroyedBodies(GameplayTickOutput output)

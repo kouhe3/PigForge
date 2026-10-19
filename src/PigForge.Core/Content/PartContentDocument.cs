@@ -358,6 +358,17 @@ public sealed record PartCapabilities(
     PartActivation Activation = PartActivation.None,
     bool TntChainDetonate = true,
     bool TntIgniteOnImpact = true,
+    // The original charge's own blast (spec docs/specs/tnt-blast.md): `m_explosionRadius` and
+    // `m_explosionImpulse` (times the class's IN multiplier, vanilla 1.0), the impact speed that
+    // arms it (`m_triggerSpeed`) and the two class rules -- an `AlienTNT` stays in the world after
+    // its blast and re-arms (`Repeatable`), and only a non-alien charge may be chained by another
+    // (`ChainTarget`). Extracted per part by tools/bple-tnt, never authored. 0 means the fixture's
+    // own `GameplayConfig` default.
+    float TntRadius = 0f,
+    float TntImpulse = 0f,
+    float TntTriggerSpeed = 0f,
+    bool TntRepeatable = false,
+    bool TntChainTarget = true,
     float? BlasterRadius = null,
     float? BlasterImpulse = null,
     float? BlasterChainRadius = null,

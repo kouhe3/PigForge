@@ -482,6 +482,11 @@ public static class PartContentParser
         ushort? tntFuse = null;
         bool tntChainDetonate = true;
         bool tntIgniteOnImpact = true;
+        float tntRadius = 0f;
+        float tntImpulse = 0f;
+        float tntTriggerSpeed = 0f;
+        bool tntRepeatable = false;
+        bool tntChainTarget = true;
         float? blasterRadius = null;
         float? blasterImpulse = null;
         float? blasterChainRadius = null;
@@ -578,9 +583,20 @@ public static class PartContentParser
         if (seenKeys.Contains("tnt"))
         {
             if (!capabilitiesElement.TryGetProperty("tnt", out JsonElement tntElement)
-                || !TryReadTnt(tntElement, path, out tntFuse, out tntChainDetonate, out tntIgniteOnImpact))
+                || !TryReadTnt(
+                    tntElement,
+                    path,
+                    out tntFuse,
+                    out tntChainDetonate,
+                    out tntIgniteOnImpact,
+                    out tntRadius,
+                    out tntImpulse,
+                    out tntTriggerSpeed,
+                    out tntRepeatable,
+                    out tntChainTarget))
             {
-                errors.Add($"{path}.capabilities.tnt: must be an object with a fuseTicks integer in [0, 65535] and optional boolean chainDetonate/igniteOnImpact.");
+                errors.Add(
+                    $"{path}.capabilities.tnt: must be an object with a fuseTicks integer in [0, 65535], optional non-negative radius/impulse/triggerSpeed numbers and optional boolean chainDetonate/igniteOnImpact/repeatable/chainTarget.");
                 hasError = true;
             }
         }
@@ -920,7 +936,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, canBeEnclosed, attachment, suspension, glove, powerConsumption, enginePower, dampingRamp);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, tntRadius, tntImpulse, tntTriggerSpeed, tntRepeatable, tntChainTarget, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, canBeEnclosed, attachment, suspension, glove, powerConsumption, enginePower, dampingRamp);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -1871,11 +1887,33 @@ public static class PartContentParser
         return true;
     }
 
-    private static bool TryReadTnt(JsonElement element, string path, out ushort? fuse, out bool chainDetonate, out bool igniteOnImpact)
+    /// <summary>
+    /// A charge's capability (`docs/specs/tnt-blast.md`): the ignition delay it is armed with and the
+    /// original component's own blast numbers -- the radius and impulse a charge hands out, the impact
+    /// speed that arms it, and the two class rules an `AlienTNT` flips (it survives its own blast and
+    /// re-arms; no other charge may chain it). Every number is optional so a hand-authored fixture may
+    /// leave it to `GameplayConfig`, but one that is present must be a finite, non-negative value.
+    /// </summary>
+    private static bool TryReadTnt(
+        JsonElement element,
+        string path,
+        out ushort? fuse,
+        out bool chainDetonate,
+        out bool igniteOnImpact,
+        out float radius,
+        out float impulse,
+        out float triggerSpeed,
+        out bool repeatable,
+        out bool chainTarget)
     {
         fuse = null;
         chainDetonate = true;
         igniteOnImpact = true;
+        radius = 0f;
+        impulse = 0f;
+        triggerSpeed = 0f;
+        repeatable = false;
+        chainTarget = true;
         if (element.ValueKind != JsonValueKind.Object)
         {
             return false;
@@ -1888,23 +1926,49 @@ public static class PartContentParser
             return false;
         }
 
-        if (element.TryGetProperty("chainDetonate", out JsonElement chainElement)
-            && chainElement.ValueKind != JsonValueKind.True
-            && chainElement.ValueKind != JsonValueKind.False)
+        bool ReadNumber(string name, out float value)
         {
-            return false;
+            value = 0f;
+            if (!element.TryGetProperty(name, out JsonElement number))
+            {
+                return true;
+            }
+
+            return number.ValueKind == JsonValueKind.Number
+                && IsFiniteNumber(number)
+                && number.TryGetSingle(out value)
+                && value >= 0f;
         }
 
-        if (element.TryGetProperty("igniteOnImpact", out JsonElement igniteElement)
-            && igniteElement.ValueKind != JsonValueKind.True
-            && igniteElement.ValueKind != JsonValueKind.False)
+        bool ReadFlag(string name, bool fallback, out bool value)
+        {
+            value = fallback;
+            if (!element.TryGetProperty(name, out JsonElement flag))
+            {
+                return true;
+            }
+
+            if (flag.ValueKind != JsonValueKind.True && flag.ValueKind != JsonValueKind.False)
+            {
+                return false;
+            }
+
+            value = flag.GetBoolean();
+            return true;
+        }
+
+        if (!ReadNumber("radius", out radius)
+            || !ReadNumber("impulse", out impulse)
+            || !ReadNumber("triggerSpeed", out triggerSpeed)
+            || !ReadFlag("chainDetonate", true, out chainDetonate)
+            || !ReadFlag("igniteOnImpact", true, out igniteOnImpact)
+            || !ReadFlag("repeatable", false, out repeatable)
+            || !ReadFlag("chainTarget", true, out chainTarget))
         {
             return false;
         }
 
         fuse = fuseValue;
-        chainDetonate = chainElement.ValueKind == JsonValueKind.True;
-        igniteOnImpact = !element.TryGetProperty("igniteOnImpact", out igniteElement) || igniteElement.GetBoolean();
         return true;
     }
 

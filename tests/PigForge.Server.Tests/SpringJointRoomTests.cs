@@ -139,7 +139,11 @@ public sealed class SpringJointRoomTests
         uint spring = Place(room, ref sequence, player, PartSpring, 0f, 4f);
         uint near = Place(room, ref sequence, player, PartFrame, 1f, 4f);
         uint far = Place(room, ref sequence, player, PartEgg, 1f, 4f);
-        uint charge = Place(room, ref sequence, player, PartTnt, 1f, 6f);
+        // Half a cell above the frame: the shipped charge reaches 25 / max(d,1)^1.5, and the compound's
+        // centre sits about 1.5 m away -- above the seam's own 10 N*s where the old linear falloff's
+        // 2 m reading (8.8 N*s) would no longer split it (measured 2026-10-13: 1.5 m splits into two
+        // bodies with the spring joint intact; 2 m leaves one body).
+        uint charge = Place(room, ref sequence, player, PartTnt, 1f, 5.5f);
 
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
         Assert.Equal(1, room.SpringJointCount);
@@ -278,14 +282,24 @@ public sealed class SpringJointRoomTests
     {
         uint spring = Place(room, ref sequence, player, PartSpring, 0f, 4f);
         Place(room, ref sequence, player, PartHeavy, 1f, 4f);
-        uint charge = Place(room, ref sequence, player, PartTnt, 1f, 6f);
+        // One cell above the heavy part: the shipped charge answers with the original's own blast
+        // (`docs/specs/tnt-blast.md` -- radius 8, impulse 25, `impulse / max(d,1)^1.5`), so the pull
+        // has to come from a hit inside that falloff. Measured 2026-10-13: at 1 m the anchors read
+        // 3.63 m apart on tick 12 and the endpoint spawns; two cells away (what the old linear falloff
+        // needed) peaks at ~2 m and never breaks the spring.
+        uint charge = Place(room, ref sequence, player, PartTnt, 1f, 5f);
 
         Assert.True(room.Submit(PlayHost.BindPlayer(new StartSimulationCommand(0, ++sequence, player), player)).IsAccepted);
         Assert.True(room.Submit(PlayHost.BindPlayer(new SetPartActiveCommand(0, ++sequence, player, charge, true), player)).IsAccepted);
         return spring;
     }
 
-    /// <summary>The sandbox room with the test-grade blast the pull rig needs (see the pull test).</summary>
+    /// <summary>
+    /// The sandbox room with gravity and no tick limit. The blast numbers here are only the fallback a
+    /// fixture without content would read: a charge placed from content answers with its own component's
+    /// numbers (`docs/specs/tnt-blast.md`), so the rig's distance -- not this config -- is what sizes
+    /// the pull.
+    /// </summary>
     private static GameRoom CreatePullRoom()
     {
         string root = FindRepositoryRoot();
@@ -295,7 +309,7 @@ public sealed class SpringJointRoomTests
             level.GoalZone,
             level.MapBounds,
             TntBlastRadius: 4f,
-            TntBlastImpulse: 200f,
+            TntBlastImpulse: 25f,
             TntIgniteImpactSpeed: 5f,
             MaxTicks: 1200,
             ObjectivesEnabled: false);
