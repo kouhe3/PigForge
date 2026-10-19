@@ -103,6 +103,7 @@ const EXPECTED_CLASS_DAMPING = {
   Balloon: [2, 0.5],
   Sandbag: [1, 10],
   KingPig: [0.5, 1],
+  GoldenPig: [0.5, 1],
 };
 
 const warnings = [];

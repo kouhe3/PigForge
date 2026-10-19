@@ -14,7 +14,7 @@ public sealed class PartContentTests
         PartContentLibrary library = PartContentLibrary.Load(path);
 
         Assert.Equal("pigforge-base-content-v1", library.Document.ContentVersion);
-        Assert.Equal(284, library.Document.Parts.Count);
+        Assert.Equal(290, library.Document.Parts.Count);
         Assert.NotNull(library.GetPart(1));
     }
 
@@ -66,6 +66,59 @@ public sealed class PartContentTests
             Assert.Null(part.GridBox);
             Assert.Null(part.Damping); // the document default (0.2 / 0.05) is the `Engine` class's
         }
+    }
+
+    /// <summary>
+    /// The two families G91 left behind: `Pumpkin` (PartType 42, `Part_Pumpkin_01..02_SET`) and
+    /// `GoldenPig` (PartType 45, `Part_GoldenPig_01..04_SET`). They needed bases of their own
+    /// because the variant importer can only hang skins under an existing base; content bases 287
+    /// and 288 are those. Both classes override `CanBeEnclosed()` (so a frame can carry them) and
+    /// neither is a `Pig`: the goal still ends on the pig itself.
+    /// </summary>
+    [Fact]
+    public void ThePumpkinAndGoldenPigFamiliesAreCatalogued()
+    {
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        // Pumpkin: m_mass 0.5, capsule r 0.32 / h 0.85 on the X axis at y -0.06 -- a chain of
+        // three spheres, exactly as the king pig's and the egg's capsules become one (ADR-005).
+        PartDefinition pumpkin = library.GetPart(287);
+        Assert.Equal("pumpkin", pumpkin.Name);
+        Assert.Equal(0.5f, pumpkin.Mass, precision: 4);
+        Assert.Null(pumpkin.VariantOf);
+        Assert.Equal(3, pumpkin.Shapes.Count);
+        Assert.All(pumpkin.Shapes, shape =>
+        {
+            Assert.Equal(PhysicsShapeKind.Sphere, shape.Kind);
+            Assert.Equal(0.32f, shape.Radius!.Value, precision: 4);
+            Assert.Equal(-0.06f, shape.Offset![1], precision: 4);
+        });
+        Assert.Equal(new[] { -0.105f, 0f, 0.105f }, pumpkin.Shapes.Select(shape => shape.Offset![0]).ToArray());
+        Assert.Equal(JointConnectionType.None, pumpkin.Capabilities!.JointConnectionType);
+        Assert.True(pumpkin.Capabilities.CanBeEnclosed);
+        Assert.Null(pumpkin.GridBox);
+        Assert.Null(pumpkin.Damping); // the document default (0.2 / 0.05) is `BasePart`'s
+
+        // Golden pig: m_mass 10 against the king pig's 4, so 2.5x its content mass (1.2 -> 3.0);
+        // one sphere r 1.0 at y 0.4 (the collider's own centre), the family's 3x2 construction box,
+        // and the class's own damping pair (GoldenPig.Initialize: 0.5 / 1).
+        PartDefinition goldenPig = library.GetPart(288);
+        Assert.Equal("golden-pig", goldenPig.Name);
+        Assert.Equal(3.0f, goldenPig.Mass, precision: 4);
+        Assert.Null(goldenPig.VariantOf);
+        Assert.Single(goldenPig.Shapes);
+        Assert.Equal(PhysicsShapeKind.Sphere, goldenPig.Shapes[0].Kind);
+        Assert.Equal(1.0f, goldenPig.Shapes[0].Radius!.Value, precision: 4);
+        Assert.Equal(new[] { 0f, 0.4f, 0f }, goldenPig.Shapes[0].Offset);
+        Assert.Equal(new GridCellBox(-1, 1, 0, 1), goldenPig.GridBox);
+        Assert.Equal(new PartDamping(0.5f, 1.0f), goldenPig.Damping);
+        Assert.Equal(JointConnectionType.None, goldenPig.Capabilities!.JointConnectionType);
+        Assert.True(goldenPig.Capabilities.CanBeEnclosed);
+        Assert.False(goldenPig.Capabilities.IsPig); // `GoldenPig` is not the original's `Pig`
+
+        // Their skins ride the two bases: one pumpkin skin and the golden pig's three.
+        Assert.Equal(1, library.Document.Parts.Count(part => part.VariantOf == 287));
+        Assert.Equal(3, library.Document.Parts.Count(part => part.VariantOf == 288));
     }
 
     /// <summary>
@@ -412,9 +465,9 @@ public sealed class PartContentTests
         // hinge plate and CustomPart (BasePart.cs:1148-1165). tools/bple-joints reads that table
         // from the classes themselves; the content flag is never derived from canEnclose (G108).
         PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
-        Assert.Equal(81, library.Document.Parts.Count(part => part.Capabilities?.CanBeEnclosed == true));
+        Assert.Equal(87, library.Document.Parts.Count(part => part.Capabilities?.CanBeEnclosed == true));
 
-        foreach (uint partTypeId in new uint[] { 4, 8, 9, 24, 27, 28, 39, 42, 52, 270, 271 })
+        foreach (uint partTypeId in new uint[] { 4, 8, 9, 24, 27, 28, 39, 42, 52, 270, 271, 287, 288 })
         {
             Assert.True(library.GetPart(partTypeId).Capabilities?.CanBeEnclosed == true, $"part {partTypeId} must be enclosable");
         }
@@ -975,8 +1028,8 @@ public sealed class PartContentTests
             part => part.Capabilities?.JointConnectionStrength ?? JointConnectionStrength.None);
 
         // Extracted coverage: every part that maps to a prefab carries one; only the three
-        // hand-authored static level parts have no prefab to extract from (284 - 3).
-        Assert.Equal(281, strength.Count(entry => entry.Value != JointConnectionStrength.None));
+        // hand-authored static level parts have no prefab to extract from (290 - 3).
+        Assert.Equal(287, strength.Count(entry => entry.Value != JointConnectionStrength.None));
         Assert.All(new uint[] { 2, 5, 6 }, id => Assert.Equal(JointConnectionStrength.None, strength[id]));
 
         // The user-visible ordering this exists for: wooden (Normal) is weaker than metal
@@ -1023,9 +1076,10 @@ public sealed class PartContentTests
 
         // tools/bple-grid: of the original's 343 part prefabs, 332 declare one cell at the origin
         // (0..0, 0..0) and only the KingPig/GoldenPig families declare the 3x2 box x[-1, 1] y[0, 1].
-        // Content omits the default, so exactly the seven imported king-pig entries carry a box --
-        // the six skins map to KingPig_02..07 and the GoldenPig prefabs have no imported part.
-        Assert.Equal(new uint[] { 24, 221, 222, 223, 224, 225, 226 }, boxes.Keys.OrderBy(id => id).ToArray());
+        // Content omits the default, so exactly the eleven imported king-pig and golden-pig entries
+        // carry a box -- the six king-pig skins map to KingPig_02..07 and the golden pig's base plus
+        // its three skins map to GoldenPig_01..04.
+        Assert.Equal(new uint[] { 24, 221, 222, 223, 224, 225, 226, 288, 290, 291, 292 }, boxes.Keys.OrderBy(id => id).ToArray());
         Assert.All(boxes.Values, box => Assert.Equal(new GridCellBox(-1, 1, 0, 1), box));
 
         // A part whose prefab declares the default carries no key at all, not a copy of it.

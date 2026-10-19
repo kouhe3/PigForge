@@ -34,7 +34,8 @@
       {"partTypeId":7,"count":2},
       {"partTypeId":13,"count":2},
       {"partTypeId":18,"count":4},
-      {"partTypeId":30,"count":1}
+      {"partTypeId":30,"count":1},
+      {"partTypeId":287,"count":1}
     ]
   },
   "cameraLimits": {"topLeft":[-95.62,36.4],"size":[170.1,50.3]},

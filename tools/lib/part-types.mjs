@@ -12,8 +12,8 @@
 // A PartType no map entry resolves has no PigForge base at all, and the caller reports it instead
 // of inventing an id: `Basket` (8) is a vehicle body rather than a part prefab (nothing in
 // `Assets/GameObject` declares the enum); `JetEngine` (37) and `ObsoleteWheel` (38) name prefabs
-// PigForge has no content for; `Pumpkin` (42) and `GoldenPig` (45) are the parts G91 has not
-// delivered yet.
+// PigForge has no content for. `Pumpkin` (42) and `GoldenPig` (45) were the last two missing
+// families; their bases (287/288) landed with G91, so every PartType a level grants now resolves.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

@@ -44,6 +44,8 @@ export const PALETTE = [
   { partTypeId: 46, label: "抓钩" },
   { partTypeId: 270, label: "小发动机" },
   { partTypeId: 271, label: "大发动机" },
+  { partTypeId: 287, label: "南瓜" },
+  { partTypeId: 288, label: "金猪" },
 ] as const;
 export const GOAL_ZONE = { minX: 12, minY: -0.5, maxX: 16, maxY: 2.5 };
 export const MAP_BOUNDS = { minX: -30, minY: -12, maxX: 30, maxY: 30 };

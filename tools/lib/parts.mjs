@@ -14,19 +14,24 @@ export const readContentText = () => readFileSync(contentFile(), "utf8");
 export const parseParts = (text) => JSON.parse(text).parts;
 
 /** The offsets of one part: its `"partTypeId"` field and the `"shapes"` field that closes the
- * region the part's own fields live in. Missing either is a hard error, never a guess. */
+ * region the part's own fields live in. Missing either is a hard error, never a guess.
+ *
+ * The search is anchored on the field's own line indent: a `glove` capability carries an inline
+ * `"shapes"` array of its own (`SpringBoxingGlove`'s fist), so a bare `"shapes":` search would
+ * splice a part at the capability's nested key and truncate the capabilities object. */
 export function partSpan(text, partTypeId) {
   const anchorIndex = text.indexOf(`"partTypeId": ${partTypeId},`);
   if (anchorIndex < 0) {
     throw new Error(`anchor missing for part ${partTypeId}`);
   }
 
-  const shapesIndex = text.indexOf('"shapes":', anchorIndex);
-  if (shapesIndex < 0) {
+  const key = '\n      "shapes":';
+  const keyIndex = text.indexOf(key, anchorIndex);
+  if (keyIndex < 0) {
     throw new Error(`shapes missing for part ${partTypeId}`);
   }
 
-  return { anchorIndex, shapesIndex };
+  return { anchorIndex, shapesIndex: keyIndex + 1 };
 }
 
 /** The offsets of one part's inline `capabilities` object, or null when the part has none. */

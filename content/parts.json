@@ -580,8 +580,8 @@
         },
         {
           "kind": "box",
-          "halfExtents": [0.5551, 0.508, 0.75],
-          "offset": [0.3147, 0.0, 0.0],
+          "halfExtents": [0.5551, 0.5079, 0.75],
+          "offset": [-0.0282, 0.0143, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -604,7 +604,7 @@
         {
           "kind": "box",
           "halfExtents": [0.5966, 0.5, 0.75],
-          "offset": [0.3023, 0.0, 0.0],
+          "offset": [-0.0121, 0.017, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -2421,7 +2421,7 @@
         {
           "kind": "box",
           "halfExtents": [0.5551, 0.5383, 0.75],
-          "offset": [0.3264, 0.0, 0.0],
+          "offset": [0.0062, 0.0405, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -2445,7 +2445,7 @@
         {
           "kind": "box",
           "halfExtents": [0.5343, 0.5225, 0.75],
-          "offset": [0.4091, 0.0, 0.0],
+          "offset": [0.0041, 0.0345, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -2469,7 +2469,7 @@
         {
           "kind": "box",
           "halfExtents": [0.3265, 0.5355, 0.75],
-          "offset": [0.3444, 0.0, 0.0],
+          "offset": [-0.0088, -0.018, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -2493,7 +2493,7 @@
         {
           "kind": "box",
           "halfExtents": [0.3265, 0.5268, 0.75],
-          "offset": [0.3449, 0.0, 0.0],
+          "offset": [-0.0108, 0.0105, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -3098,7 +3098,7 @@
         {
           "kind": "box",
           "halfExtents": [0.6001, 0.5323, 0.75],
-          "offset": [0.4435, 0.0, 0.0],
+          "offset": [0.0121, 0.0495, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -3122,7 +3122,7 @@
         {
           "kind": "box",
           "halfExtents": [0.4461, 0.5501, 0.75],
-          "offset": [0.354, 0.0, 0.0],
+          "offset": [0.0189, 0.027, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -3146,7 +3146,7 @@
         {
           "kind": "box",
           "halfExtents": [0.5213, 0.5237, 0.75],
-          "offset": [0.3978, 0.0, 0.0],
+          "offset": [0.0181, 0.0425, 0.0],
           "condition": { "kind": "frame" }
         }
       ]
@@ -5428,6 +5428,123 @@
           "kind": "box",
           "halfExtents": [0.5, 0.4, 0.5],
           "offset": [0.0, -0.03, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 287,
+      "name": "pumpkin",
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.32,
+          "offset": [-0.105, -0.06, 0.0]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.32,
+          "offset": [0.0, -0.06, 0.0]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.32,
+          "offset": [0.105, -0.06, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 288,
+      "name": "golden-pig",
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "damping": { "linear": 0.5, "angular": 1.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none" },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 1.0,
+          "offset": [0.0, 0.4, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 289,
+      "name": "pumpkin-v02",
+      "variantOf": 287,
+      "mode": "dynamic",
+      "mass": 0.5,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none" },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 0.32,
+          "offset": [-0.0212, -0.117, 0.0]
+        },
+        {
+          "kind": "sphere",
+          "radius": 0.32,
+          "offset": [0.0472, -0.117, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 290,
+      "name": "golden-pig-v02",
+      "variantOf": 288,
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "damping": { "linear": 0.5, "angular": 1.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none" },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 1.0,
+          "offset": [0.0, 0.4, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 291,
+      "name": "golden-pig-v03",
+      "variantOf": 288,
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "damping": { "linear": 0.5, "angular": 1.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none" },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 1.0,
+          "offset": [0.0, 0.4, 0.0]
+        }
+      ]
+    },
+    {
+      "partTypeId": 292,
+      "name": "golden-pig-v04",
+      "variantOf": 288,
+      "mode": "dynamic",
+      "mass": 3.0,
+      "material": { "restitution": 0, "friction": 0.7 },
+      "damping": { "linear": 0.5, "angular": 1.0 },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none" },
+      "gridBox": { "minX": -1, "maxX": 1, "minY": 0, "maxY": 1 },
+      "shapes": [
+        {
+          "kind": "sphere",
+          "radius": 1.0,
+          "offset": [0.0, 0.4, 0.0]
         }
       ]
     }

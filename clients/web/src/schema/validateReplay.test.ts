@@ -105,7 +105,7 @@ describe("validatePartContent variants", () => {
     const content = JSON.parse(readFileSync(join(root, "content/parts.json"), "utf8"));
     const boxed = content.parts.filter((candidate: { gridBox?: unknown }) => candidate.gridBox !== undefined);
     expect(boxed.map((candidate: { partTypeId: number }) => candidate.partTypeId).sort((a: number, b: number) => a - b))
-      .toEqual([24, 221, 222, 223, 224, 225, 226]);
+      .toEqual([24, 221, 222, 223, 224, 225, 226, 288, 290, 291, 292]);
     expect(boxed.every((candidate: { gridBox: unknown }) => JSON.stringify(candidate.gridBox) === '{"minX":-1,"maxX":1,"minY":0,"maxY":1}'))
       .toBe(true);
   });

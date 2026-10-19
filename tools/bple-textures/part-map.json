@@ -48,7 +48,9 @@
     "45": "Part_SpotLight_01_SET",
     "46": "Part_GrapplingHook_01_SET",
     "270": "Part_EngineSmall_01_SET",
-    "271": "Part_EngineBig_01_SET"
+    "271": "Part_EngineBig_01_SET",
+    "287": "Part_Pumpkin_01_SET",
+    "288": "Part_GoldenPig_01_SET"
   },
   "variants": {
     "47": "Part_TNT_02_SET",
@@ -288,6 +290,10 @@
     "283": "Part_EngineBig_04_SET",
     "284": "Part_EngineBig_05_SET",
     "285": "Part_EngineBig_06_SET",
-    "286": "Part_EngineBig_07_SET"
+    "286": "Part_EngineBig_07_SET",
+    "289": "Part_Pumpkin_02_SET",
+    "290": "Part_GoldenPig_02_SET",
+    "291": "Part_GoldenPig_03_SET",
+    "292": "Part_GoldenPig_04_SET"
   }
 }

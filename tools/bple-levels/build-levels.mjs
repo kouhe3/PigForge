@@ -114,9 +114,11 @@ const WITHOUT_BUILD = new Set(["Level_Sandbox_02", "Level_Sandbox_06"]);
 
 // PartTypes that have no PigForge base at all (see `tools/lib/part-types.mjs`), so a level that
 // offers one cannot carry that allowance across. Listed explicitly rather than derived from the
-// map, because a PartType *becoming* mappable (G91's `Pumpkin`/`GoldenPig`) must be noticed here,
-// and the check below re-confirms each value against the pack's own prefabs on every run.
-const WITHOUT_PIGFORGE_BASE = new Set([8, 37, 38, 42, 45]);
+// map, because a PartType *becoming* mappable must be noticed here, and the check below
+// re-confirms each value against the pack's own prefabs on every run. `Pumpkin` (42) and
+// `GoldenPig` (45) left this list when their bases landed (G91); the census assertion below now
+// expects no unmapped allowance at all.
+const WITHOUT_PIGFORGE_BASE = new Set([8, 37, 38]);
 
 /// Unity `Quaternion.Euler(x, y, z)` is R = Ry * Rx * Rz (degrees). Levels are 2D so only z is
 /// ever non-zero, but the goal box is an AABB of a full 3D box, so the general form is used.
@@ -1100,15 +1102,17 @@ const noPigForgeBase = [...buildCensus.unmapped]
 // The census totals, pinned the way the prop counts above are: a prefab table that stops being read
 // or an element applied to the wrong slot moves `families`/`parts`, and the second-star triple
 // (counted, never carried -- D3) catches a level that starts or stops declaring one.
-check(buildCensus.families === 1926, `build allowances: ${buildCensus.families} part families over ${buildCensus.levels} levels, expected 1926`);
-check(buildCensus.parts === 3394, `build allowances: ${buildCensus.parts} parts over ${buildCensus.levels} levels, expected 3394`);
+// `Pumpkin` (42) and `GoldenPig` (45) resolve now (G91): +28 families and +28 parts over 28 levels
+// (the two sandboxes carry no `build` at all, so their tables stay out of this census).
+check(buildCensus.families === 1954, `build allowances: ${buildCensus.families} part families over ${buildCensus.levels} levels, expected 1954`);
+check(buildCensus.parts === 3422, `build allowances: ${buildCensus.parts} parts over ${buildCensus.levels} levels, expected 3422`);
 check(secondStar.m_secondStarConstructionGridRows === 20, `m_secondStarConstructionGridRows: ${secondStar.m_secondStarConstructionGridRows} level(s), expected 20`);
 check(secondStar.m_extraPartsForSecondStar === 21, `m_extraPartsForSecondStar: ${secondStar.m_extraPartsForSecondStar} level(s), expected 21`);
 check(secondStar.m_gridForSecondStar === 22, `m_gridForSecondStar: ${secondStar.m_gridForSecondStar} level(s), expected 22`);
 const noBaseLevels = Object.fromEntries(noPigForgeBase.map((entry) => [entry.type, entry.levels]));
 check(
-  noBaseLevels[42] === 16 && noBaseLevels[45] === 14,
-  `no-PigForge-base allowances: ${JSON.stringify(noBaseLevels)}, expected Pumpkin(42) 16 and GoldenPig(45) 14 levels`,
+  Object.keys(noBaseLevels).length === 0,
+  `no-PigForge-base allowances: ${JSON.stringify(noBaseLevels)}, expected none (Pumpkin 42 and GoldenPig 45 resolve to content bases 287/288 since G91)`,
 );
 
 // The challenge census, rendered for the report: one row per key (a kind, a prefab name, an
