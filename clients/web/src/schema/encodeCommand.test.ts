@@ -17,7 +17,7 @@ describe("encodeCommand", () => {
     });
     const view = new DataView(bytes.buffer);
     expect(String.fromCharCode(...bytes.slice(0, 4))).toBe("PGFC");
-    expect(view.getUint16(4, true)).toBe(3);
+    expect(view.getUint16(4, true)).toBe(4);
     expect(view.getUint8(6)).toBe(0);
     expect(view.getUint32(7, true)).toBe(1);
     expect(view.getUint32(19, true)).toBe(4);
@@ -32,7 +32,7 @@ describe("encodeCommand", () => {
     const mirrored = encodeCommand({ kind: 2, sequence: 6, playerId: 1, tick: 0, entityId: 7, angle: 1.25, mirrored: true });
     expect(mirrored.byteLength).toBe(28);
     const view = new DataView(mirrored.buffer);
-    expect(view.getUint16(4, true)).toBe(3);
+    expect(view.getUint16(4, true)).toBe(4);
     expect(view.getUint8(6)).toBe(2);
     expect(view.getUint32(19, true)).toBe(7);
     expect(view.getFloat32(23, true)).toBeCloseTo(1.25);
@@ -40,6 +40,17 @@ describe("encodeCommand", () => {
 
     const plain = encodeCommand({ kind: 2, sequence: 7, playerId: 1, tick: 0, entityId: 7, angle: 0, mirrored: false });
     expect(new DataView(plain.buffer).getUint8(27)).toBe(0);
+  });
+
+  it("encodes CutRope as a world point (PGFC v4)", () => {
+    const bytes = encodeCommand({ kind: 10, sequence: 8, playerId: 1, tick: 7, x: 1.5, y: -2.25 });
+    expect(bytes.byteLength).toBe(27);
+    const view = new DataView(bytes.buffer);
+    expect(view.getUint16(4, true)).toBe(4);
+    expect(view.getUint8(6)).toBe(10);
+    expect(view.getUint32(7, true)).toBe(8);
+    expect(view.getFloat32(19, true)).toBeCloseTo(1.5);
+    expect(view.getFloat32(23, true)).toBeCloseTo(-2.25);
   });
 
   it("encodes MovePart and ScalePart matching the PGFC layout", () => {
@@ -79,7 +90,7 @@ describe("encodeCommand", () => {
     const bytes = new Uint8Array(16);
     const view = new DataView(bytes.buffer);
     bytes.set([0x50, 0x47, 0x46, 0x41], 0);
-    view.setUint16(4, 3, true);
+    view.setUint16(4, 4, true);
     view.setUint32(6, 3, true);
     view.setUint8(10, 0);
     view.setUint8(11, 0);

@@ -1,0 +1,14 @@
+{
+  "format": "pigforge.scenario",
+  "schemaVersion": 1,
+  "id": "rope-bench",
+  "name": "绳索台：按钮剪中间 / 点击剪最近段",
+  "description": "左木框 + 绳 + 右木框。Start 后开关条里按「绳索」剪中间；用选择工具点绳段剪最近段。",
+  "level": "bench-v1.json",
+  "build": [
+    { "partTypeId": 1, "x": 0, "y": -2.5 },
+    { "partTypeId": 41, "x": 1, "y": -2.5 },
+    { "partTypeId": 1, "x": 2, "y": -2.5 }
+  ],
+  "start": false
+}

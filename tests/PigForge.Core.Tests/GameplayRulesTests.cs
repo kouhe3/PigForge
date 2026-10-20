@@ -1122,6 +1122,123 @@ public sealed class GameplayRulesTests
         Assert.Equal(0.05f, own.Angular, precision: 6);
     }
 
+    [Fact]
+    public void ARopeAtRestOnlyWritesItsNodeDamping()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId host = entities.Create();
+        PhysicsBodyId[] bodies = RopeBodies(harness, entities, spacing: 0.5f, out _);
+
+        harness.Rules.AddRope(host, bodies, default, default);
+        harness.Tick(1, []);
+
+        // Rest length 0.5 and zero speed: the link sits in the dead zone and the air drag is zero,
+        // so the only output is one damping line per node (`Rope.cs:334-366`).
+        Assert.Empty(harness.Output.Commands);
+        Assert.Equal(8, harness.Output.BodyDampingOverrides.Count);
+        Assert.All(harness.Output.BodyDampingOverrides, entry =>
+        {
+            Assert.Equal(6.5f, entry.Linear, precision: 4);
+            Assert.Equal(0.5f, entry.Angular, precision: 4);
+        });
+    }
+
+    [Fact]
+    public void AStretchedLinkPullsWithTheOriginalsShapedExcess()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId host = entities.Create();
+        PhysicsBodyId[] bodies = RopeBodies(harness, entities, spacing: 0.75f, out _);
+
+        harness.Rules.AddRope(host, bodies, left: bodies[0], right: bodies[^1]);
+        harness.Tick(1, []);
+
+        // `e = 0.25`, below 1, so the shaped excess is e^0.75 and the force is 70 * e / 60 per tick.
+        float expected = 70f * MathF.Pow(0.25f, 0.75f) / 60f;
+        Assert.True(harness.Output.Commands.Count > 0, $"commands {string.Join(";", harness.Output.Commands.Select(command => $"{command.Body.Value}:{command.Impulse.X}"))}; damping {harness.Output.BodyDampingOverrides.Count}");
+        PhysicsCommand first = harness.Output.Commands.First(command => command.Body == bodies[0]);
+        Assert.Equal(expected, first.Impulse.X, precision: 4);
+        PhysicsCommand second = harness.Output.Commands.First(command => command.Body == bodies[1]);
+        Assert.Equal(-expected, second.Impulse.X, precision: 4);
+    }
+
+    [Fact]
+    public void ASlackLinkPushesApart()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId host = entities.Create();
+        PhysicsBodyId[] bodies = RopeBodies(harness, entities, spacing: 0.3f, out _);
+
+        harness.Rules.AddRope(host, bodies, default, default);
+        harness.Tick(1, []);
+
+        // d = 0.3 < 0.4: 50 * (0.3 - 0.4) = -5 N on the first node, i.e. -5/60 along its own axis.
+        float expected = 50f * (0.3f - 0.4f) / 60f;
+        PhysicsCommand first = harness.Output.Commands.First(command => command.Body == bodies[0]);
+        Assert.Equal(expected, first.Impulse.X, precision: 4);
+        PhysicsCommand second = harness.Output.Commands.First(command => command.Body == bodies[1]);
+        Assert.Equal(-expected, second.Impulse.X, precision: 4);
+    }
+
+    [Fact]
+    public void ATenseInnerLinkCutsTheRope()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId host = entities.Create();
+        PhysicsBodyId[] bodies = RopeBodies(harness, entities, spacing: 0.5f, out List<(int Index, PhysicsVector3 Position, PhysicsVector3 Velocity)> snapshots);
+
+        // Pull the fourth node 1.3 m away from the third: link 4 is an inner link, past 1.25 m.
+        PhysicsVector3 moved = snapshots[3].Position with { X = snapshots[3].Position.X + 1.3f };
+        harness.ResetSnapshots(bodies, snapshots, 4, moved);
+        harness.Rules.AddRope(host, bodies, default, default);
+        harness.Tick(1, []);
+
+        Assert.True(harness.Rules.IsRopeCut(host));
+    }
+
+    [Fact]
+    public void TheButtonCutsTheMiddle()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId host = entities.Create();
+        PhysicsBodyId[] bodies = RopeBodies(harness, entities, spacing: 0.5f, out _);
+
+        harness.Rules.AddRope(host, bodies, default, default);
+        harness.Rules.AddActivation(host);
+        harness.Rules.SetActive(host, true);
+        harness.Tick(1, []);
+
+        Assert.True(harness.Rules.IsRopeCut(host));
+        // Node count / 2, the original's no-position touch (`Rope.cs:169-190`).
+        Assert.Equal(4, harness.Rules.RopeCutLink(host));
+    }
+
+    /// <summary>Eight segment bodies in a line, each at <paramref name="spacing"/> metres from the last.</summary>
+    private static PhysicsBodyId[] RopeBodies(
+        GameplayHarness harness,
+        EntityStore entities,
+        float spacing,
+        out List<(int Index, PhysicsVector3 Position, PhysicsVector3 Velocity)> snapshots)
+    {
+        PhysicsBodyId[] bodies = new PhysicsBodyId[8];
+        snapshots = new List<(int, PhysicsVector3, PhysicsVector3)>(8);
+        for (int index = 0; index < bodies.Length; index++)
+        {
+            bodies[index] = new PhysicsBodyId((uint)(100 + index));
+            PhysicsVector3 position = new(index * spacing, 0f, 0f);
+            harness.Link(entities.Create(), bodies[index]);
+            harness.IngestBody(bodies[index], position, PhysicsVector3.Zero);
+            snapshots.Add((index, position, PhysicsVector3.Zero));
+        }
+
+        return bodies;
+    }
+
     private sealed class GameplayHarness
     {
         private readonly PhysicsBodyStore _bodies;
@@ -1181,6 +1298,21 @@ public sealed class GameplayRulesTests
 
         public void Tick(uint tick, IReadOnlyList<PhysicsEvent> events) =>
             Rules.Tick(tick, events.ToArray(), CollectionsMarshal.AsSpan(_snapshots), Output);
+
+        /// <summary>Replaces one body's snapshot (a rope test bends the line before the tick).</summary>
+        public void ResetSnapshots(
+            IReadOnlyList<PhysicsBodyId> bodies,
+            IReadOnlyList<(int Index, PhysicsVector3 Position, PhysicsVector3 Velocity)> snapshots,
+            int changed,
+            PhysicsVector3 position)
+        {
+            _snapshots.Clear();
+            for (int index = 0; index < bodies.Count; index++)
+            {
+                PhysicsVector3 at = index == changed ? position : snapshots[index].Position;
+                _snapshots.Add(new PhysicsBodySnapshot(bodies[index], at, PhysicsQuaternion.Identity, snapshots[index].Velocity, PhysicsVector3.Zero));
+            }
+        }
     }
 
     /// <summary>Orchestrates a real Bepu world with rules and level content, mirroring the room loop.</summary>

@@ -1,11 +1,11 @@
 import type { ClientCommand } from "./types";
 
-export const COMMAND_VERSION = 3;
+export const COMMAND_VERSION = 4;
 export const COMMAND_HEADER_BYTES = 19;
 
-// v3 gives the two placement commands a trailing `mirrored:u8` (ADR-030): a build pose's
-// handedness is not expressible as a rotation, so it travels beside the absolute angle.
-const PAYLOAD_BYTES: Record<ClientCommand["kind"], number> = { 0: 21, 1: 4, 2: 9, 3: 0, 5: 0, 6: 12, 7: 8, 8: 5, 9: 5 };
+// v3 gives the two placement commands a trailing `mirrored:u8` (ADR-030); v4 adds the rope's
+// cut-at-point command (kind 10, world x/y, docs/specs/rope.md §4.6b).
+const PAYLOAD_BYTES: Record<ClientCommand["kind"], number> = { 0: 21, 1: 4, 2: 9, 3: 0, 5: 0, 6: 12, 7: 8, 8: 5, 9: 5, 10: 8 };
 
 export function encodeCommand(command: ClientCommand): Uint8Array {
   const bytes = new Uint8Array(COMMAND_HEADER_BYTES + PAYLOAD_BYTES[command.kind]);
@@ -36,6 +36,9 @@ export function encodeCommand(command: ClientCommand): Uint8Array {
   } else if (command.kind === 7) {
     view.setUint32(19, command.entityId, true);
     view.setFloat32(23, command.scale, true);
+  } else if (command.kind === 10) {
+    view.setFloat32(19, command.x, true);
+    view.setFloat32(23, command.y, true);
   } else if (command.kind === 8) {
     view.setUint32(19, command.entityId, true);
     view.setUint8(23, command.active ? 1 : 0);

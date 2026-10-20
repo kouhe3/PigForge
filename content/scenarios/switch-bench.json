@@ -4,7 +4,7 @@
   "id": "switch-bench",
   "name": "开关台：发动机 / 风箱 / 火箭",
   "description": "木框包住小发动机，右侧风扇、左侧风箱、上方火箭。Start 后开关条里逐件按下。",
-  "level": "terrain-v1.json",
+  "level": "bench-v1.json",
   "build": [
     { "partTypeId": 1, "x": 0, "y": -2.5 },
     { "partTypeId": 270, "x": 0, "y": -2.5 },

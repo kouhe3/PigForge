@@ -148,6 +148,18 @@ public sealed record SetPartTypeActiveCommand(
     uint PartTypeId,
     bool Active) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.SetPartTypeActive);
 
+/// <summary>
+/// Cuts the player's rope at the segment nearest the given world point (`docs/specs/rope.md`
+/// §4.6b): the original's world-touch path, which clamps to the inner nodes; a point outside every
+/// segment's 0.5 m radius is rejected instead of cutting the middle.
+/// </summary>
+public sealed record CutRopeCommand(
+    uint Tick,
+    uint Sequence,
+    uint PlayerId,
+    float X,
+    float Y) : ReplayCommand(Tick, Sequence, PlayerId, ClientCommandKind.CutRope);
+
 public sealed record StartSimulationCommand(
     uint Tick,
     uint Sequence,

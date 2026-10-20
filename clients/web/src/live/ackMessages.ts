@@ -11,6 +11,7 @@ const COMMAND_LABELS: Record<CommandKind, string> = {
   7: "缩放零件",
   8: "开关零件",
   9: "开关类型",
+  10: "剪绳子",
 };
 
 /** PGFA status (CommandStatus) → reason, except RuleRejected (5), which reads the error. */
@@ -42,6 +43,7 @@ const ERROR_LABELS: Record<number, string> = {
   16: "该零件不能镜像",
   17: "该零件数量已达关卡上限",
   18: "位置超出建造网格",
+  19: "点击处没有绳段",
 };
 
 /**

@@ -4,7 +4,7 @@
   "id": "sky-bench",
   "name": "升力台：气球与风扇",
   "description": "木框上方两只气球、右侧风扇；start 为 true，打开就能看升力与推力。",
-  "level": "terrain-v1.json",
+  "level": "bench-v1.json",
   "build": [
     { "partTypeId": 1, "x": 0, "y": -2.5 },
     { "partTypeId": 11, "x": 1, "y": -2.5 },

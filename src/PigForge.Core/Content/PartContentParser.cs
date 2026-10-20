@@ -531,6 +531,7 @@ public static class PartContentParser
         float? grappleDirectionY = null;
         PartActivation activation = PartActivation.None;
         PartDampingRamp? dampingRamp = null;
+        PartRope? rope = null;
         bool hasError = false;
 
         float powerConsumption = 0f;
@@ -906,6 +907,12 @@ public static class PartContentParser
             hasError = true;
         }
 
+        if (seenKeys.Contains("rope")
+            && !TryReadRope(capabilitiesElement, path, errors, out rope))
+        {
+            hasError = true;
+        }
+
         if (blasterRadius is not null && activation != PartActivation.Trigger)
         {
             errors.Add($"{path}.capabilities.blaster: requires activation \"trigger\" (the blaster fires from its switch).");
@@ -924,7 +931,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "mirror" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "canBeEnclosed" or "attachment" or "suspension" or "powerConsumption" or "enginePower" or "dampingRamp"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "mirror" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "canBeEnclosed" or "attachment" or "suspension" or "powerConsumption" or "enginePower" or "dampingRamp" or "rope"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -936,7 +943,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, tntRadius, tntImpulse, tntTriggerSpeed, tntRepeatable, tntChainTarget, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, canBeEnclosed, attachment, suspension, glove, powerConsumption, enginePower, dampingRamp);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, tntRadius, tntImpulse, tntTriggerSpeed, tntRepeatable, tntChainTarget, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, canBeEnclosed, attachment, suspension, glove, powerConsumption, enginePower, dampingRamp, rope);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)
@@ -1078,6 +1085,88 @@ public static class PartContentParser
             && IsFiniteNumber(element)
             && element.TryGetSingle(out value)
             && value >= 0f;
+    }
+
+    /// <summary>
+    /// The rope's START materialization (`docs/specs/rope.md`): segment count, per-segment mass and
+    /// radius and the segment material's friction. All four are required -- the extractor always
+    /// writes them, so a partial declaration is drift, not a default to invent.
+    /// </summary>
+    private static bool TryReadRope(JsonElement capabilities, string path, List<string> errors, out PartRope? rope)
+    {
+        rope = null;
+        string field = $"{path}.capabilities.rope";
+        if (!capabilities.TryGetProperty("rope", out JsonElement element) || element.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{field}: must be an object.");
+            return false;
+        }
+
+        HashSet<string> keys = new();
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (!keys.Add(property.Name))
+            {
+                errors.Add($"{field}: duplicate property '{property.Name}'.");
+            }
+        }
+
+        bool ok = true;
+        int segments = 0;
+        if (!keys.Contains("segments")
+            || !element.TryGetProperty("segments", out JsonElement segmentsElement)
+            || segmentsElement.ValueKind != JsonValueKind.Number
+            || !segmentsElement.TryGetInt32(out segments)
+            || segments is < 1 or > 64)
+        {
+            errors.Add($"{field}.segments: must be an integer in [1, 64].");
+            ok = false;
+        }
+
+        float mass = 0f;
+        if (!keys.Contains("segmentMass")
+            || !element.TryGetProperty("segmentMass", out JsonElement massElement)
+            || !TryReadNonNegative(massElement, out mass)
+            || mass == 0f)
+        {
+            errors.Add($"{field}.segmentMass: must be a finite positive number.");
+            ok = false;
+        }
+
+        float radius = 0f;
+        if (!keys.Contains("segmentRadius")
+            || !element.TryGetProperty("segmentRadius", out JsonElement radiusElement)
+            || !TryReadNonNegative(radiusElement, out radius)
+            || radius == 0f)
+        {
+            errors.Add($"{field}.segmentRadius: must be a finite positive number.");
+            ok = false;
+        }
+
+        float friction = 0f;
+        if (!keys.Contains("segmentFriction")
+            || !element.TryGetProperty("segmentFriction", out JsonElement frictionElement)
+            || !TryReadNonNegative(frictionElement, out friction))
+        {
+            errors.Add($"{field}.segmentFriction: must be a finite non-negative number.");
+            ok = false;
+        }
+
+        foreach (string key in keys)
+        {
+            if (key is not ("segments" or "segmentMass" or "segmentRadius" or "segmentFriction"))
+            {
+                errors.Add($"{field}: unknown property '{key}'.");
+                ok = false;
+            }
+        }
+
+        if (ok)
+        {
+            rope = new PartRope(segments, mass, radius, friction);
+        }
+
+        return ok;
     }
 
     /// <summary>

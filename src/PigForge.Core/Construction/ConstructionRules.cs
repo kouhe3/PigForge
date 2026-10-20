@@ -40,7 +40,11 @@ public enum ConstructionError
 
     /// <summary>The anchor cell of the part sits outside the level's own build grid
     /// (<c>LevelManager.CanPlacePartAtGridCell</c>, <c>LevelManager.cs:1280-1297</c>).</summary>
-    OutsideConstructionGrid = 18
+    OutsideConstructionGrid = 18,
+
+    /// <summary>A cut command's point reached no segment of any rope the player owns
+    /// (<c>Rope.FindInteractiveSegment</c> returns -1 outside its 0.5 m radius).</summary>
+    RopeNotAtPoint = 19
 }
 
 public readonly record struct ConstructionResult(EntityId Entity, ConstructionError Error)
@@ -196,6 +200,40 @@ public sealed class ConstructionRules
         }
 
         _allowanceByFamily = allowances;
+    }
+
+    /// <summary>The build-grid cell a world position rounds to (the same formula `Place` uses).</summary>
+    public (int X, int Y) CellOf(PhysicsVector3 position) => (
+        (int)MathF.Round((position.X - _gridOriginX) / CellSize),
+        (int)MathF.Round((position.Y - _gridOriginY) / CellSize));
+
+    /// <summary>
+    /// The placed part whose own cell is <paramref name="cellX"/>/<paramref name="cellY"/>, if any
+    /// (the dev harness and the rope's endpoint search need the original's `FindPartAt`). Ascending
+    /// entity order, so two runs answer the same part.
+    /// </summary>
+    public bool TryGetPlacedAtCell(int cellX, int cellY, out EntityId entity)
+    {
+        uint[] keys = _footprintByEntity.Keys.ToArray();
+        Array.Sort(keys);
+        foreach (uint value in keys)
+        {
+            EntityId candidate = new(value);
+            if (!_transforms.TryGet(candidate, out EntityTransform transform))
+            {
+                continue;
+            }
+
+            (int x, int y) = CellOf(transform.Position);
+            if (x == cellX && y == cellY)
+            {
+                entity = candidate;
+                return true;
+            }
+        }
+
+        entity = default;
+        return false;
     }
 
     /// <summary>Placed (player-built) entity ids, including frozen ones; level-authoring

@@ -4,7 +4,7 @@
   "id": "tnt-bench",
   "name": "TNT 台：点火与爆炸",
   "description": "木框右侧一枚 TNT。Start 后在开关条按 TNT 的按钮，观察引信与爆炸。",
-  "level": "terrain-v1.json",
+  "level": "bench-v1.json",
   "build": [
     { "partTypeId": 1, "x": 0, "y": -2.5 },
     { "partTypeId": 9, "x": 1, "y": -2.5 }

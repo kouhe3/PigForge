@@ -120,11 +120,18 @@ export function gadgetGroups(
 
   const groups = new Map<string, GadgetGroup>();
   for (const entity of entities) {
-    if (!ownEntityIds.has(entity.entityId) || entity.bodyId === 0) {
+    // A rope's segments borrow the host's part type; the host itself is the switch (`bodyId 0`
+    // in a running frame, docs/specs/rope.md §9).
+    if (entity.subEntity === true) {
       continue;
     }
 
     const part = partsById.get(entity.partTypeId);
+    if (!ownEntityIds.has(entity.entityId)
+      || (entity.bodyId === 0 && part?.capabilities?.rope === undefined)) {
+      continue;
+    }
+
     const kind = part?.capabilities?.activation;
     if (kind !== "toggle" && kind !== "trigger") {
       continue;

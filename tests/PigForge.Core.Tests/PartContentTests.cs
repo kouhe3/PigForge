@@ -69,6 +69,31 @@ public sealed class PartContentTests
     }
 
     /// <summary>
+    /// The rope's START materialization (`docs/specs/rope.md`): the four Rope skins (41, 214..216)
+    /// carry the extracted segment count/mass/radius/friction, the trigger button (the original's
+    /// cut button), and a one-cell build box. The link forces and break thresholds are class
+    /// constants in the rules layer, not content.
+    /// </summary>
+    [Fact]
+    public void TheRopeSkinsCarryTheirStartMaterialization()
+    {
+        PartContentLibrary library = PartContentLibrary.Load(FindRepositoryFile("content/parts.json"));
+
+        foreach (uint partTypeId in new uint[] { 41, 214, 215, 216 })
+        {
+            PartRope rope = library.GetPart(partTypeId).Capabilities!.Rope!;
+            Assert.Equal(8, rope.Segments);
+            Assert.Equal(0.05f, rope.SegmentMass, precision: 4);
+            Assert.Equal(0.09f, rope.SegmentRadius, precision: 4);
+            Assert.Equal(0f, rope.SegmentFriction, precision: 4);
+            Assert.Equal(PartActivation.Trigger, library.GetPart(partTypeId).Capabilities!.Activation);
+            PartDefinition part = library.GetPart(partTypeId);
+            Assert.Single(part.Shapes);
+            Assert.Equal(0.5f, part.Shapes[0].BoxHalfExtents![0], precision: 4);
+        }
+    }
+
+    /// <summary>
     /// The two families G91 left behind: `Pumpkin` (PartType 42, `Part_Pumpkin_01..02_SET`) and
     /// `GoldenPig` (PartType 45, `Part_GoldenPig_01..04_SET`). They needed bases of their own
     /// because the variant importer can only hang skins under an existing base; content bases 287

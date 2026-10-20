@@ -228,6 +228,20 @@ public sealed record PartSuspension(
     float RestOffset);
 
 /// <summary>
+/// The original rope's START materialization (`docs/specs/rope.md`): one placed part instantiates
+/// <paramref name="Segments"/> segment bodies, each a sphere of <paramref name="SegmentRadius"/> and
+/// <paramref name="SegmentMass"/>, on the segment prefab's own low-friction material. The link
+/// forces, rest lengths, break thresholds and the stretch response are <c>Rope.cs</c> class
+/// constants (the rules layer cites them); they do not vary per skin, so only the four values here
+/// are content. Extracted by <c>tools/bple-ropes</c>, never authored.
+/// </summary>
+public sealed record PartRope(
+    int Segments,
+    float SegmentMass,
+    float SegmentRadius,
+    float SegmentFriction);
+
+/// <summary>
 /// The original <c>Spring</c>'s own joint (Spring.cs:100-134): the part does not weld its
 /// neighbours, it holds them at their assembly distance with the one-axis soft limit of the
 /// <c>ConfigurableJoint</c> branch. That is the only branch the declaration defaults ever take:
@@ -395,7 +409,10 @@ public sealed record PartCapabilities(
     // The original's runtime damping ramp, a class fact of exactly the Pig class
     // (`Pig.FixedUpdate`, Pig.cs:249-262) extracted by `tools/bple-damping`. A body carrying one of
     // these parts folds the ramped value into its damping every tick.
-    PartDampingRamp? DampingRamp = null)
+    PartDampingRamp? DampingRamp = null,
+    // The placed rope's START materialization (`docs/specs/rope.md`, `Rope.cs:254-300`): the host
+    // spawns segment bodies instead of owning one. Extracted by `tools/bple-ropes`.
+    PartRope? Rope = null)
 {
     public bool HasMotor => MotorThrustPerTick is float thrust && thrust != 0f;
 
@@ -418,6 +435,8 @@ public sealed record PartCapabilities(
 
 
     public bool HasBellows => BellowsThrustPerTick is float thrust && thrust != 0f;
+
+    public bool HasRope => Rope is not null;
 
     public bool HasGrapple => GrappleImpulse is float impulse && impulse != 0f;
 

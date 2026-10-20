@@ -201,7 +201,7 @@ public sealed class CommandWireTests
         PlacePartCommand original = new(0, 1, 1, 1, 0f, 0f, 0f, 1f);
         byte[] buffer = new byte[CommandFrame.PlaceByteCount];
         Assert.True(CommandFrame.TryEncode(buffer, original, out _));
-        buffer[6] = (byte)ClientCommandKind.SetPartTypeActive + 1;
+        buffer[6] = (byte)ClientCommandKind.CutRope + 1;
         Assert.False(CommandFrame.TryDecode(buffer, out _, out string error));
         Assert.Contains("Unknown", error, StringComparison.Ordinal);
     }
@@ -253,6 +253,32 @@ public sealed class CommandWireTests
         badFlag[23] = 2;
         Assert.False(CommandFrame.TryDecode(badFlag, out _, out string error));
         Assert.Contains("active", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CutRopeRoundTripPreservesThePoint()
+    {
+        CutRopeCommand original = new(0, 9, 1, 1.5f, -2.25f);
+        byte[] buffer = new byte[CommandFrame.CutRopeByteCount];
+        Assert.True(CommandFrame.TryEncode(buffer, original, out int written));
+
+        Assert.Equal(27, written);
+        Assert.True(CommandFrame.TryDecode(buffer, out ReplayCommand? decoded, out string error), error);
+        CutRopeCommand command = Assert.IsType<CutRopeCommand>(decoded);
+        Assert.Equal(1.5f, command.X);
+        Assert.Equal(-2.25f, command.Y);
+    }
+
+    [Fact]
+    public void ACutRopeWithANonFinitePointIsRejected()
+    {
+        CutRopeCommand original = new(0, 1, 1, 0f, 0f);
+        byte[] buffer = new byte[CommandFrame.CutRopeByteCount];
+        Assert.True(CommandFrame.TryEncode(buffer, original, out _));
+        System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(19), float.NaN);
+
+        Assert.False(CommandFrame.TryDecode(buffer, out _, out string error));
+        Assert.Contains("finite", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

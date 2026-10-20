@@ -110,6 +110,8 @@ public sealed class GameRoom : IDisposable
     private readonly List<uint> _effectCandidates = new();
     private readonly List<CompoundSeam> _doomedSeams = new();
     private readonly List<(PhysicsJointId Joint, PhysicsBodyId Attach, PhysicsBodyId Anchor)> _attachmentJoints = new();
+    private readonly Dictionary<uint, RopeLink> _ropesByHost = new();
+    private readonly List<uint> _ropeHosts = new();
     private readonly Dictionary<uint, (PhysicsBodyId Body, PhysicsQuaternion LocalRotation)> _attachByEntity = new();
     private readonly List<LiveCompound> _liveCompounds = new();
     // The original's runtime damping ramps (`Pig.FixedUpdate`, Pig.cs:249-262): the bodies a part
@@ -418,6 +420,19 @@ public sealed class GameRoom : IDisposable
     /// <summary>Live runtime sub-entities (ADR-027): bodies a host part spawned, whose first
     /// consumer is the spring's endpoint rigid body. Diagnostic like <see cref="WeldJointCount"/>.</summary>
     public int SubEntityCount => _subEntityCount;
+
+    /// <summary>How many placed ropes the room materialized (test-visible).</summary>
+    internal int RopeCount => _ropesByHost.Count;
+
+    /// <summary>The cut link of one rope, or -1 (test-visible).</summary>
+    internal int RopeCutLink(EntityId host) => _rules.RopeCutLink(host);
+
+    /// <summary>Whether one rope's right end is hinged to another rope (test-visible).</summary>
+    internal bool HasRopeChainJoint(EntityId host) =>
+        _ropesByHost.TryGetValue(host.Value, out RopeLink? link) && link.RightJoint.IsValid;
+
+    /// <summary>The challenges' connectivity reading (test-visible; docs/specs/rope.md T5).</summary>
+    internal bool AreConnected(EntityId left, EntityId right) => _rules.AreConnected(left, right);
 
     /// <summary>Upper bound on the entity count of the next published frame. Sandbox
     /// frames also carry previews that have no physics body, so transports must size
@@ -781,6 +796,9 @@ public sealed class GameRoom : IDisposable
             case SetPartTypeActiveCommand activateType:
                 return SetPartTypeActive(activateType.PartTypeId, activateType.Active, owner: 0);
 
+            case CutRopeCommand cut:
+                return CutRope(cut.X, cut.Y, owner: 0);
+
             case StartSimulationCommand:
                 try
                 {
@@ -1025,7 +1043,7 @@ public sealed class GameRoom : IDisposable
             throw new InvalidOperationException("Only a building room can start simulation.");
         }
 
-        List<EntityId> entities = CollectPartEntities();
+        List<EntityId> entities = CollectAssemblyEntities();
         _retryLayout.Clear();
         _retryLayout.AddRange(CaptureLayout(_construction.PlacedEntities));
 
@@ -1050,6 +1068,7 @@ public sealed class GameRoom : IDisposable
         BindSpringJoints(assembly.Springs);
         BindAttachments();
         BindGloves();
+        MaterializeRopes(_construction.PlacedEntities);
 
         EnsureBuffers();
         Mode = RoomMode.Running;
@@ -1347,6 +1366,9 @@ public sealed class GameRoom : IDisposable
             case SetPartTypeActiveCommand activateType:
                 return SetPartTypeActive(activateType.PartTypeId, activateType.Active, activateType.PlayerId);
 
+            case CutRopeCommand cut:
+                return CutRope(cut.X, cut.Y, cut.PlayerId);
+
             case RemovePartCommand remove:
             {
                 EntityId entity = new(remove.EntityId);
@@ -1408,6 +1430,65 @@ public sealed class GameRoom : IDisposable
         return (CommandStatus.Accepted, ConstructionError.None, entityValue);
     }
 
+    /// <summary>
+    /// Cuts the owner's rope at the segment nearest a world point (`docs/specs/rope.md` §4.6b): the
+    /// original's `FindInteractiveSegment` radius is 0.5 m, the index clamps to the inner nodes, and
+    /// an already-cut rope is a no-op the way `Rope.OnTouch` is.
+    /// </summary>
+    private (CommandStatus Status, ConstructionError Error, uint EntityId) CutRope(float x, float y, uint owner)
+    {
+        if (_ropeHosts.Count == 0)
+        {
+            return (CommandStatus.RuleRejected, ConstructionError.RopeNotAtPoint, 0);
+        }
+
+        int snapshotCount = _world.CopySnapshots(_snapshotBuffer);
+        EntityId bestHost = default;
+        RopeLink? bestLink = null;
+        int bestIndex = -1;
+        float bestDistance = float.PositiveInfinity;
+        foreach (uint hostValue in _ropeHosts)
+        {
+            EntityId host = new(hostValue);
+            if (_construction.OwnerOf(host) != owner || !_ropesByHost.TryGetValue(hostValue, out RopeLink? link))
+            {
+                continue;
+            }
+
+            for (int index = 0; index < link.SegmentBodies.Length; index++)
+            {
+                if (!TryFindSnapshot(link.SegmentBodies[index], snapshotCount, out PhysicsBodySnapshot segment))
+                {
+                    continue;
+                }
+
+                float dx = segment.Position.X - x;
+                float dy = segment.Position.Y - y;
+                float distance = MathF.Sqrt((dx * dx) + (dy * dy));
+                if (distance <= 0.5f && distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestIndex = index;
+                    bestHost = host;
+                    bestLink = link;
+                }
+            }
+        }
+
+        if (bestIndex < 0 || bestLink is null)
+        {
+            return (CommandStatus.RuleRejected, ConstructionError.RopeNotAtPoint, 0);
+        }
+
+        if (_rules.IsRopeCut(bestHost))
+        {
+            return (CommandStatus.Accepted, ConstructionError.None, bestHost.Value);
+        }
+
+        _rules.CutRope(bestHost, Math.Clamp(bestIndex, 2, bestLink.SegmentBodies.Length - 2));
+        return (CommandStatus.Accepted, ConstructionError.None, bestHost.Value);
+    }
+
     /// <summary>Sets the switch for every part of one type the owner has placed, ascending.</summary>
     private (CommandStatus Status, ConstructionError Error, uint EntityId) SetPartTypeActive(uint partTypeId, bool active, uint owner)
     {
@@ -1454,7 +1535,12 @@ public sealed class GameRoom : IDisposable
         List<EntityId> entities = new(owned.Count);
         foreach (uint entityValue in owned)
         {
-            entities.Add(new EntityId(entityValue));
+            EntityId entity = new(entityValue);
+            // A rope host has no body: its segments and endpoint joints are materialized below.
+            if (!IsRopeHost(entity))
+            {
+                entities.Add(entity);
+            }
         }
 
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
@@ -1468,6 +1554,7 @@ public sealed class GameRoom : IDisposable
         BindSpringJoints(assembly.Springs);
         BindAttachments();
         BindGloves();
+        MaterializeRopes(owned);
 
         _sandboxPlayers.MarkMaterialized(playerId);
         EnsureBuffers();
@@ -1578,7 +1665,7 @@ public sealed class GameRoom : IDisposable
     {
         SyncEngineEnclosure();
         SyncChassisAnchors();
-        List<EntityId> entities = CollectPartEntities();
+        List<EntityId> entities = CollectAssemblyEntities();
         CompoundAssembly assembly = CompoundAssembler.Assemble(entities, _construction, _content, _seamBreakImpulse);
         foreach (CompoundCluster cluster in assembly.Clusters)
         {
@@ -1590,9 +1677,385 @@ public sealed class GameRoom : IDisposable
         BindSpringJoints(assembly.Springs);
         BindAttachments();
         BindGloves();
+        MaterializeRopes(_construction.PlacedEntities);
 
         EnsureBuffers();
         Mode = RoomMode.Running;
+    }
+
+    // ------------------------------------------------------------------ ropes
+    // A rope host owns no body (`docs/specs/rope.md` §4.1): START spawns its segments as runtime
+    // sub-entities, hinges the two end segments to the neighbouring parts, and hands the chain to the
+    // rules layer. The host stays in ConstructionRules (its cell, owner and commands) and is left out
+    // of the compound assembly.
+
+    private bool IsRopeHost(EntityId entity) =>
+        _parts.TryGet(entity, out PartLink link) && _content.GetPart(link.PartTypeId).Capabilities?.Rope is not null;
+
+    /// <summary>Placed parts that assemble into bodies: every construction part except a rope host.</summary>
+    private List<EntityId> CollectAssemblyEntities()
+    {
+        List<EntityId> entities = new();
+        var parts = _parts.GetEnumerator();
+        while (parts.MoveNext())
+        {
+            if (!IsRopeHost(parts.CurrentId))
+            {
+                entities.Add(parts.CurrentId);
+            }
+        }
+
+        entities.Sort((left, right) => left.Value.CompareTo(right.Value));
+        return entities;
+    }
+
+    /// <summary>
+    /// Materializes every placed rope in <paramref name="placed"/>: segments first (ascending host),
+    /// then the rope-to-rope hinges (a joint between one rope's last segment and the next rope's
+    /// first). Endpoint joints to non-rope parts are made in the first pass.
+    /// </summary>
+    private void MaterializeRopes(IEnumerable<uint> placed)
+    {
+        _ropeHosts.Clear();
+        foreach (uint entityValue in placed)
+        {
+            if (IsRopeHost(new EntityId(entityValue)))
+            {
+                _ropeHosts.Add(entityValue);
+            }
+        }
+
+        if (_ropeHosts.Count == 0)
+        {
+            return;
+        }
+
+        _ropeHosts.Sort();
+        foreach (uint hostValue in _ropeHosts)
+        {
+            CreateRope(new EntityId(hostValue));
+        }
+
+        foreach (uint hostValue in _ropeHosts)
+        {
+            RopeLink link = _ropesByHost[hostValue];
+            if (link.RightRopeHost is EntityId right
+                && right.Value > hostValue
+                && _ropesByHost.TryGetValue(right.Value, out RopeLink? next)
+                && _bodyPose.TryGetValue(link.SegmentBodies[^1].Value, out var a)
+                && _bodyPose.TryGetValue(next.SegmentBodies[0].Value, out var b))
+            {
+                link.RightJoint = CreateRopeJoint(
+                    link.SegmentBodies[^1], a.Position, a.Rotation,
+                    next.SegmentBodies[0], b.Position, b.Rotation,
+                    a.Position);
+                // Connectivity: the two ropes are one link for `AreConnected` (T5).
+                link.RightAnchor = next.SegmentBodies[0];
+                next.LeftAnchor = link.SegmentBodies[^1];
+                _rules.SetRopeAnchors(link.Host, link.LeftAnchor, link.RightAnchor);
+                _rules.SetRopeAnchors(next.Host, next.LeftAnchor, next.RightAnchor);
+            }
+        }
+
+        EnsureBuffers();
+    }
+
+    private void CreateRope(EntityId host)
+    {
+        if (!_parts.TryGet(host, out PartLink partLink)
+            || !_transforms.TryGet(host, out EntityTransform transform)
+            || _content.GetPart(partLink.PartTypeId).Capabilities?.Rope is not PartRope rope)
+        {
+            return;
+        }
+
+        PhysicsVector3 localRight = transform.Rotation.Rotate(new PhysicsVector3(1f, 0f, 0f));
+        (EntityId? left, EntityId? right) = FindRopeEnds(host, localRight, transform.Position);
+        int count = rope.Segments;
+        const float zigzag = 74.4f * MathF.PI / 180f;
+        PhysicsVector3 position = transform.Position - (localRight * 0.5f);
+        float angle = -zigzag;
+        EntityId[] segmentEntities = new EntityId[count];
+        PhysicsBodyId[] segmentBodies = new PhysicsBodyId[count];
+        PhysicsVector3[] positions = new PhysicsVector3[count];
+        PhysicsQuaternion[] rotations = new PhysicsQuaternion[count];
+        for (int index = 0; index < count; index++)
+        {
+            // The original snaps the last segment to the right cell when that neighbour is not a
+            // rope (`Rope.cs:274-277`); at a rope-to-rope joint it moves the node onto the next
+            // rope's first segment (`Rope.cs:130-134`), which is the next host's left endpoint.
+            if (index == count - 1 && right is EntityId end)
+            {
+                if (!IsRopeHost(end))
+                {
+                    position = transform.Position + (localRight * 0.5f);
+                }
+                else if (_transforms.TryGet(end, out EntityTransform nextTransform))
+                {
+                    PhysicsVector3 nextRight = nextTransform.Rotation.Rotate(new PhysicsVector3(1f, 0f, 0f));
+                    position = nextTransform.Position - (nextRight * 0.5f);
+                }
+            }
+
+            PhysicsQuaternion rotation = transform.Rotation * PhysicsQuaternion.FromZAngle(angle);
+            BodyDefinition definition = new(
+                PhysicsBodyMode.Dynamic,
+                position,
+                rotation,
+                rope.SegmentMass,
+                [new SphereShapeDefinition(rope.SegmentRadius)],
+                material: new PhysicsMaterial(0f, rope.SegmentFriction, FrictionCombine.Average),
+                constraints: PlanarConstraintMask,
+                linearDamping: 0.5f,
+                angularDamping: 0.5f,
+                maximumAngularSpeed: _content.MaximumAngularSpeed);
+            SubEntity segment = CreateSubEntity(host, partLink.PartTypeId, definition, spring: null);
+            // The rules layer drops impulses aimed at bodies it does not know as dynamic; a segment
+            // is a single-member body, so its own link is all it needs.
+            _rules.LinkBody(segment.Entity, segment.Body);
+            // Vanilla `CollidableRope` is off: the segment prefab's layer 15 collides with nothing.
+            _world.SetBodyCollisionEnabled(segment.Body, false);
+            segmentEntities[index] = segment.Entity;
+            segmentBodies[index] = segment.Body;
+            positions[index] = position;
+            rotations[index] = rotation;
+            position += rotation.Rotate(new PhysicsVector3(1f, 0f, 0f)) * 0.5f;
+            angle = index % 2 != 0 ? -zigzag : zigzag;
+        }
+
+        PhysicsBodyId leftPull = default;
+        PhysicsBodyId rightPull = default;
+        PhysicsJointId leftJoint = default;
+        PhysicsJointId rightJoint = default;
+        if (left is EntityId leftEntity && !IsRopeHost(leftEntity)
+            && _bodies.TryGet(leftEntity, out PhysicsBodyLink leftLink)
+            && _bodyPose.TryGetValue(leftLink.Body.Value, out var leftPose))
+        {
+            leftPull = leftLink.Body;
+            leftJoint = CreateRopeJoint(
+                leftLink.Body, leftPose.Position, leftPose.Rotation,
+                segmentBodies[0], positions[0], rotations[0],
+                positions[0]);
+        }
+
+        if (right is EntityId rightEntity && !IsRopeHost(rightEntity)
+            && _bodies.TryGet(rightEntity, out PhysicsBodyLink rightLink)
+            && _bodyPose.TryGetValue(rightLink.Body.Value, out var rightPose))
+        {
+            rightPull = rightLink.Body;
+            rightJoint = CreateRopeJoint(
+                segmentBodies[^1], positions[^1], rotations[^1],
+                rightLink.Body, rightPose.Position, rightPose.Rotation,
+                positions[^1]);
+        }
+
+        RopeLink link = new()
+        {
+            Host = host,
+            PartTypeId = partLink.PartTypeId,
+            SegmentEntities = segmentEntities,
+            SegmentBodies = segmentBodies,
+            LeftEntity = left is EntityId && !IsRopeHost(left.Value) ? left : null,
+            RightEntity = right is EntityId && !IsRopeHost(right.Value) ? right : null,
+            RightRopeHost = right is EntityId candidate && IsRopeHost(candidate) ? candidate : null,
+            LeftAnchor = leftPull,
+            RightAnchor = rightPull,
+            LeftJoint = leftJoint,
+            RightJoint = rightJoint,
+        };
+        _ropesByHost[host.Value] = link;
+        _rules.AddRope(host, segmentBodies, leftPull, rightPull);
+    }
+
+    /// <summary>
+    /// The rope's two neighbours: the same kinds the original accepts at `Contraption.cs:2499-2525`
+    /// (a rope, a frame, a kicker), picked by their position along the part's own right axis.
+    /// </summary>
+    private (EntityId? Left, EntityId? Right) FindRopeEnds(EntityId host, PhysicsVector3 localRight, PhysicsVector3 position)
+    {
+        EntityId? left = null;
+        EntityId? right = null;
+        float min = float.PositiveInfinity;
+        float max = float.NegativeInfinity;
+        foreach (uint neighbourValue in _construction.ConnectionsOf(host))
+        {
+            EntityId neighbour = new(neighbourValue);
+            if (!_parts.TryGet(neighbour, out PartLink link))
+            {
+                continue;
+            }
+
+            PartCapabilities? capabilities = _content.GetPart(link.PartTypeId).Capabilities;
+            bool rope = capabilities?.Rope is not null;
+            if (!rope && capabilities?.CanEnclose != true && capabilities?.IsDetacher != true)
+            {
+                continue;
+            }
+
+            if (!_transforms.TryGet(neighbour, out EntityTransform transform))
+            {
+                continue;
+            }
+
+            float along = PhysicsVector3.Dot(transform.Position - position, localRight);
+            if (along < min)
+            {
+                min = along;
+                left = neighbour;
+            }
+
+            if (along > max)
+            {
+                max = along;
+                right = neighbour;
+            }
+        }
+
+        if (left is EntityId only && right is EntityId same && only == same)
+        {
+            if (min <= 0f)
+            {
+                right = null;
+            }
+            else
+            {
+                left = null;
+            }
+        }
+
+        // Ropes are `target` parts, so two ropes side by side have no construction connection; the
+        // original finds its left/right parts by grid cell (`Contraption.FindPartAt`). Only an
+        // axis-aligned rope takes this path (a rotated rope keeps the connection lookup).
+        (int cellX, int cellY) = _construction.CellOf(position);
+        bool horizontal = MathF.Abs(localRight.X) >= MathF.Abs(localRight.Y);
+        int stepX = horizontal ? (localRight.X >= 0f ? 1 : -1) : 0;
+        int stepY = horizontal ? 0 : (localRight.Y >= 0f ? 1 : -1);
+        if (left is null && TryRopeNeighbourAt(cellX - stepX, cellY - stepY, host, out EntityId leftCell))
+        {
+            left = leftCell;
+        }
+
+        if (right is null && TryRopeNeighbourAt(cellX + stepX, cellY + stepY, host, out EntityId rightCell))
+        {
+            right = rightCell;
+        }
+
+        return (left, right);
+    }
+
+    /// <summary>Whether the cell holds a rope/frame/kicker the rope can hinge to (`Contraption.cs:2499-2525`).</summary>
+    private bool TryRopeNeighbourAt(int cellX, int cellY, EntityId host, out EntityId entity)
+    {
+        entity = default;
+        if (!_construction.TryGetPlacedAtCell(cellX, cellY, out EntityId candidate) || candidate == host
+            || !_parts.TryGet(candidate, out PartLink link))
+        {
+            return false;
+        }
+
+        PartCapabilities? capabilities = _content.GetPart(link.PartTypeId).Capabilities;
+        bool accepted = capabilities?.Rope is not null || capabilities?.CanEnclose == true || capabilities?.IsDetacher == true;
+        if (accepted)
+        {
+            entity = candidate;
+        }
+
+        return accepted;
+    }
+
+    /// <summary>
+    /// One revolute joint (the original's `HingeJoint axis = forward`, `Rope.cs:233-242`) whose
+    /// anchors coincide at <paramref name="anchor"/>; `breakForce`/`breakTorque` 0 is unbreakable.
+    /// </summary>
+    private PhysicsJointId CreateRopeJoint(
+        PhysicsBodyId a,
+        PhysicsVector3 aPosition,
+        PhysicsQuaternion aRotation,
+        PhysicsBodyId b,
+        PhysicsVector3 bPosition,
+        PhysicsQuaternion bRotation,
+        PhysicsVector3 anchor)
+    {
+        PhysicsVector3 forward = new(0f, 0f, 1f);
+        JointDefinition definition = new(
+            PhysicsJointKind.Revolute,
+            a,
+            b,
+            PhysicsConstraintMask.None,
+            breakForce: 0f,
+            breakTorque: 0f,
+            localAnchorA: aRotation.Inverse.Rotate(anchor - aPosition),
+            localAnchorB: bRotation.Inverse.Rotate(anchor - bPosition),
+            localAxisA: aRotation.Inverse.Rotate(forward),
+            localAxisB: bRotation.Inverse.Rotate(forward));
+        return _world.CreateJoint(definition);
+    }
+
+    /// <summary>
+    /// Recreates every rope's endpoint joints after a chassis rebuild destroyed the bodies they
+    /// were made to (a seam split, a weld break, a detach). Segment bodies persist; the neighbour
+    /// and segment poses are read from the world's current snapshots.
+    /// </summary>
+    private void RebindRopeJoints()
+    {
+        if (_ropesByHost.Count == 0)
+        {
+            return;
+        }
+
+        int snapshotCount = _world.CopySnapshots(_snapshotBuffer);
+        foreach (uint hostValue in _ropeHosts)
+        {
+            if (!_ropesByHost.TryGetValue(hostValue, out RopeLink? link))
+            {
+                continue;
+            }
+
+            if (link.LeftJoint.IsValid)
+            {
+                _world.DestroyJoint(link.LeftJoint);
+                link.LeftJoint = default;
+            }
+
+            if (link.RightJoint.IsValid)
+            {
+                _world.DestroyJoint(link.RightJoint);
+                link.RightJoint = default;
+            }
+
+            if (link.LeftEntity is EntityId left
+                && _bodies.TryGet(left, out PhysicsBodyLink leftLink)
+                && TryFindSnapshot(leftLink.Body, snapshotCount, out PhysicsBodySnapshot leftPart)
+                && TryFindSnapshot(link.SegmentBodies[0], snapshotCount, out PhysicsBodySnapshot segment))
+            {
+                link.LeftJoint = CreateRopeJoint(
+                    leftLink.Body, leftPart.Position, leftPart.Rotation,
+                    link.SegmentBodies[0], segment.Position, segment.Rotation,
+                    segment.Position);
+            }
+
+            if (link.RightEntity is EntityId right
+                && _bodies.TryGet(right, out PhysicsBodyLink rightLink)
+                && TryFindSnapshot(link.SegmentBodies[^1], snapshotCount, out PhysicsBodySnapshot tail)
+                && TryFindSnapshot(rightLink.Body, snapshotCount, out PhysicsBodySnapshot rightPart))
+            {
+                link.RightJoint = CreateRopeJoint(
+                    link.SegmentBodies[^1], tail.Position, tail.Rotation,
+                    rightLink.Body, rightPart.Position, rightPart.Rotation,
+                    tail.Position);
+            }
+
+            if (link.RightRopeHost is EntityId nextHost
+                && _ropesByHost.TryGetValue(nextHost.Value, out RopeLink? next)
+                && TryFindSnapshot(link.SegmentBodies[^1], snapshotCount, out PhysicsBodySnapshot a)
+                && TryFindSnapshot(next.SegmentBodies[0], snapshotCount, out PhysicsBodySnapshot b))
+            {
+                link.RightJoint = CreateRopeJoint(
+                    link.SegmentBodies[^1], a.Position, a.Rotation,
+                    next.SegmentBodies[0], b.Position, b.Rotation,
+                    a.Position);
+            }
+        }
     }
 
     private List<EntityId> CollectPartEntities()
@@ -1859,6 +2322,15 @@ public sealed class GameRoom : IDisposable
     /// </summary>
     private void ApplyDampingOverrides()
     {
+        for (int index = 0; index < _output.BodyDampingOverrides.Count; index++)
+        {
+            BodyDampingOverride overridden = _output.BodyDampingOverrides[index];
+            if (overridden.Body.IsValid)
+            {
+                _world.SetBodyDamping(overridden.Body, overridden.Linear, overridden.Angular);
+            }
+        }
+
         _dampingOverrides.Clear();
         _rampedBodies.Clear();
         for (int index = 0; index < _output.DampingOverrides.Count; index++)
@@ -1953,9 +2425,10 @@ public sealed class GameRoom : IDisposable
             return TryPublishBuildingSnapshot(destination, out bytesWritten);
         }
 
+        FillEntityOrder();
         if (!SnapshotFrame.TryEncodeHeader(
                 destination,
-                new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, CurrentTick, (byte)Phase, (uint)_bodyByEntity.Count),
+                new SnapshotFrameHeader(SnapshotFrame.CurrentVersion, CurrentTick, (byte)Phase, (uint)_entityOrder.Count),
                 out SnapshotFrameWriter writer))
         {
             bytesWritten = 0;
@@ -1963,30 +2436,58 @@ public sealed class GameRoom : IDisposable
         }
 
         int count = _world.CopySnapshots(_snapshotBuffer);
-        FillEntityOrder();
         for (int index = 0; index < _entityOrder.Count; index++)
         {
             uint entityValue = _entityOrder[index];
-            PhysicsBodyId body = _bodyByEntity[entityValue];
-            if (!TryFindSnapshot(body, count, out PhysicsBodySnapshot snapshot)
-                || !_parts.TryGet(new EntityId(entityValue), out PartLink part))
+            EntityId entity = new(entityValue);
+            if (!_parts.TryGet(entity, out PartLink part))
             {
                 bytesWritten = 0;
                 return false;
             }
 
-            (PhysicsVector3 position, PhysicsQuaternion rotation) = WorldPose(entityValue, snapshot);
+            // A rope host has no body (`bodyId 0`): it is published at its build transform for the
+            // switch bar, and a running frame's client does not draw a bodyId 0 entry.
+            PhysicsBodyId body = _bodyByEntity.TryGetValue(entityValue, out PhysicsBodyId bodyId) ? bodyId : default;
+            PhysicsVector3 position;
+            PhysicsQuaternion rotation;
+            ReplayVector3 linearVelocity = default;
+            ReplayVector3 angularVelocity = default;
+            if (body.IsValid)
+            {
+                if (!TryFindSnapshot(body, count, out PhysicsBodySnapshot snapshot))
+                {
+                    bytesWritten = 0;
+                    return false;
+                }
+
+                (position, rotation) = WorldPose(entityValue, snapshot);
+                linearVelocity = ToReplay(snapshot.LinearVelocity);
+                angularVelocity = ToReplay(snapshot.AngularVelocity);
+            }
+            else
+            {
+                if (!_transforms.TryGet(entity, out EntityTransform transform))
+                {
+                    bytesWritten = 0;
+                    return false;
+                }
+
+                position = transform.Position;
+                rotation = transform.Rotation;
+            }
+
             if (!writer.WriteEntity(new SnapshotEntity(
                     entityValue,
-                    snapshot.Body.Value,
+                    body.Value,
                     part.PartTypeId,
                     ToReplay(position),
                     ToReplay(rotation),
-                    ToReplay(snapshot.LinearVelocity),
-                    ToReplay(snapshot.AngularVelocity),
-                    _transforms.TryGet(new EntityId(entityValue), out EntityTransform transform) ? transform.Scale : 1f,
-                    AttachYawOf(entityValue, rotation, count),
-                    SnapshotFlags(new EntityId(entityValue)))))
+                    linearVelocity,
+                    angularVelocity,
+                    _transforms.TryGet(entity, out EntityTransform scaleTransform) ? scaleTransform.Scale : 1f,
+                    body.IsValid ? AttachYawOf(entityValue, rotation, count) : YawOf(rotation),
+                    SnapshotFlags(entity))))
             {
                 bytesWritten = 0;
                 return false;
@@ -2884,6 +3385,8 @@ public sealed class GameRoom : IDisposable
                 }
             }
         }
+
+        RebindRopeJoints();
     }
 
     /// <summary>
@@ -3928,6 +4431,12 @@ public sealed class GameRoom : IDisposable
         {
             DestroySubEntity(sub);
         }
+
+        if (_ropesByHost.Remove(hostValue, out RopeLink? rope))
+        {
+            _ropeHosts.Remove(hostValue);
+            _rules.RemoveRope(rope.Host);
+        }
     }
 
     /// <summary>Destroys one sub-entity: its joint first, then its body, then its entity id and the
@@ -4010,6 +4519,9 @@ public sealed class GameRoom : IDisposable
         _subEntityCount = 0;
         _glovesByHost.Clear();
         _gloveHosts.Clear();
+        _ropesByHost.Clear();
+        _ropeHosts.Clear();
+        _rules.ClearRopes();
     }
 
     /// <summary>
@@ -4216,6 +4728,14 @@ public sealed class GameRoom : IDisposable
             }
         }
 
+        // A rope host owns no body but must still be published: its trigger button lives in the
+        // switch bar, and the client keeps a running frame's bodyId 0 entries without drawing them
+        // (docs/specs/rope.md §4.1/§9).
+        foreach (uint hostValue in _ropeHosts)
+        {
+            _entityOrder.Add(hostValue);
+        }
+
         _entityOrder.Sort();
     }
 
@@ -4290,6 +4810,36 @@ public sealed class GameRoom : IDisposable
     /// uses the same record (<see cref="Glove"/>), and the payload says which joint the sub-entity
     /// needs.
     /// </summary>
+    /// <summary>
+    /// One placed rope's runtime link (`docs/specs/rope.md`): the segment entities/bodies the host
+    /// materialized, the two non-rope neighbours its ends hinge to, and the joints to recreate when
+    /// a chassis rebuild destroys their bodies.
+    /// </summary>
+    private sealed class RopeLink
+    {
+        public required EntityId Host { get; init; }
+
+        public required uint PartTypeId { get; init; }
+
+        public required EntityId[] SegmentEntities { get; init; }
+
+        public required PhysicsBodyId[] SegmentBodies { get; init; }
+
+        public EntityId? LeftEntity { get; init; }
+
+        public EntityId? RightEntity { get; init; }
+
+        public EntityId? RightRopeHost { get; init; }
+
+        public PhysicsBodyId LeftAnchor { get; set; }
+
+        public PhysicsBodyId RightAnchor { get; set; }
+
+        public PhysicsJointId LeftJoint { get; set; }
+
+        public PhysicsJointId RightJoint { get; set; }
+    }
+
     private sealed class SubEntity
     {
         public EntityId Entity { get; init; }

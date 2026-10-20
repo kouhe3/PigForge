@@ -13,6 +13,7 @@ const content: PartContentDocument = {
     { partTypeId: 8, name: "engine", mode: "dynamic", mass: 1, capabilities: { motor: { thrustPerTick: 2, directionX: 1 }, activation: "toggle" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
     { partTypeId: 13, name: "rocket", mode: "dynamic", mass: 1, capabilities: { rocket: { thrustPerTick: 4, directionX: 1, ignitionTicks: 0, boostTicks: 30, endTicks: 0, maxSpeed: 18 }, activation: "trigger" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
     { partTypeId: 47, name: "tnt-nitro", variantOf: 9, variantName: "Nitro TNT", mode: "dynamic", mass: 1, capabilities: { tnt: { fuseTicks: 5 }, activation: "trigger" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
+    { partTypeId: 41, name: "rope", mode: "dynamic", mass: 1, capabilities: { rope: { segments: 8, segmentMass: 0.05, segmentRadius: 0.09, segmentFriction: 0 }, activation: "trigger" }, shapes: [{ kind: "box", halfExtents: [0.5, 0.5, 0.5] }] },
   ],
 };
 
@@ -37,6 +38,16 @@ describe("gadgetGroups", () => {
       { partTypeId: 8, kind: "toggle", label: "发动机 ▶", count: 2, active: true, hotkey: "1", direction: 0, entityIds: [1, 2] },
       { partTypeId: 13, kind: "trigger", label: "火箭 ▶", count: 1, active: false, hotkey: "2", direction: 0, entityIds: [3] },
     ]);
+  });
+
+  it("lists a bodyless rope host but never its segments or previews", () => {
+    const host = { ...entity(1, 41, false, 0), subEntity: false };
+    const segments = [2, 3, 4].map((id) => ({ ...entity(id, 41, false), subEntity: true }));
+    const preview = { ...entity(5, 8, false, 0), subEntity: false };
+    const groups = gadgetGroups([host, ...segments, preview], new Set([1, 2, 3, 4, 5]), content);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ partTypeId: 41, kind: "trigger", entityIds: [1] });
   });
 
   it("splits one part type into a group per effect direction", () => {

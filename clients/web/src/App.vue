@@ -379,8 +379,31 @@ function toggleGadget(group: GadgetGroup): void {
   }
 }
 
+/**
+ * PGFC kind 10: a tap on a rope segment cuts the player's rope at the nearest segment to that
+ * point (the original's world-touch path, docs/specs/rope.md §4.6b). The server resolves the rope
+ * and clamps the index, so the client only has to recognise a segment.
+ */
+function cutRopeFromCanvas(entityId: number): boolean {
+  const entity = viewState.entities.find((entry) => entry.entityId === entityId);
+  if (entity === undefined || entity.subEntity !== true) {
+    return false;
+  }
+
+  if (partById.value.get(entity.partTypeId)?.capabilities?.rope === undefined) {
+    return false;
+  }
+
+  dispatch((sequence) => ({ kind: 10, sequence, playerId: 0, tick: 0, x: entity.x, y: entity.y }), 10);
+  return true;
+}
+
 /** PGFC kind 8: in play mode a tap on an own switchable part flips its switch. */
 function togglePartFromCanvas(entityId: number): void {
+  if (cutRopeFromCanvas(entityId)) {
+    return;
+  }
+
   if (!canSwitch.value || !uiOwnEntityIds.value.has(entityId)) {
     return;
   }
@@ -455,6 +478,7 @@ function paint(now: number): void {
       ? { props: level.props, set: levelProps.value, parallaxFrom: parallaxFrom.value, collected: collectedProps.value }
       : null,
     level?.build ?? null,
+    activeTab.value === "live" ? session.livePhase : undefined,
   );
   raf = requestAnimationFrame(paint);
 }

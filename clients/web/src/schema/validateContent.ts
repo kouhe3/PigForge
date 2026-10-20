@@ -274,6 +274,16 @@ function validateCapabilities(partTypeId: number, capabilities: unknown, errors:
       errors.push(`Part ${partTypeId} capabilities.dampingRamp needs a positive speedThreshold and a finite non-negative base and slope.`);
     }
   }
+  if (value.rope !== undefined) {
+    const rope = value.rope as { segments?: unknown; segmentMass?: unknown; segmentRadius?: unknown; segmentFriction?: unknown } | null;
+    if (typeof rope !== "object" || rope === null
+      || typeof rope.segments !== "number" || !Number.isInteger(rope.segments) || rope.segments < 1 || rope.segments > 64
+      || typeof rope.segmentMass !== "number" || !Number.isFinite(rope.segmentMass) || rope.segmentMass <= 0
+      || typeof rope.segmentRadius !== "number" || !Number.isFinite(rope.segmentRadius) || rope.segmentRadius <= 0
+      || typeof rope.segmentFriction !== "number" || !Number.isFinite(rope.segmentFriction) || rope.segmentFriction < 0) {
+      errors.push(`Part ${partTypeId} capabilities.rope needs an integer segments in [1, 64], a positive segmentMass and segmentRadius, and a non-negative segmentFriction.`);
+    }
+  }
   if (value.spring !== undefined) {
     if (!isSpring(value.spring)) {
       errors.push(`Part ${partTypeId} capabilities.spring must be { stiffness, damper, limit, bounciness, breakForce }, with a positive stiffness/breakForce and non-negative damper/limit/bounciness.`);

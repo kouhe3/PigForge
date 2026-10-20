@@ -26,6 +26,8 @@ public static class CommandFrame
     // SetPartActive/SetPartTypeActive payload is id:u32 @19 + active:u8 @23 (24 total).
     public static int SetPartActiveByteCount => HeaderByteCount + 5;
     public static int SetPartTypeActiveByteCount => HeaderByteCount + 5;
+    // CutRope payload is x:f32 @19 + y:f32 @23 (v4, docs/specs/rope.md §4.6b).
+    public static int CutRopeByteCount => HeaderByteCount + 8;
 
     public static bool TryEncode(Span<byte> destination, ReplayCommand command, out int written)
     {
@@ -40,6 +42,7 @@ public static class CommandFrame
             StartSimulationCommand or RetryCommand => StartByteCount,
             SetPartActiveCommand => SetPartActiveByteCount,
             SetPartTypeActiveCommand => SetPartTypeActiveByteCount,
+            CutRopeCommand => CutRopeByteCount,
             _ => 0
         };
         if (size == 0 || destination.Length < size)
@@ -92,6 +95,10 @@ public static class CommandFrame
                 BinaryPrimitives.WriteUInt32LittleEndian(destination[19..], setTypeActive.PartTypeId);
                 destination[23] = setTypeActive.Active ? (byte)1 : (byte)0;
                 break;
+            case CutRopeCommand cut:
+                BinaryPrimitives.WriteSingleLittleEndian(destination[19..], cut.X);
+                BinaryPrimitives.WriteSingleLittleEndian(destination[23..], cut.Y);
+                break;
         }
 
         written = size;
@@ -126,7 +133,7 @@ public static class CommandFrame
             return false;
         }
 
-        if (kindByte > (byte)ClientCommandKind.SetPartTypeActive)
+        if (kindByte > (byte)ClientCommandKind.CutRope)
         {
             error = "Unknown command kind.";
             return false;
@@ -284,6 +291,25 @@ public static class CommandFrame
                 }
 
                 command = new SetPartTypeActiveCommand(tick, sequence, playerId, partTypeId, activeByte == 1);
+                return true;
+            }
+            case ClientCommandKind.CutRope:
+            {
+                if (source.Length < CutRopeByteCount)
+                {
+                    error = "CutRope payload is truncated.";
+                    return false;
+                }
+
+                float x = BinaryPrimitives.ReadSingleLittleEndian(source[19..]);
+                float y = BinaryPrimitives.ReadSingleLittleEndian(source[23..]);
+                if (!float.IsFinite(x) || !float.IsFinite(y))
+                {
+                    error = "CutRopeCommand has a non-finite point.";
+                    return false;
+                }
+
+                command = new CutRopeCommand(tick, sequence, playerId, x, y);
                 return true;
             }
             case ClientCommandKind.StartSimulation:

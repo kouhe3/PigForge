@@ -748,11 +748,11 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target" },
+      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "activation": "trigger", "rope": {"segments":8,"segmentMass":0.05,"segmentRadius":0.09,"segmentFriction":0} },
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.5, 0.06, 0.06]
+          "halfExtents": [0.5, 0.5, 0.5]
         }
       ]
     },
@@ -3828,11 +3828,11 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target" },
+      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "activation": "trigger", "rope": {"segments":8,"segmentMass":0.05,"segmentRadius":0.09,"segmentFriction":0} },
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.5, 0.06, 0.06]
+          "halfExtents": [0.5, 0.5, 0.5]
         }
       ]
     },
@@ -3843,11 +3843,11 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target" },
+      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "activation": "trigger", "rope": {"segments":8,"segmentMass":0.05,"segmentRadius":0.09,"segmentFriction":0} },
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.5, 0.06, 0.06]
+          "halfExtents": [0.5, 0.5, 0.5]
         }
       ]
     },
@@ -3858,11 +3858,11 @@
       "mode": "dynamic",
       "mass": 0.3,
       "material": { "restitution": 0, "friction": 0.6 },
-      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target" },
+      "capabilities": { "jointConnectionDirection": "none", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "target", "activation": "trigger", "rope": {"segments":8,"segmentMass":0.05,"segmentRadius":0.09,"segmentFriction":0} },
       "shapes": [
         {
           "kind": "box",
-          "halfExtents": [1.5, 0.06, 0.06]
+          "halfExtents": [0.5, 0.5, 0.5]
         }
       ]
     },

@@ -355,6 +355,10 @@
           "description": "Elastic wheel attachment: the original's own joint for a wheel that overrides CustomConnectToPart declares its local Y as a Limited axis held at restOffset by a linear-limit spring (OffRoadWheel.cs:202-220). Extracted by tools/bple-springs, never authored; parts without it keep the rigid axle weld.",
           "$ref": "#/$defs/suspensionCapability"
         },
+        "rope": {
+          "description": "A placed rope's START materialization (docs/specs/rope.md): one part spawns this many segment bodies, each a sphere of segmentRadius with segmentMass and the segment material's friction. The link forces, rest lengths, break thresholds and the stretch response are Rope.cs class constants, not content. Extracted by tools/bple-ropes, never authored.",
+          "$ref": "#/$defs/ropeCapability"
+        },
         "powerConsumption": {
           "description": "Original BasePart.m_powerConsumption (BasePart.cs:162): > 0 makes the part a consumer. While its switch is on it adds this to its cluster's consumption, the denominator of the power factor (Contraption.cs:540-556, :2633-2644). Extracted by tools/bple-power, never authored.",
           "type": "number",
@@ -432,6 +436,17 @@
           "type": "number",
           "minimum": 0
         }
+      }
+    },
+    "ropeCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["segments", "segmentMass", "segmentRadius", "segmentFriction"],
+      "properties": {
+        "segments": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "segmentMass": { "type": "number", "exclusiveMinimum": 0 },
+        "segmentRadius": { "type": "number", "exclusiveMinimum": 0 },
+        "segmentFriction": { "type": "number", "minimum": 0 }
       }
     },
     "suspensionCapability": {

@@ -196,6 +196,12 @@ export interface PartCapabilities {
    * part's own spawn pair above it. Written by tools/bple-damping for exactly the Pig class.
    */
   dampingRamp?: { speedThreshold: number; base: number; slope: number };
+  /**
+   * A placed rope's START materialization (`docs/specs/rope.md`): the host spawns `segments`
+   * segment bodies, each a sphere of `segmentRadius` and `segmentMass` with the segment material's
+   * friction. The force chain and break thresholds are class constants, not content.
+   */
+  rope?: { segments: number; segmentMass: number; segmentRadius: number; segmentFriction: number };
 }
 
 export interface PartDefinition {
@@ -408,7 +414,9 @@ export type ClientCommand =
   | { kind: 6; sequence: number; playerId: number; tick: number; entityId: number; x: number; y: number }
   | { kind: 7; sequence: number; playerId: number; tick: number; entityId: number; scale: number }
   | { kind: 8; sequence: number; playerId: number; tick: number; entityId: number; active: boolean }
-  | { kind: 9; sequence: number; playerId: number; tick: number; partTypeId: number; active: boolean };
+  | { kind: 9; sequence: number; playerId: number; tick: number; partTypeId: number; active: boolean }
+  /** v4: cut the player's rope at the segment nearest this world point (`docs/specs/rope.md` §4.6b). */
+  | { kind: 10; sequence: number; playerId: number; tick: number; x: number; y: number };
 
 /** A locally previewed build pose during a move/rotate/scale drag (never authoritative). */
 export interface ToolPreviewPose {

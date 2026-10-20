@@ -20,7 +20,7 @@ public sealed class DevHarnessTests
         (IReadOnlyList<ScenarioDocument> scenarios, IReadOnlyList<string> errors) = ScenarioLoader.ListWithErrors(root);
 
         Assert.Empty(errors);
-        Assert.Equal(["sky-bench", "switch-bench", "tnt-bench"], scenarios.Select(scenario => scenario.Id));
+        Assert.Equal(["rope-bench", "sky-bench", "switch-bench", "tnt-bench"], scenarios.Select(scenario => scenario.Id));
         Assert.All(scenarios, scenario =>
         {
             Assert.False(string.IsNullOrWhiteSpace(scenario.Name));
@@ -83,9 +83,9 @@ public sealed class DevHarnessTests
         DevWorld scenario = DevWorlds.Resolve(root, "sky-bench", levelFile: null);
         Assert.False(scenario.Sandbox);
         Assert.Equal("sky-bench", scenario.Scenario?.Id);
-        Assert.Equal("terrain-v1.json", scenario.LevelFile);
+        Assert.Equal("bench-v1.json", scenario.LevelFile);
         using JsonDocument levelDocument = JsonDocument.Parse(scenario.LevelJson);
-        Assert.Equal("terrain-v1", levelDocument.RootElement.GetProperty("contentVersion").GetString());
+        Assert.Equal("bench-v1", levelDocument.RootElement.GetProperty("contentVersion").GetString());
 
         DevWorld level = DevWorlds.Resolve(root, scenarioId: null, "original/episode_1_levels/Level_05.json");
         Assert.False(level.Sandbox);
@@ -105,10 +105,10 @@ public sealed class DevHarnessTests
         using JsonDocument list = JsonDocument.Parse(DevWorlds.ListJson(root));
         JsonElement rootElement = list.RootElement;
 
-        Assert.Equal(3, rootElement.GetProperty("scenarios").GetArrayLength());
+        Assert.Equal(4, rootElement.GetProperty("scenarios").GetArrayLength());
         Assert.Equal(0, rootElement.GetProperty("errors").GetArrayLength());
-        // 277 converted original levels plus the two hand-made test levels.
-        Assert.Equal(279, rootElement.GetProperty("levels").GetArrayLength());
+        // 277 converted original levels plus the three hand-made test levels (slope, terrain, bench).
+        Assert.Equal(280, rootElement.GetProperty("levels").GetArrayLength());
         Assert.Contains(
             rootElement.GetProperty("levels").EnumerateArray(),
             level => level.GetProperty("path").GetString() == "original/episode_1_levels/Level_05.json");

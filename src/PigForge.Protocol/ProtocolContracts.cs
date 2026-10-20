@@ -5,10 +5,11 @@ public static class ProtocolVersion
 {
 	/// <summary>
 	/// The client command protocol (PGFC). v3 added the build pose's mirror to the two placement
-	/// commands (ADR-030); <see cref="CommandFrame.Version"/> is this constant, so the envelope
-	/// contract and the wire can never disagree.
+	/// commands (ADR-030); v4 adds the rope's cut-at-point command (`docs/specs/rope.md` §4.6b).
+	/// <see cref="CommandFrame.Version"/> is this constant, so the envelope contract and the wire
+	/// can never disagree.
 	/// </summary>
-	public const ushort Current = 3;
+	public const ushort Current = 4;
 }
 
 public enum ClientCommandKind
@@ -22,7 +23,11 @@ public enum ClientCommandKind
 	MovePart,
 	ScalePart,
 	SetPartActive,
-	SetPartTypeActive
+	SetPartTypeActive,
+	/// <summary>Cuts a rope at the nearest segment to a world point (`docs/specs/rope.md` §4.6b).
+	/// The original's world-touch path (`Rope.OnTouch(hasPosition: true)`), as opposed to the
+	/// trigger button (`SetPartActive`), which cuts the middle.</summary>
+	CutRope
 }
 
 public sealed record ClientCommandEnvelope(

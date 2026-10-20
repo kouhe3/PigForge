@@ -193,6 +193,31 @@ export function drawOrder(entities: readonly DrawEntity[]): readonly DrawEntity[
 }
 
 /**
+ * The rope segments of one frame, grouped into drawn ropes (`docs/specs/rope.md` §4.7): the wire
+ * carries no host id, but the server allocates a host's segment ids together, so consecutive
+ * sub-entity ids of a rope-capable part type are one chain. A lone segment (a cut end, or a run
+ * interrupted by a host) draws nothing.
+ */
+export function ropeChains(entities: readonly DrawEntity[], ropePartIds: ReadonlySet<number>): DrawEntity[][] {
+  const chains: DrawEntity[][] = [];
+  let current: DrawEntity[] = [];
+  for (const entity of entities) {
+    if (entity.subEntity === true && ropePartIds.has(entity.partTypeId)) {
+      current.push(entity);
+    } else if (current.length > 0) {
+      chains.push(current);
+      current = [];
+    }
+  }
+
+  if (current.length > 0) {
+    chains.push(current);
+  }
+
+  return chains.filter((chain) => chain.length > 1);
+}
+
+/**
  * The axle a wheel's sprites turn about, part-local metres: the centre of the tire the part
  * content describes, which is the same point the server hinges the wheel body about
  * (`PartContentLibrary.DescribeWheel`). Sourcing it from the content keeps the spin correct
@@ -294,6 +319,7 @@ export function drawFrame(
   groundTextures?: GroundTextureSet | null,
   decorations?: DecorationLayer | null,
   buildGrid?: LevelBuildLimits | null,
+  phase?: number,
 ): void {
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
@@ -357,8 +383,45 @@ export function drawFrame(
     (partTypeId) => parts.get(partTypeId),
     (entity) => (textures ?? null)?.parts.get(entity.partTypeId)?.connectionVisual !== undefined,
   );
+  // A rope is drawn as its chain, not as eight sprites: the original's RopeSegment prefab has no
+  // sprite at all, only the host's LineRenderer (Rope.cs:98-119). The line sits at z = -1, in
+  // front of the fill but behind the play plane, hence here and not after the parts.
+  const ropePartIds = new Set([...parts.values()]
+    .filter((part) => part.capabilities?.rope !== undefined)
+    .map((part) => part.partTypeId));
+  const ropes = ropeChains(entities, ropePartIds);
+  if (ropes.length > 0) {
+    ctx.strokeStyle = "rgb(255, 60, 90)";
+    ctx.lineWidth = Math.max(1, 0.2 * camera.scale);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    for (const chain of ropes) {
+      ctx.beginPath();
+      chain.forEach((segment, index) => {
+        const point = worldToScreen(camera, segment.x, segment.y, width, height);
+        if (index === 0) {
+          ctx.moveTo(point.x, point.y);
+        } else {
+          ctx.lineTo(point.x, point.y);
+        }
+      });
+      ctx.stroke();
+    }
+  }
 
   for (const entity of drawOrder(entities)) {
+    // Rope segments contribute their chain above; the fallback host sprite must not repeat at each.
+    if (entity.subEntity === true && ropePartIds.has(entity.partTypeId)) {
+      continue;
+    }
+
+    // A running frame uses bodyId 0 for a placed part with no body (a rope host): it exists for the
+    // switch bar, not for the picture (the original disables the host renderer, Rope.cs:293-296).
+    // Building frames' bodyId 0 entries are previews and still draw.
+    if (entity.bodyId === 0 && phase !== undefined && phase !== 0x10) {
+      continue;
+    }
+
     const part = parts.get(entity.partTypeId);
     const origin = worldToScreen(camera, entity.x, entity.y, width, height);
     // The sandbox broadcasts previews with physicsBodyId 0: they are not physical

@@ -146,6 +146,12 @@ public sealed class GameplayTickOutput
     /// (<c>Pig.cs:249-262</c>), so this is a per-tick value, not a spawn-time one.</summary>
     public List<PartDampingOverride> DampingOverrides { get; } = new();
 
+    /// <summary>Bodies whose damping a rule rewrites every tick but which are not a compound
+    /// member (the rope's segment bodies, `docs/specs/rope.md` §4.5): the room passes them straight
+    /// to <c>IPhysicsWorld.SetBodyDamping</c>. The original's <c>Rope.FixedUpdate</c> writes the
+    /// same drag onto every node of one rope, and the angular term stays the prefab's own.</summary>
+    public List<BodyDampingOverride> BodyDampingOverrides { get; } = new();
+
     /// <summary>Pigs whose own transform left the level's camera rectangle this tick
     /// (<see cref="GameplayConfig.CameraLimits"/>, <c>Pig.cs:396-403</c>). The room answers the way the
     /// original does -- <c>GameMode.cs:384-387</c> returns to the building state.</summary>
@@ -157,6 +163,7 @@ public sealed class GameplayTickOutput
         DestroyedEntities.Clear();
         DetachedEntities.Clear();
         DampingOverrides.Clear();
+        BodyDampingOverrides.Clear();
         PigsOutOfBounds.Clear();
         CollectedProps.Clear();
     }
@@ -165,6 +172,9 @@ public sealed class GameplayTickOutput
 /// <summary>One part's damping for this tick: the linear/angular pair the original wrote onto the
 /// part's own rigidbody. See <see cref="GameplayTickOutput.DampingOverrides"/>.</summary>
 public readonly record struct PartDampingOverride(EntityId Entity, float Linear, float Angular);
+
+/// <summary>One body's damping for this tick, for a body no compound member owns (a rope segment).</summary>
+public readonly record struct BodyDampingOverride(PhysicsBodyId Body, float Linear, float Angular);
 
 /// <summary>
 /// Runtime gameplay rules (motors, wheels, pigs, TNT, joint breaks, level outcome) that
@@ -274,6 +284,7 @@ public sealed class GameplayRules
     // power), while a PigForge wheel keeps its own body and hinges to its chassis (ADR-009). The
     // placement layer therefore declares the extra edges with LinkPowerCluster, and this map holds
     // them; a part with no explicit host sits in its own physics body's cluster.
+    private readonly SortedDictionary<uint, RopeState> _ropes = new();
     private readonly Dictionary<uint, float> _powerFactorByCluster = new();
     private readonly Dictionary<uint, uint> _powerHostByEntity = new();
     // The vanilla declaration defaults leave IN DynamicPowerSystem off, so the original runs its
@@ -482,7 +493,70 @@ public sealed class GameplayRules
     /// <c>ContraptionRunning.IsConnectedToPig</c> (`LevelManager.cs:1241`), the transport
     /// challenge's first branch (`docs/specs/level-stars.md` §4.2).
     /// </summary>
-    public bool AreConnected(EntityId left, EntityId right) => PowerClusterKey(left) == PowerClusterKey(right);
+    public bool AreConnected(EntityId left, EntityId right)
+    {
+        uint leftKey = PowerClusterKey(left);
+        uint rightKey = PowerClusterKey(right);
+        if (leftKey == rightKey)
+        {
+            return true;
+        }
+
+        if (_ropes.Count == 0)
+        {
+            return false;
+        }
+
+        // Each intact rope merges the components at its two ends (the original's rope-link
+        // component, `Contraption.cs:1111-1125`); a cut rope no longer does.
+        Dictionary<uint, uint> parent = new();
+        uint Find(uint key)
+        {
+            if (!parent.TryGetValue(key, out uint value))
+            {
+                parent[key] = key;
+                return key;
+            }
+
+            while (value != key)
+            {
+                key = value;
+                if (!parent.TryGetValue(key, out value))
+                {
+                    parent[key] = key;
+                    value = key;
+                }
+            }
+
+            return key;
+        }
+
+        void Union(uint a, uint b)
+        {
+            uint rootA = Find(a);
+            uint rootB = Find(b);
+            if (rootA != rootB)
+            {
+                parent[rootA] = rootB;
+            }
+        }
+
+        foreach (RopeState rope in _ropes.Values)
+        {
+            if (rope.CutLink >= 0 || !rope.Left.IsValid || !rope.Right.IsValid)
+            {
+                continue;
+            }
+
+            Union(ClusterKeyOfBody(rope.Left), ClusterKeyOfBody(rope.Right));
+        }
+
+        return Find(leftKey) == Find(rightKey);
+    }
+
+    /// <summary>The power-cluster key of a body (its representative entity, then the power host).</summary>
+    private uint ClusterKeyOfBody(PhysicsBodyId body) =>
+        _entitiesByBody.TryGetValue(body.Value, out EntityId entity) ? PowerClusterKey(entity) : body.Value;
 
     /// <summary>Drops every collected challenge marker: the room's `Retry` runs it, matching the
     /// original's `Collectable.OnReset` (`docs/specs/level-challenges.md` §2).</summary>
@@ -1042,6 +1116,7 @@ public sealed class GameplayRules
         RunTntFuses(output);
         RunBlasters(output);
         RunSlowSpeedDamping(output);
+        RunRopes(output);
         DropCommandsForDestroyedBodies(output);
         CheckChallenges(output);
         CheckObjectives(tick, output);
@@ -1885,6 +1960,286 @@ public sealed class GameplayRules
         // nearest seam so this part leaves the rig (original detacher part).
         output.DetachedEntities.Add(entity);
     }
+
+    // ------------------------------------------------------------------ ropes
+    // The original's rope is a chain of segment bodies with no joints between them and a hand-written
+    // force chain (`Rope.cs:334-462`). The constants below are that method's literals; tools/bple-ropes
+    // asserts each one against the source, so they are never hand-tuned here.
+    private const float RopeForcePerTick = 1f / 60f;
+    private const float RopeSpacing = 0.5f;
+    private const float RopeSlack = 0.4f;
+    private const float RopePullForce = 70f;
+    private const float RopePushForce = 50f;
+    private const float RopeBreakInner = 1.25f;
+    private const float RopeBreakEnd = 1.75f;
+    private const float RopeStretchLimit = 1.18f;
+    private const float RopeStretchResponseSteepness = 8f;
+    private const float RopeStretchResponseBias = 0.01798f;
+    private const float RopeStretchResponseScale = 0.9641f;
+    private const float RopeStretchFactorCap = 0.4f;
+    private const float RopeEndpointPullForce = 750f;
+    private const float RopeEndpointPullCap = 300f;
+    private const float RopeAirDrag = 0.02f;
+    private const float RopeNodeDragBase = 0.5f;
+    private const float RopeNodeDragScale = 6f;
+    private const float RopeNodeDragSpeedFactor = 4f;
+    private const float RopeSegmentAngularDamping = 0.5f;
+
+    private sealed class RopeState(EntityId host, PhysicsBodyId[] segments, PhysicsBodyId left, PhysicsBodyId right)
+    {
+        public EntityId Host { get; } = host;
+
+        public PhysicsBodyId[] Segments { get; } = segments;
+
+        /// <summary>The non-rope neighbour at each end; invalid when that end is free.</summary>
+        public PhysicsBodyId Left { get; set; } = left;
+
+        public PhysicsBodyId Right { get; set; } = right;
+
+        /// <summary>The cut link index (1..n-1), or -1 while intact (`Rope.cs:370`).</summary>
+        public int CutLink { get; set; } = -1;
+
+        public float PreviousStretch { get; set; }
+    }
+
+    /// <summary>
+    /// Declares one placed rope (`docs/specs/rope.md` §7): the segment bodies the room
+    /// materialized and the non-rope bodies its two ends hinge to (invalid for a free end).
+    /// </summary>
+    public void AddRope(EntityId host, ReadOnlySpan<PhysicsBodyId> segments, PhysicsBodyId left, PhysicsBodyId right)
+    {
+        if (segments.Length < 2)
+        {
+            throw new ArgumentException("A rope needs at least two segments.", nameof(segments));
+        }
+
+        _ropes[host.Value] = new RopeState(host, segments.ToArray(), left, right);
+    }
+
+    /// <summary>
+    /// Re-points a rope's connectivity anchors after a rope-to-rope joint is made (the room calls
+    /// this once all ropes exist): the rules' `AreConnected` treats each intact rope as an edge
+    /// between its two ends, the original's own rope-link component (`Contraption.cs:1111-1125`).
+    /// </summary>
+    public void SetRopeAnchors(EntityId host, PhysicsBodyId left, PhysicsBodyId right)
+    {
+        if (_ropes.TryGetValue(host.Value, out RopeState? rope))
+        {
+            rope.Left = left;
+            rope.Right = right;
+        }
+    }
+
+    /// <summary>Removes one rope's rule state (its host was destroyed).</summary>
+    public void RemoveRope(EntityId host) => _ropes.Remove(host.Value);
+
+    /// <summary>Drops every rope: the room's `Retry`/build-mode re-entry destroys the bodies.</summary>
+    public void ClearRopes() => _ropes.Clear();
+
+    /// <summary>
+    /// Cuts the link before <paramref name="link"/> (the original's `m_cutIndex`), if the rope is
+    /// still intact. The room resolves the click position to a segment index and clamps it.
+    /// </summary>
+    public void CutRope(EntityId host, int link)
+    {
+        if (_ropes.TryGetValue(host.Value, out RopeState? rope) && rope.CutLink < 0)
+        {
+            rope.CutLink = Math.Clamp(link, 1, rope.Segments.Length - 1);
+        }
+    }
+
+    /// <summary>True once this rope has been cut (test/room reading).</summary>
+    public bool IsRopeCut(EntityId host) => _ropes.TryGetValue(host.Value, out RopeState? rope) && rope.CutLink >= 0;
+
+    /// <summary>The cut link index, or -1 while intact (test reading).</summary>
+    public int RopeCutLink(EntityId host) => _ropes.TryGetValue(host.Value, out RopeState? rope) ? rope.CutLink : -1;
+
+    private void RunRopes(GameplayTickOutput output)
+    {
+        if (_ropes.Count == 0)
+        {
+            return;
+        }
+
+        foreach (RopeState rope in _ropes.Values)
+        {
+            PhysicsBodyId[] segments = rope.Segments;
+            int count = segments.Length;
+            // The original's trigger button (`ProcessTouch()` with no position) cuts the middle
+            // node (`Rope.cs:169-190`); the room's own SetPartActive path only sets the flag.
+            if (rope.CutLink < 0 && TryConsumeButtonPress(rope.Host))
+            {
+                rope.CutLink = count / 2;
+            }
+
+            // Every node shares one drag, computed from the two end speeds (`Rope.cs:366`); the
+            // angular term is the RopeSegment prefab's own 0.5.
+            float endSpeed = 0f;
+            if (_kinematicsByBody.TryGetValue(segments[0].Value, out var first))
+            {
+                endSpeed = MathF.Sqrt(PhysicsVector3.Dot(first.Velocity, first.Velocity));
+            }
+
+            if (_kinematicsByBody.TryGetValue(segments[count - 1].Value, out var last))
+            {
+                endSpeed = MathF.Max(endSpeed, MathF.Sqrt(PhysicsVector3.Dot(last.Velocity, last.Velocity)));
+            }
+
+            float drag = RopeNodeDragBase + (RopeNodeDragScale / (1f + (RopeNodeDragSpeedFactor * endSpeed * endSpeed)));
+            foreach (PhysicsBodyId segment in segments)
+            {
+                output.BodyDampingOverrides.Add(new BodyDampingOverride(segment, drag, RopeSegmentAngularDamping));
+            }
+
+            // Air drag per node: q = v - 0.4*v_prev - 0.4*v_next, force -0.02*|q|^2*v̂ (Rope.cs:356-365).
+            for (int index = 0; index < count; index++)
+            {
+                if (!_kinematicsByBody.TryGetValue(segments[index].Value, out var mine))
+                {
+                    continue;
+                }
+
+                PhysicsVector3 previous = index > 0 && _kinematicsByBody.TryGetValue(segments[index - 1].Value, out var before)
+                    ? before.Velocity
+                    : mine.Velocity;
+                PhysicsVector3 next = index < count - 1 && _kinematicsByBody.TryGetValue(segments[index + 1].Value, out var after)
+                    ? after.Velocity
+                    : mine.Velocity;
+                PhysicsVector3 relative = mine.Velocity - (previous * 0.4f) - (next * 0.4f);
+                float squared = PhysicsVector3.Dot(relative, relative);
+                if (squared <= 0f)
+                {
+                    continue;
+                }
+
+                PhysicsVector3 direction = PhysicsVector3.Normalize(mine.Velocity);
+                if (direction == PhysicsVector3.Zero)
+                {
+                    continue;
+                }
+
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(
+                    segments[index],
+                    direction * (-RopeAirDrag * squared * RopeForcePerTick),
+                    mine.Position));
+            }
+
+            // Link forces: pull past the rest length, push inside the slack band (Rope.cs:370-390).
+            for (int link = 1; link < count; link++)
+            {
+                if (link == rope.CutLink)
+                {
+                    continue;
+                }
+
+                if (!_kinematicsByBody.TryGetValue(segments[link - 1].Value, out var before)
+                    || !_kinematicsByBody.TryGetValue(segments[link].Value, out var after))
+                {
+                    continue;
+                }
+
+                PhysicsVector3 delta = after.Position - before.Position;
+                float distance = MathF.Sqrt(PhysicsVector3.Dot(delta, delta));
+                if (distance <= 0f)
+                {
+                    continue;
+                }
+
+                PhysicsVector3 direction = delta * (1f / distance);
+                float force;
+                if (distance > RopeSpacing)
+                {
+                    float excess = distance - RopeSpacing;
+                    excess = excess < 1f ? MathF.Pow(excess, 0.75f) : excess * excess;
+                    excess = Math.Clamp(excess, 0f, 2f);
+                    force = RopePullForce * excess;
+                }
+                else if (distance < RopeSlack)
+                {
+                    force = RopePushForce * (distance - RopeSlack);
+                }
+                else
+                {
+                    continue;
+                }
+
+                PhysicsVector3 impulse = direction * (force * RopeForcePerTick);
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(segments[link - 1], impulse, before.Position));
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(segments[link], impulse * -1f, after.Position));
+            }
+
+            if (rope.CutLink >= 0)
+            {
+                continue;
+            }
+
+            // Tension break first, then the stretch pull (Rope.cs:399-462). Both stop once cut.
+            float total = 0f;
+            bool broke = false;
+            for (int link = 1; link < count; link++)
+            {
+                if (!_kinematicsByBody.TryGetValue(segments[link - 1].Value, out var before)
+                    || !_kinematicsByBody.TryGetValue(segments[link].Value, out var after))
+                {
+                    continue;
+                }
+
+                float distance = PhysicsVector3.Distance(before.Position, after.Position);
+                total += distance;
+                bool inner = link > 1 && link < count - 2;
+                if (distance > (inner ? RopeBreakInner : RopeBreakEnd))
+                {
+                    rope.CutLink = link;
+                    broke = true;
+                    break;
+                }
+            }
+
+            if (broke)
+            {
+                continue;
+            }
+
+            float rest = RopeStretchLimit * RopeSpacing * count;
+            float stretch = (total / rest) - 1f;
+            float factor = RopeStretchFactorCap * RopeResponseCurve(stretch / RopeStretchFactorCap);
+            factor = Math.Clamp(factor, 0f, RopeStretchFactorCap);
+            float change = factor - rope.PreviousStretch;
+            rope.PreviousStretch = factor;
+            if (total <= rest)
+            {
+                continue;
+            }
+
+            if (change < 0f)
+            {
+                factor *= 0.7f;
+            }
+
+            float pull = Math.Clamp(RopeEndpointPullForce * factor, 0f, RopeEndpointPullCap) * RopeForcePerTick;
+            if (rope.Left.IsValid
+                && _kinematicsByBody.TryGetValue(segments[0].Value, out var head)
+                && _kinematicsByBody.TryGetValue(segments[1].Value, out var headNext))
+            {
+                PhysicsVector3 direction = PhysicsVector3.Normalize(headNext.Position - head.Position);
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(segments[0], direction * pull, head.Position));
+            }
+
+            if (rope.Right.IsValid
+                && _kinematicsByBody.TryGetValue(segments[count - 1].Value, out var tail)
+                && _kinematicsByBody.TryGetValue(segments[count - 2].Value, out var tailBefore))
+            {
+                PhysicsVector3 direction = PhysicsVector3.Normalize(tailBefore.Position - tail.Position);
+                output.Commands.Add(PhysicsCommand.ApplyImpulse(segments[count - 1], direction * pull, tail.Position));
+            }
+        }
+    }
+
+    /// <summary>`(sigmoid(8(t-0.5)) - 0.01798) / 0.9641`, the original's stretch response curve
+    /// (`Rope.cs:326-332`).</summary>
+    private static float RopeResponseCurve(float value) =>
+        ((1f / (1f + MathF.Exp(-RopeStretchResponseSteepness * (value - 0.5f)))) - RopeStretchResponseBias)
+        / RopeStretchResponseScale;
 
     private void RunBalloons(GameplayTickOutput output)
     {

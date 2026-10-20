@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { createAnimationState, noteActivationEdges, updateAnimations } from "./animation";
 import type { PartTexture, PartTextureSet } from "./atlas";
-import { drawFrame, drawOrder, propDepthBuckets, wheelAxle } from "./draw";
+import { drawFrame, drawOrder, propDepthBuckets, ropeChains, wheelAxle } from "./draw";
 import { createCamera, worldToScreen } from "./camera";
 import type { DrawEntity, PartContentDocument } from "@/schema/types";
 import type { LevelBuildLimits, LevelProp, LevelTerrain } from "@/schema/levelContent";
@@ -1078,5 +1078,50 @@ describe("drawFrame construction grid", () => {
     const expected = worldToScreen(camera, build.origin[0] - 1, build.origin[1], 800, 600);
     expect(centreX).toBeCloseTo(expected.x, 6);
     expect(centreY).toBeCloseTo(expected.y, 6);
+  });
+});
+
+
+describe("ropeChains", () => {
+  const entity = (entityId: number, partTypeId: number, subEntity: boolean): DrawEntity => ({
+    entityId,
+    partTypeId,
+    x: entityId,
+    y: 0,
+    yaw: 0,
+    scale: 1,
+    vx: 0,
+    vy: 0,
+    bodyId: entityId,
+    active: false,
+    subEntity,
+  });
+
+  it("groups consecutive segment entities of a rope into one drawn chain", () => {
+    const ropes = new Set([41]);
+    const entities = [
+      entity(1, 1, false),
+      entity(2, 41, true),
+      entity(3, 41, true),
+      entity(4, 41, true),
+      entity(5, 1, false),
+      entity(6, 41, true),
+      entity(7, 41, true),
+    ];
+    expect(ropeChains(entities, ropes).map((chain) => chain.map((entry) => entry.entityId))).toEqual([
+      [2, 3, 4],
+      [6, 7],
+    ]);
+  });
+
+  it("drops a lone segment and ignores other sub-entities", () => {
+    const ropes = new Set([41]);
+    const entities = [
+      entity(1, 41, true),
+      entity(2, 28, true),
+      entity(3, 28, true),
+      entity(4, 1, false),
+    ];
+    expect(ropeChains(entities, ropes)).toEqual([]);
   });
 });
