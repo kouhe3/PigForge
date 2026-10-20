@@ -1,6 +1,6 @@
 # Spec: 绳的运行时实例化（Rope 件 → 8 段链）
 
-> 2026-10-19。范围：`G63`（绳）。决策依据 `ADR-027`（运行时子实体：一个放置件 → N 个实体/刚体）。
+> 2026-10-19。**状态：已实现**（交付读数见 §15）。范围：`G63`（绳）。决策依据 `ADR-027`（运行时子实体：一个放置件 → N 个实体/刚体）。
 > 原版真值全部逐行取自 `BPLE 2022.1.9`（原版自己的编辑器版本），调研底稿：
 > `tasks/rope-sandbag-materialization-report.md`（只读报告，未入库）。
 
@@ -334,14 +334,14 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 | # | 偏差 | 理由 |
 |---|---|---|
 | ~~D1~~ | ~~用户点击绳段剪切不做~~ **2026-10-19 收进本片，两条入口都做**：①按钮（kind 8）剪中间；②世界点击（PGFC v4 `CutRope(x,y)`）按最近段裁决 | 原版 `ProcessTouch()`/`ProcessTouch(Vector3)` 两个入口（`BasePart.cs:924-938`、`Rope.cs:169-190`）；见 §4.6b / §9 |
-| D2 | 不画 LineRenderer 样条 | 客户端本片逐段画精灵；样条需要把同 host 的段分组（线上没有 host id）或加线协议 |
+| D2 | 用折线代替 LineRenderer 的 Catmull-Rom 样条 | 客户端把同一绳的连续段 id 连成折线（`ropeChains`），美术上与原版 20 点平滑样条有差异；段 prefab 本身没有精灵（`RopeSegment` 的 Visualization 是禁用的 MeshRenderer），所以不能逐段贴图 |
 | D3 | `CollidableRope`（B 档）不建模 | vanilla false；B 档还会把 Rare/Epic（Rope_03/04）段提升到 Contraption 层 |
 | D4 | 50→60 Hz | 每 tick 冲量 = `F/60`（同一物理力的正确换算） |
 | D5 | HingeJoint 用 `Revolute` | 轴向一致、锚点一致；`enablePreprocessing` 在 PigForge 无对应（求解器无预处理开关） |
 | D6 | `m_gridVisualizationNode`（仅 Rope_03）不画 | 建造期网格提示，纯表现 |
 | D7 | Rope_05..08（`HingePlate`）不进内容 | vanilla `HingePlate=false`；它是另一个类（两块板体） |
 | D8 | host 无刚体 | 原版是 kinematic mass 0；语义等价，且避免 host 美术在运行帧重复出现 |
-| D9 | 绳→绳不做运行期 setPosition | 相邻格的端点本来就重合；不需要 teleport API |
+| D9 | 绳→绳在**创建时**把上一条绳的最后一段放到下一条绳的第一段位置（不是原版的运行期 `setPosition`） | 没有 teleport API；创建时算好等价，且铰点在两段中心重合 |
 | D10 | 段体自转的 `gridRotation != 0` 额外 `−90°` 不逐字复刻 | 只影响精灵朝向；链的轴向/物理在零件本地系里一致 |
 | D11 | 单发计数不建模 | PigForge 没有 `m_oneShotPartAmount` 的消费者；剪断只记布尔 |
 | D12 | 段体 `angularDamping` 取 prefab 的 0.5 | 原版只改 `drag`，angularDrag 保持 prefab 值 |
@@ -378,3 +378,32 @@ CutRope { tick, sequence, playerId, x:f32, y:f32 }        // 世界坐标（z �
 - `tasks/rope-sandbag-materialization-report.md`（只读调研；本片只取绳，沙袋/气球留 G52/G53）
 - 原版：`Rope.cs`、`RopeSegment.prefab`、`Part_Rope_01..08_SET.prefab`、`Contraption.cs:2499-2525`、
   `INDeclarationSettingsExp.json`
+
+
+## 15. 交付记录（2026-10-19）
+
+**实现**：内容 `capabilities.rope`（四行）+ `activation: trigger` + 单格建造盒；`tools/bple-ropes` 提取/应用
+（源码字面量硬断言）；`ScenarioLoader` 的 rope 能力解析；`GameRoom` 把 host 排除出装配、物化 8 段子实体
+（球 r0.09、mass 0.05、2.5D、碰撞关闭）、端点 `Revolute`、绳→绳铰；`GameplayRules` 力链（拉/推/空气阻/
+逐节阻尼）、张力断、拉伸端点拉、按钮剪中间、`AreConnected` 绳边；PGFC **v4** `CutRope(x,y)` + 客户端点击
+命中；运行帧的 bodyId 0 host（开关条）与 `ropeChains` 折线；`rope-bench` 场景 + `bench-v1` 测试关卡。
+
+**读数**（真服务器 + 真 Bepu + 真 Chromium，`--play --dev`）：
+
+| 步骤 | 读数 |
+|---|---|
+| `scenario=rope-bench`（框 + 绳 + 框） | Start 后 8 段、host 运行帧 `bodyId 0`、开关条 `1绳索`；红折线连接两框 |
+| 按「绳索」按钮 | 服务端 `CutIndex = 4`（`RopeRoomTests.TheButtonCutsTheMiddle`），客户端无错误 |
+| 点击绳段（`clickAt`） | 选中实体 1048588（段，`subEntity`），无 `RopeNotAtPoint`；`CutRope` 被接受 |
+| 绳→绳 | 16 段、一条段-段铰；两框间的端点距离 < 0.1 m（`TwoRopesChainTheirEndSegments`） |
+| `AreConnected` | 未剪为真、剪后为假（`AnIntactRopeConnectsItsTwoSidesAndACutRopeDoesNot`） |
+
+**测试**：Core **438**（+5 `Rope*` 规则用例，另改 `GameplayHarness` 链接）、Server **191**（+7
+`RopeRoomTests`）、Protocol **47**（+2 CutRope）、Replay 11、Physics 96（75+21）、web **436**
+（+2 `ropeChains`/gadget 段、+1 CutRope 编码；`COMMAND_VERSION=4`）；Release 0 警告 0 错误；
+`bple-ropes` 第二次 0 改动；`scenarios.mjs --check` 4 ok（`rope-bench`）。
+
+**实测期间修掉的三处**：①规则层丢弃了段体命令（段未 `LinkBody` → `_dynamicBodies` 不含它）——
+`CreateRope` 现在给每段 `LinkBody`；②绳→绳的中心相距 0.5 m 是因为没有复刻原版的「把最后一段移到位」：
+创建时把它放到下一绳的第一段位置（D9）；③发布 bodyId 0 的 host 时 `TryPublishSnapshot` 假定每个实体都有
+刚体（键不存在崩溃）——现在按无刚体写 build 位姿，帧头计数用 `_entityOrder.Count`。

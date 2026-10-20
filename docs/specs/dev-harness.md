@@ -153,9 +153,10 @@ ws://127.0.0.1:5088/play?level=<path under content/levels>
 
 | id | 关卡 | 内容 | start |
 |---|---|---|---|
-| `switch-bench` | `terrain-v1.json` | 木框 + 发动机 + 风箱 + 火箭（都已放置，验证开关条/按钮） | false |
-| `tnt-bench` | `terrain-v1.json` | 木框 + TNT + 挑战箱（验证点火/爆炸/收集） | true |
-| `sky-bench` | `terrain-v1.json` | 木框 + 风扇 + 气球（验证升力/推力） | true |
+| `switch-bench` | `bench-v1.json` | 木框 + 发动机 + 风箱 + 火箭（都已放置，验证开关条/按钮） | false |
+| `tnt-bench` | `bench-v1.json` | 木框 + TNT（验证点火/爆炸） | false |
+| `sky-bench` | `bench-v1.json` | 木框 + 风扇 + 气球（验证升力/推力） | true |
+| `rope-bench` | `bench-v1.json` | 左框 + 绳 + 右框（按钮剪中间 / 点击剪最近段，`docs/specs/rope.md`） | false |
 | `rope-bench`（待 G63） | `terrain-v1.json` | 框 + 绳 + 框 + 重物（绳实现后加） | false |
 
 坐标按 `terrain-v1` 的地板（y≈0）与 1 格网格写；构建失败即场景 bug。
@@ -184,7 +185,7 @@ ws://127.0.0.1:5088/play?level=<path under content/levels>
 1. `--dev` 是否默认关闭端口共享（同一端口同时服务共享/私有模式）？本规格：是，`--dev` 下全部连接私有；
    联机测试仍用不带 `--dev` 的进程。
 2. 场景是否也要支持「建造模式下的预览」与「自动 RESET」？本规格只做 `start` 布尔；需要时加 `resetAfter`。
-3. 是否把 `GET /dev/worlds` 的关卡列表分页/按 episode 分组？客户端先全部列出（279 条），可后加过滤。
+3. 是否把 `GET /dev/worlds` 的关卡列表分页/按 episode 分组？客户端先全部列出（280 条），可后加过滤。
 
 
 ## 11. 交付记录（2026-10-19）
@@ -197,14 +198,15 @@ ws://127.0.0.1:5088/play?level=<path under content/levels>
 
 | 步骤 | 读数 |
 |---|---|
-| `GET /dev/worlds` | 200，3 场景、**279** 关卡文档、0 错误 |
-| `GET /level?scenario=sky-bench` | 200，`contentVersion = terrain-v1` |
+| `GET /dev/worlds` | 200，**4** 场景、**280** 关卡文档、0 错误 |
+| `GET /level?scenario=sky-bench` | 200，`contentVersion = bench-v1` |
 | `GET /level?level=../parts.json` / `?bogus=1` | **400**（路径逃逸/未知查询） |
-| WS `?scenario=sky-bench`（start:true） | 帧 tick 21、phase 0、**13** 实体（4 场景件 + 9 关卡 actor） |
-| WS `?scenario=tnt-bench` / `switch-bench` | phase 0x10、**11** / **14** 实体；`Start` 后 switch 变 phase 0 |
+| WS `?scenario=sky-bench`（start:true） | phase 0；实体 = 4 场景件 + 1 关卡 actor（`bench-v1` 的地板） |
+| WS `?scenario=tnt-bench` / `switch-bench` | phase 0x10；实体 = 各自场景件 + 1 关卡 actor；`Start` 后 switch 变 phase 0 |
 | 浏览器 `?dev=1&scenario=switch-bench` | 自动进「建造」并连接；Start 可用；开关条 `1风扇 / 2火箭 / 3风箱 / 4小发动机` |
 | 抽屉切 `sky-bench` | URL 变 `?dev=1&scenario=sky-bench`，自动连接即 **运行中**；开关条 `气球×2 / 风扇` |
 | 抽屉切 `Level_05` | 地形/装饰/挑战 HUD 正常，phase 编辑中；控制台 0 错误 |
+| `?dev=1&scenario=rope-bench` | Start 后 host `bodyId 0`、8 段、开关条 `1绳索`；红折线连接两框；按钮/点击剪切均无错误 |
 
 **测试**：Server **184**（+6：场景校验/播种/拒绝/查询/清单/坏文件）Core 432 / Protocol 45 / Replay 11 /
 Physics 96（75+21）/ web **432**（+12：`devWorld` 11、`playerSession` 2，`levelEndpoint` 改 2 条）；
