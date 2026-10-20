@@ -52,8 +52,12 @@ export interface PlayerSession {
    * the server rejects every later build command as WrongMode. Only the demotion is taken: the server
    * acks a command before it broadcasts, so a building frame that lands after a Start ack is the
    * room's own doing, while one published before the ack was already in flight.
+   *
+   * `adoptRunning` is the dev harness' own case (`docs/specs/dev-harness.md`): a scenario with
+   * `start: true` is already running before this client ever sends Start, so there is no ack to
+   * learn it from; the room's frame is the only source.
    */
-  noteRoomPhase(phase: number): void;
+  noteRoomPhase(phase: number, adoptRunning?: boolean): void;
   /** Clears every state on a fresh identity (first connect, or a different room);
    * sequences stay monotonic. */
   reset(): void;
@@ -107,9 +111,14 @@ export function createPlayerSession(): PlayerSession {
       }
       return null;
     },
-    noteRoomPhase(roomPhase: number): void {
+    noteRoomPhase(roomPhase: number, adoptRunning = false): void {
       if (roomPhase === SNAPSHOT_BUILDING_PHASE) {
         phase = "editing";
+        return;
+      }
+
+      if (adoptRunning && phase === "editing") {
+        phase = "materialized";
       }
     },
     reset(): void {

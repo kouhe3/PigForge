@@ -21,8 +21,11 @@ describe("levelUrlFrom", () => {
     expect(levelUrlFrom("ws://127.0.0.1:5088/play")).toBe("http://127.0.0.1:5088/level");
   });
 
-  it("derives it from the broadcast socket too, dropping the query string", () => {
-    expect(levelUrlFrom("ws://127.0.0.1:5088/snapshots?room=1")).toBe("http://127.0.0.1:5088/level");
+  it("keeps the socket's world query (the dev harness selects the world there)", () => {
+    expect(levelUrlFrom("ws://127.0.0.1:5088/snapshots?room=1")).toBe("http://127.0.0.1:5088/level?room=1");
+    expect(levelUrlFrom("ws://127.0.0.1:5088/play?scenario=sky-bench")).toBe(
+      "http://127.0.0.1:5088/level?scenario=sky-bench",
+    );
   });
 
   it("keeps TLS for a secure socket and mirrors an http/https origin", () => {
@@ -34,6 +37,9 @@ describe("levelUrlFrom", () => {
   it("keeps a relative socket URL relative (the dev proxy)", () => {
     expect(levelUrlFrom("/play")).toBe("/level");
     expect(levelUrlFrom("  /snapshots  ")).toBe("/level");
+    expect(levelUrlFrom("/play?level=original%2Fepisode_1_levels%2FLevel_05.json")).toBe(
+      "/level?level=original%2Fepisode_1_levels%2FLevel_05.json",
+    );
     expect(levelUrlFrom("")).toBe("/level");
   });
 });

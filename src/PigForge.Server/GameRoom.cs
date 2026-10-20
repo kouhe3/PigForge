@@ -490,6 +490,26 @@ public sealed class GameRoom : IDisposable
         return entity;
     }
 
+    /// <summary>
+    /// Places one scenario part during setup (the dev harness, `docs/specs/dev-harness.md`): a
+    /// normal construction placement under owner 0, with the same role registration a wire
+    /// `PlacePart` would perform. A rejected placement is returned, never skipped: a scenario that
+    /// cannot materialize its bench is a scenario bug, not a world to start.
+    /// </summary>
+    internal ConstructionResult SeedPart(uint partTypeId, float x, float y, float angle, float scale, bool mirrored)
+    {
+        ThrowIfDisposed();
+        EnsureBuilding("SeedPart");
+
+        ConstructionResult placed = _construction.Place(partTypeId, x, y, angle, scale, 0, mirrored);
+        if (placed.IsSuccess)
+        {
+            RegisterPlacedRole(placed.Entity, partTypeId);
+        }
+
+        return placed;
+    }
+
     /// <summary>Spawns every actor of an engine-agnostic level document (building phase).
     /// The document is remembered so a clear-policy build-mode re-entry can restore it.</summary>
     public void SetupFromLevel(LevelContentDocument level)

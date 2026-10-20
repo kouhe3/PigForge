@@ -7,6 +7,7 @@ import { decodeLevelContent, type LevelContentDocument } from "@/schema/levelCon
 import { toDrawEntities } from "@/schema/toDrawEntities";
 import { SNAPSHOT_BUILDING_PHASE } from "@/schema/decodeSnapshot";
 import { fetchLevel } from "@/live/levelEndpoint";
+import { initialLiveUrl } from "@/live/devWorld";
 import { createRestYawTracker } from "@/live/restYaw";
 import { viewState } from "@/viewState";
 
@@ -21,7 +22,9 @@ export const useSessionStore = defineStore("session", () => {
   const tick = ref(1);
   const playing = ref(false);
   const speed = ref(1);
-  const liveUrl = ref("ws://127.0.0.1:5088/play");
+  // The dev harness puts the world in the page query (`?dev=1&scenario=...`); the socket must carry
+  // the same query so `GET /level` sees the same world (`docs/specs/dev-harness.md` §4.4).
+  const liveUrl = ref(initialLiveUrl("ws://127.0.0.1:5088/play", typeof window === "undefined" ? undefined : window.location.search));
   const liveTick = ref(0);
   const livePhase = ref(0);
   const events = ref<ReplayEvent[]>([]);

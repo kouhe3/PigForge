@@ -32,9 +32,23 @@ import { curveTextureNames } from "./renderer/terrainCurve";
 import { cameraLimitsRect, constructionCellExists, timeLimit, zoneRect, type LevelChallenge } from "./schema/levelContent";
 import type { ClientCommand, DrawEntity } from "./schema/types";
 import { useSessionStore } from "./stores/session";
+import DevPanel from "./dev/DevPanel.vue";
 import { viewState } from "./viewState";
 
 const session = useSessionStore();
+// The dev drawer only appears with `?dev=1`; the world itself is selected by the query
+// (`docs/specs/dev-harness.md`), so the ordinary page is unchanged.
+const devMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("dev") === "1";
+// Only a scenario world can be already running when the page connects (`start: true`); the bare
+// dev sandbox is a shared sandbox room whose local phase must stay "editing" so parts can be placed.
+const devScenario = devMode && typeof window !== "undefined" && new URLSearchParams(window.location.search).has("scenario");
+// A dev room is single-player and a scenario's parts are seeded server-side, so the client never
+// receives their Place acks. Treat every entity as this player's for editing/switching; ordinary
+// pages keep the ack-derived ownership.
+const uiOwnEntityIds = computed(() => {
+  void liveFrame.value;
+  return devMode ? new Set(viewState.entities.map((entity) => entity.entityId)) : player.ownEntityIds;
+});
 const canvas = ref<HTMLCanvasElement | null>(null);
 // viewState.entities is replaced wholesale on every snapshot; the getter keeps gesture
 // hit-testing pointed at the live array instead of a captured (stale) reference.
@@ -104,7 +118,6 @@ function partThumb(partTypeId: number): string | null {
 let raf = 0;
 
 const canEdit = computed(() => playerPhase.value === "editing");
-const canStart = computed(() => canEdit.value && ownCount.value > 0);
 const canReset = computed(() => playerPhase.value === "materialized" || ownCount.value > 0);
 const canPlace = computed(() => activeTab.value === "live" && session.mode === "live" && canEdit.value);
 const phaseLabel = computed(() => (playerPhase.value === "materialized" ? "运行中" : "编辑中"));
@@ -145,7 +158,7 @@ const runResultText = computed(() => {
 const gadgets = computed<GadgetGroup[]>(() => {
   void liveFrame.value;
   void ownCount.value;
-  return gadgetGroups(viewState.entities, player.ownEntityIds, session.content);
+  return gadgetGroups(viewState.entities, uiOwnEntityIds.value, session.content);
 });
 const canSwitch = computed(() => activeTab.value === "live" && playerPhase.value === "materialized" && gadgets.value.length > 0);
 
@@ -157,6 +170,15 @@ const selectedBaseId = computed(() => {
 
 /** Part lookup for the move-drag contact snap; rebuilt when content arrives. */
 const partById = computed(() => new Map((session.content?.parts ?? []).map((part) => [part.partTypeId, part])));
+
+// A scenario's parts are seeded by the server, so this client never receives a Place ack for
+// them; in the dev harness any dynamic part in the building frame enables Start. An ordinary
+// room keeps the own-parts rule.
+const canStart = computed(() => {
+  void liveFrame.value;
+  return canEdit.value && (ownCount.value > 0
+    || (devMode && viewState.entities.some((entity) => partById.value.get(entity.partTypeId)?.mode === "dynamic")));
+});
 
 /** A local placement notice (an out-of-grid click); the server stays the authority on the build. */
 const buildNotice = ref("");
@@ -341,7 +363,7 @@ function editableSelectedEntities(): DrawEntity[] {
   }
 
   return viewState.entities
-    .filter((entity) => viewState.selectedIds.includes(entity.entityId) && player.ownEntityIds.has(entity.entityId))
+    .filter((entity) => viewState.selectedIds.includes(entity.entityId) && uiOwnEntityIds.value.has(entity.entityId))
     .sort((left, right) => left.entityId - right.entityId);
 }
 
@@ -359,7 +381,7 @@ function toggleGadget(group: GadgetGroup): void {
 
 /** PGFC kind 8: in play mode a tap on an own switchable part flips its switch. */
 function togglePartFromCanvas(entityId: number): void {
-  if (!canSwitch.value || !player.ownEntityIds.has(entityId)) {
+  if (!canSwitch.value || !uiOwnEntityIds.value.has(entityId)) {
     return;
   }
 
@@ -532,7 +554,7 @@ function connectLive(): void {
       // The room owns its phase: a goal-based level returns itself to building when the pig leaves its
       // camera rectangle (ADR-036), so the local phase has to follow the room's own frames or the page
       // would keep offering switches and build tools to a room that answers WrongMode to all of them.
-      player.noteRoomPhase(snapshot.phase);
+      player.noteRoomPhase(snapshot.phase, devScenario);
       syncPlayer();
       applyCollected(snapshot.collected);
       applyRunState(snapshot.elapsedSeconds, snapshot.challengeFlags);
@@ -757,12 +779,19 @@ onMounted(() => {
       {
         tool: () => tool.value,
         canPlace: () => canPlace.value,
-        isEditable: (entityId) => canEdit.value && player.ownEntityIds.has(entityId),
+        isEditable: (entityId) => canEdit.value && uiOwnEntityIds.value.has(entityId),
         partOf: (partTypeId) => partById.value.get(partTypeId),
         armedPart: () => selectedPart.value,
       },
     );
   }
+  if (devMode) {
+    // One URL is one feature (`docs/specs/dev-harness.md`): the dev page opens the live room it
+    // names instead of asking for 建造 → 连接房间 first.
+    activeTab.value = "live";
+    connectLive();
+  }
+
   window.addEventListener("keydown", onKey);
   raf = requestAnimationFrame(paint);
 });
@@ -952,6 +981,8 @@ onUnmounted(() => {
         <li v-for="(error, index) in session.errors" :key="index">{{ error }}</li>
       </ul>
     </aside>
+
+    <DevPanel v-if="devMode" />
 
     <footer class="timeline" v-if="activeTab === 'replay'">
       <label>

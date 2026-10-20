@@ -9,15 +9,19 @@ const LEVEL_PATH = "/level";
  */
 export function levelUrlFrom(liveUrl: string): string {
   const trimmed = liveUrl.trim();
+  // The dev harness selects the world with the same query the socket carries
+  // (`?scenario=`/`?level=`), so the level request must keep it.
+  const queryIndex = trimmed.indexOf("?");
+  const query = queryIndex >= 0 ? trimmed.slice(queryIndex) : "";
   const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(trimmed);
   if (scheme === null) {
-    return LEVEL_PATH;
+    return `${LEVEL_PATH}${query}`;
   }
 
   const authority = trimmed.slice(scheme[0].length).split(/[/?#]/)[0];
   const protocol = scheme[1].toLowerCase();
   const http = protocol === "wss" ? "https" : protocol === "ws" ? "http" : protocol;
-  return `${http}://${authority}${LEVEL_PATH}`;
+  return `${http}://${authority}${LEVEL_PATH}${query}`;
 }
 
 /**

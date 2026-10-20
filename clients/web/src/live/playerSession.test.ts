@@ -93,6 +93,21 @@ describe("playerSession", () => {
     expect(session.phase).toBe("editing");
   });
 
+  it("adopts a room a scenario already started (dev harness)", () => {
+    const session = createPlayerSession();
+    session.noteRoomPhase(0, true);
+    expect(session.phase).toBe("materialized");
+
+    session.noteRoomPhase(SNAPSHOT_BUILDING_PHASE, true);
+    expect(session.phase).toBe("editing");
+  });
+
+  it("does not adopt a running frame without the dev flag", () => {
+    const session = createPlayerSession();
+    session.noteRoomPhase(0);
+    expect(session.phase).toBe("editing");
+  });
+
   it("does not let an in-flight building frame undo a start", () => {
     const session = createPlayerSession();
     const place = session.noteSent(0);
