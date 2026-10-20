@@ -1,6 +1,6 @@
 # Spec: 单人开发测试台（dev harness）
 
-> 2026-10-19。解决的不是玩法，而是**验证**：现在客户端只连一个由服务端启动时选定的世界，换关卡/换场景要重启进程，
+> 2026-10-19。**状态：已实现**（交付读数与测试见 §11）。解决的不是玩法，而是**验证**：现在客户端只连一个由服务端启动时选定的世界，换关卡/换场景要重启进程，
 > 玩家/开发者每验一个功能都得从头摆一遍。原版关卡是单机内容（部分机关还是一次性的），不适合当联机玩法；
 > 联机要做什么等社群输入。本片先做**一个人、一个 URL、一个功能**的测试台。
 
@@ -91,12 +91,19 @@ ws://127.0.0.1:5088/play?level=<path under content/levels>
 
 ### 4.4 客户端（`?dev=1`）
 
-- 页面检测 `dev=1` → 显示一个开发抽屉（右下角，不影响正常 UI）：
+- 页面检测 `dev=1` → **直接切到「建造」并自动连接**（一个 URL 一个功能，不再点「建造 → 连接房间」），
+  并显示一个开发抽屉（右下角，不影响正常 UI）：
   - 下拉：场景列表 + 关卡列表（从 `GET /dev/worlds` 拉）；
   - 选中 → 写 URL `?dev=1&scenario=<id>`（或 `&level=<path>`）并 `location.reload()`；
   - 「重开本场景」= 同样的 reload；「返回沙盒」= 去掉查询。
 - WS 连接与 `GET /level` 都带当前查询串（`App.vue` 一处拼 URL）。
 - 页面加载顺序不变：先 `GET /level`，再开 WS；两者必须看到**同一个**世界（查询串一致）。
+- **dev 世界里的归属**：场景零件由服务器预置，客户端永远收不到它们的 `Place` ack。`?dev=1` 时把
+  构建帧里的**所有实体**视为本玩家（可选中/旋转/开关），`Start` 也由「帧里存在动态零件」放行；
+  非 dev 页面仍用 ack 归属。服务器侧的归属/权限不变（关卡房间 owner 0）。
+- **已经被场景启动的房间**：`start: true` 的场景在客户端连接前就进了 Running，没有 Start ack 可学，
+  所以**带 `scenario=` 的 dev 页面**收到非建造帧时把本地相位提升为 `materialized`；裸沙盒（无选择）不提升，
+  否则会失去放置能力（沙盒房间本来就是 Running，本地相位仍应是 `editing`）。非 dev 只接受降级（G117）。
 - 非 `dev=1` 时客户端行为不变。
 
 ### 4.5 场景与关卡的隔离
@@ -159,6 +166,8 @@ ws://127.0.0.1:5088/play?level=<path under content/levels>
 - 开发抽屉只读列表 + reload；不做热切换（热切换会引入房间替换/在途命令的竞态，reload 是确定性的）。
 - `GET /dev/worlds` 与 `?level=` 只在 `--dev` 生效；生产/普通 `--play` 不暴露。
 - 场景坐标是作者手写的世界坐标；不做「吸附到网格」的编辑器（场景校验会拒绝不存在的 partTypeId）。
+- dev 页面会自动切到建造并连接；普通页面仍然是「回放查看器 → 建造 → 连接房间」的手动流程。
+- 一个浏览器标签一个房间；切世界是整页重载（不做运行期房间替换）。
 
 ## 9. 分片
 
@@ -176,3 +185,30 @@ ws://127.0.0.1:5088/play?level=<path under content/levels>
    联机测试仍用不带 `--dev` 的进程。
 2. 场景是否也要支持「建造模式下的预览」与「自动 RESET」？本规格只做 `start` 布尔；需要时加 `resetAfter`。
 3. 是否把 `GET /dev/worlds` 的关卡列表分页/按 episode 分组？客户端先全部列出（279 条），可后加过滤。
+
+
+## 11. 交付记录（2026-10-19）
+
+**实现**：`ScenarioLoader`/`DevWorlds`/`PlayHost --dev`/`GameRoom.SeedPart`、`content/scenarios/` 三个场景、
+`tools/dev/scenarios.mjs`、客户端 `live/devWorld.ts` + `dev/DevPanel.vue` + `?dev=1` 自动连接/归属规则、
+`levelEndpoint` 保留世界查询、vite `/dev` 代理。
+
+**读数**（真服务器 `--play --dev` + 真 Bepu + 真 Chromium）：
+
+| 步骤 | 读数 |
+|---|---|
+| `GET /dev/worlds` | 200，3 场景、**279** 关卡文档、0 错误 |
+| `GET /level?scenario=sky-bench` | 200，`contentVersion = terrain-v1` |
+| `GET /level?level=../parts.json` / `?bogus=1` | **400**（路径逃逸/未知查询） |
+| WS `?scenario=sky-bench`（start:true） | 帧 tick 21、phase 0、**13** 实体（4 场景件 + 9 关卡 actor） |
+| WS `?scenario=tnt-bench` / `switch-bench` | phase 0x10、**11** / **14** 实体；`Start` 后 switch 变 phase 0 |
+| 浏览器 `?dev=1&scenario=switch-bench` | 自动进「建造」并连接；Start 可用；开关条 `1风扇 / 2火箭 / 3风箱 / 4小发动机` |
+| 抽屉切 `sky-bench` | URL 变 `?dev=1&scenario=sky-bench`，自动连接即 **运行中**；开关条 `气球×2 / 风扇` |
+| 抽屉切 `Level_05` | 地形/装饰/挑战 HUD 正常，phase 编辑中；控制台 0 错误 |
+
+**测试**：Server **184**（+6：场景校验/播种/拒绝/查询/清单/坏文件）Core 432 / Protocol 45 / Replay 11 /
+Physics 96（75+21）/ web **432**（+12：`devWorld` 11、`playerSession` 2，`levelEndpoint` 改 2 条）；
+`pnpm build` 绿；Release 0 警告 0 错误；`scenarios.mjs --check` 3 ok。
+
+**发现的客户端规则**（已写进 §4.4）：dev 页面自动切建造并连接；dev 世界把全部实体视为本玩家；
+`Start` 由帧里的动态零件放行；`start:true` 的房间由帧相位提升本地相位。
