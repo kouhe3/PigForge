@@ -124,6 +124,61 @@ public static class LevelChallengeTriggers
     }
 }
 
+/// <summary>
+/// The original's extra finish cargo (<c>GameMode.PlayerHasRequiredObjects</c>,
+/// <c>GameMode.cs:356-375</c>): a level that grants an <c>Egg</c> only completes when an egg is in
+/// the goal as well, otherwise a level that grants a <c>Pumpkin</c> wants the pumpkin. The two flags
+/// come from the level's own allowance table -- <c>LevelManager.EggRequired</c>/
+/// <c>PumpkinRequired</c> are <c>GetPartTypeCount(type) &gt; 0</c>
+/// (<c>LevelManager.cs:413-432</c>), and <c>BaseGameMode.GetPartCount</c>
+/// (<c>BaseGameMode.cs:558-578</c>) answers straight from <c>m_partTypeCounts</c>, which is
+/// schemaVersion 9's <c>build.partCounts</c>. The original tests the egg first and never looks at
+/// the pumpkin when an egg is granted, so this resolves the same way.
+/// </summary>
+public static class LevelGoalRequirements
+{
+    /// <summary>
+    /// The granted part family the level also wants in the goal, or <c>null</c> when the pig alone
+    /// finishes it (no <c>build</c> block, or neither family in the table).
+    /// </summary>
+    public static uint? RequiredExtraPartFamily(LevelContentDocument level, PartContentLibrary content)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        ArgumentNullException.ThrowIfNull(content);
+        if (level.Build is not LevelBuildLimits build)
+        {
+            return null;
+        }
+
+        uint pumpkin = 0;
+        foreach (LevelPartAllowance allowance in build.PartCounts)
+        {
+            if (allowance.Count == 0 || !content.TryGetPart(allowance.PartTypeId, out PartDefinition part))
+            {
+                continue;
+            }
+
+            PartCapabilities? capabilities = part.Capabilities;
+            if (capabilities is null)
+            {
+                continue;
+            }
+
+            if (capabilities.IsEgg)
+            {
+                return allowance.PartTypeId;
+            }
+
+            if (capabilities.IsPumpkin && pumpkin == 0)
+            {
+                pumpkin = allowance.PartTypeId;
+            }
+        }
+
+        return pumpkin == 0 ? null : pumpkin;
+    }
+}
+
 /// <summary>Per-tick rule output; the caller owns and reuses the instance to keep the tick path allocation-free.</summary>
 public sealed class GameplayTickOutput
 {
@@ -215,6 +270,13 @@ public sealed class GameplayRules
     /// <summary>The level props already collected this run, so a marker reports once and `RESET` clears it
     /// (`docs/specs/level-challenges.md` §4).</summary>
     private readonly HashSet<int> _collectedChallenges = new();
+    // The original's extra finish cargo (`GameMode.PlayerHasRequiredObjects`, gap G114): the level
+    // may want an egg or a pumpkin delivered with the pig, and `PartsInGoal` is a running record --
+    // entering the goal is latched, leaving it does not take the entry back.
+    private bool _goalExtraPartRequired;
+    private readonly HashSet<uint> _goalTargetParts = new();
+    private bool _goalPigArrived;
+    private bool _goalExtraArrived;
     private readonly Dictionary<uint, PhysicsQuaternion> _rotationByBody = new();
     // A member's pose inside its body (the compound's local offset), so a rule can resolve the
     // part's own world position: a blast's origin is the charge part, not the body's centre of
@@ -483,6 +545,10 @@ public sealed class GameplayRules
         _hasRunStart = true;
         _runTimerStarted = false;
         _runTimerStartTick = 0;
+        // The original's running entry clears the goal's own record (`BaseGameMode.cs:325-328`:
+        // `levelManager.PartsInGoal.Clear()`), so every Start begins with no part delivered.
+        _goalPigArrived = false;
+        _goalExtraArrived = false;
     }
 
     /// <summary>
@@ -973,6 +1039,19 @@ public sealed class GameplayRules
             explodeImpulse));
 
     public void AddEgg(EntityId entity) => _eggs.Set(entity, default);
+
+    /// <summary>
+    /// Declares that this level wants an extra part delivered with the pig
+    /// (<c>GameMode.PlayerHasRequiredObjects</c>, gap G114; which family is the level's own business,
+    /// <see cref="LevelGoalRequirements"/>). Idempotent: every return from the building phase
+    /// re-installs the level's rules.
+    /// </summary>
+    public void RequireExtraGoalPart() => _goalExtraPartRequired = true;
+
+    /// <summary>Registers one part of the family the level also wants in the goal. A part destroyed
+    /// later stops answering its own arrival, but an arrival already recorded stands
+    /// (<c>LevelManager.PartsInGoal</c> is never trimmed).</summary>
+    public void AddGoalTargetPart(EntityId entity) => _goalTargetParts.Add(entity.Value);
 
     public void AddWing(EntityId entity, float liftConstant) =>
         _wings.Set(entity, new WingState(liftConstant));
@@ -3267,8 +3346,11 @@ public sealed class GameplayRules
 
             if (_config.GoalZone.Contains(kinematics.Position))
             {
-                Phase = GameplayPhase.Won;
-                return;
+                // `GameMode.NotifyGoalReachedByPart` (GameMode.cs:336-354) records the pig in
+                // `PartsInGoal` and nothing takes it back, so a pig that came through and left again
+                // still counts when the egg it waits for arrives afterwards.
+                _goalPigArrived = true;
+                continue;
             }
 
             if (_config.CameraLimits is CameraLimits cameraLimits)
@@ -3294,9 +3376,45 @@ public sealed class GameplayRules
             }
         }
 
+        if (_goalExtraPartRequired && !_goalExtraArrived)
+        {
+            CheckGoalExtraArrival();
+        }
+
+        if (_goalPigArrived && (!_goalExtraPartRequired || _goalExtraArrived))
+        {
+            Phase = GameplayPhase.Won;
+            return;
+        }
+
         if (_config.MaxTicks > 0 && tick >= _config.MaxTicks)
         {
             Phase = GameplayPhase.Failed;
+        }
+    }
+
+    /// <summary>
+    /// The goal's own part test (`Goal.CheckIfPartReachedGoal`, `Goal.cs:34-66`): every part of the
+    /// family the level also wants counts when its own transform reaches the zone, exactly as the
+    /// original records the part's type in <c>PartsInGoal</c> from the collider that entered.
+    /// </summary>
+    private void CheckGoalExtraArrival()
+    {
+        foreach (uint entityValue in _goalTargetParts)
+        {
+            EntityId entity = new(entityValue);
+            if (!_bodies.TryGet(entity, out PhysicsBodyLink link)
+                || !_kinematicsByBody.TryGetValue(link.Body.Value, out var kinematics))
+            {
+                continue;
+            }
+
+            ResolvePartFrame(entity, link.Body.Value, kinematics.Position, out PhysicsVector3 position, out _);
+            if (_config.GoalZone.Contains(position))
+            {
+                _goalExtraArrived = true;
+                return;
+            }
         }
     }
 
@@ -3336,6 +3454,7 @@ public sealed class GameplayRules
         _activations.Remove(entity);
         _restitutions.Remove(entity);
         _unanchoredPropulsion.Remove(entity.Value);
+        _goalTargetParts.Remove(entity.Value);
         ForgetPower(entity);
     }
 
@@ -3453,6 +3572,13 @@ public sealed class GameplayRules
         _bodies.Clear();
         _powers.Clear();
         _unanchoredPropulsion.Clear();
+        // The room re-runs `SetupFromLevel` after a clear reset, which re-installs the level's goal
+        // requirement and re-registers its actors; a stale set could otherwise keep a part from a
+        // previous level family answering for this one.
+        _goalExtraPartRequired = false;
+        _goalTargetParts.Clear();
+        _goalPigArrived = false;
+        _goalExtraArrived = false;
         _alivePigs = 0;
         Phase = GameplayPhase.Playing;
     }
@@ -3488,6 +3614,7 @@ public sealed class GameplayRules
         _glues.Remove(entity);
         _activations.Remove(entity);
         _restitutions.Remove(entity);
+        _goalTargetParts.Remove(entity.Value);
         ForgetPower(entity);
         _bodies.Remove(entity);
         _entities.Destroy(entity);

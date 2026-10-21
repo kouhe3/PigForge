@@ -5437,7 +5437,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pumpkin": true },
       "shapes": [
         {
           "kind": "sphere",
@@ -5480,7 +5480,7 @@
       "mode": "dynamic",
       "mass": 0.5,
       "material": { "restitution": 0, "friction": 0.7 },
-      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none" },
+      "capabilities": { "canBeEnclosed": true, "jointConnectionDirection": "any", "jointConnectionStrength": "weak", "powerConsumption": 0, "enginePower": 0, "jointConnectionType": "none", "pumpkin": true },
       "shapes": [
         {
           "kind": "sphere",

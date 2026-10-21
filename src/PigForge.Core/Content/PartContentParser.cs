@@ -515,6 +515,7 @@ public static class PartContentParser
         float? rocketExplodeRadius = null;
         float? rocketExplodeImpulse = null;
         bool isEgg = false;
+        bool isPumpkin = false;
         float? wingLiftConstant = null;
         float? tailLiftConstant = null;
         bool mirror = false;
@@ -657,6 +658,19 @@ public static class PartContentParser
             else
             {
                 isEgg = eggElement.GetBoolean();
+            }
+        }
+
+        if (seenKeys.Contains("pumpkin"))
+        {
+            if (!capabilitiesElement.TryGetProperty("pumpkin", out JsonElement pumpkinElement) || pumpkinElement.ValueKind != JsonValueKind.True && pumpkinElement.ValueKind != JsonValueKind.False)
+            {
+                errors.Add($"{path}.capabilities.pumpkin: must be a boolean.");
+                hasError = true;
+            }
+            else
+            {
+                isPumpkin = pumpkinElement.GetBoolean();
             }
         }
 
@@ -931,7 +945,7 @@ public static class PartContentParser
 
         foreach (string key in seenKeys)
         {
-            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "mirror" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "canBeEnclosed" or "attachment" or "suspension" or "powerConsumption" or "enginePower" or "dampingRamp" or "rope"))
+            if (key is not ("pig" or "wheel" or "motor" or "tnt" or "balloon" or "fan" or "spring" or "glove" or "rocket" or "egg" or "pumpkin" or "mirror" or "wing" or "tail" or "umbrella" or "gearbox" or "bellows" or "detacher" or "light" or "grapple" or "blaster" or "glue" or "activation" or "jointConnectionType" or "jointConnectionStrength" or "jointConnectionDirection" or "canEnclose" or "canBeEnclosed" or "attachment" or "suspension" or "powerConsumption" or "enginePower" or "dampingRamp" or "rope"))
             {
                 errors.Add($"{path}.capabilities: unknown property '{key}'.");
                 hasError = true;
@@ -943,7 +957,7 @@ public static class PartContentParser
             return null;
         }
 
-        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, tntRadius, tntImpulse, tntTriggerSpeed, tntRepeatable, tntChainTarget, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, canBeEnclosed, attachment, suspension, glove, powerConsumption, enginePower, dampingRamp, rope);
+        return new PartCapabilities(isPig, isWheel, motorThrust, motorDirection, tntFuse, balloonLift, fanThrust, fanDirectionX, fanDirectionY, fanMaxSpeed, fanIsRotor, spring, rocketThrust, rocketDirectionX, rocketDirectionY, rocketIgnitionTicks, rocketBoostTicks, rocketEndTicks, rocketMaxSpeed, rocketVisualization, rocketExplodeRadius, rocketExplodeImpulse, isEgg, isPumpkin, wingLiftConstant, tailLiftConstant, mirror, umbrellaDragCoef, isGearbox, isDetacher, bellowsThrust, bellowsDirectionX, bellowsDirectionY, bellowsInflate, lightRadius, grappleImpulse, grappleDirectionX, grappleDirectionY, activation, tntChainDetonate, tntIgniteOnImpact, tntRadius, tntImpulse, tntTriggerSpeed, tntRepeatable, tntChainTarget, blasterRadius, blasterImpulse, blasterChainRadius, isGlue, jointConnectionType, jointConnectionStrength, jointConnectionDirection, canEnclose, canBeEnclosed, attachment, suspension, glove, powerConsumption, enginePower, dampingRamp, rope);
     }
 
     private static bool TryReadAttachment(JsonElement capabilities, string path, List<string> errors, out PartAttachment? attachment)

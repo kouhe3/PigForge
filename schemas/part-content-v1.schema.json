@@ -267,6 +267,9 @@
         "egg": {
           "type": "boolean"
         },
+        "pumpkin": {
+          "type": "boolean"
+        },
         "mirror": {
           "description": "Original BasePart.m_autoAlign == FlipVertically (2): this part's build pose has a handedness (a 180-degree turn about the part's own up axis, applied inside its own frame before the yaw), which a float yaw cannot express. Extracted by tools/bple-aero from the prefab, never authored.",
           "type": "boolean"

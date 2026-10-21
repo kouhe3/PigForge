@@ -346,6 +346,12 @@ public sealed record PartCapabilities(
     float? RocketExplodeRadius = null,
     float? RocketExplodeImpulse = null,
     bool IsEgg = false,
+    // The original's `BasePart.PartType.Pumpkin` (`LevelManager.PumpkinRequired`,
+    // `LevelManager.cs:426-432`): a level that grants one only completes when a pumpkin reaches the
+    // goal as well (`GameMode.PlayerHasRequiredObjects`, `GameMode.cs:356-375`). The Egg flag above
+    // is the same kind of fact; a PartType is not a capability, but it is what the level's own
+    // allowance table is keyed on, so content says which family carries it.
+    bool IsPumpkin = false,
     // The original's wing and tail are one clamped |v|^2 response curve each, evaluated in the
     // part's own frame (spec docs/specs/part-mirror.md, Wings.cs:104-118 / Tail.cs:57-75); the
     // content carries the class's own `m_liftConstant` and nothing else.

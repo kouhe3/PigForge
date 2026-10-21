@@ -134,6 +134,11 @@ public sealed class GameRoom : IDisposable
     // SetupFromLevel also runs on every return to the building phase, so this keys the install on
     // the document: the grid geometry and family table are resolved once, not per re-entry.
     private LevelContentDocument? _buildLimitsLevel;
+    // The family this level also wants delivered with the pig (`LevelGoalRequirements`, gap G114), or
+    // null for a level the pig alone finishes. Resolved from the level's own document in
+    // SetupFromLevel, before its actors spawn, so the rules never need to know which part type an
+    // egg or a pumpkin is.
+    private uint? _goalExtraFamily;
     private readonly List<PhysicsBodyId> _terrainBodies = new();
 
     /// <summary>How many static terrain bodies the level brought (test-visible).</summary>
@@ -260,7 +265,12 @@ public sealed class GameRoom : IDisposable
 
     /// <summary>The content family of a placed part: a skin counts against its base, exactly as
     /// `Contraption.HasPart`'s PartType comparison does (`Contraption.cs:491-501`).</summary>
-    private uint FamilyOf(PartLink part) => _content.GetPart(part.PartTypeId).VariantOf ?? part.PartTypeId;
+    private uint FamilyOf(PartLink part) => FamilyOf(part.PartTypeId);
+
+    private uint FamilyOf(uint partTypeId) => _content.GetPart(partTypeId).VariantOf ?? partTypeId;
+
+    private bool IsGoalExtraPart(uint partTypeId) =>
+        _goalExtraFamily is uint family && FamilyOf(partTypeId) == family;
 
     private bool HasAnyPartOfFamily(uint family)
     {
@@ -325,6 +335,10 @@ public sealed class GameRoom : IDisposable
 
     /// <summary>How many static bodies the level's own solid props brought (test-visible).</summary>
     internal int PropBodyCount => _propBodies.Count;
+
+    /// <summary>The family the level also wants delivered with the pig (test-visible; gap G114).</summary>
+    internal uint? GoalExtraPartFamily => _goalExtraFamily;
+
     private readonly List<CapturedPart> _retryLayout = new();
     private readonly Dictionary<uint, List<CapturedPart>> _startLayoutByPlayer = new();
     private bool _disposed;
@@ -451,6 +465,11 @@ public sealed class GameRoom : IDisposable
 
         EntityId entity = _entities.Create();
         _parts.Set(entity, new PartLink(spec.PartTypeId));
+        if (IsGoalExtraPart(spec.PartTypeId))
+        {
+            _rules.AddGoalTargetPart(entity);
+        }
+
         _transforms.Set(entity, new EntityTransform(spec.Position, PhysicsQuaternion.FromZAngle(spec.Angle)));
         PartDefinition part = _content.GetPart(spec.PartTypeId);
         _rules.AddRestitution(entity, part.Restitution, _content.MassOf(part));
@@ -547,6 +566,16 @@ public sealed class GameRoom : IDisposable
         {
             _construction.UseLevelBuildLimits(level.Build);
             _buildLimitsLevel = level;
+        }
+
+        // The level's own extra finish cargo (gap G114): a level that grants an egg (else a pumpkin)
+        // only completes when that part reaches the goal too, the same table the quota above reads
+        // (`GameMode.PlayerHasRequiredObjects`). Resolved before the actors spawn, so the spawn and
+        // the placement paths both know which family answers for it.
+        _goalExtraFamily = LevelGoalRequirements.RequiredExtraPartFamily(level, _content);
+        if (_goalExtraFamily is not null)
+        {
+            _rules.RequireExtraGoalPart();
         }
 
         foreach (LevelSpawnDefinition spawn in level.Spawns)
@@ -851,6 +880,13 @@ public sealed class GameRoom : IDisposable
     private void RegisterPlacedRole(EntityId entity, uint partTypeId)
     {
         PartDefinition part = _content.GetPart(partTypeId);
+        // A part of the family the level also wants in the goal answers for it whether or not it
+        // carries any capability (gap G114): a pumpkin is a plain custom part.
+        if (IsGoalExtraPart(partTypeId))
+        {
+            _rules.AddGoalTargetPart(entity);
+        }
+
         // Elasticity is plain material data, so it registers whether or not the part carries
         // any capability at all.
         _rules.AddRestitution(entity, part.Restitution, _content.MassOf(part));

@@ -675,6 +675,115 @@ public sealed class GameplayRulesTests
     }
 
     /// <summary>
+    /// The original's extra finish cargo (gap G114, <c>GameMode.PlayerHasRequiredObjects</c>,
+    /// <c>GameMode.cs:356-375</c>): a level that grants an egg only completes once the egg reaches the
+    /// goal too. Both arrivals are latched -- <c>PartsInGoal</c> is never trimmed
+    /// (<c>GameMode.NotifyGoalReachedByPart</c>) -- so the two parts may come through at different
+    /// times, as long as each one does.
+    /// </summary>
+    [Fact]
+    public void AGoalThatWantsAnExtraPartWaitsForItEvenAfterThePigLeaves()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f));
+        EntityId pig = entities.Create();
+        EntityId egg = entities.Create();
+        PhysicsBodyId pigBody = new(1);
+        PhysicsBodyId eggBody = new(2);
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
+        harness.Rules.RequireExtraGoalPart();
+        harness.Rules.AddGoalTargetPart(egg);
+        harness.Link(pig, pigBody);
+        harness.Link(egg, eggBody);
+
+        // The pig alone is in the goal: the level is not over.
+        harness.IngestBody(pigBody, new PhysicsVector3(-8, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(eggBody, new PhysicsVector3(20, 1, 0), PhysicsVector3.Zero);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+
+        // It rolls back out; the record of its arrival stands.
+        harness.IngestBody(pigBody, new PhysicsVector3(-4, 1, 0), PhysicsVector3.Zero);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+
+        // The egg comes through, and the level is won with the pig no longer inside the zone.
+        harness.IngestBody(eggBody, new PhysicsVector3(-8.5f, 1, 0), PhysicsVector3.Zero);
+        harness.Tick(3, Array.Empty<PhysicsEvent>());
+        Assert.Equal(GameplayPhase.Won, harness.Rules.Phase);
+    }
+
+    [Fact]
+    public void AnExtraPartInTheGoalWithoutThePigDoesNothing()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f));
+        EntityId pig = entities.Create();
+        EntityId egg = entities.Create();
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
+        harness.Rules.RequireExtraGoalPart();
+        harness.Rules.AddGoalTargetPart(egg);
+        harness.Link(pig, new PhysicsBodyId(1));
+        harness.Link(egg, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(20, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(-8, 1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+    }
+
+    /// <summary>
+    /// The goal's record belongs to one run: the original clears <c>PartsInGoal</c> on the running
+    /// entry (<c>BaseGameMode.cs:325-328</c>), so a returned-to-building room cannot start its next
+    /// run already won.
+    /// </summary>
+    [Fact]
+    public void BeginningARunForgetsWhichPartsAlreadyArrived()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, new GameplayConfig(
+            GoalZone: new GameplayZone(new PhysicsVector3(-9, 0, -2), new PhysicsVector3(-7, 4, 2)),
+            MapBounds: new GameplayZone(new PhysicsVector3(-1000, -1000, -1000), new PhysicsVector3(1000, 1000, 1000)),
+            TntBlastRadius: 4f,
+            TntBlastImpulse: 12f,
+            TntIgniteImpactSpeed: 5f));
+        EntityId pig = entities.Create();
+        EntityId egg = entities.Create();
+        PhysicsBodyId pigBody = new(1);
+        PhysicsBodyId eggBody = new(2);
+        harness.Rules.AddPig(pig, 0.2f, 0.05f);
+        harness.Rules.RequireExtraGoalPart();
+        harness.Rules.AddGoalTargetPart(egg);
+        harness.Link(pig, pigBody);
+        harness.Link(egg, eggBody);
+
+        harness.IngestBody(pigBody, new PhysicsVector3(-8, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(eggBody, new PhysicsVector3(-8.5f, 1, 0), PhysicsVector3.Zero);
+        harness.Tick(1, Array.Empty<PhysicsEvent>());
+        Assert.Equal(GameplayPhase.Won, harness.Rules.Phase);
+
+        // The room's own return to building (`gameplayRules.ResetForRebuild`) plus the next Start.
+        harness.Rules.ResetForRebuild();
+        harness.Rules.BeginRun(pig, new PhysicsVector3(20, 1, 0));
+        harness.IngestBody(pigBody, new PhysicsVector3(20, 1, 0), PhysicsVector3.Zero);
+        harness.IngestBody(eggBody, new PhysicsVector3(20.5f, 1, 0), PhysicsVector3.Zero);
+        harness.Tick(2, Array.Empty<PhysicsEvent>());
+
+        Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
+    }
+
+    /// <summary>
     /// The original's run clock (<c>LevelManager.UpdateRunning</c>, <c>LevelManager.cs:1431-1441</c>):
     /// nothing until the reference pig's own transform is a metre away from the pose the running entry
     /// recorded, and that first tick adds nothing -- the original arms the clock and returns.

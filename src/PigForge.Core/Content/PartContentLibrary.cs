@@ -68,6 +68,12 @@ public sealed class PartContentLibrary
         return part;
     }
 
+    /// <summary>The lookup <see cref="GetPart"/> is, without throwing: a level document's own
+    /// allowance table is data, so a host that only reads it (the goal's extra part, gap G114)
+    /// skips an id content does not define instead of failing the whole room.</summary>
+    public bool TryGetPart(uint partTypeId, out PartDefinition part) =>
+        _partsByTypeId.TryGetValue(partTypeId, out part!);
+
     /// <summary>
     /// One physics leaf shape of a part with its part-local offset (already scaled).
     /// Wheels use two: the tire sphere plus the support box that mounts the part.
