@@ -109,6 +109,35 @@ private void UpdateRunning()
 `ObjectiveText`）。**预制件里没有任何本地化键、也不写目标文字**（只有图标），代码里也没有写 `ObjectiveText`
 的语句 ⇒ 原版结算页只显示图标与星，不显示目标描述（§8 D5）。
 
+### 2.6 终点区的额外货物（G114，2026-10-21）
+
+终点区不总是只认猪：**关卡发放了蛋（`Egg`）就要蛋也到终点，否则发放了南瓜（`Pumpkin`）就要南瓜**。
+
+```csharp
+// GameMode.cs:356-375 —— 蛋那条分支 return，南瓜只在前者不成立时才看
+public virtual bool PlayerHasRequiredObjects()
+{
+	if (levelManager.EggRequired)     { return PartsInGoal.Contains(Pig) && PartsInGoal.Contains(Egg); }
+	if (levelManager.PumpkinRequired) { return PartsInGoal.Contains(Pig) && PartsInGoal.Contains(Pumpkin); }
+	return PartsInGoal.Contains(Pig);
+}
+// LevelManager.cs:413-432 —— 两个 Required 标志 = 关卡自己的配额表里那件 > 0（沙盒恒 false）
+public bool EggRequired     => !m_sandbox && GetPartTypeCount(BasePart.PartType.Egg) > 0;
+public bool PumpkinRequired => !m_sandbox && GetPartTypeCount(BasePart.PartType.Pumpkin) > 0;
+```
+
+- **`PartsInGoal` 是累积记录**：`GoalBox.OnGoalEnter`（`GoalBox.cs:83-102`）→ `GameMode.NotifyGoalReachedByPart`
+  （`GameMode.cs:336-354`）把「进入终点的那件」的 PartType 加进去（已存在就跳过）；**从不移除**，只在
+  Running 入口 `Clear()`（`BaseGameMode.cs:325-328`）。所以猪先进、出去、蛋后进 ⇒ 那一刻照样通关。
+- 每件的进入判定是 `Goal.OnTriggerEnter`（`Goal.cs:18-29`）→ `CheckIfPartReachedGoal`（`:34-66`）：
+  进入的 collider 属于某件，`IsConnectedToPig` / `IsConnectedTo`（PigForge：同一连通分量）成立就把它记进去；
+  另有「同一连通分量且在 2.5 m 内」的兜底（与挑战箱同一个近似，偏差 D9）。
+- `m_extraTargetPart` 是**Goal prefab 的字段**，不是关卡的：`GoalArea_01/02/Morning/Night/StarLevel = 36 (Egg)`、
+  `GoalArea_Halloween = 42 (Pumpkin)`、`GoalArea_MM* = 0`（188 关用蛋 prefab、30 关用万圣节 prefab、59 关无额外目标）。
+  关卡文件**从不**覆写它（全包 `m_extraTargetPart` 只出现在两关的 `Collectable` 上，值 45 = `GoldenPig`，那是挑战箱的目标件，与终点无关）。
+- **包内数据一致**：发放蛋的 **45** 关全部用蛋 prefab（36），发放南瓜的 **15** 关全部用万圣节 prefab（42），
+  没有一关发放了终点 prefab 记不下的那件 ⇒ 只用配额表判定与「配额表 + prefab 字段」在 277 关**等价**。
+
 ## 3. 内容契约 v10
 
 在 v9 之上加一个**必填**（可为空数组）的顶层属性 `challenges`：
@@ -157,8 +186,8 @@ private void UpdateRunning()
 ### 4.2 挑战判定（`GameRoom`，进终点区那一刻一次）
 
 挑战的判据需要房间自己的东西（件表、串的连通分量、已收集的挑战箱、断开记录），所以**判定在房间**做，
-在原版同一个位置：`Phase` 刚从 `Playing` 变 `Won` 的那个 tick（`GameplayRules.CheckObjectives` 已经保证
-「进终点区 ⇒ Won」）。
+在原版同一个位置：`Phase` 刚从 `Playing` 变 `Won` 的那个 tick（由 `GameplayRules.CheckObjectives` 置位，
+而它要过 §4.3 的终点判定 —— 关卡发放了蛋/南瓜时还要那件也到终点）。
 
 | kind | 判据 | 依据 |
 |---|---|---|
@@ -176,6 +205,25 @@ private void UpdateRunning()
 - `Retry` / 回到建造态：`_challengeFlags = 0`、`_starCount = 0`、`_contraptionBroke = false`、计时归零
   （与原版切 `Building` 后 `OnReset` 清收集、下一次 Running 重置计时一致）。
 - 新增公开读数（供测试/探针）：`ChallengeFlags`、`StarCount`、`ElapsedSeconds`。
+
+### 4.3 终点判定：额外货物（G114，2026-10-21）
+
+- **哪一族**：`LevelGoalRequirements.RequiredExtraPartFamily(level, content)`（`PigForge.Core/Runtime/GameplayRules.cs`）
+  读 `level.Build.PartCounts`（内容 v9），逐条解析件定义的 `capabilities.egg` / `capabilities.pumpkin`：
+  先返回蛋的家族，其次南瓜，都没有则 `null`（= 只要猪）。**不写死任何 part id**：蛋是内容 27，南瓜是 287
+  （两个基座 + 各自皮肤都带同一个位，见 §3 的 `pumpkin` 键）。
+- **房间装规则**：`GameRoom.SetupFromLevel` 在 spawn 之前解析一次 `_goalExtraFamily`，非空则
+  `rules.RequireExtraGoalPart()`；`Spawn`（关卡预置件）与 `RegisterPlacedRole`（玩家放置件）把该家族的件
+  `rules.AddGoalTargetPart(entity)`。`Retry` 的 `ResetAll` 清空整张表，随后 `SetupFromLevel` 与玩家的
+  存活件重新登记（与建造限制同一条安装节奏）。
+- **规则层**：`CheckObjectives` 不再「猪进区就 Won」，而是先**锁存**猪的到达（`_goalPigArrived`），
+  再对每件目标件用自己的 frame 位置（`ResolvePartFrame`）判 `GoalZone`（`_goalExtraArrived`）；
+  两个都成立才 `Won`。锁存是原版 `PartsInGoal` 的语义：离开终点区不撤销到达记录。
+  `BeginRun` 清两个锁存（= `BaseGameMode.cs:325-328` 的 `PartsInGoal.Clear()`）。
+- **读数**（供测试）：`GameRoom.GoalExtraPartFamily`（internal）。
+- 偏差：PigForge 不算「进入的那件与目标件是否连通」，只算目标件的**自身位置**是否在终点区内 —— 与挑战箱
+  （`level-challenges.md` 偏差 5）、出界判定（猪自己的 transform）同一份近似。也不建模 prefab 的
+  `m_extraTargetPart`（见 §2.6 的等价性）。
 
 ## 5. 状态上线：PGFS **v8**
 
@@ -220,6 +268,10 @@ uint8    challengeFlags       // bit i = challenges[i] 达成；未通关一律 
 | `TransportChallenge` | **10**（10 关，`partToTransport` 全在 prefab = enum 32 `KingPig`） |
 | 参数出处 | `time`/`dontUseParts` 的逐关参数**只在 `PrefabOverrides`**；`transport`/`perfectFlight`/`box` 只由 prefab 决定 |
 | 重名实例（排序无法唯一定序） | 3 关：`episode_6_level_25`（两个 `DontUsePartChallenge`）、`episode_6_level_32`、`episode_6_level_IX`（各两个 `BoxChallenge`） |
+| 发放蛋（`build.partCounts` 里 `27` > 0） | **45** 关（`Level_43/51/52/53/54`、`scenario_03/11/12/14/15/16/18/20/22/25/27/28/29/30/32/33/35/36/38/39/40/41/42/49/50/51/52/53/54/56`、`test15/20/52/53/54/59`、`track_03/05/06/07` 等）；终点 prefab 全是蛋款（36） |
+| 发放南瓜（`build.partCounts` 里 `287` > 0） | **15** 关（`scenario_02/10/21/24/26/31/37/44/45/46/55/97`、`test55/57`、`track_04`）；终点 prefab 全是 `GoalArea_Halloween`（42） |
+| 终点 prefab 的 `m_extraTargetPart` | 188 关 **36**（Egg）/ 30 关 **42**（Pumpkin）/ 59 关 **0**；关卡 override 从不覆写它 |
+| 发放了终点 prefab 记不下的那件 | **0** 关（配额表与 prefab 字段在包内一致，§2.6） |
 
 ## 8. 偏差（有意，不做就是不做）
 
@@ -235,7 +287,7 @@ uint8    challengeFlags       // bit i = challenges[i] 达成；未通关一律 
 | D8 | 看广告加时（+2 s）不做 | 无广告层；`AddToTimeLimit` 的实现（`LevelManager.cs:1687-1702`）已在真值里记下 |
 | D9 | `Transport` 只认「与猪同一个连通分量」，不做 2.5 m 邻居兜底 | 与 `level-challenges.md` 偏差 5 同一条 |
 | D10 | `DontUseParts` 的房间口径 = 房间里所有件（含关卡预置的 20 个实例） | 原版读 `ContraptionProto`（串里的件）；那 20 个实例是否进串未考证（与 `level-build-limits.md` D7 同源） |
-| D11 | 终点区仍只认**猪**：`PlayerHasRequiredObjects` 的「本关发放了 Egg/Pumpkin 就要它也在终点区」不做 | 属过关判定（`G77` 邻域），记为新差距 **`G114`**（`EggRequired = 关卡的 `m_partTypeCounts` 里 Egg 的发放数 > 0`，`LevelManager.cs:413-431`） |
+| D11 | ~~终点区只认猪~~ —— **G114 已实现（2026-10-21）**：发放了蛋/南瓜的关卡要那件也进终点（§2.6/§4.3）。剩余偏差只有两条：判定读目标件**自己的位置**（不算「进入的 collider 与它连通」，与 D9 同一近似），以及不建模终点 prefab 的 `m_extraTargetPart`（§2.6 证明包内等价） | 原版 `PlayerHasRequiredObjects`（`GameMode.cs:356-375`）+ `LevelManager.cs:413-432` |
 
 ## 9. 验收
 
@@ -277,3 +329,26 @@ curl http://127.0.0.1:5088/level    # v10 带 challenges：BoxChallenge(box) + T
 - 星级（`challengeFlags` 非零）在真关卡里要**真的把车开进终点区**，所以整条星级的端到端证据来自服务端房间测试
   （`LevelStarRoomTests`，真 Bepu + 合成 v10 文档）：通关出 1 星、时间挑战成/败、`dontUseParts`/`transport` 双向、
   箱子+终点区同 tick ⇒ 3 星、`Retry` 收星、载具被撕开 ⇒ `perfectFlight` 丢星。驾驶 smoke 不在本片（`玩家试玩` 是文档里的第一优先）。
+
+### G114 的验收（2026-10-21）
+
+```powershell
+dotnet test tests/PigForge.Core.Tests/PigForge.Core.Tests.csproj --filter "FullyQualifiedName~GoalRequirements|FullyQualifiedName~GameplayRulesTests"
+dotnet test tests/PigForge.Server.Tests/PigForge.Server.Tests.csproj --filter "FullyQualifiedName~GoalDeliveryRoomTests"
+```
+
+- **Core**：`GoalRequirementsTests`（真实 `content/parts.json`：蛋家族 27、南瓜家族 287、蛋优先于南瓜、0 配额不算发放、
+  无 `build` 块不算；真关卡 `Level_43` = 27、`scenario_02` = 287、`Level_05` = null）+ `GameplayRulesTests` 新增三条
+  （缺货不过关、猪离开后到达记录仍在、重新 `BeginRun` 清空记录）。
+- **Server**：`GoalDeliveryRoomTests` 四条（蛋关：蛋落进终点 = Won、猪独自 = Playing；无额外件的关 = Won；
+  三个真关卡的 `GoalExtraPartFamily`）。
+- **非空验证**（两次都实测）：注掉 `SetupFromLevel` 的 `RequireExtraGoalPart()` ⇒ 「蛋在终点外」那条红；
+  注掉 `RegisterPlacedRole` 的 `AddGoalTargetPart` ⇒ 「蛋到终点」那条红。
+- **真机**（Release `--play --level <合成 v11 关卡，3×3 建造格 + 终点柱>` + 客户端自己的编解码器用 Bun 直连 WS）：
+
+| 摆放 | 读数 |
+|---|---|
+| 猪在终点、蛋在终点外 | `phase 0`（Playing）连跑 **90** tick、`elapsedSeconds 1.03`，不过关（G114 之前这里是 Won） |
+| 猪与蛋都在终点 | `phase 1`（Won）第 **1** tick，2 个实体 |
+| 蛋关只放猪 | `phase 0` 连跑 90 tick —— 发放了蛋就必须让蛋到 |
+| 无额外件的关只放猪 | `phase 1` 第 1 tick |

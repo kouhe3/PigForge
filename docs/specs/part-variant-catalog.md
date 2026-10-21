@@ -141,6 +141,10 @@ G87 的警告守卫当场报出的最后两族：`Pumpkin`（PartType **42**，`
 5. 关卡内容 **v9** 的 `partCounts` 现在能解析这两个枚举：**28 关**的发放（16 关南瓜 + 14 关金猪，
    其中两关各少一条是因为 `Level_Sandbox_02`/`Level_Sandbox_06` 没有 `build` 块）从「无基座」变成
    真实配额 —— 建造栏在这 28 关里第一次能看到这两族。普查 1926/3394 → **1954/3422**。
+6. `capabilities.pumpkin`（G114，2026-10-21）：南瓜两件（`287`/`289`）带 `"pumpkin": true`，与蛋的
+   `"egg": true` 同一个用途 —— 终点判定要知道「这一族就是原版的 `PartType.Pumpkin`」（发放了南瓜的关卡
+   要求南瓜也到终点，`docs/specs/level-stars.md` §2.6/§4.3）。金猪不带（原版 `PlayerHasRequiredObjects`
+   不看它）。
 
 **顺带修掉的工具缺陷**：`tools/lib/parts.mjs` 的 `partSpan` 用裸 `"shapes":` 找零件自己的形状块，而
 拳套（`28`）的 `capabilities.glove` 里也有一份内联 `"shapes"` —— `apply-shapes` 会在那处切开并截断
