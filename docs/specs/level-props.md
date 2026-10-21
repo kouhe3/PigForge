@@ -252,7 +252,7 @@ prefab 自己的三个数（`TNT_Box.prefab:19-23`）：`m_triggerSpeed: 2`、`m
 |---|---|
 | 读数 | `tools/lib/props.mjs` 的 `explosiveOf`（`field()` 直接读组件字段）→ `extract-props` 的清单记录 → `build-levels.mjs` 写进每个实例 |
 | 契约 | `schemas/level-content-v11.schema.json` 的 `$defs.propExplosive`；`LevelPropExplosiveDefinition`；客户端 `levelContent.ts` 校验（v11 才允许） |
-| 判定 | `GameplayRules.ExplodePropOnImpact`：撞击量用与点火同一个估计（事件自带 / 上一 tick / 最近 2 tick 峰值），超过 `triggerSpeed` 即炸；`ContactStarted` 与 `ContactPersisted` 都读（同一对持续接触也算撞击） |
+| 判定 | `GameplayRules.ExplodePropOnImpact`：撞击量用与点火同一个估计（`PairRelativeSpeed`：事件自带的**相对速度模** / 上一 tick 速度 / 最近 2 tick 峰值，法向接近速度只作下界），超过 `triggerSpeed` 即炸 —— 原版木箱读的是 `c.relativeVelocity.magnitude`（`TNTBox.cs:22-24`），擦碰也算；`ContactStarted` 与 `ContactPersisted` 都读（同一对持续接触也算撞击） |
 | 效果 | 半径内每个动态 body 一条 `ApplyImpulse`（`impulse / max(d,1)^1.5`，`_massByBody` 有正值时按 0.1/0.4 档折减）；半径内的 TNT 零件被点亮引信（原版是直接 `Explode`，我们走既有连锁语义）；道具索引进 `CollectedProps` |
 | 消失 | 房间收到 `CollectedProps` 就 `DestroyPropBodies(propIndex)`（客户端本来就会隐藏 `collected` 的道具画面）；`Retry` 重建全部道具静态体并重新声明 |
 

@@ -64,3 +64,24 @@ PigForge 的运行规则（发动机、轮子、猪、TNT、断裂、关卡结�
 
 回归：`GameplayRulesTests.ALateContactEventStillIgnitesTheChargeTheFallLoaded`（事件与上一 tick 都只剩残值时，
 峰值仍要点火）与 `ImpactRulesRoomTests`（真内容 + 真 Bepu：一次 10.7 m/s 的落地点火并炸掉，一次轻放不点火）。
+
+## 2026-10-21 修正：点火量是相对速度的**模**，不是法向投影
+
+上一节把点火归到 `PairApproachSpeed`（法向投影）是错的：原版写的是
+`c.relativeVelocity.magnitude > m_triggerSpeed`（`TNT.cs:78-83`；关卡木箱 `TNTBox.cs:22-24` 同一个量），
+而法向投影在原版里只出现在**音效**（`BasePart.PlayCollisionAudio` 遍历 `c.contacts` 取
+`Dot(relativeVelocity, contact.normal)` 的最大值）和**破件**
+（`Dot(rigidbody.GetPointVelocity(point), contact.normal)`，`BasePart.cs:975-985`）。投影量永远 ≤ 模长，
+所以旧实现对"贴着地面高速滑擦"这一整类接触判为 0：原版会炸，PigForge 不会。
+
+修正后点火与木箱读 `GameplayRules.PairRelativeSpeed`：后端在 narrow phase 记录的
+`PhysicsEvent.RelativeSpeed`（`|vA − vB|`，与 `ApproachSpeed` 同一时刻同一对速度）、上一 tick 的速度、
+最近 2 tick 的峰值三者取最大，再把同一事件的法向接近速度作为**下界**并入（投影不可能超过模长，所以这一步
+只可能抬高、不会伪造）。蛋破碎、脱钩、弹跳三条仍读 `PairApproachSpeed` —— 那里法向才是物理上正确的量。
+
+回归：`GameplayRulesTests` 既有的点火 / 木箱 / 连锁用例按新语义复核后仍绿（事件里只给 `ApproachSpeed`
+的正面撞击仍是撞击，因为投影并入下界）；新增
+`AChargeScrapedAlongASurfaceIgnitesWithNoApproachSpeed` / `ASlowSlideUnderTheThresholdLeavesTheChargeDark` /
+`ALevelCrateBlowsUpWhenARigScrapesAcrossItAtSpeed`（规则层），
+`ContactRelativeSpeedTests`（真 Bepu：滑行对报模长、法向为 0；静止对不报速度），
+`FrictionIgnitionTests`（真 Bepu + 规则：6 m/s 滑擦点火、2 m/s 不点火）。

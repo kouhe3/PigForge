@@ -55,6 +55,10 @@ prefab 实参（`tools/bple-tnt` 读出）：`Part_TNT_01..06_SET`、`Part_TimeB
 ## 4. 规则层
 
 - 点火门槛：每件自己的 `triggerSpeed`（`IgniteTntOnBody` 取 `state.TriggerSpeed`，0 回退 config）。
+  比较的量是**接触对的相对速度模**（`GameplayRules.PairRelativeSpeed`：事件自带的 `PhysicsEvent.RelativeSpeed`、
+  上一 tick 的速度、最近 2 tick 的峰值，外加同一事件的法向接近速度作下界），**不是法向投影** ——
+  原版写的是 `c.relativeVelocity.magnitude > m_triggerSpeed`（`TNT.cs:80`），所以贴着地面高速滑擦
+  （法向为 0、模长过门槛）在原版里会炸，这一条与关卡木箱共用（`docs/specs/level-props.md` §3.10）。
 - 爆炸：`GameplayRules.ApplyBlast(origin, radius, impulse, output)` —— 与关卡木箱（
   `docs/specs/level-props.md` §3.10）**同一个实现**：`impulse / max(d,1)^1.5`、质量 <0.1/<0.4 折减、
   排序后的 body 逐条 `ApplyImpulse`（确定性）。
