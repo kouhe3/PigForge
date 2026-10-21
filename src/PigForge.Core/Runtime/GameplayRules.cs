@@ -1326,30 +1326,31 @@ public sealed class GameplayRules
                             -physicsEvent.ContactNormal.X,
                             -physicsEvent.ContactNormal.Y,
                             -physicsEvent.ContactNormal.Z));
-                    // Per ADR-002 a strong impact ignites TNT, breaks an egg and fires a detacher; a
-                    // gentle touch (resting on ground) must not trigger them. The signal is the pair's
-                    // approach speed -- the same estimate the bounce gate uses (ADR-031: the impact
-                    // quantity is how fast the pair was closing, not how much either body's velocity
-                    // happened to change). Reading it off the event alone is not enough: the backend's
-                    // `ContactStarted` for a hard landing arrives after the solver has absorbed most of
-                    // it (measured on a box landing at 11.61 m/s: the event carried 2.60 m/s two steps
-                    // after the last free tick), so the recent peak is what rescues the ignition -- gap
-                    // G116.
+                    // Two different impact quantities live here, because the original reads two.
+                    // The charge and the level crate test the *magnitude* of the pair's relative
+                    // velocity (`TNT.cs:80` / `TNTBox.cs:24`: `c.relativeVelocity.magnitude`), so a
+                    // part dragged along the ground fast enough lights up even though it approaches
+                    // its contact at zero. Everything else -- the egg, the detacher, the bounce --
+                    // reads the approach along the surface normal, which is the physically right
+                    // quantity there (ADR-031). Neither reading is trusted on its own: a backend's
+                    // contact event for a hard landing arrives after the solver has absorbed most of
+                    // it (measured on a box landing at 11.61 m/s: the event carried 2.60 m/s two
+                    // steps after the last free tick), so both estimates fold in the last free tick
+                    // and the recent peak -- gap G116.
                     //
                     // Ignition reads a *persisted* contact too: the original's charge fires on its own
                     // collider's `OnCollisionEnter` (`TNT.cs:78-83`), while our contact events are per
                     // body pair, so a rig already touching the terrain body and then crashing into
                     // another face of that same body is one continuing pair and never ignited (measured
-                    // 2026-10-13: a cart drove into the level's own cliff with its charge intact). Only
-                    // the ignition moved: the egg, the detacher and the bounce are unchanged reads of
-                    // `ContactStarted`, the event that names a pair's first contact.
-                    float pairImpact = PairApproachSpeed(physicsEvent);
-                    IgniteTntOnBody(physicsEvent.BodyA, pairImpact);
-                    IgniteTntOnBody(physicsEvent.BodyB, pairImpact);
-                    ExplodePropOnImpact(physicsEvent.BodyA, pairImpact, output);
-                    ExplodePropOnImpact(physicsEvent.BodyB, pairImpact, output);
+                    // 2026-10-13: a cart drove into the level's own cliff with its charge intact).
+                    float pairRelativeSpeed = PairRelativeSpeed(physicsEvent);
+                    IgniteTntOnBody(physicsEvent.BodyA, pairRelativeSpeed);
+                    IgniteTntOnBody(physicsEvent.BodyB, pairRelativeSpeed);
+                    ExplodePropOnImpact(physicsEvent.BodyA, pairRelativeSpeed, output);
+                    ExplodePropOnImpact(physicsEvent.BodyB, pairRelativeSpeed, output);
                     if (physicsEvent.Kind == PhysicsEventKind.ContactStarted)
                     {
+                        float pairImpact = PairApproachSpeed(physicsEvent);
                         ChallengeEggsOnImpact(physicsEvent.BodyA, pairImpact, output);
                         ChallengeEggsOnImpact(physicsEvent.BodyB, pairImpact, output);
                         DetachOnImpact(physicsEvent.BodyA, pairImpact, output);
@@ -1389,7 +1390,7 @@ public sealed class GameplayRules
     /// is not that body's single representative entity -- reading the representative alone missed
     /// exactly that case, which is why a rig's TNT never blew up (measured 2026-10-13).
     /// </summary>
-    private void IgniteTntOnBody(PhysicsBodyId body, float impactSpeed)
+    private void IgniteTntOnBody(PhysicsBodyId body, float relativeSpeed)
     {
         if (!_membersByBody.TryGetValue(body.Value, out List<uint>? members))
         {
@@ -1399,12 +1400,14 @@ public sealed class GameplayRules
         foreach (uint memberValue in members)
         {
             EntityId entity = new(memberValue);
-            // Each charge's own `m_triggerSpeed` arms it (`TNT.cs:78-83`); a fixture without one falls
-            // back to the room's default.
+            // Each charge's own `m_triggerSpeed` arms it, and the comparison is the pair's relative
+            // speed magnitude (`TNT.cs:80`: `c.relativeVelocity.magnitude > m_triggerSpeed`), so a
+            // charge scraped along the ground ignites without ever approaching its contact; a
+            // fixture without a trigger speed falls back to the room's default.
             if (_tnt.TryGet(entity, out TntState tnt)
                 && !tnt.Ignited
                 && tnt.IgniteOnImpact
-                && impactSpeed >= (tnt.TriggerSpeed > 0f ? tnt.TriggerSpeed : _config.TntIgniteImpactSpeed))
+                && relativeSpeed >= (tnt.TriggerSpeed > 0f ? tnt.TriggerSpeed : _config.TntIgniteImpactSpeed))
             {
                 _tnt.Set(entity, tnt with { Ignited = true });
             }
@@ -1428,10 +1431,10 @@ public sealed class GameplayRules
     /// original has one rigidbody per collider (<c>ADR-029</c> §偏差).
     /// </para>
     /// </summary>
-    private void ExplodePropOnImpact(PhysicsBodyId body, float impactSpeed, GameplayTickOutput output)
+    private void ExplodePropOnImpact(PhysicsBodyId body, float relativeSpeed, GameplayTickOutput output)
     {
         if (!_explosiveProps.TryGetValue(body.Value, out ExplosivePropState crate)
-            || impactSpeed < crate.TriggerSpeed
+            || relativeSpeed < crate.TriggerSpeed
             || !_kinematicsByBody.TryGetValue(body.Value, out var center))
         {
             return;
@@ -1566,6 +1569,54 @@ public sealed class GameplayRules
             ApproachFromHistory(bodyA, bodyB, normal, dynamicA, dynamicB),
             physicsEvent.ApproachSpeed);
         return MathF.Max(approach, PeakApproach(bodyA, bodyB, normal, dynamicA, dynamicB));
+    }
+
+    /// <summary>
+    /// How fast the pair was moving relative to each other regardless of direction: the original's
+    /// ignition quantity (<c>TNT.cs:80</c> / <c>TNTBox.cs:24</c>:
+    /// <c>c.relativeVelocity.magnitude</c>). It is deliberately not projected onto the contact
+    /// normal, which is why a part dragged along the ground at speed lights its charge there while
+    /// it approaches that ground at zero. The strongest of the backend's pre-solve reading, the
+    /// last free tick's velocities and the recent peak, for the same reason
+    /// <see cref="PairApproachSpeed"/> folds those in: a late contact event understates an impact
+    /// (gap G116).
+    /// <para>
+    /// The approach speed is folded in as well, and it can only raise this value: the normal
+    /// projection of a relative velocity never exceeds its magnitude, so a backend that reports the
+    /// projection alone (or a fixture that models a head-on hit that way) still yields a sound
+    /// lower bound instead of a silent zero.
+    /// </para>
+    /// </summary>
+    private float PairRelativeSpeed(in PhysicsEvent physicsEvent)
+    {
+        uint bodyA = physicsEvent.BodyA.Value;
+        uint bodyB = physicsEvent.BodyB.Value;
+        float speed = MathF.Max(
+            MathF.Max(physicsEvent.RelativeSpeed, physicsEvent.ApproachSpeed),
+            RelativeFromHistory(bodyA, bodyB));
+        return MathF.Max(speed, PeakRelative(bodyA, bodyB));
+    }
+
+    /// <summary>The pair's relative speed at the last free tick. A body missing from the table is
+    /// static (or has no snapshot yet) and contributes no velocity.</summary>
+    private float RelativeFromHistory(uint bodyA, uint bodyB)
+    {
+        PhysicsVector3 relative =
+            PreviousVelocity(bodyA) - PreviousVelocity(bodyB);
+        return PhysicsVector3.Distance(relative, PhysicsVector3.Zero);
+    }
+
+    private PhysicsVector3 PreviousVelocity(uint body) =>
+        _previousVelocities.TryGetValue(body, out PhysicsVector3 velocity) ? velocity : PhysicsVector3.Zero;
+
+    /// <summary>The pair's relative speed at the peaks the two bodies recently carried. Two parts
+    /// of one rig move together, so their peaks differ by nothing and this cannot invent an impact;
+    /// bodies arriving from opposite sides differ by their sum, which is what they met at.</summary>
+    private float PeakRelative(uint bodyA, uint bodyB)
+    {
+        PhysicsVector3 peakA = TryRecentPeak(bodyA, out PhysicsVector3 first) ? first : PhysicsVector3.Zero;
+        PhysicsVector3 peakB = TryRecentPeak(bodyB, out PhysicsVector3 second) ? second : PhysicsVector3.Zero;
+        return PhysicsVector3.Distance(peakA, peakB);
     }
 
     /// <summary>How fast the pair was closing along <paramref name="normal"/> at the strongest of

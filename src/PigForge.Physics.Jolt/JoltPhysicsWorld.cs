@@ -33,6 +33,11 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
     // the rules layer reads the normal as the surface a part stands on (a driven wheel's tangent,
     // MotorWheel.cs:288), which has to survive a resting contact.
     private readonly Dictionary<ContactPair, PhysicsVector3> _contactNormals = new();
+    // The pair's pre-solve relative speed (|vA - vB|, no projection) — the quantity the original's
+    // charge and crate test (`TNT.cs:80` / `TNTBox.cs:24`: `c.relativeVelocity.magnitude`). The
+    // contact listener runs in the narrow phase, i.e. before this step's solve, so the velocities
+    // read here are the ones the pair arrived with.
+    private readonly Dictionary<ContactPair, float> _contactRelativeSpeeds = new();
     private readonly List<ContactPair> _orderedContacts = new();
     private readonly Dictionary<PhysicsJointId, TwoBodyConstraint> _joints = new();
     // Reused scratch list so destroying a body with joints stays allocation-free.
@@ -438,6 +443,7 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         ThrowIfDisposed();
         _currentContacts.Clear();
         _contactNormals.Clear();
+        _contactRelativeSpeeds.Clear();
         PhysicsUpdateError error = _physicsSystem.Update(timeStep.Seconds, collisionSteps: 1, _jobSystem);
         if (error != PhysicsUpdateError.None)
         {
@@ -450,9 +456,10 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
         foreach (ContactPair contact in _orderedContacts)
         {
             PhysicsVector3 normal = _contactNormals.GetValueOrDefault(contact);
+            float relativeSpeed = _contactRelativeSpeeds.GetValueOrDefault(contact);
             _events.Add(_activeContacts.Contains(contact)
-                ? PhysicsEvent.ContactPersisted(contact.A, contact.B, normal)
-                : PhysicsEvent.ContactStarted(contact.A, contact.B, normal));
+                ? PhysicsEvent.ContactPersisted(contact.A, contact.B, normal, 0f, relativeSpeed)
+                : PhysicsEvent.ContactStarted(contact.A, contact.B, normal, 0f, relativeSpeed));
         }
 
         _orderedContacts.Clear();
@@ -563,6 +570,16 @@ public sealed class JoltPhysicsWorld : IPhysicsWorld
 
         ContactPair key = ContactPair.Create(idA, idB);
         _currentContacts.Add(key);
+        // Jolt applies restitution itself (`PhysicsCapabilities.AppliesRestitutionNatively`), so it
+        // reports no approach speed; the relative speed is still the original's ignition quantity
+        // and is read here before the solve, like Bepu's narrow-phase callback does.
+        Vector3 relativeVelocity = body1.GetLinearVelocity() - body2.GetLinearVelocity();
+        float relativeSpeed = relativeVelocity.Length();
+        if (relativeSpeed > 0f
+            && (!_contactRelativeSpeeds.TryGetValue(key, out float existingSpeeds) || existingSpeeds < relativeSpeed))
+        {
+            _contactRelativeSpeeds[key] = relativeSpeed;
+        }
         // Jolt's `mWorldSpaceNormal` separates SECOND body of its own callback pair (measured by
         // JoltWorldReportsTheSurfaceNormalABodyRestsOn: a box resting on static ground reports
         // (0, -1, 0) for a pair whose first body is the ground, i.e. pointing down into the ground,

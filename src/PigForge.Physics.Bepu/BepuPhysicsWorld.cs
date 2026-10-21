@@ -58,6 +58,11 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     // Pre-solve impact data per contact pair, filled by the narrow phase and consumed when
     // the contact events are emitted. Cleared at the start of every step.
     private readonly Dictionary<ContactPair, float> _contactImpacts = new();
+    // The pair's pre-solve relative speed (|vA - vB|, no projection), the quantity the original's
+    // charge and crate test (`TNT.cs:80` / `TNTBox.cs:24`: `c.relativeVelocity.magnitude`). Kept
+    // beside the normal projection because the two answer different questions: a part sliding
+    // along the ground approaches at zero and still moves relative to it fast.
+    private readonly Dictionary<ContactPair, float> _contactRelativeSpeeds = new();
     // The manifold normal of every touch, oriented against the pair's own key order. Bepu's
     // manifold normal already pushes `pair.A` away from `pair.B` (verified against the engine: a
     // dynamic body resting on a static floor reports (0, 1, 0) for pair.A = the dynamic body), so
@@ -942,6 +947,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         ThrowIfDisposed();
         _currentContacts.Clear();
         _contactImpacts.Clear();
+        _contactRelativeSpeeds.Clear();
         _contactNormals.Clear();
         _simulation.Timestep(timeStep.Seconds);
         ApplyFrozenDegreesOfFreedom();
@@ -954,9 +960,10 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         {
             PhysicsVector3 normal = _contactNormals.GetValueOrDefault(contact);
             float approachSpeed = _contactImpacts.GetValueOrDefault(contact);
+            float relativeSpeed = _contactRelativeSpeeds.GetValueOrDefault(contact);
             _events.Add(_activeContacts.Contains(contact)
-                ? PhysicsEvent.ContactPersisted(contact.A, contact.B, normal, approachSpeed)
-                : PhysicsEvent.ContactStarted(contact.A, contact.B, normal, approachSpeed));
+                ? PhysicsEvent.ContactPersisted(contact.A, contact.B, normal, approachSpeed, relativeSpeed)
+                : PhysicsEvent.ContactStarted(contact.A, contact.B, normal, approachSpeed, relativeSpeed));
         }
 
         _orderedContacts.Clear();
@@ -1055,6 +1062,7 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         _activeContacts.Clear();
         _currentContacts.Clear();
         _contactImpacts.Clear();
+        _contactRelativeSpeeds.Clear();
         _contactNormals.Clear();
         _orderedContacts.Clear();
     }
@@ -1102,6 +1110,8 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
     /// is what the rules layer synthesizes restitution from (Bepu 2.4.0 has no restitution term).
     /// A resting or separating touch approaches at zero and records nothing; the reduction keeps
     /// the strongest approach, so the emitted speed cannot depend on manifold iteration order.
+    /// The same pre-solve relative velocity also yields the pair's own relative speed
+    /// (<see cref="PhysicsEvent.RelativeSpeed"/>), which the original reads as a magnitude.
     /// </summary>
     private void RecordContactImpact(CollidablePair pair, Vector3 normal)
     {
@@ -1113,13 +1123,19 @@ public sealed class BepuPhysicsWorld : IPhysicsWorld
         }
 
         ContactPair key = ContactPair.Create(bodyA, bodyB);
-        float approachSpeed = MathF.Abs(Vector3.Dot(GetPreSolveLinearVelocity(pair.A) - GetPreSolveLinearVelocity(pair.B), normal));
-        if (approachSpeed <= 0f || (_contactImpacts.TryGetValue(key, out float existing) && existing >= approachSpeed))
+        Vector3 relativeVelocity = GetPreSolveLinearVelocity(pair.A) - GetPreSolveLinearVelocity(pair.B);
+        RecordStrongest(_contactImpacts, key, MathF.Abs(Vector3.Dot(relativeVelocity, normal)));
+        RecordStrongest(_contactRelativeSpeeds, key, relativeVelocity.Length());
+    }
+
+    private static void RecordStrongest(Dictionary<ContactPair, float> speeds, ContactPair key, float speed)
+    {
+        if (speed <= 0f || (speeds.TryGetValue(key, out float existing) && existing >= speed))
         {
             return;
         }
 
-        _contactImpacts[key] = approachSpeed;
+        speeds[key] = speed;
     }
 
     private static int CompareContactNormals(PhysicsVector3 left, PhysicsVector3 right)

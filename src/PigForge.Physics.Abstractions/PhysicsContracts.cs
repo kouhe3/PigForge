@@ -956,7 +956,8 @@ public readonly record struct PhysicsEvent
 		PhysicsBodyId bodyB,
 		PhysicsJointId joint,
 		PhysicsVector3 contactNormal,
-		float approachSpeed)
+		float approachSpeed,
+		float relativeSpeed)
 	{
 		Kind = kind;
 		BodyA = bodyA;
@@ -964,6 +965,7 @@ public readonly record struct PhysicsEvent
 		Joint = joint;
 		ContactNormal = contactNormal;
 		ApproachSpeed = approachSpeed;
+		RelativeSpeed = relativeSpeed;
 	}
 
 	public PhysicsEventKind Kind { get; }
@@ -983,22 +985,35 @@ public readonly record struct PhysicsEvent
 	/// Only contact events carry it.</summary>
 	public float ApproachSpeed { get; }
 
+	/// <summary>
+	/// How fast the pair was moving relative to each other regardless of direction — the magnitude
+	/// of the relative velocity, measured before the solver ran, in metres per second. This is the
+	/// quantity the original's charge and its level crate both test
+	/// (<c>TNT.cs:80</c> / <c>TNTBox.cs:24</c>: <c>c.relativeVelocity.magnitude</c>), which is why
+	/// it is <em>not</em> <see cref="ApproachSpeed"/>: a part dragged along the ground at speed
+	/// approaches its contact at zero but moves relative to it fast, and the original lights the
+	/// charge on that too.
+	/// </summary>
+	public float RelativeSpeed { get; }
+
 	public static PhysicsEvent ContactStarted(
 		PhysicsBodyId bodyA,
 		PhysicsBodyId bodyB,
 		PhysicsVector3 contactNormal = default,
-		float approachSpeed = 0f) =>
-		Contact(PhysicsEventKind.ContactStarted, bodyA, bodyB, contactNormal, approachSpeed);
+		float approachSpeed = 0f,
+		float relativeSpeed = 0f) =>
+		Contact(PhysicsEventKind.ContactStarted, bodyA, bodyB, contactNormal, approachSpeed, relativeSpeed);
 
 	public static PhysicsEvent ContactPersisted(
 		PhysicsBodyId bodyA,
 		PhysicsBodyId bodyB,
 		PhysicsVector3 contactNormal = default,
-		float approachSpeed = 0f) =>
-		Contact(PhysicsEventKind.ContactPersisted, bodyA, bodyB, contactNormal, approachSpeed);
+		float approachSpeed = 0f,
+		float relativeSpeed = 0f) =>
+		Contact(PhysicsEventKind.ContactPersisted, bodyA, bodyB, contactNormal, approachSpeed, relativeSpeed);
 
 	public static PhysicsEvent ContactEnded(PhysicsBodyId bodyA, PhysicsBodyId bodyB) =>
-		Contact(PhysicsEventKind.ContactEnded, bodyA, bodyB, default, 0f);
+		Contact(PhysicsEventKind.ContactEnded, bodyA, bodyB, default, 0f, 0f);
 
 	public static PhysicsEvent JointBroken(PhysicsJointId joint)
 	{
@@ -1007,7 +1022,7 @@ public readonly record struct PhysicsEvent
 			throw new ArgumentException("A joint break event must reference a valid joint.", nameof(joint));
 		}
 
-		return new(PhysicsEventKind.JointBroken, default, default, joint, default, 0f);
+		return new(PhysicsEventKind.JointBroken, default, default, joint, default, 0f, 0f);
 	}
 
 	public static PhysicsEvent BodyCreated(PhysicsBodyId body) => Lifecycle(PhysicsEventKind.BodyCreated, body);
@@ -1018,7 +1033,8 @@ public readonly record struct PhysicsEvent
 		PhysicsBodyId bodyA,
 		PhysicsBodyId bodyB,
 		PhysicsVector3 contactNormal,
-		float approachSpeed)
+		float approachSpeed,
+		float relativeSpeed)
 	{
 		if (!bodyA.IsValid || !bodyB.IsValid || bodyA == bodyB)
 		{
@@ -1035,12 +1051,17 @@ public readonly record struct PhysicsEvent
 			throw new ArgumentOutOfRangeException(nameof(approachSpeed), "An approach speed must be finite and non-negative.");
 		}
 
+		if (!float.IsFinite(relativeSpeed) || relativeSpeed < 0f)
+		{
+			throw new ArgumentOutOfRangeException(nameof(relativeSpeed), "A relative speed must be finite and non-negative.");
+		}
+
 		if (approachSpeed > 0f && contactNormal == PhysicsVector3.Zero)
 		{
 			throw new ArgumentException("A contact event with a non-zero approach speed needs a contact normal.", nameof(contactNormal));
 		}
 
-		return new(kind, bodyA, bodyB, default, contactNormal, approachSpeed);
+		return new(kind, bodyA, bodyB, default, contactNormal, approachSpeed, relativeSpeed);
 	}
 
 	private static PhysicsEvent Lifecycle(PhysicsEventKind kind, PhysicsBodyId body)
@@ -1050,7 +1071,7 @@ public readonly record struct PhysicsEvent
 			throw new ArgumentException("A body lifecycle event must reference a valid body.", nameof(body));
 		}
 
-		return new(kind, body, default, default, default, 0f);
+		return new(kind, body, default, default, default, 0f, 0f);
 	}
 }
 

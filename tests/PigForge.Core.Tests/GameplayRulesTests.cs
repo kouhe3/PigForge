@@ -148,6 +148,102 @@ public sealed class GameplayRulesTests
         Assert.Equal(GameplayPhase.Playing, harness.Rules.Phase);
     }
 
+    /// <summary>
+    /// The original's charge does not measure an impact along the surface normal, it measures the
+    /// pair's relative velocity magnitude (<c>TNT.cs:80</c>: <c>c.relativeVelocity.magnitude &gt;
+    /// m_triggerSpeed</c>), so scraping along something at speed lights it while the approach along
+    /// that surface stays zero. Both bodies are ingested at rest here, so nothing but the event's
+    /// own reading can supply the speed.
+    /// </summary>
+    [Fact]
+    public void AChargeScrapedAlongASurfaceIgnitesWithNoApproachSpeed()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId charge = entities.Create();
+        EntityId ground = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 0);
+        harness.Link(charge, new PhysicsBodyId(1));
+        harness.Link(ground, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, -1, 0), PhysicsVector3.Zero);
+
+        // Resting on the ground, sliding across it: the normal points +y, the pair closes at 0 m/s
+        // and moves relative to each other at 6 m/s. The room's ignition threshold is 5.
+        harness.Tick(1,
+        [
+            PhysicsEvent.ContactPersisted(
+                new PhysicsBodyId(1),
+                new PhysicsBodyId(2),
+                new PhysicsVector3(0f, 1f, 0f),
+                approachSpeed: 0f,
+                relativeSpeed: 6f),
+        ]);
+
+        Assert.Contains(charge, harness.Output.DestroyedEntities);
+    }
+
+    /// <summary>
+    /// The magnitude gate is still a gate: a sliding pair under the threshold must not fire, or every
+    /// vehicle would detonate on its first metre of travel.
+    /// </summary>
+    [Fact]
+    public void ASlowSlideUnderTheThresholdLeavesTheChargeDark()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId charge = entities.Create();
+        EntityId ground = entities.Create();
+        harness.Rules.AddTnt(charge, fuseTicks: 0);
+        harness.Link(charge, new PhysicsBodyId(1));
+        harness.Link(ground, new PhysicsBodyId(2));
+        harness.IngestBody(new PhysicsBodyId(1), PhysicsVector3.Zero, PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), new PhysicsVector3(0, -1, 0), PhysicsVector3.Zero);
+
+        harness.Tick(1,
+        [
+            PhysicsEvent.ContactPersisted(
+                new PhysicsBodyId(1),
+                new PhysicsBodyId(2),
+                new PhysicsVector3(0f, 1f, 0f),
+                approachSpeed: 0f,
+                relativeSpeed: 1.5f),
+        ]);
+
+        Assert.DoesNotContain(charge, harness.Output.DestroyedEntities);
+        Assert.Empty(harness.Output.Commands);
+    }
+
+    /// <summary>
+    /// The level crate runs the original's own <c>TNTBox.OnCollisionEnter</c>, which reads the same
+    /// relative-velocity magnitude (<c>TNTBox.cs:22-24</c>), so a rig skating along a crate lights it
+    /// the way a head-on hit does.
+    /// </summary>
+    [Fact]
+    public void ALevelCrateBlowsUpWhenARigScrapesAcrossItAtSpeed()
+    {
+        EntityStore entities = new();
+        GameplayHarness harness = new(entities, FarZonesConfig());
+        EntityId rig = entities.Create();
+        harness.Link(rig, new PhysicsBodyId(1));
+        harness.Rules.AddExplosiveProp(new PhysicsBodyId(2), propIndex: 7, triggerSpeed: 2f, radius: 8f, impulse: 25f);
+        harness.IngestBody(new PhysicsBodyId(1), new PhysicsVector3(3, 0, 0), PhysicsVector3.Zero);
+        harness.IngestBody(new PhysicsBodyId(2), PhysicsVector3.Zero, PhysicsVector3.Zero);
+
+        harness.Tick(1,
+        [
+            PhysicsEvent.ContactPersisted(
+                new PhysicsBodyId(1),
+                new PhysicsBodyId(2),
+                new PhysicsVector3(0f, 1f, 0f),
+                approachSpeed: 0f,
+                relativeSpeed: 5f),
+        ]);
+
+        Assert.Equal([7], harness.Output.CollectedProps);
+        Assert.Single(harness.Output.Commands);
+    }
+
     [Fact]
     public void TntSwitchIgnitesAndChainsIntoNeighbouringCharges()
     {
